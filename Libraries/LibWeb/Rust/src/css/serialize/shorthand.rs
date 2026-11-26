@@ -420,6 +420,14 @@ pub(super) fn serialize(
         }
         property_id::BACKGROUND | property_id::MASK => {
             let background = property == property_id::BACKGROUND;
+            // NB: The mask shorthand can only reset mask-border, so a mask-border of another value leaves it
+            //     without a serialization.
+            if !background
+                && !text(get(property_id::MASK_BORDER), mode)
+                    .content_equals(&text(&initial(property_id::MASK_BORDER), mode))
+            {
+                return;
+            }
             let ids = if background {
                 &[
                     property_id::BACKGROUND_COLOR,

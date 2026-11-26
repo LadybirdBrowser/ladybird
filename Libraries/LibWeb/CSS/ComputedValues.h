@@ -708,6 +708,7 @@ public:
         // The mask layer the first mask-image names by URL, if it does.
         Optional<URL> mask_url_value() const;
         Vector<RefPtr<AbstractImageStyleValue const>> mask_images_value() const;
+        RefPtr<AbstractImageStyleValue const> mask_border_source_value() const;
         // https://drafts.fxtf.org/css-masking/#the-clip-path
         // TODO: Support basic shapes and geometry boxes.
         Optional<URL> clip_path_value() const;

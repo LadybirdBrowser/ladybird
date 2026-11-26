@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 55 tests
 
-45 Pass
-10 Fail
+53 Pass
+2 Fail
 Pass	e.style['mask'] = "none" should set the property value
 Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue)" should set the property value
 Pass	e.style['mask'] = "linear-gradient(to left bottom, red, blue) luminance" should set the property value
@@ -31,11 +31,11 @@ Pass	e.style['mask'] = "border-box no-clip" should set the property value
 Pass	e.style['mask'] = "intersect no-clip space round 1px 2px / contain stroke-box linear-gradient(to left bottom, red, blue) luminance" should set the property value
 Pass	e.style['mask'] = "intersect no-clip space round 1px 2px / contain view-box, stroke-box linear-gradient(to left bottom, red, blue) luminance" should set the property value
 Pass	e.style['mask'] = "none alpha" should set the property value
-Fail	e.style['mask'] = "none" should set mask-border-outset
-Fail	e.style['mask'] = "none" should set mask-border-repeat
-Fail	e.style['mask'] = "none" should set mask-border-slice
-Fail	e.style['mask'] = "none" should set mask-border-source
-Fail	e.style['mask'] = "none" should set mask-border-width
+Pass	e.style['mask'] = "none" should set mask-border-outset
+Pass	e.style['mask'] = "none" should set mask-border-repeat
+Pass	e.style['mask'] = "none" should set mask-border-slice
+Pass	e.style['mask'] = "none" should set mask-border-source
+Pass	e.style['mask'] = "none" should set mask-border-width
 Pass	e.style['mask'] = "none" should set mask-clip
 Pass	e.style['mask'] = "none" should set mask-composite
 Pass	e.style['mask'] = "none" should set mask-image
@@ -44,12 +44,12 @@ Pass	e.style['mask'] = "none" should set mask-origin
 Pass	e.style['mask'] = "none" should set mask-position
 Pass	e.style['mask'] = "none" should set mask-repeat
 Pass	e.style['mask'] = "none" should set mask-size
-Pass	e.style['mask'] = "none" should not set unrelated longhands
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-outset
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-repeat
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-slice
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-source
-Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-width
+Fail	e.style['mask'] = "none" should not set unrelated longhands
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-outset
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-repeat
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-slice
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-source
+Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-border-width
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-clip
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-composite
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-image
@@ -58,4 +58,4 @@ Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-position
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-repeat
 Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should set mask-size
-Pass	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should not set unrelated longhands
+Fail	e.style['mask'] = "none, linear-gradient(to left bottom, red, blue) padding-box" should not set unrelated longhands

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Resetting mask shorthand subproperties</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.fxtf.org/css-masking/#the-mask">
+<meta name="assert" content="All subproperties of the masking property are first reset to their initial values.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="test"></div>
+<script>
+
+function set_subproperty(property, value) {
+  const element = document.getElementById('test')
+  element.style = ''
+  element.style[property] = value
+}
+
+function test_shorthand_resetting_subproperty(property, newValue) {
+  if (!CSS.supports(property, newValue))
+    return
+  test(() => {
+    let testElem = document.getElementById('test');
+    let computed = window.getComputedStyle(testElem);
+    let initialValue = computed[property];
+    set_subproperty(property, newValue);
+    document.getElementById('test').style.mask = 'url("#mask")';
+    assert_equals(computed[property], initialValue);
+    assert_not_equals(computed.mask, "");
+  }, 'Property ' + property + ' should be reset to its initial value.')
+}
+
+test_shorthand_resetting_subproperty('mask-border-mode', 'luminance');
+test_shorthand_resetting_subproperty('mask-border-outset', '10px 20px 30px 40px');
+test_shorthand_resetting_subproperty('mask-border-repeat', 'round space');
+test_shorthand_resetting_subproperty('mask-border-slice', '1 2 3 4 fill');
+test_shorthand_resetting_subproperty('mask-border-source', 'url("#mask-border")');
+test_shorthand_resetting_subproperty('mask-border-width', '10px 20px 30px 40px');
+test_shorthand_resetting_subproperty('mask-clip', 'no-clip')
+test_shorthand_resetting_subproperty('mask-composite', 'subtract')
+test_shorthand_resetting_subproperty('mask-image', 'url("#mask-image")')
+test_shorthand_resetting_subproperty('mask-mode', 'luminance')
+test_shorthand_resetting_subproperty('mask-origin', 'content-box')
+test_shorthand_resetting_subproperty('mask-position', '10px 10px')
+test_shorthand_resetting_subproperty('mask-repeat', 'no-repeat')
+test_shorthand_resetting_subproperty('mask-size', '10px')
+</script>
+</body>
+</html>

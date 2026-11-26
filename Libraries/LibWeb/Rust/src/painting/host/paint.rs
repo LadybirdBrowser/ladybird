@@ -508,6 +508,7 @@ pub enum FfiLayerImageList {
     Background,
     Mask,
     BorderImageSource,
+    MaskBorderSource,
 }
 
 #[derive(Clone, Copy, Debug)]

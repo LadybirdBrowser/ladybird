@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 157 tests
+Found 160 tests
 
-157 Pass
+160 Pass
 Pass	-webkit-text-stroke-width: 10px; parent=10px; child=10px
 Pass	border-spacing: 10px; parent=10px; child=10px
 Pass	font-size: 10px; parent=10px; child=10px
@@ -87,6 +87,9 @@ Pass	margin-inline-start: 10px; parent=10px; child=10px
 Pass	margin-left: 10px; parent=10px; child=10px
 Pass	margin-right: 10px; parent=10px; child=10px
 Pass	margin-top: 10px; parent=10px; child=10px
+Pass	mask-border-outset: 10px; parent=10px; child=10px
+Pass	mask-border-source: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
+Pass	mask-border-width: 10px; parent=10px; child=10px
 Pass	mask-image: linear-gradient(black 10px, white 20px); parent=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px); child=linear-gradient(rgb(0, 0, 0) 10px, rgb(255, 255, 255) 20px)
 Pass	mask-position: 10px; parent=10px 50%; child=10px 50%
 Pass	mask-size: 10px; parent=10px auto; child=10px auto

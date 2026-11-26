@@ -242,7 +242,44 @@ impl<O: Observer> PaintRecorder<'_, O> {
             visible_device_rect: None,
         };
         crate::painting::record::paint::background::paint_resolved_background(self, paintable, &inputs);
+        if crate::painting::style_queries::mask_border_has_image(style.mask()) {
+            self.paint_mask_border(paintable, style);
+        }
         self.recorder.restore_force_dark(suspended_force_dark);
+    }
+
+    // https://drafts.csswg.org/css-masking-1/#masking-with-the-mask-border-image
+    fn paint_mask_border(
+        &mut self,
+        paintable: NodeSlotId,
+        style: crate::css::computed_value_views::ComputedValuesView<'_>,
+    ) {
+        use crate::painting::record::paint::{border, border_image};
+        // INTEROP: The spec masks the element by the mask layers and the mask border image one after the other, but
+        //          engines that support a mask border paint it into the same mask as the mask layers, so content that
+        //          either of them covers stays visible.
+        // INTEROP: The spec has a mask border image that can't be displayed not mask the element, but engines that
+        //          support a mask border mask the element by it as by an image that paints nothing, which also keeps
+        //          an element whose mask border image is still loading from flashing unmasked.
+        // INTEROP: The spec leaves the content under the middle part of a mask border image whose slice has no fill
+        //          unmasked, but engines that support a mask border paint nothing there, like for a border image, so
+        //          it masks that content out.
+        // FIXME: Respect mask-border-mode: luminance.
+        let border_widths = border::present_css_border_widths(
+            style,
+            crate::painting::paintable_geometry::committed_border(self.source, paintable),
+            border::ALL_PIECE_EDGES,
+        );
+        let border_box_rect = crate::painting::paintable_geometry::absolute_border_box_rect(self.source, paintable);
+        border_image::paint_nine_piece_image(
+            self,
+            paintable,
+            style,
+            border_image::mask_border_values(style),
+            border_widths,
+            border::ALL_PIECE_EDGES,
+            border_box_rect,
+        );
     }
 
     pub(crate) fn walk_svg_resource(

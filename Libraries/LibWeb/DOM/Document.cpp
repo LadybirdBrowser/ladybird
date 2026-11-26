@@ -8671,10 +8671,12 @@ static bool svg_box_uses_its_bounding_box(Layout::NodeWithStyle const& svg_box)
             return true;
     }
 
-    // NB: The same goes for a mask element whose area and content are both in user space, and not for a mask image.
-    auto has_mask = svg_box.style_group<CSS::ComputedValues::MaskValues>().mask_url_value().has_value()
-        || any_of(svg_box.mask_images(), [](auto const& image) { return image; });
-    if (has_mask) {
+    // NB: A mask image or mask border image is sized from the bounding box.
+    if (any_of(svg_box.mask_images(), [](auto const& image) { return image; }) || svg_box.mask_border_source())
+        return true;
+
+    // NB: So is a mask element, unless its area and content are both in user space.
+    if (svg_box.style_group<CSS::ComputedValues::MaskValues>().mask_url_value().has_value()) {
         auto const* mask_box = resource_box(Layout::RustFFI::NodeKind::SVGMaskBox);
         auto const* mask = mask_box ? as_if<SVG::SVGMaskElement>(mask_box->dom_node()) : nullptr;
         if (!mask || mask->mask_units() != SVG::MaskUnits::UserSpaceOnUse || mask->mask_content_units() != SVG::MaskContentUnits::UserSpaceOnUse)

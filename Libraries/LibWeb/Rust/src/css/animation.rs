@@ -7760,6 +7760,8 @@ fn is_four_sided_property(property_id: u16) -> bool {
         property_id,
         crate::css::property_metadata::property_id::BORDER_IMAGE_OUTSET
             | crate::css::property_metadata::property_id::BORDER_IMAGE_WIDTH
+            | crate::css::property_metadata::property_id::MASK_BORDER_OUTSET
+            | crate::css::property_metadata::property_id::MASK_BORDER_WIDTH
     )
 }
 

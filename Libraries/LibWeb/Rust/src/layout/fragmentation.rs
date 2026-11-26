@@ -59,7 +59,7 @@ pub(crate) const MAXIMUM_COLUMN_COUNT: usize = 1000;
 
 pub(crate) fn effects_need_unbroken_box(style: ComputedValuesView<'_>) -> bool {
     crate::painting::style_queries::clip_path_has_value(style.mask())
-        || crate::painting::style_queries::mask_layers_have_image(style.mask())
+        || crate::painting::style_queries::has_css_mask_image(style.mask())
         || style.effects().backdrop_filter.operations.length != 0
 }
 

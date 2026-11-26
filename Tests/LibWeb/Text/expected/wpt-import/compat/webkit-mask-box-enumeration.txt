@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	webkitMaskBoxImage found on CSSStyleDeclaration
+Pass	webkitMaskBoxImageOutset found on CSSStyleDeclaration
+Pass	webkitMaskBoxImageRepeat found on CSSStyleDeclaration
+Pass	webkitMaskBoxImageSlice found on CSSStyleDeclaration
+Pass	webkitMaskBoxImageSource found on CSSStyleDeclaration
+Pass	webkitMaskBoxImageWidth found on CSSStyleDeclaration

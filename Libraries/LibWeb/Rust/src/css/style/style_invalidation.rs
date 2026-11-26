@@ -261,6 +261,7 @@ fn value_creates_stacking_context(property: u16, values: ComputedValuesView<'_>)
         property_id::BACKDROP_FILTER => !effects.backdrop_filter.operations.as_slice().is_empty(),
         property_id::CLIP_PATH => !style_value_is_none(mask.clip_path.data()),
         property_id::MASK_IMAGE => !style_value_is_none(mask.mask_image.data()),
+        property_id::MASK_BORDER_SOURCE => !style_value_is_none(mask.mask_border_source.data()),
         property_id::VIEW_TRANSITION_NAME => {
             !style_value_is_none(values.misc_interaction().view_transition_name.data())
         }
@@ -320,6 +321,9 @@ fn will_change_creates_stacking_context(values: ComputedValuesView<'_>) -> bool 
                 | property_id::CLIP_PATH
                 | property_id::MASK
                 | property_id::MASK_IMAGE
+                | property_id::MASK_BORDER
+                | property_id::MASK_BORDER_SOURCE
+                | property_id::_WEBKIT_MASK_BOX_IMAGE
                 | property_id::ISOLATION
                 | property_id::MIX_BLEND_MODE
                 | property_id::Z_INDEX
@@ -347,6 +351,13 @@ fn will_change_covers_property(property: u16, values: ComputedValuesView<'_>) ->
                 )
             })
         }
+        // NB: Its shorthands name it too.
+        property_id::MASK_BORDER_SOURCE => will_change_mentions(values, |named| {
+            matches!(
+                named,
+                property_id::MASK_BORDER_SOURCE | property_id::MASK_BORDER | property_id::_WEBKIT_MASK_BOX_IMAGE
+            )
+        }),
         property_id::OPACITY
         | property_id::FILTER
         | property_id::BACKDROP_FILTER
@@ -391,6 +402,7 @@ fn has_transform_style_grouping_property(values: ComputedValuesView<'_>) -> bool
         || !style_value_is_none(mask.clip_path.data())
         || effects.isolation == crate::css::css_enums::isolation::ISOLATE
         || !style_value_is_none(mask.mask_image.data())
+        || !style_value_is_none(mask.mask_border_source.data())
         || effects.mix_blend_mode != crate::css::css_enums::mix_blend_mode::NORMAL
         || !effects.backdrop_filter.operations.as_slice().is_empty()
 }
@@ -462,6 +474,8 @@ fn accumulated_visual_context_property_always_requires_repaint(property: u16) ->
             | property_id::BORDER_BOTTOM_RIGHT_RADIUS
             | property_id::BORDER_TOP_LEFT_RADIUS
             | property_id::BORDER_TOP_RIGHT_RADIUS
+            | property_id::MASK_BORDER_OUTSET
+            | property_id::MASK_BORDER_SOURCE
             | property_id::MASK_IMAGE
             | property_id::MASK_TYPE
             | property_id::MIX_BLEND_MODE
@@ -905,7 +919,10 @@ impl RetainedState {
             }
             if matches!(
                 property,
-                property_id::BACKGROUND_IMAGE | property_id::BORDER_IMAGE_SOURCE | property_id::MASK_IMAGE
+                property_id::BACKGROUND_IMAGE
+                    | property_id::BORDER_IMAGE_SOURCE
+                    | property_id::MASK_IMAGE
+                    | property_id::MASK_BORDER_SOURCE
             ) {
                 ffi_result.requires_style_resource_update = true;
             }

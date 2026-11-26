@@ -236,6 +236,31 @@
   "-webkit-mask": {
     "legacy-alias-for": "mask"
   },
+  "-webkit-mask-box-image": {
+    "initial": "none",
+    "longhands": [
+      "mask-border-source",
+      "mask-border-slice",
+      "mask-border-width",
+      "mask-border-outset",
+      "mask-border-repeat"
+    ]
+  },
+  "-webkit-mask-box-image-outset": {
+    "legacy-alias-for": "mask-border-outset"
+  },
+  "-webkit-mask-box-image-repeat": {
+    "legacy-alias-for": "mask-border-repeat"
+  },
+  "-webkit-mask-box-image-slice": {
+    "legacy-alias-for": "mask-border-slice"
+  },
+  "-webkit-mask-box-image-source": {
+    "legacy-alias-for": "mask-border-source"
+  },
+  "-webkit-mask-box-image-width": {
+    "legacy-alias-for": "mask-border-width"
+  },
   "-webkit-mask-clip": {
     "legacy-alias-for": "mask-clip"
   },
@@ -3809,7 +3834,6 @@
     "needs-layout-for-getcomputedstyle": true
   },
   "mask": {
-    "__comment": "FIXME: reset mask-border",
     "affects-layout": false,
     "initial": "none",
     "multiplicity": "coordinating-list",
@@ -3821,8 +3845,108 @@
       "mask-origin",
       "mask-position",
       "mask-repeat",
-      "mask-size"
+      "mask-size",
+      "mask-border"
     ]
+  },
+  "mask-border": {
+    "initial": "none",
+    "longhands": [
+      "mask-border-source",
+      "mask-border-slice",
+      "mask-border-width",
+      "mask-border-outset",
+      "mask-border-repeat",
+      "mask-border-mode"
+    ]
+  },
+  "mask-border-mode": {
+    "style-group": "MaskValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "alpha",
+    "requires-computation": "never",
+    "valid-types": [
+      "mask-type"
+    ]
+  },
+  "mask-border-outset": {
+    "style-group": "MaskValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "max-values": 4,
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]",
+      "number [0,∞]"
+    ]
+  },
+  "mask-border-repeat": {
+    "style-group": "MaskValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "stretch",
+    "max-values": 2,
+    "requires-computation": "never",
+    "valid-types": [
+      "border-image-repeat"
+    ]
+  },
+  "mask-border-slice": {
+    "style-group": "MaskValues",
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "0",
+    "requires-computation": "cascaded-value",
+    "valid-identifiers": [
+      "fill"
+    ],
+    "valid-types": [
+      "number [0,∞]",
+      "percentage [0,∞]"
+    ],
+    "needs-layout-for-getcomputedstyle": true
+  },
+  "mask-border-source": {
+    "style-group": "MaskValues",
+    "affects-accumulated-visual-contexts": true,
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "image"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
+  "mask-border-width": {
+    "style-group": "MaskValues",
+    "affects-layout": false,
+    "animation-type": "by-computed-value",
+    "inherited": false,
+    "initial": "auto",
+    "max-values": 4,
+    "requires-computation": "cascaded-value",
+    "valid-types": [
+      "length [0,∞]",
+      "percentage [0,∞]",
+      "number [0,∞]"
+    ],
+    "valid-identifiers": [
+      "auto"
+    ],
+    "percentages-resolve-to": "length",
+    "needs-layout-for-getcomputedstyle": true
   },
   "mask-clip": {
     "style-group": "MaskValues",

@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/will-change-legacy-alias-creates-stacking-context-ref.html" />
+<style>
+    body { margin: 0; }
+    .parent { width: 100px; height: 100px; background: red; will-change: -webkit-mask-box-image-source; }
+    .child { position: absolute; left: 0; top: 0; width: 100px; height: 100px; background: green; z-index: -1; }
+</style>
+<!-- will-change names a property by its legacy alias too. A negative z-index child paints over its parent's background only when the parent is a stacking context. -->
+<div class="parent"><div class="child"></div></div>

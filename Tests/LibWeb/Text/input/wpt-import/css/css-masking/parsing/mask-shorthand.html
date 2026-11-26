@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Masking Module Level 1: mask sets longhands</title>
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<link rel="help" href="https://drafts.fxtf.org/css-masking/#the-mask">
+<meta name="assert" content="mask sets all of its longhands, omitted longhands to their initial values, and resets mask-border.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('mask', 'url("https://example.com/") repeat-x top left', {
+  'mask-image': 'url("https://example.com/")',
+  'mask-position': 'left top',
+  'mask-size': 'auto',
+  'mask-repeat': 'repeat-x',
+  'mask-origin': 'border-box',
+  'mask-clip': 'border-box',
+  'mask-composite': 'add',
+  'mask-mode': 'match-source',
+  'mask-border-source': 'none',
+  'mask-border-outset': '0',
+  'mask-border-repeat': 'stretch',
+  'mask-border-slice': '0',
+  'mask-border-width': 'auto',
+});
+
+test_shorthand_value('mask', 'url("https://example.com/") repeat-y 50% 50%', {
+  'mask-image': 'url("https://example.com/")',
+  'mask-position': '50% 50%',
+  'mask-size': 'auto',
+  'mask-repeat': 'repeat-y',
+  'mask-origin': 'border-box',
+  'mask-clip': 'border-box',
+  'mask-composite': 'add',
+  'mask-mode': 'match-source',
+  'mask-border-source': 'none',
+  'mask-border-outset': '0',
+  'mask-border-repeat': 'stretch',
+  'mask-border-slice': '0',
+  'mask-border-width': 'auto',
+});
+
+test_shorthand_value('mask', 'url("https://example.com/") repeat center', {
+  'mask-image': 'url("https://example.com/")',
+  'mask-position': 'center center',
+  'mask-size': 'auto',
+  'mask-repeat': 'repeat',
+  'mask-origin': 'border-box',
+  'mask-clip': 'border-box',
+  'mask-composite': 'add',
+  'mask-mode': 'match-source',
+  'mask-border-source': 'none',
+  'mask-border-outset': '0',
+  'mask-border-repeat': 'stretch',
+  'mask-border-slice': '0',
+  'mask-border-width': 'auto',
+});
+
+test_shorthand_value('mask', 'url("https://example.com/") no-repeat 12px', {
+  'mask-image': 'url("https://example.com/")',
+  'mask-position': '12px center',
+  'mask-size': 'auto',
+  'mask-repeat': 'no-repeat',
+  'mask-origin': 'border-box',
+  'mask-clip': 'border-box',
+  'mask-composite': 'add',
+  'mask-mode': 'match-source',
+  'mask-border-source': 'none',
+  'mask-border-outset': '0',
+  'mask-border-repeat': 'stretch',
+  'mask-border-slice': '0',
+  'mask-border-width': 'auto',
+});
+
+test_shorthand_value('mask', 'url("https://example.com/") round left 50px', {
+  'mask-image': 'url("https://example.com/")',
+  'mask-position': 'left 50px',
+  'mask-size': 'auto',
+  'mask-repeat': 'round',
+  'mask-origin': 'border-box',
+  'mask-clip': 'border-box',
+  'mask-composite': 'add',
+  'mask-mode': 'match-source',
+  'mask-border-source': 'none',
+  'mask-border-outset': '0',
+  'mask-border-repeat': 'stretch',
+  'mask-border-slice': '0',
+  'mask-border-width': 'auto',
+});
+
+test_shorthand_value('mask', 'url("https://example.com/") space 25px 25px', {
+  'mask-image': 'url("https://example.com/")',
+  'mask-position': '25px 25px',
+  'mask-size': 'auto',
+  'mask-repeat': 'space',
+  'mask-origin': 'border-box',
+  'mask-clip': 'border-box',
+  'mask-composite': 'add',
+  'mask-mode': 'match-source',
+  'mask-border-source': 'none',
+  'mask-border-outset': '0',
+  'mask-border-repeat': 'stretch',
+  'mask-border-slice': '0',
+  'mask-border-width': 'auto',
+});
+</script>
+</body>
+</html>

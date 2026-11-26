@@ -3419,17 +3419,46 @@ fn serialize_shorthand(
         }
         return;
     }
-    if shorthand_property == property_id::BORDER_IMAGE {
-        for (index, (id, separator)) in [
-            (property_id::BORDER_IMAGE_SOURCE, ""),
-            (property_id::BORDER_IMAGE_SLICE, " "),
-            (property_id::BORDER_IMAGE_WIDTH, " / "),
-            (property_id::BORDER_IMAGE_OUTSET, " / "),
-            (property_id::BORDER_IMAGE_REPEAT, " "),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+    if matches!(
+        shorthand_property,
+        property_id::BORDER_IMAGE | property_id::MASK_BORDER | property_id::_WEBKIT_MASK_BOX_IMAGE
+    ) {
+        let components: &[(u16, &str)] = match shorthand_property {
+            property_id::BORDER_IMAGE => &[
+                (property_id::BORDER_IMAGE_SOURCE, ""),
+                (property_id::BORDER_IMAGE_SLICE, " "),
+                (property_id::BORDER_IMAGE_WIDTH, " / "),
+                (property_id::BORDER_IMAGE_OUTSET, " / "),
+                (property_id::BORDER_IMAGE_REPEAT, " "),
+            ],
+            property_id::MASK_BORDER => &[
+                (property_id::MASK_BORDER_SOURCE, ""),
+                (property_id::MASK_BORDER_SLICE, " "),
+                (property_id::MASK_BORDER_WIDTH, " / "),
+                (property_id::MASK_BORDER_OUTSET, " / "),
+                (property_id::MASK_BORDER_REPEAT, " "),
+                (property_id::MASK_BORDER_MODE, " "),
+            ],
+            _ => &[
+                (property_id::MASK_BORDER_SOURCE, ""),
+                (property_id::MASK_BORDER_SLICE, " "),
+                (property_id::MASK_BORDER_WIDTH, " / "),
+                (property_id::MASK_BORDER_OUTSET, " / "),
+                (property_id::MASK_BORDER_REPEAT, " "),
+            ],
+        };
+        // NB: -webkit-mask-box-image always fills the middle, so it can't represent a mask-border-slice without fill,
+        //     except in the initial value of mask-border, where there's no mask border image to fill with.
+        if shorthand_property == property_id::_WEBKIT_MASK_BOX_IMAGE {
+            let slice_fills = matches!(longhand(property_id::MASK_BORDER_SLICE), Some(StyleValueData::BorderImageSlice(payload)) if payload.fill);
+            let all_initial = components
+                .iter()
+                .all(|&(id, _)| longhand(id) == Some(&*shorthand::initial(id)));
+            if !slice_fills && !all_initial {
+                return;
+            }
+        }
+        for (index, &(id, separator)) in components.iter().enumerate() {
             if index > 0 {
                 sink.push_ascii(separator);
             }

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>mask-border-source interpolation</title>
+<link rel="help" href="https://drafts.fxtf.org/css-masking/#propdef-mask-border-source">
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<meta name="assert" content="mask-border-source has discrete animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  mask-border-source: url(../support/green.png);
+}
+.target {
+  width: 50px;
+  height: 50px;
+  background-color: black;
+  display: inline-block;
+  border: 5px solid aqua;
+  mask-border-source: url(../support/blue_color.png);
+  mask-border-slice: 10%;
+}
+.expected {
+  background-color: green;
+  margin-right: 2px;
+}
+</style>
+
+<body></body>
+
+<script>
+// initial
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'initial',
+  to: 'url(../support/orange_color.png)',
+});
+
+// inherit
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'inherit',
+  to: 'url(../support/orange_color.png)',
+});
+
+// unset
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'unset',
+  to: 'url(../support/orange_color.png)',
+});
+
+// None to image
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'none',
+  to: 'url(../support/orange_color.png)',
+});
+
+// Image to image
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'url(../support/aqua_color.png)',
+  to: 'url(../support/orange_color.png)',
+});
+
+// Image to gradient
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'url(../support/aqua_color.png)',
+  to: 'linear-gradient(45deg, blue, orange)',
+});
+
+// Gradient to gradient
+test_no_interpolation({
+  property: 'mask-border-source',
+  from: 'linear-gradient(-45deg, red, yellow)',
+  to: 'linear-gradient(45deg, blue, orange)',
+});
+</script>
+</body>

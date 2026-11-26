@@ -1200,6 +1200,7 @@ impl<'a> ComputedValuesView<'a> {
             &self.background().background_image,
             &self.mask().mask_image,
             &self.border().border_image_source,
+            &self.mask().mask_border_source,
             &self.inherited_list().list_style_image,
         ]
         .into_iter()

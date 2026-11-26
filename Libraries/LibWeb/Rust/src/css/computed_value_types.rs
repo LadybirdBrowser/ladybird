@@ -658,6 +658,12 @@ pub struct MaskValues {
     pub mask_origin: ComputedStyleValueHandle,
     pub mask_size: ComputedStyleValueHandle,
     pub mask_composite: ComputedStyleValueHandle,
+    pub mask_border_source: ComputedStyleValueHandle,
+    pub mask_border_slice: ComputedStyleValueHandle,
+    pub mask_border_width: ComputedStyleValueHandle,
+    pub mask_border_outset: ComputedStyleValueHandle,
+    pub mask_border_repeat: ComputedStyleValueHandle,
+    pub mask_border_mode: ComputedStyleValueHandle,
 }
 
 /// The background computed values. Rust keeps every canonical longhand while

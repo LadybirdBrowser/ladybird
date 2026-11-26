@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::computed_value_types::ComputedStyleValueHandle;
 use crate::css::style_value::BorderImageSlicePayload;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
@@ -515,6 +516,42 @@ fn sides_present(present_edges: u8) -> [bool; 4] {
     [PIECE_EDGE_TOP, PIECE_EDGE_RIGHT, PIECE_EDGE_BOTTOM, PIECE_EDGE_LEFT].map(|edge| present_edges & edge != 0)
 }
 
+/// The computed values of an image painted in nine pieces: the border image, or the mask border image.
+#[derive(Clone, Copy)]
+pub(crate) struct NinePieceImageValues<'a> {
+    source: &'a ComputedStyleValueHandle,
+    slice: &'a ComputedStyleValueHandle,
+    width: &'a ComputedStyleValueHandle,
+    outset: &'a ComputedStyleValueHandle,
+    repeat: &'a ComputedStyleValueHandle,
+    image_list: FfiLayerImageList,
+}
+
+pub(crate) fn border_image_values(style: ComputedValuesView<'_>) -> NinePieceImageValues<'_> {
+    let border = style.border();
+    NinePieceImageValues {
+        source: &border.border_image_source,
+        slice: &border.border_image_slice,
+        width: &border.border_image_width,
+        outset: &border.border_image_outset,
+        repeat: &border.border_image_repeat,
+        image_list: FfiLayerImageList::BorderImageSource,
+    }
+}
+
+// https://drafts.csswg.org/css-masking-1/#mask-borders
+pub(crate) fn mask_border_values(style: ComputedValuesView<'_>) -> NinePieceImageValues<'_> {
+    let mask = style.mask();
+    NinePieceImageValues {
+        source: &mask.mask_border_source,
+        slice: &mask.mask_border_slice,
+        width: &mask.mask_border_width,
+        outset: &mask.mask_border_outset,
+        repeat: &mask.mask_border_repeat,
+        image_list: FfiLayerImageList::MaskBorderSource,
+    }
+}
+
 pub(crate) fn paints_border_image(style: ComputedValuesView<'_>) -> bool {
     style_queries::handle_value(&style.border().border_image_source).is_some_and(|source| source.is_image())
 }
@@ -524,8 +561,15 @@ pub(crate) fn border_image_outsets(
     border_widths: [CssPixels; 4],
     present_edges: u8,
 ) -> [CssPixels; 4] {
-    let outset_value = style_queries::handle_value(&style.border().border_image_outset)
-        .expect("computed border-image-outset lost its style value");
+    nine_piece_image_outsets(border_image_values(style), border_widths, present_edges)
+}
+
+pub(crate) fn nine_piece_image_outsets(
+    values: NinePieceImageValues<'_>,
+    border_widths: [CssPixels; 4],
+    present_edges: u8,
+) -> [CssPixels; 4] {
+    let outset_value = style_queries::handle_value(values.outset).expect("computed image outset lost its style value");
     let outset_items = component_items(outset_value);
     let side_is_present = sides_present(present_edges);
     std::array::from_fn(|side| {
@@ -538,13 +582,14 @@ pub(crate) fn border_image_outsets(
 }
 
 // https://drafts.csswg.org/css-backgrounds-3/#border-image-area
-fn border_image_area(
-    style: ComputedValuesView<'_>,
+// https://drafts.csswg.org/css-masking-1/#mask-border-image-area
+pub(crate) fn nine_piece_image_area(
+    values: NinePieceImageValues<'_>,
     border_box_rect: CssPixelRect,
     border_width: [CssPixels; 4],
     present_edges: u8,
 ) -> CssPixelRect {
-    let resolved_outset = border_image_outsets(style, border_width, present_edges);
+    let resolved_outset = nine_piece_image_outsets(values, border_width, present_edges);
     let mut border_image_rect = border_box_rect;
     border_image_rect.inflate(
         resolved_outset[0],
@@ -631,14 +676,33 @@ pub(crate) fn paint_border_image<O: Observer>(
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return false;
     };
-    let border = style.border();
-    let Some(source) = style_queries::handle_value(&border.border_image_source) else {
+    paint_nine_piece_image(
+        recorder,
+        paintable,
+        style,
+        border_image_values(style),
+        css_border_widths,
+        present_edges,
+        border_box_rect,
+    )
+}
+
+/// Paints the nine pieces of the image `values` describe, and returns whether it painted it.
+#[expect(clippy::too_many_arguments)]
+pub(crate) fn paint_nine_piece_image<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    style: ComputedValuesView<'_>,
+    values: NinePieceImageValues<'_>,
+    css_border_widths: [CssPixels; 4],
+    present_edges: u8,
+    border_box_rect: CssPixelRect,
+) -> bool {
+    let Some(source) = style_queries::handle_value(values.source) else {
         return false;
     };
     let image_rendering = style.image_rendering();
-    let facts = recorder
-        .source
-        .layer_image_paint_facts(paintable, FfiLayerImageList::BorderImageSource, 0);
+    let facts = recorder.source.layer_image_paint_facts(paintable, values.image_list, 0);
     let source = if let StyleValueData::ImageSet(payload) = source {
         let Some(index) = facts.as_ref().and_then(|facts| facts.image_set_selected_option_index) else {
             return false;
@@ -657,8 +721,7 @@ pub(crate) fn paint_border_image<O: Observer>(
             | StyleValueData::ConicGradient { .. }
     );
 
-    let slice_value = style_queries::handle_value(&border.border_image_slice)
-        .expect("computed border-image-slice lost its style value");
+    let slice_value = style_queries::handle_value(values.slice).expect("computed image slice lost its style value");
     let (slice_values, fill) = match slice_value {
         StyleValueData::BorderImageSlice(border_image_slice_payload) => {
             let BorderImageSlicePayload {
@@ -677,10 +740,8 @@ pub(crate) fn paint_border_image<O: Observer>(
         | StyleValueData::Calculated { .. } => ([slice_value; 4], false),
         _ => unreachable!("computed border-image-slice holds a slice or numeric value"),
     };
-    let width_value = style_queries::handle_value(&border.border_image_width)
-        .expect("computed border-image-width lost its style value");
-    let repeat_value = style_queries::handle_value(&border.border_image_repeat)
-        .expect("computed border-image-repeat lost its style value");
+    let width_value = style_queries::handle_value(values.width).expect("computed image width lost its style value");
+    let repeat_value = style_queries::handle_value(values.repeat).expect("computed image repeat lost its style value");
     let repeat_items = component_items(repeat_value);
     let repeat_keyword = |item: &StyleValueData| {
         let StyleValueData::Keyword { keyword } = item else {
@@ -691,7 +752,7 @@ pub(crate) fn paint_border_image<O: Observer>(
     let repeat_x = repeat_keyword(repeat_items[0]);
     let repeat_y = repeat_keyword(repeat_items[1 % repeat_items.len()]);
 
-    let border_image_rect = border_image_area(style, border_box_rect, css_border_widths, present_edges);
+    let border_image_rect = nine_piece_image_area(values, border_box_rect, css_border_widths, present_edges);
     let (content, source_size) = if is_gradient {
         // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
         // Gradients have no natural size, so their concrete size is the border image area.
@@ -732,7 +793,7 @@ pub(crate) fn paint_border_image<O: Observer>(
                     BorderImageContent::Vector(VectorBorderImage {
                         source: VectorImageSource::Layer {
                             owner: paintable,
-                            list: FfiLayerImageList::BorderImageSource,
+                            list: values.image_list,
                             computed_index: 0,
                         },
                         content_identity,

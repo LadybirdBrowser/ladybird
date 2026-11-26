@@ -11,7 +11,6 @@ use crate::css::css_enums::{
     positioning, transform_style,
 };
 use crate::css::css_pixels::CssPixels;
-use crate::css::css_string::CssString;
 use crate::css::property_metadata::property_name;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
@@ -75,13 +74,6 @@ pub(crate) fn background_layers_have_image(style: ComputedValuesView<'_>) -> boo
     for_each_comma_item(value, is_abstract_image)
 }
 
-fn fly_string_equals_ascii(string: &CssString, expected: &[u8]) -> bool {
-    with_fly_string_units(string, |units| match units {
-        StringUnits::Ascii(bytes) => bytes == expected,
-        StringUnits::Utf16(units) => units.iter().copied().eq(expected.iter().copied().map(u16::from)),
-    })
-}
-
 fn will_change_has_any_property(style: ComputedValuesView<'_>, names: &[&[u8]]) -> bool {
     let hints = style.misc_interaction().implicit_will_change.as_slice();
     if hints
@@ -96,10 +88,19 @@ fn will_change_has_any_property(style: ComputedValuesView<'_>, names: &[&[u8]]) 
     let StyleValueData::ValueList { values, .. } = value else {
         return false;
     };
+    // NB: will-change names a property by any of its names, legacy aliases included.
     values.as_slice().iter().any(|item| match item.data() {
-        StyleValueData::CustomIdent { custom_ident } => {
-            names.iter().any(|name| fly_string_equals_ascii(custom_ident, name))
-        }
+        StyleValueData::CustomIdent { custom_ident } => with_fly_string_units(custom_ident, |units| {
+            let property = match units {
+                StringUnits::Ascii(bytes) => crate::css::property_metadata::property_id_from_name(bytes),
+                StringUnits::Utf16(units) => crate::css::property_metadata::property_id_from_name(units),
+            };
+            property.is_some_and(|property| {
+                names
+                    .iter()
+                    .any(|name| crate::css::property_metadata::property_id_from_name(name) == Some(property))
+            })
+        }),
         _ => false,
     })
 }
@@ -160,6 +161,16 @@ pub(crate) fn mask_layers_have_image(mask: &MaskValues) -> bool {
         return false;
     };
     for_each_comma_item(value, is_abstract_image)
+}
+
+// https://drafts.csswg.org/css-masking-1/#the-mask-border-source
+pub(crate) fn mask_border_has_image(mask: &MaskValues) -> bool {
+    handle_value(&mask.mask_border_source).is_some_and(StyleValueData::is_image)
+}
+
+/// Whether the box is masked by its mask layers or by its mask border.
+pub(crate) fn has_css_mask_image(mask: &MaskValues) -> bool {
+    mask_layers_have_image(mask) || mask_border_has_image(mask)
 }
 
 pub(crate) fn clip_path_has_value(mask: &MaskValues) -> bool {
@@ -495,7 +506,7 @@ fn used_transform_style_is_preserve_3d(arena: &impl PaintRead, node: NodeSlotId)
         || clip_path_has_value(mask_values)
         || effects.isolation == isolation::ISOLATE
         || mask_references_url(mask_values)
-        || mask_layers_have_image(mask_values)
+        || has_css_mask_image(mask_values)
         || effects.mix_blend_mode != mix_blend_mode::NORMAL
         || filter_has_filters(&effects.backdrop_filter);
     if has_transform_style_grouping_property {
@@ -777,9 +788,13 @@ pub(crate) fn establishes_stacking_context(arena: &impl PaintRead, node: NodeSlo
     if mask_references_url(mask_values)
         || clip_path_has_value(mask_values)
         || mask_image_is_image(mask_values)
+        || mask_border_has_image(mask_values)
         || will_change(b"mask")
         || will_change(b"clip-path")
         || will_change(b"mask-image")
+        || will_change(b"mask-border")
+        || will_change(b"mask-border-source")
+        || will_change(b"-webkit-mask-box-image")
     {
         return true;
     }

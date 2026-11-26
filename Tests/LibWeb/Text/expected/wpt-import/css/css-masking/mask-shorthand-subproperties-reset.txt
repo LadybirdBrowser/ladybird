@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	Property mask-border-mode should be reset to its initial value.
+Pass	Property mask-border-outset should be reset to its initial value.
+Pass	Property mask-border-repeat should be reset to its initial value.
+Pass	Property mask-border-slice should be reset to its initial value.
+Pass	Property mask-border-source should be reset to its initial value.
+Pass	Property mask-border-width should be reset to its initial value.
+Pass	Property mask-clip should be reset to its initial value.
+Pass	Property mask-composite should be reset to its initial value.
+Pass	Property mask-image should be reset to its initial value.
+Pass	Property mask-mode should be reset to its initial value.
+Pass	Property mask-origin should be reset to its initial value.
+Pass	Property mask-position should be reset to its initial value.
+Pass	Property mask-repeat should be reset to its initial value.
+Pass	Property mask-size should be reset to its initial value.

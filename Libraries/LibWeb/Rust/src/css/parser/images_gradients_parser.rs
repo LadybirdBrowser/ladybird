@@ -1393,6 +1393,7 @@ pub(crate) fn parse_image_property(context: &ParseContext, property: u16, values
             | property_id::MASK_IMAGE
             | property_id::LIST_STYLE_IMAGE
             | property_id::BORDER_IMAGE_SOURCE
+            | property_id::MASK_BORDER_SOURCE
     ) {
         return ParseOutcome::NotHandled;
     }
