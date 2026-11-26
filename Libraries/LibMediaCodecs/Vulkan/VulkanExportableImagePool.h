@@ -35,9 +35,6 @@ public:
         VkImage image() const { return m_image; }
         NonnullRefPtr<VideoSurface> surface() const { return m_surface; }
 
-        // Keeps the image out of the pool and allocated for good, for when the device may never finish using it.
-        void abandon() { m_abandoned = true; }
-
     private:
         friend class VulkanExportableImagePool;
 
@@ -53,7 +50,6 @@ public:
         VkImage m_image { VK_NULL_HANDLE };
         VkDeviceMemory m_memory { VK_NULL_HANDLE };
         NonnullRefPtr<VideoSurface> m_surface;
-        bool m_abandoned { false };
     };
 
     // Fails if the device has no DRM format modifier to create and export such images under.

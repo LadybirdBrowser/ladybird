@@ -7,6 +7,7 @@
 #include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/NumericLimits.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <LibMediaCodecs/CodedFrame.h>
@@ -18,6 +19,7 @@
 #include <LibMediaCodecs/VideoFrame.h>
 #include <LibPlatformFeatures/ProcessFeatures.h>
 #include <LibThreading/Thread.h>
+#include <signal.h>
 #include <string.h>
 
 // A build against another FFmpeg release's headers has already included this inside its namespace.
@@ -36,8 +38,6 @@ constexpr u32 drm_fourcc(char a, char b, char c, char d)
 
 constexpr u32 DRM_FORMAT_NV12 = drm_fourcc('N', 'V', '1', '2');
 constexpr u32 DRM_FORMAT_P010 = drm_fourcc('P', '0', '1', '0');
-
-constexpr AK::Duration DEVICE_WORK_STALL_UNTIL_TREATED_AS_FAILED = AK::Duration::from_seconds(5);
 
 char const* decoder_name_for(CodecID codec_id)
 {
@@ -179,6 +179,9 @@ DecoderErrorOr<AVBufferRef*> device_context_for(FFmpegFunctions const& functions
     return reference;
 }
 
+// Unbounded, like FFmpeg's own waits, so that a stalled device is recovered from by restarting the process. Only a lost
+// device lets the work be abandoned, since it no longer runs. Otherwise, the process ends itself without a crash report,
+// since freeing what the work may still use would be unsafe.
 bool wait_for_semaphore(VkDevice device, VkSemaphore semaphore, u64 value)
 {
     VkSemaphoreWaitInfo wait_info {};
@@ -186,7 +189,14 @@ bool wait_for_semaphore(VkDevice device, VkSemaphore semaphore, u64 value)
     wait_info.semaphoreCount = 1;
     wait_info.pSemaphores = &semaphore;
     wait_info.pValues = &value;
-    return vkWaitSemaphores(device, &wait_info, static_cast<u64>(DEVICE_WORK_STALL_UNTIL_TREATED_AS_FAILED.to_nanoseconds())) == VK_SUCCESS;
+    auto result = vkWaitSemaphores(device, &wait_info, NumericLimits<u64>::max());
+    if (result == VK_SUCCESS)
+        return true;
+    if (result == VK_ERROR_DEVICE_LOST)
+        return false;
+    dbgln("Waiting for Vulkan Video work failed with VkResult {}, ending the process", to_underlying(result));
+    raise(SIGKILL);
+    VERIFY_NOT_REACHED();
 }
 
 AVHWFramesContext& frames_context_of(AVFrame const& frame)
@@ -515,8 +525,7 @@ FFmpegVulkanVideoDecoderImplementation::~FFmpegVulkanVideoDecoderImplementation(
     free_decoding_frames(decoding_frames);
     m_outputs.clear();
 
-    // A stalled copy may still be pending on its command buffer.
-    if (m_copy_command_pool != VK_NULL_HANDLE && !m_copy_stalled)
+    if (m_copy_command_pool != VK_NULL_HANDLE)
         vkDestroyCommandPool(m_device.logical_device(), m_copy_command_pool, nullptr);
     m_surfaces_by_image.clear();
     m_functions.av_buffer_unref(&m_frames_context_of_surfaces);
@@ -768,7 +777,7 @@ DecoderErrorOr<FFmpegVulkanVideoDecoderImplementation::DecodedOutput> FFmpegVulk
     auto& frame = *decoding_frame.frame;
 
     if (!wait_for_semaphore(m_device.logical_device(), decoding_frame.semaphore, decoding_frame.decoded_semaphore_value))
-        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device failed or stalled while decoding a frame"sv);
+        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device was lost while decoding a frame"sv);
 
     auto const& frames_context = frames_context_of(frame);
     Gfx::Size<u32> size { static_cast<u32>(frame.width), static_cast<u32>(frame.height) };
@@ -826,8 +835,6 @@ DecoderErrorOr<void> FFmpegVulkanVideoDecoderImplementation::prepare_to_copy_fra
 
 DecoderErrorOr<NonnullRefPtr<VulkanExportableImagePool::Image>> FFmpegVulkanVideoDecoderImplementation::copy_into_exportable_image(AVFrame const& frame)
 {
-    if (m_copy_stalled)
-        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device stalled while copying an earlier frame"sv);
     TRY(prepare_to_copy_frames_from(frame));
 
     auto image_or_error = m_exportable_images->take_image();
@@ -959,12 +966,9 @@ DecoderErrorOr<NonnullRefPtr<VulkanExportableImagePool::Image>> FFmpegVulkanVide
     unlock_source.disarm();
     source_vulkan_context.unlock_frame(&source_context, source);
 
-    // The command buffer is reused for the next copy. A copy that never finishes keeps using its images.
-    if (!wait_for_semaphore(logical_device, semaphore, copied_semaphore_value)) {
-        m_copy_stalled = true;
-        destination->abandon();
-        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device failed or stalled while copying a decoded frame"sv);
-    }
+    // The command buffer is reused for the next copy.
+    if (!wait_for_semaphore(logical_device, semaphore, copied_semaphore_value))
+        return DecoderError::with_description(DecoderErrorCategory::Unknown, "The Vulkan device was lost while copying a decoded frame"sv);
 
     return destination;
 }
