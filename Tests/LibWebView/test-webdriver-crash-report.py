@@ -19,6 +19,14 @@ from pathlib import Path
 webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
 
 
+EXECUTABLE_NAMES = {
+    "Compositor": "ladybird-gpu",
+    "ImageDecoder": "ladybird-image",
+    "RequestServer": "ladybird-net",
+    "WebContent": "ladybird-render",
+}
+
+
 def crash_helper(webdriver_pid, process_name):
     rows = subprocess.check_output(["ps", "-axo", "pid=,ppid=,command="], text=True).splitlines()
     children = {}
@@ -33,7 +41,7 @@ def crash_helper(webdriver_pid, process_name):
         for pid, command in children.get(pending.pop(), []):
             arguments = shlex.split(command)
             # A helper's own children, such as its file broker, carry the helper's command line but are not the helper.
-            if arguments and Path(arguments[0]).name == process_name:
+            if arguments and Path(arguments[0]).name == EXECUTABLE_NAMES[process_name]:
                 assert "--crash-report-fd" in arguments, f"{process_name} has no capture descriptor"
                 assert "--disable-sandbox" not in arguments, f"{process_name} is not sandboxed"
                 targets.append(pid)

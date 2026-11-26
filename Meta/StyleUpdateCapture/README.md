@@ -100,7 +100,7 @@ Point one capture at both:
 
 ```
 Meta/style-update-capture.py capture paired.json --runs 5 \
-    --config before=Build/before/bin/WebDriver --config after=Build/after/bin/WebDriver
+    --config before=Build/before/bin/ladybird-driver --config after=Build/after/bin/ladybird-driver
 Meta/style-update-capture.py compare paired.json paired.json --a before --b after
 ```
 

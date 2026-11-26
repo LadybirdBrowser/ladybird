@@ -30,4 +30,5 @@ if (WIN32)
     ladybird_windows_bin(MediaServer CONSOLE)
 endif()
 
+set_target_properties(MediaServer PROPERTIES OUTPUT_NAME ladybird-media)
 ladybird_sign_helper_process(MediaServer)

@@ -21,4 +21,5 @@ if (WIN32)
     ladybird_windows_bin(WebDriver)
 endif()
 
+set_target_properties(WebDriver PROPERTIES OUTPUT_NAME ladybird-driver)
 ladybird_sign_helper_process(WebDriver)

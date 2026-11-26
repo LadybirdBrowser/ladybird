@@ -45,15 +45,21 @@ function(ladybird_sign_helper_process target)
         list(APPEND entitlements com.apple.security.get-task-allow)
     endif()
 
-    set(entitlements_file "${CMAKE_CURRENT_BINARY_DIR}/${target}.entitlements")
+    # The entitlements files are named after the executable, which is how signing scripts find the file for each one.
+    get_target_property(executable_name ${target} OUTPUT_NAME)
+    if (NOT executable_name)
+        set(executable_name ${target})
+    endif()
+
+    set(entitlements_file "${CMAKE_CURRENT_BINARY_DIR}/${executable_name}.entitlements")
     ladybird_write_entitlements("${entitlements_file}" ${entitlements})
 
     set(release_entitlements ${ARG_ENTITLEMENTS})
     if (ARG_ALLOW_JIT)
         list(APPEND release_entitlements com.apple.security.cs.allow-jit)
     endif()
-    ladybird_write_entitlements("${CMAKE_CURRENT_BINARY_DIR}/${target}.release.entitlements" ${release_entitlements})
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${target}.release.entitlements" DESTINATION entitlements
+    ladybird_write_entitlements("${CMAKE_CURRENT_BINARY_DIR}/${executable_name}.release.entitlements" ${release_entitlements})
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${executable_name}.release.entitlements" DESTINATION entitlements
         COMPONENT ladybird_Runtime)
 
     ladybird_codesign_command(codesign_command "${target}" --entitlements "${entitlements_file}" -o runtime "$<TARGET_FILE:${target}>")

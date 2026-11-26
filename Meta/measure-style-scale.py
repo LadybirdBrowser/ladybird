@@ -18,7 +18,7 @@ import urllib.request
 
 from pathlib import Path
 
-DEFAULT_WEBDRIVER = "Build/release/bin/Ladybird.app/Contents/MacOS/WebDriver"
+DEFAULT_WEBDRIVER = "Build/release/bin/Ladybird.app/Contents/MacOS/ladybird-driver"
 
 MATCHING_COUNTERS = [
     "normalizedUniqueKeys",

@@ -345,7 +345,7 @@ open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app --args 
 Ladybird should be built with debug symbols first. This can be done by adding `-DCMAKE_BUILD_TYPE=Debug` to the cmake command line,
 or selecting the Build Type Debug in the CLion CMake profile.
 
-After running Ladybird as suggested above with `./Meta/ladybird.py run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layout or rendering issues, filter the listing that opens for `WebContent` and attach to that.
+After running Ladybird as suggested above with `./Meta/ladybird.py run ladybird`, you can now in CLion use Run -> Attach to Process to connect. If debugging layout or rendering issues, filter the listing that opens for `ladybird-render` and attach to that.
 
 Now breakpoints, stepping and variable inspection will work.
 

@@ -138,13 +138,15 @@ def run_test(webdriver_binary):
             assert execute(port, session, "return pixelOfNew2DCanvas();") == "0,128,0,255"
             first = take_screenshot(port, session)
 
-            compositors = descendants_named(webdriver.pid, "Compositor")
-            assert len(compositors) == 1, f"Expected one Compositor, found {len(compositors)}"
+            compositors = descendants_named(webdriver.pid, "ladybird-gpu")
+            assert len(compositors) == 1, f"Expected one ladybird-gpu, found {len(compositors)}"
             os.kill(compositors[0], signal.SIGKILL)
 
             deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS
             while True:
-                replacements = [pid for pid in descendants_named(webdriver.pid, "Compositor") if pid != compositors[0]]
+                replacements = [
+                    pid for pid in descendants_named(webdriver.pid, "ladybird-gpu") if pid != compositors[0]
+                ]
                 if replacements:
                     break
                 if time.monotonic() >= deadline:

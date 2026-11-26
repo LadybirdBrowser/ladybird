@@ -29,4 +29,5 @@ if (WIN32)
     ladybird_windows_bin(ImageDecoder CONSOLE)
 endif()
 
+set_target_properties(ImageDecoder PROPERTIES OUTPUT_NAME ladybird-image)
 ladybird_sign_helper_process(ImageDecoder)

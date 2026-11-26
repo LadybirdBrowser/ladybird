@@ -6,7 +6,7 @@ Usage: measure-style-load.py <webdriver-port> <url> [runs]
 The minimum is the number to compare between two builds; the median says how noisy the machine was.
 Start the driver with:
 
-    ./bin/Ladybird.app/Contents/MacOS/WebDriver --headless -p 4540
+    ./bin/Ladybird.app/Contents/MacOS/ladybird-driver --headless -p 4540
 """
 
 import json

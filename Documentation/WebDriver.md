@@ -34,9 +34,9 @@ import time
 from pathlib import Path
 
 build = Path.cwd()
-webdriver = build / "bin/WebDriver"
+webdriver = build / "bin/ladybird-driver"
 if not webdriver.is_file():
-    webdriver = build / "bin/Ladybird.app/Contents/MacOS/WebDriver"
+    webdriver = build / "bin/Ladybird.app/Contents/MacOS/ladybird-driver"
 
 with socket.socket() as listener:
     listener.bind(("127.0.0.1", 0))
@@ -173,4 +173,4 @@ To inspect a visible browser, remove `--headless` and set `ladybird:headless` to
 
 For authenticated investigations, `--profile-path /absolute/path/to/profile`
 selects a persistent profile. WebDriver otherwise uses its own temporary profile.
-See `./bin/WebDriver --help` (or the bundle path above on macOS) for other options.
+See `./bin/ladybird-driver --help` (or the bundle path above on macOS) for other options.

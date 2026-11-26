@@ -22,4 +22,5 @@ if (USE_VULKAN_DMABUF_IMAGES)
     target_link_libraries(SystemProbe PRIVATE LibMediaCodecs)
 endif()
 
+set_target_properties(SystemProbe PROPERTIES OUTPUT_NAME ladybird-probe)
 ladybird_sign_helper_process(SystemProbe)

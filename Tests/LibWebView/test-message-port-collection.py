@@ -70,7 +70,7 @@ def web_content_pids(root_pid):
     while pending:
         for pid, command in children.get(pending.pop(), []):
             pending.append(pid)
-            if command.split()[0].endswith("/WebContent"):
+            if command.split()[0].endswith("/ladybird-render"):
                 yield pid
 
 

@@ -56,4 +56,5 @@ if (HAIKU)
     target_link_libraries(RequestServer PRIVATE network)
 endif()
 
+set_target_properties(RequestServer PROPERTIES OUTPUT_NAME ladybird-net)
 ladybird_sign_helper_process(RequestServer)

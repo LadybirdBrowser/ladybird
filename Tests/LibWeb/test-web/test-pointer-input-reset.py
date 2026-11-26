@@ -105,7 +105,7 @@ def run_case(binary, source, root, name, timeout):
     assert status["completed"] == "2/2" and status["remaining"] == "0", status
     assert status["pass"] == str(2 - int(timeout)), status
     assert status["timeout"] == str(int(timeout)) and status["fail"] == "0" and status["crashed"] == "0", status
-    processes = re.findall(r"WebContent\((\d+)\).*POINTER_RESET_(POISON|CONSUMER)", process.stdout)
+    processes = re.findall(r"ladybird-render\((\d+)\).*POINTER_RESET_(POISON|CONSUMER)", process.stdout)
     assert len(processes) == 2 and processes[0][1] == "POISON" and processes[1][1] == "CONSUMER", processes
     assert processes[0][0] == processes[1][0], f"{name}: WebContent was not reused: {processes}"
     if timeout:

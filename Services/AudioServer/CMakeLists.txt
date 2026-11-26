@@ -66,4 +66,5 @@ if (WIN32)
     ladybird_windows_bin(AudioServer CONSOLE)
 endif()
 
+set_target_properties(AudioServer PROPERTIES OUTPUT_NAME ladybird-audio)
 ladybird_sign_helper_process(AudioServer)
