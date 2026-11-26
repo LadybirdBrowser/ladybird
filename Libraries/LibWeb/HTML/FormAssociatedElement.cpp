@@ -1738,7 +1738,14 @@ void FormAssociatedTextControlElement::move_cursor_by_page(bool forward, Collaps
 #ifdef AK_OS_MACOS
     distance = max(distance, page_height - 40);
 #endif
-    move_cursor_on_lines(forward ? Layout::RustFFI::FfiTextCaretMovement::NextPage : Layout::RustFFI::FfiTextCaretMovement::PreviousPage, collapse, max(distance, 1));
+    distance = max(distance, 1);
+
+    // NB: Moving the cursor by a page scrolls the text control by the same page, so the cursor keeps its place in the
+    //     view. Extending the selection by a page only reveals its end, as any selection change does.
+    if (collapse == CollapseSelection::Yes)
+        element.set_scroll_top(element.scroll_top() + (forward ? distance : -distance));
+
+    move_cursor_on_lines(forward ? Layout::RustFFI::FfiTextCaretMovement::NextPage : Layout::RustFFI::FfiTextCaretMovement::PreviousPage, collapse, distance);
 }
 
 void FormAssociatedTextControlElement::move_cursor_to_physical_line_boundary(bool left, CollapseSelection collapse)

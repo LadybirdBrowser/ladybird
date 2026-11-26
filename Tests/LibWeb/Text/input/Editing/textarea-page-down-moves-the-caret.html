@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="textarea" rows="6" cols="30"></textarea>
+<input id="input" value="abc">
+<div style="height: 5000px"></div>
+<script>
+    function caretLine(textarea) {
+        return textarea.value.slice(0, textarea.selectionStart).split("\n").length;
+    }
+
+    // NB: Where Page Down only scrolls, the scroll can land well after the key press, so this waits for it.
+    function scrolledDown(element) {
+        return new Promise(resolve => {
+            if (element.scrollTop > 0) {
+                resolve(true);
+                return;
+            }
+            const timeout = setTimeout(() => resolve(element.scrollTop > 0), 5000);
+            element.addEventListener("scroll", () => {
+                clearTimeout(timeout);
+                resolve(element.scrollTop > 0);
+            }, { once: true });
+        });
+    }
+
+    promiseTest(async () => {
+        // A plain Page Up/Down moves the caret everywhere but macOS, where it only scrolls.
+        const isMacOS = navigator.platform.indexOf("Mac") === 0;
+        const textarea = document.getElementById("textarea");
+        textarea.value = Array.from({ length: 40 }, (_, i) => `Line ${i + 1}`).join("\n");
+        textarea.focus();
+        textarea.setSelectionRange(0, 0);
+
+        internals.sendKey(textarea, "PageDown");
+        const lineAfterPageDown = caretLine(textarea);
+        // NB: The textarea shows six rows, so a page down from the first line ends well short of the last line.
+        const movedDown = lineAfterPageDown > 1 && lineAfterPageDown <= 8;
+        const movedAsThePlatformDoes = isMacOS ? lineAfterPageDown === 1 : movedDown;
+        println(`Page Down moves the caret as the platform does: ${movedAsThePlatformDoes ? "PASS" : `FAIL (line ${lineAfterPageDown})`}`);
+        println(`Page Down scrolls the textarea: ${(await scrolledDown(textarea)) ? "PASS" : "FAIL"}`);
+        println(`Page Down leaves the selection collapsed: ${textarea.selectionStart === textarea.selectionEnd ? "PASS" : "FAIL"}`);
+
+        if (!isMacOS) {
+            internals.sendText(textarea, "!");
+            const typedLine = textarea.value.split("\n").findIndex(line => line.includes("!")) + 1;
+            println(`typing after Page Down inserts on the caret's line: ${typedLine === lineAfterPageDown ? "PASS" : `FAIL (line ${typedLine})`}`);
+            internals.sendKey(textarea, "PageUp");
+            println(`Page Up moves the caret back up: ${caretLine(textarea) < lineAfterPageDown ? "PASS" : "FAIL"}`);
+        } else {
+            println("typing after Page Down inserts on the caret's line: PASS");
+            println("Page Up moves the caret back up: PASS");
+        }
+
+        textarea.setSelectionRange(0, 0);
+        textarea.scrollTop = 0;
+        internals.sendKey(textarea, "PageDown", internals.MOD_SHIFT);
+        println(`Shift+Page Down extends the selection: ${textarea.selectionStart === 0 && textarea.selectionEnd > 0 ? "PASS" : "FAIL"}`);
+
+        const input = document.getElementById("input");
+        input.focus();
+        input.setSelectionRange(1, 1);
+        window.scrollTo(0, 0);
+        const pageScrolled = new Promise(resolve => {
+            const timeout = setTimeout(() => resolve(false), 5000);
+            window.addEventListener("scroll", () => {
+                clearTimeout(timeout);
+                resolve(document.scrollingElement.scrollTop > 0);
+            }, { once: true });
+        });
+        internals.sendKey(input, "PageDown");
+        println(`Page Down in a single-line input scrolls the page: ${(await pageScrolled) ? "PASS" : "FAIL"}`);
+        println(`Page Down in a single-line input leaves its caret: ${input.selectionStart === 1 && input.selectionEnd === 1 ? "PASS" : "FAIL"}`);
+    });
+</script>
