@@ -48,6 +48,7 @@ private:
     T* m_object { nullptr };
 };
 
+using OwnedFontSet = Owned<FcFontSet, FcFontSetDestroy>;
 using OwnedPattern = Owned<FcPattern, FcPatternDestroy>;
 using OwnedCharSet = Owned<FcCharSet, FcCharSetDestroy>;
 using OwnedLangSet = Owned<FcLangSet, FcLangSetDestroy>;
@@ -161,42 +162,29 @@ static OwnedPattern match_font_for_family(StringView family, u16 weight, u16 wid
     return font;
 }
 
-// The font for a code point and a style, if it has the code point.
-static Optional<MatchedFile> match_file_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
+static void prepare_code_point_pattern(FcConfig* config, FcPattern* pattern, u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
-    auto* config = GlobalFontConfig::the().get();
-
-    OwnedPattern pattern { FcPatternCreate() };
-    add_style(pattern.get(), weight, width, slope);
+    add_style(pattern, weight, width, slope);
     OwnedCharSet char_set { FcCharSetCreate() };
     FcCharSetAddChar(char_set.get(), code_point);
-    FcPatternAddCharSet(pattern.get(), FC_CHARSET, char_set.get());
+    FcPatternAddCharSet(pattern, FC_CHARSET, char_set.get());
 
     // https://www.unicode.org/reports/tr51/#Emoji_Script
     // The script subtag Zsye asks for emoji presentation, which fontconfig gives to the color emoji fonts.
     if (prefer_color_emoji) {
         OwnedLangSet lang_set { FcLangSetCreate() };
         FcLangSetAdd(lang_set.get(), fontconfig_string("und-zsye"));
-        FcPatternAddLangSet(pattern.get(), FC_LANG, lang_set.get());
+        FcPatternAddLangSet(pattern, FC_LANG, lang_set.get());
     } else if (auto language = Unicode::likely_language_for_script_of(code_point); language.has_value()) {
         // NB: Without a language, fontconfig ranks every font that has the code point alike, and can pick one that
         //     covers every script only crudely (GNU Unifont, e.g.) over one made for the code point's script.
         OwnedLangSet lang_set { FcLangSetCreate() };
         FcLangSetAdd(lang_set.get(), fontconfig_string(language->to_byte_string().characters()));
-        FcPatternAddLangSet(pattern.get(), FC_LANG, lang_set.get());
+        FcPatternAddLangSet(pattern, FC_LANG, lang_set.get());
     }
 
-    FcConfigSubstitute(config, pattern.get(), FcMatchPattern);
-    FcDefaultSubstitute(pattern.get());
-    FcResult result;
-    OwnedPattern font { FcFontMatch(config, pattern.get(), &result) };
-    if (!font.get())
-        return {};
-
-    FcCharSet* font_char_set = nullptr;
-    if (FcPatternGetCharSet(font.get(), FC_CHARSET, 0, &font_char_set) != FcResultMatch || !FcCharSetHasChar(font_char_set, code_point))
-        return {};
-    return matched_file(font.get());
+    FcConfigSubstitute(config, pattern, FcMatchPattern);
+    FcDefaultSubstitute(pattern);
 }
 
 static Optional<SystemFontMatch> loadable_match(Optional<MatchedFile> const& file)
@@ -222,12 +210,50 @@ Optional<SystemFontMatch> match_family_style(StringView family, u16 weight, u16 
 
 Optional<SystemFontMatch> match_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
-    Optional<MatchedFile> file;
+    auto covers_code_point = [code_point](FcPattern* font) {
+        FcCharSet* char_set = nullptr;
+        return FcPatternGetCharSet(font, FC_CHARSET, 0, &char_set) == FcResultMatch && FcCharSetHasChar(char_set, code_point);
+    };
+
+    auto* config = GlobalFontConfig::the().get();
+    OwnedPattern pattern { FcPatternCreate() };
+    Optional<MatchedFile> first_file;
+    FcResult result;
+
+    // Trying the preferred face first avoids sorting the full font set when that face is usable.
     {
         MutexLocker locker(fontconfig_mutex());
-        file = match_file_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+        prepare_code_point_pattern(config, pattern.get(), code_point, weight, width, slope, prefer_color_emoji);
+        OwnedPattern first { FcFontMatch(config, pattern.get(), &result) };
+        if (first.get() && covers_code_point(first.get()))
+            first_file = matched_file(first.get());
     }
-    return loadable_match(file);
+    if (auto match = loadable_match(first_file); match.has_value())
+        return match;
+
+    // Ask Fontconfig for the untrimmed list so we can try later faces with the same coverage.
+    auto fonts = [&] {
+        MutexLocker locker(fontconfig_mutex());
+        return OwnedFontSet { FcFontSort(config, pattern.get(), FcFalse, nullptr, &result) };
+    }();
+    if (!fonts.get())
+        return {};
+    for (int i = 0; i < fonts.get()->nfont; ++i) {
+        Optional<MatchedFile> file;
+        {
+            MutexLocker locker(fontconfig_mutex());
+            auto* candidate = fonts.get()->fonts[i];
+            if (!covers_code_point(candidate))
+                continue;
+            OwnedPattern prepared { FcFontRenderPrepare(config, pattern.get(), candidate) };
+            if (!prepared.get() || !covers_code_point(prepared.get()))
+                continue;
+            file = matched_file(prepared.get());
+        }
+        if (auto match = loadable_match(file); match.has_value())
+            return match;
+    }
+    return {};
 }
 
 Optional<FlyString> resolve_generic_family(StringView family, u16 weight, u8 slope)
