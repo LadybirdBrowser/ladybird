@@ -719,6 +719,8 @@ void ConnectionFromClient::start_aia_fetch(ByteString const& url, ByteString con
     set_option(CURLOPT_WRITEFUNCTION, aia_write_body);
     set_option(CURLOPT_WRITEDATA, fetch.ptr());
     set_option(CURLOPT_PROXY, proxy.has_value() ? proxy->to_curl_url().characters() : "");
+    if (auto result = configure_tls_handshake(easy_handle); result != CURLE_OK)
+        dbgln("RequestServer: AIA fetch failed to configure its TLS handshake: {}", curl_easy_strerror(result));
 
     curl_slist* resolve_list = nullptr;
     for (auto const& entry : { move(resolve_entry), curl_resolve_entry_for_proxy(proxy) }) {
