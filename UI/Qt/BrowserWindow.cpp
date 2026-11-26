@@ -12,6 +12,7 @@
 #include <AK/Platform.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
+#include <AK/Vector.h>
 #include <LibCore/BrowserVersion.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebView/Application.h>
@@ -513,17 +514,25 @@ void BrowserWindow::initialize_application_actions()
     addAction(application.reset_zoom_action());
     addAction(application.quit_action());
 
-    for (int i = 0; i < 8; ++i) {
-        new QShortcut(QKeySequence(Qt::CTRL | static_cast<Qt::Key>(Qt::Key_1 + i)), this, [this, i]() {
+    // On Linux, Alt+number is the conventional shortcut for selecting a tab.
+    Vector<Qt::KeyboardModifier, 2> tab_selection_modifiers { Qt::ControlModifier };
+#if !defined(AK_OS_MACOS) && !defined(AK_OS_WINDOWS)
+    tab_selection_modifiers.append(Qt::AltModifier);
+#endif
+
+    for (auto modifier : tab_selection_modifiers) {
+        for (int i = 0; i < 8; ++i) {
+            new QShortcut(QKeySequence(modifier | static_cast<Qt::Key>(Qt::Key_1 + i)), this, [this, i]() {
+                if (m_tabs_container->count() > 1)
+                    m_tabs_container->set_current_index(min(i, m_tabs_container->count() - 1));
+            });
+        }
+
+        new QShortcut(QKeySequence(modifier | Qt::Key_9), this, [this]() {
             if (m_tabs_container->count() > 1)
-                m_tabs_container->set_current_index(min(i, m_tabs_container->count() - 1));
+                m_tabs_container->set_current_index(m_tabs_container->count() - 1);
         });
     }
-
-    new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_9), this, [this]() {
-        if (m_tabs_container->count() > 1)
-            m_tabs_container->set_current_index(m_tabs_container->count() - 1);
-    });
 }
 
 void BrowserWindow::initialize_application_menu()
