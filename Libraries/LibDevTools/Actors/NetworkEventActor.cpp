@@ -286,7 +286,7 @@ void NetworkEventActor::get_response_content(Message const& message)
             // Extract just the MIME type, ignoring charset etc.
             if (auto semicolon = content_type.find(';'); semicolon.has_value())
                 content_type = content_type.substring_view(0, *semicolon);
-            mime_type = MUST(String::from_utf8(content_type.trim_whitespace()));
+            mime_type = TextCodec::isomorphic_decode(content_type.trim_whitespace());
             break;
         }
     }
