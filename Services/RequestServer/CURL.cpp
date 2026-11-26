@@ -8,6 +8,7 @@
 #include <AK/ByteString.h>
 #include <AK/Enumerate.h>
 #include <AK/Format.h>
+#include <AK/ScopeGuard.h>
 #include <LibPlatformFeatures/SystemFacts.h>
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
@@ -21,6 +22,61 @@
 
 namespace RequestServer {
 
+// The cipher suites that browsers offer, in their order of preference.
+static constexpr Array s_tls13_cipher_suites = {
+    "TLS_AES_128_GCM_SHA256"sv,
+    "TLS_AES_256_GCM_SHA384"sv,
+    "TLS_CHACHA20_POLY1305_SHA256"sv,
+};
+
+static constexpr Array s_tls12_cipher_suites = {
+    "ECDHE-ECDSA-AES128-GCM-SHA256"sv,
+    "ECDHE-RSA-AES128-GCM-SHA256"sv,
+    "ECDHE-ECDSA-AES256-GCM-SHA384"sv,
+    "ECDHE-RSA-AES256-GCM-SHA384"sv,
+    "ECDHE-ECDSA-CHACHA20-POLY1305"sv,
+    "ECDHE-RSA-CHACHA20-POLY1305"sv,
+    // Servers that support none of the suites above need one of these.
+    "ECDHE-RSA-AES128-SHA"sv,
+    "ECDHE-RSA-AES256-SHA"sv,
+    "AES128-GCM-SHA256"sv,
+    "AES256-GCM-SHA384"sv,
+    "AES128-SHA"sv,
+    "AES256-SHA"sv,
+};
+
+struct CipherSuiteLists {
+    ByteString tls13;
+    ByteString tls12;
+};
+
+// The host's OpenSSL configuration can disable cipher suites, and we leave those out of what we offer.
+static CipherSuiteLists const& enabled_cipher_suites()
+{
+    static CipherSuiteLists const lists = [] {
+        auto* context = SSL_CTX_new(TLS_client_method());
+        ScopeGuard free_context = [&] { SSL_CTX_free(context); };
+        auto* enabled = context ? SSL_CTX_get_ciphers(context) : nullptr;
+
+        Vector<StringView> enabled_names;
+        for (int i = 0; i < sk_SSL_CIPHER_num(enabled); ++i) {
+            auto const* name = SSL_CIPHER_get_name(sk_SSL_CIPHER_value(enabled, i));
+            enabled_names.append({ name, strlen(name) });
+        }
+
+        auto join_enabled = [&](ReadonlySpan<StringView> cipher_suites) {
+            Vector<StringView> names;
+            for (auto cipher_suite : cipher_suites) {
+                if (enabled_names.contains_slow(cipher_suite))
+                    names.append(cipher_suite);
+            }
+            return ByteString::join(':', names);
+        };
+        return CipherSuiteLists { join_enabled(s_tls13_cipher_suites), join_enabled(s_tls12_cipher_suites) };
+    }();
+    return lists;
+}
+
 ErrorOr<void> initialize_libcurl()
 {
     auto result = curl_global_init(CURL_GLOBAL_ALL);
@@ -28,6 +84,9 @@ ErrorOr<void> initialize_libcurl()
         warnln("curl_global_init failed: {}", curl_easy_strerror(result));
         return Error::from_string_literal("Failed to initialize libcurl");
     }
+
+    // OpenSSL reads its configuration for this, which the sandbox may not allow later.
+    (void)enabled_cipher_suites();
     return {};
 }
 
@@ -89,6 +148,15 @@ static int verify_server_certificate_has_subject_alt_name(int preverify_ok, X509
     return 0;
 }
 
+static Optional<StringView> openssl_version_used_by_curl()
+{
+    auto const* version_info = curl_version_info(CURLVERSION_NOW);
+    VERIFY(version_info);
+    if (!version_info->ssl_version)
+        return {};
+    return PlatformFeatures::OpenSSLFacts::openssl_version_from_curl_ssl_version({ version_info->ssl_version, strlen(version_info->ssl_version) });
+}
+
 // Our SSL context callbacks require OpenSSL's SSL_CTX.
 static bool curl_uses_openssl()
 {
@@ -97,11 +165,7 @@ static bool curl_uses_openssl()
     // the one Ladybird was built against. Both are then loaded, and the structures of one handed to the other corrupt
     // memory, so leave curl's SSL_CTX alone in that case.
     static auto const uses_openssl = [] {
-        auto const* version_info = curl_version_info(CURLVERSION_NOW);
-        VERIFY(version_info);
-        if (!version_info->ssl_version)
-            return false;
-        auto curl_openssl_version = PlatformFeatures::OpenSSLFacts::openssl_version_from_curl_ssl_version({ version_info->ssl_version, strlen(version_info->ssl_version) });
+        auto curl_openssl_version = openssl_version_used_by_curl();
         if (!curl_openssl_version.has_value())
             return false;
 
@@ -117,8 +181,36 @@ static bool curl_uses_openssl()
     return uses_openssl;
 }
 
+CURLcode configure_tls_handshake(CURL* handle)
+{
+    // Other TLS backends read these options in a syntax of their own.
+    static auto const tls_backend_is_openssl = openssl_version_used_by_curl().has_value();
+    if (!tls_backend_is_openssl)
+        return CURLE_OK;
+
+    static auto const supports_https_proxies = (curl_version_info(CURLVERSION_NOW)->features & CURL_VERSION_HTTPS_PROXY) != 0;
+    auto set_cipher_suites = [&](CURLoption option, CURLoption proxy_option, ByteString const& cipher_suites) {
+        // The host's configuration enables none of our cipher suites, so its own list stays.
+        if (cipher_suites.is_empty())
+            return CURLE_OK;
+        if (auto result = curl_easy_setopt(handle, option, cipher_suites.characters()); result != CURLE_OK)
+            return result;
+        if (!supports_https_proxies)
+            return CURLE_OK;
+        return curl_easy_setopt(handle, proxy_option, cipher_suites.characters());
+    };
+
+    auto const& cipher_suites = enabled_cipher_suites();
+    if (auto result = set_cipher_suites(CURLOPT_TLS13_CIPHERS, CURLOPT_PROXY_TLS13_CIPHERS, cipher_suites.tls13); result != CURLE_OK)
+        return result;
+    return set_cipher_suites(CURLOPT_SSL_CIPHER_LIST, CURLOPT_PROXY_SSL_CIPHER_LIST, cipher_suites.tls12);
+}
+
 CURLcode configure_certificate_verification(CURL* handle, AIACollector& collector)
 {
+    if (auto result = configure_tls_handshake(handle); result != CURLE_OK)
+        return result;
+
     // Exceptions may allow another host name, so our OpenSSL verifier must check names instead of curl.
     // Other backends keep curl's host name checks.
     collector.checks_host_name = curl_uses_openssl() && has_any_certificate_exception(collector.host, collector.port);

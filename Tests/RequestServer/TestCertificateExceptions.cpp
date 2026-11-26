@@ -7,6 +7,7 @@
 #include <AK/Atomic.h>
 #include <AK/Base64.h>
 #include <AK/ByteString.h>
+#include <AK/Mutex.h>
 #include <AK/Optional.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
@@ -191,6 +192,7 @@ public:
         VERIFY(SSL_CTX_use_PrivateKey(m_context, private_key) == 1);
         X509_free(x509);
         EVP_PKEY_free(private_key);
+        SSL_CTX_set_client_hello_cb(m_context, did_receive_client_hello, this);
 
         m_socket = socket(AF_INET, SOCK_STREAM, 0);
         VERIFY(m_socket >= 0);
@@ -225,7 +227,33 @@ public:
 
     u16 port() const { return m_port; }
 
+    ByteString offered_cipher_suites() const
+    {
+        MutexLocker locker { m_mutex };
+        return m_offered_cipher_suites;
+    }
+
 private:
+    static int did_receive_client_hello(SSL* ssl, int*, void* server)
+    {
+        unsigned char const* identifiers = nullptr;
+        auto length = SSL_client_hello_get0_ciphers(ssl, &identifiers);
+        Vector<ByteString> names;
+        for (size_t i = 0; i + 1 < length; i += 2) {
+            // TLS_EMPTY_RENEGOTIATION_INFO_SCSV and TLS_FALLBACK_SCSV signal to the server and are not cipher suites.
+            auto identifier = static_cast<u16>(identifiers[i] << 8 | identifiers[i + 1]);
+            if (first_is_one_of(identifier, 0x00ff, 0x5600))
+                continue;
+            auto const* cipher = SSL_CIPHER_find(ssl, identifiers + i);
+            names.append(cipher ? SSL_CIPHER_get_name(cipher) : "unknown");
+        }
+
+        auto& self = *static_cast<TLSServer*>(server);
+        MutexLocker locker { self.m_mutex };
+        self.m_offered_cipher_suites = ByteString::join(':', names);
+        return SSL_CLIENT_HELLO_SUCCESS;
+    }
+
     intptr_t serve()
     {
         while (true) {
@@ -276,6 +304,8 @@ private:
     u16 m_port { 0 };
     Atomic<bool> m_stopping { false };
     RefPtr<Threading::Thread> m_thread;
+    mutable Mutex m_mutex;
+    ByteString m_offered_cipher_suites;
 };
 
 struct FetchResult {
@@ -485,4 +515,44 @@ TEST_CASE(certificate_exception_does_not_allow_other_websocket_or_preconnect_cer
     RequestServer::add_certificate_exception(ByteString { host }, another_certificate.port(), *rejected.rejected_self_signed_certificate_fingerprint);
     EXPECT_EQ(connect_websocket(another_certificate), CURLE_PEER_FAILED_VERIFICATION);
     EXPECT_EQ(fetch(another_certificate, true).code, CURLE_PEER_FAILED_VERIFICATION);
+}
+
+TEST_CASE(offers_the_cipher_suites_that_browsers_offer)
+{
+    // The host's OpenSSL configuration can disable some of these.
+    auto* context = SSL_CTX_new(TLS_client_method());
+    auto* ssl = SSL_new(context);
+    // curl sets this minimum itself, whatever the configuration says.
+    SSL_set_min_proto_version(ssl, TLS1_2_VERSION);
+    auto* enabled = SSL_get1_supported_ciphers(ssl);
+    Vector<ByteString> expected;
+    for (auto name : {
+             "TLS_AES_128_GCM_SHA256"sv,
+             "TLS_AES_256_GCM_SHA384"sv,
+             "TLS_CHACHA20_POLY1305_SHA256"sv,
+             "ECDHE-ECDSA-AES128-GCM-SHA256"sv,
+             "ECDHE-RSA-AES128-GCM-SHA256"sv,
+             "ECDHE-ECDSA-AES256-GCM-SHA384"sv,
+             "ECDHE-RSA-AES256-GCM-SHA384"sv,
+             "ECDHE-ECDSA-CHACHA20-POLY1305"sv,
+             "ECDHE-RSA-CHACHA20-POLY1305"sv,
+             "ECDHE-RSA-AES128-SHA"sv,
+             "ECDHE-RSA-AES256-SHA"sv,
+             "AES128-GCM-SHA256"sv,
+             "AES256-GCM-SHA384"sv,
+             "AES128-SHA"sv,
+             "AES256-SHA"sv,
+         }) {
+        for (int i = 0; i < sk_SSL_CIPHER_num(enabled); ++i) {
+            if (name == SSL_CIPHER_get_name(sk_SSL_CIPHER_value(enabled, i)))
+                expected.append(name);
+        }
+    }
+    sk_SSL_CIPHER_free(enabled);
+    SSL_free(ssl);
+    SSL_CTX_free(context);
+
+    TLSServer server { device_name_certificate, device_name_key };
+    EXPECT_EQ(fetch(server).code, CURLE_OK);
+    EXPECT_EQ(server.offered_cipher_suites(), ByteString::join(':', expected));
 }
