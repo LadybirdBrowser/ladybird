@@ -40,6 +40,12 @@ Optional<Core::ImmutableBytes const&> ResponseBody::source() const
     return {};
 }
 
+bool ResponseBody::holds_all_its_bytes() const
+{
+    auto bytes = source();
+    return bytes.has_value() && bytes->is_valid() && m_length == bytes->size();
+}
+
 // https://fetch.spec.whatwg.org/#byte-sequence-as-a-body
 // NB: Each view of the body makes its stream from these bytes.
 ResponseBody byte_sequence_as_response_body(ReadonlyBytes bytes)

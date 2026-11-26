@@ -62,6 +62,9 @@ public:
     // https://fetch.spec.whatwg.org/#concept-body-total-bytes
     [[nodiscard]] Optional<u64> const& length() const { return m_length; }
 
+    // Whether the body's bytes are all here: a valid byte sequence as long as the body.
+    [[nodiscard]] bool holds_all_its_bytes() const;
+
 private:
     Bytes m_bytes;
     Optional<u64> m_length;

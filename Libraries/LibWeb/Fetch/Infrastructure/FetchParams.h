@@ -51,7 +51,7 @@ public:
 
     [[nodiscard]] PreloadedResponseCandidate& preloaded_response_candidate() { return m_preloaded_response_candidate; }
     [[nodiscard]] PreloadedResponseCandidate const& preloaded_response_candidate() const { return m_preloaded_response_candidate; }
-    void set_preloaded_response_candidate(PreloadedResponseCandidate preloaded_response_candidate) { m_preloaded_response_candidate = move(preloaded_response_candidate); }
+    void set_preloaded_response_candidate(PreloadedResponseCandidate preloaded_response_candidate) const { m_preloaded_response_candidate = move(preloaded_response_candidate); }
 
     [[nodiscard]] bool is_aborted() const;
     [[nodiscard]] bool is_canceled() const;
@@ -109,7 +109,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-params-preloaded-response-candidate
     // preloaded response candidate (default null)
     //     Null, "pending", or a response.
-    PreloadedResponseCandidate m_preloaded_response_candidate;
+    mutable PreloadedResponseCandidate m_preloaded_response_candidate;
 
     // Non-spec process integration: a navigation response is retained while the UI process selects its document host.
     bool m_has_response_body_transfer_lease { false };

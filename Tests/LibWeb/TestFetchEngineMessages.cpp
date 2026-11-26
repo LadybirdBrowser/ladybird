@@ -17,8 +17,7 @@ using namespace Web::Fetch::Engine;
 static_assert(!IsCopyConstructible<EngineCommand>);
 static_assert(IsMoveConstructible<EngineCommand>);
 
-// A completed preload response is all its bytes or a network error, and a delivered body is never null.
-static_assert(!IsConstructible<Command::CompletedPreloadResponse::Completed, NullBody>);
+// A delivered body is never null.
 static_assert(!IsConstructible<Delivered<NonNullLocalBodyHandle>, NullBody>);
 
 // Only fetch params build the input that starts a fetch.
@@ -31,10 +30,8 @@ TEST_CASE(commands_round_trip_their_payloads)
     commands.append(Command::Terminate { .fetch_id = FetchId(3) });
     commands.append(Command::Stop { .fetch_id = FetchId(4) });
     commands.append(Command::ResolveRedirect { .fetch_id = FetchId(5), .continuation_id = ContinuationId(6), .resolution = Command::ResolveRedirect::AcceptAsFinal {} });
-    commands.append(Command::PreloadResponseResolved {
-        .fetch_id = FetchId(7),
-        .response = { .outcome = Command::CompletedPreloadResponse::Completed { .body = Delivered<Core::ImmutableBytes> { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("preloaded"sv.bytes()))) } } },
-    });
+    auto preloaded_response = Web::Fetch::Infrastructure::Response::create();
+    commands.append(Command::PreloadResponseResolved { .fetch_id = FetchId(7), .response = preloaded_response });
     commands.append(Command::TransportControl { .request_id = RequestId(8), .transport_epoch = TransportEpoch(9), .operation = Command::TransportControl::ReleaseNavigationHoldUpTo { .byte_count = 4096 } });
     commands.append(Command::PreloadWaitAbandoned { .fetch_id = FetchId(10) });
 
@@ -51,8 +48,7 @@ TEST_CASE(commands_round_trip_their_payloads)
                 seen_ids.append(resolve.fetch_id.value());
             },
             [&](Command::PreloadResponseResolved const& preload) {
-                auto const& completed = preload.response.outcome.get<Command::CompletedPreloadResponse::Completed>();
-                EXPECT_EQ(completed.body.handle().bytes(), "preloaded"sv.bytes());
+                EXPECT_EQ(preload.response.ptr(), preloaded_response.ptr());
                 seen_ids.append(preload.fetch_id.value());
             },
             [&](Command::PreloadWaitAbandoned const& abandoned) { seen_ids.append(abandoned.fetch_id.value()); },

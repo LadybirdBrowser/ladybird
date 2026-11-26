@@ -24,7 +24,7 @@
 namespace Web::Fetch::Infrastructure {
 
 // The fetch controllers of one agent, by token. It keeps alive the main fetch steps it defers, and the controller of
-// each started fetch until the fetch ends, except while main fetch waits for a preload.
+// each started fetch until the fetch ends.
 class WEB_API FetchControllerRegistry : public Weakable<FetchControllerRegistry> {
     AK_MAKE_NONCOPYABLE(FetchControllerRegistry);
     AK_MAKE_NONMOVABLE(FetchControllerRegistry);

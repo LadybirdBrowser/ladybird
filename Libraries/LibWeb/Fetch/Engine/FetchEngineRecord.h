@@ -114,10 +114,16 @@ public:
     // Whether a stop, abort or termination of the fetch has reached the engine.
     [[nodiscard]] bool is_stopped() const { return m_stopped; }
 
+    // Main fetch may wait for a preload's response, as the fetch's preloaded response candidate was pending when main
+    // fetch's in-parallel steps started.
+    void expect_preload_resolution();
+    [[nodiscard]] bool has_preload_candidate() const { return !m_preload_wait_resolution.has<NoPreloadWait>(); }
     // Main fetch waits for a preload's response, until the agent resolves the wait or abandons it, or the fetch is
-    // stopped, aborted or terminated.
-    void main_fetch_waits_for_preload();
-    void main_fetch_stops_waiting_for_preload();
+    // stopped, aborted or terminated. A resolution that came before main fetch waited resumes it at once.
+    void wait_for_preload(Function<void(NonnullRefPtr<Infrastructure::Response>)> resume);
+    // Resumes main fetch with the preload's response, or keeps it for main fetch's wait. Returns false for a second
+    // resolution.
+    [[nodiscard]] bool resolve_preload_wait(NonnullRefPtr<Infrastructure::Response>);
     // Ends main fetch's wait for a preload's response, after which main fetch can no longer hand a response over. Returns
     // whether main fetch was waiting.
     [[nodiscard]] bool abandon_preload_wait();
@@ -138,6 +144,8 @@ private:
     void close_redirect_continuation();
     void abandon_redirect();
     void did_end_load();
+    // Main fetch's end drops a preload's response that came before main fetch waited for it.
+    void set_main_fetch_ended();
     void end_main_fetch();
     // Sends the fetch's end as its last event once nothing keeps the fetch from ending.
     void end_fetch_unless_anything_is_left();
@@ -159,9 +167,19 @@ private:
     bool m_stopped { false };
 
     struct MainFetchRunning { };
-    struct MainFetchWaitsForPreload { };
+    struct MainFetchWaitsForPreload {
+        Function<void(NonnullRefPtr<Infrastructure::Response>)> resume;
+    };
     struct MainFetchEnded { };
     Variant<MainFetchRunning, MainFetchWaitsForPreload, MainFetchEnded> m_main_fetch { MainFetchRunning {} };
+
+    struct NoPreloadWait { };
+    struct PreloadWaitUnresolved { };
+    struct PreloadWaitResolvedEarly {
+        NonnullRefPtr<Infrastructure::Response> response;
+    };
+    struct PreloadWaitResolved { };
+    Variant<NoPreloadWait, PreloadWaitUnresolved, PreloadWaitResolvedEarly, PreloadWaitResolved> m_preload_wait_resolution { NoPreloadWait {} };
     size_t m_live_load_count { 0 };
     bool m_ended { false };
 };
@@ -234,6 +252,10 @@ public:
     // Does nothing once the fetch has ended or its record is gone. Reports to the agent a fetch id above that of every
     // started fetch, or a fetch whose main fetch does not wait for a preload.
     void abandon_preload_wait(FetchId);
+    // Resolves the preload wait of a started fetch's main fetch. Reports to the agent a fetch id above every start, then,
+    // unless the record is gone, a response that is neither a network error nor one whose body is all its bytes, then,
+    // unless main fetch has ended, a fetch with no preload candidate or a second resolution.
+    void resolve_preload_wait(FetchId, NonnullRefPtr<Infrastructure::Response>);
 
     // Records a network transport, which the agent's transport controls name by the id and transport epoch of its
     // request.
