@@ -350,7 +350,8 @@ impl JitState {
     }
 
     /// Has the code of every executable patched where it holds cells that the collection in progress moves (see
-    /// `JitCode::relocate()`), once it is over and before any other post-GC task can run JS.
+    /// `JitCode::relocate()`), and the dependents keyed by where their cells are now (see `Dependents::rekey()`), once
+    /// it is over and before any other post-GC task can run JS or invalidate dependents.
     pub(crate) fn relocate_code_once_collection_is_over(&self, vm: &Vm) {
         if self.relocates_code.replace(true) {
             return;
@@ -589,15 +590,21 @@ impl Drop for CodeDropDeferral<'_> {
     }
 }
 
+/// How JIT code of `vm` encodes cells (see `libjs_jit::relocation`).
+fn cell_encoding(vm: &Vm) -> libjs_jit::relocation::CellEncoding {
+    libjs_jit::relocation::CellEncoding {
+        heap_region_base: vm.head.heap_region_base.get() as u64,
+        value_offset_mask: crate::build_configuration::HEAP_REGION_OFFSET_MASK,
+        value_is_cell_pattern: libjs_abi::value::SHIFTED_IS_CELL_PATTERN,
+    }
+}
+
 unsafe extern "C" fn relocate_code(context: *mut c_void) {
     // SAFETY: The task was enqueued with the VM as its context.
     let vm = unsafe { &*context.cast::<Vm>() };
     vm.jit.relocates_code.set(false);
-    let encoding = libjs_jit::relocation::CellEncoding {
-        heap_region_base: vm.head.heap_region_base.get() as u64,
-        value_offset_mask: crate::build_configuration::HEAP_REGION_OFFSET_MASK,
-        value_is_cell_pattern: libjs_abi::value::SHIFTED_IS_CELL_PATTERN,
-    };
+    vm.jit.dependents.rekey();
+    let encoding = cell_encoding(vm);
     vm.for_each_executable(|executable| {
         if let Some(code) = executable.jit_code(vm) {
             code.relocate(encoding);

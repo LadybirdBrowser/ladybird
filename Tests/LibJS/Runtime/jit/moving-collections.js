@@ -26,6 +26,29 @@ function callCallback() {
     return holder.callback(1);
 }
 
+const prototype = {
+    method() {
+        return 1;
+    },
+};
+const instance = Object.create(prototype);
+
+function callMethod() {
+    return instance.method();
+}
+
+// After the call, the code reads the properties without checking the shape again, as long as no object left it.
+function makeTriple() {
+    return { first: 1, second: 2, third: 3 };
+}
+holder.triple = makeTriple();
+
+function readAroundCall(object, call) {
+    const first = object.first;
+    call(object);
+    return [first, object.second, object.third];
+}
+
 // Calls of a known function start its frames with its environment, which only the function holds.
 // Changing the binding after the move tells the environment from a stale copy of it.
 let keptBlock;
@@ -49,11 +72,17 @@ function callReadsCaptured() {
     return holder.readsCaptured();
 }
 
+// NB: Many callees make the call generic, so that the code calls whatever it is given.
+const stays = Array.from({ length: 8 }, () => () => {});
+let stayIndex = 0;
+
 const compiled = [
     [sumOfPoint, () => sumOfPoint(holder.point), 3],
     [addZ, () => addZ({ x: 1, y: 2 }).z, 3],
     [sumOfArray, () => sumOfArray(holder.array), 6],
     [callCallback, () => callCallback(), 2],
+    [callMethod, () => callMethod(), 1],
+    [readAroundCall, () => readAroundCall(makeTriple(), stays[stayIndex++ % stays.length]).join(), "1,2,3"],
     [callReadsCaptured, () => callReadsCaptured(), 42],
 ];
 for (const [f, run] of compiled) {
@@ -66,6 +95,7 @@ const exitCounts = compiled.map(([f, run, expected]) => {
     return jit.exitCount(f);
 });
 const pointBefore = addressOf(holder.point);
+const prototypeBefore = addressOf(prototype);
 
 runAfterMovingCollection(() => {
     test("compiled code runs on cells that moved without exits", () => {
@@ -77,6 +107,18 @@ runAfterMovingCollection(() => {
             expect(jit.isCompiled(f)).toBe(jit.enabled);
             expect(jit.exitCount(f)).toBe(exitCounts[index]);
         }
+    });
+
+    test("compiled code that depends on cells that moved stops running when they change", () => {
+        expect(addressOf(prototype)).not.toBe(prototypeBefore);
+        prototype.method = () => 2;
+        expect(callMethod()).toBe(2);
+        const remove = object => {
+            delete object.first;
+        };
+        expect(readAroundCall(holder.triple, remove)).toEqual([1, 2, 3]);
+        // NB: test-js may run the test again.
+        holder.triple = makeTriple();
     });
 
     test("calls of a known function start its frames with its environment after it moved", () => {

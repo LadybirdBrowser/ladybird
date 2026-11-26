@@ -115,7 +115,6 @@ pub fn allocation_infos<'d>(
     };
 
     let object_template = Object::create(vm, realm, Some(realm.object_prototype()));
-    object_template.shape().note_in_allocation_template();
     let mut object = ObjectAllocationInfo {
         empty_object_inline_capacity: u32::from(EMPTY_PLAIN_OBJECT_INLINE_CAPACITY),
         heap: heap_address,
@@ -155,7 +154,6 @@ pub fn allocation_infos<'d>(
 
     let array_template = Array::create(vm, realm, 0, None).must();
     let array_shape = array_template.shape();
-    array_shape.note_in_allocation_template();
     // NB: Storage is only allocated inline where the heap gives the addresses of all the free lists it comes from.
     let storage_size_classes = snapshot.begin();
     let mut has_all_free_lists = true;
@@ -587,7 +585,6 @@ fn closure_template(
     if !sample.can_be_copied() {
         return None;
     }
-    sample.shape().note_in_allocation_template();
     let words = cell_words(snapshot, sample, size_of::<EcmascriptFunctionObject>());
     Some((sample, words))
 }
