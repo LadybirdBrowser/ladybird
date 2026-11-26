@@ -1,0 +1,2 @@
+First level: loaded
+Second level, same URL: about:blank

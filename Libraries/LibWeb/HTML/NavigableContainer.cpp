@@ -236,9 +236,15 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
 
     // 3. If the inclusive ancestor navigables of element's node navigable contains a navigable
     //    whose active document's URL equals url with exclude fragments set to true, then return null.
+    // INTEROP: Allow one level of self-reference, and return null only when a second navigable matches.
+    //          Some sites load their own URL in an iframe.
+    bool found_self_reference = false;
     for (auto const& navigable : document().inclusive_ancestor_navigables()) {
-        if (navigable->active_document_url()->equals(url, URL::ExcludeFragment::Yes))
+        if (!navigable->active_document_url()->equals(url, URL::ExcludeFragment::Yes))
+            continue;
+        if (found_self_reference)
             return {};
+        found_self_reference = true;
     }
 
     // 4. If url matches about:blank and initialInsertion is true, then perform the URL and history update steps given element's content navigable's active document and url.

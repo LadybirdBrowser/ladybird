@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The top-level page loads its own URL in an iframe. That copy then loads the same URL again,
+    // which must not load, and a control page, which must load.
+    if (window === window.top) {
+        asyncTest(done => {
+            window.onmessage = event => {
+                println(event.data);
+                if (event.data.startsWith("Second level")) done();
+            };
+            const frame = document.createElement("iframe");
+            frame.src = location.href;
+            document.body.appendChild(frame);
+        });
+    } else if (window.parent === window.top) {
+        document.addEventListener("DOMContentLoaded", () => {
+            window.top.postMessage("First level: loaded", "*");
+
+            const subject = document.createElement("iframe");
+            subject.src = location.href;
+            document.body.appendChild(subject);
+
+            const control = document.createElement("iframe");
+            control.onload = () => {
+                window.top.postMessage(`Second level, same URL: ${subject.contentDocument.URL}`, "*");
+            };
+            control.src = "../../data/blank.html";
+            document.body.appendChild(control);
+        });
+    } else {
+        window.top.postMessage("Same URL loaded two levels deep", "*");
+    }
+</script>
