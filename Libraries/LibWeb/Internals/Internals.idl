@@ -434,6 +434,9 @@ interface Internals {
     // What presented the last frame of the document's navigable: "commit" for a frame a rendering update committed,
     // "clock" for a tick of the document's clock lane, or "none" before the first frame.
     DOMString lastFramePresentedBy(Document document);
+    // The scroll positions that the window of the display list the compositor holds for the document's navigable was
+    // placed at: one "(x, y)" in CSS pixels per scroller that was scrolled, separated by spaces.
+    DOMString displayListWindowScrollPositions(Document document);
     // Whether the last frame of the page handed the compositor the keyboard scroll state the page holds now.
     boolean lastFrameKeyboardScrollStateIsCurrent();
     undefined releaseHeldFrame();

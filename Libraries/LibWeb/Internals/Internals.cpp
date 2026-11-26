@@ -3207,6 +3207,14 @@ Utf16String Internals::last_frame_presented_by(DOM::Document& document)
     VERIFY_NOT_REACHED();
 }
 
+String Internals::display_list_window_scroll_positions(DOM::Document& document)
+{
+    auto* navigable = as_if<HTML::LocalNavigable>(document.navigable().ptr());
+    if (!navigable)
+        return {};
+    return navigable->presenter().display_list_window_scroll_positions_for_testing();
+}
+
 void Internals::release_held_frame()
 {
     Layout::RustFFI::render_state_release_held_recording_for_testing();
