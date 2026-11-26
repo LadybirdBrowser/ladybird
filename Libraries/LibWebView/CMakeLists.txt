@@ -67,6 +67,7 @@ set(SOURCES
     TabPerformanceMonitor.cpp
     ProcessMonitor.cpp
     Profile.cpp
+    RecentLossCounter.cpp
     ReportSubmission.cpp
     RecordingNotificationBackend.cpp
     RequestServerManager.cpp
