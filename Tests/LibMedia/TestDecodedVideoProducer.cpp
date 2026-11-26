@@ -616,6 +616,32 @@ TEST_CASE(a_seek_that_resolves_while_the_decoder_drains_for_a_codec_change_keeps
 
 // A stream can move to a format the decoder in use has no support for, and only the first frame after a seek carries
 // a codec configuration, so replacing that decoder means asking the demuxer for one again.
+TEST_CASE(a_decoder_that_cannot_be_created_is_passed_over_for_the_next_one)
+{
+    // Like a remote decoder that was chosen for its cached capabilities, but whose server cannot be launched.
+    static constexpr Media::VideoDecoderRegistration uncreatable_decoder {
+        .capabilities = [](Media::ParsedCodec const&) -> Optional<Media::DecoderCapabilities> {
+            return Media::DecoderCapabilities { .smooth = true, .power_efficient = true };
+        },
+        .create = [](Media::CodecID, ReadonlyBytes) -> Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> {
+            return Media::DecoderError::with_description(Media::DecoderErrorCategory::NotImplemented, "This decoder can never be created"sv);
+        },
+    };
+    Media::install_video_decoders({ { &uncreatable_decoder, 1 }, Media::ffmpeg_video_decoders() });
+    ScopeGuard restore_decoders = [] {
+        Media::install_video_decoders({ WithholdingVideoDecoder::registrations(), Media::hardware_video_decoders(), Media::ffmpeg_video_decoders() });
+    };
+
+    auto& loop = never_destroyed_event_loop();
+    auto producer = create_started_producer(loop, "./vp9_in_webm.webm"sv);
+    for (size_t frame_count = 0; frame_count < 10; frame_count++) {
+        if (take_frame_within_time_limit(*producer, loop, AK::Duration::from_seconds(5)) == nullptr) {
+            FAIL(ByteString::formatted("Timed out waiting for frame {}", frame_count));
+            return;
+        }
+    }
+}
+
 TEST_CASE(a_decoder_that_cannot_decode_a_later_format_is_replaced)
 {
     auto& loop = never_destroyed_event_loop();
