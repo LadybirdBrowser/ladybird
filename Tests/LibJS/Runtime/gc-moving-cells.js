@@ -55,6 +55,10 @@ const huge = new Function(
     `let ${Array.from({ length: hugeBindingCount }, (_, i) => `h${i} = { v: ${i} }`).join(", ")};` +
         `return () => h${hugeBindingCount - 1};`
 )();
+// Arrays this sparse keep their elements in a map that the array owns, whose values are slots the collector can
+// rewrite too.
+const sparseArray = [];
+sparseArray[100000] = { sparse: "element" };
 const bound = function (a, b) {
     return [this.t, a.x, b];
 }.bind({ t: "this" }, { x: "argument" });
@@ -65,6 +69,7 @@ const movedBefore = {
     smallSetValue: addressOf(smallSet.values().next().value),
     hugeElement: addressOf(hugeArray[1999]),
     hugeBinding: addressOf(huge()),
+    sparseElement: addressOf(sparseArray[100000]),
 };
 const weakMap = new WeakMap([[holder.weakMapKey, "weak map value"]]);
 
@@ -207,6 +212,12 @@ runAfterMovingCollection(() => {
         expect(hugeArray[1999].e).toBe(1999);
         expect(addressOf(huge())).not.toBe(movedBefore.hugeBinding);
         expect(huge().v).toBe(hugeBindingCount - 1);
+    });
+
+    test("elements of sparse arrays move", () => {
+        expect(addressOf(sparseArray[100000])).not.toBe(movedBefore.sparseElement);
+        expect(sparseArray[100000].sparse).toBe("element");
+        expect(sparseArray.length).toBe(100001);
     });
 
     test("bound functions keep their target, this and arguments", () => {
