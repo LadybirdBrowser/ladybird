@@ -38,6 +38,9 @@ Optional<ByteString> build_curl_connect_to_entry(DNS::LookupResult const& dns_re
 Requests::NetworkError curl_code_to_network_error(int code);
 ErrorOr<void> initialize_libcurl();
 
+// Sets what the handle offers in its TLS handshakes. configure_certificate_verification() does this as well.
+CURLcode configure_tls_handshake(CURL*);
+
 // The caller keeps the collector alive until the handle is cleaned up, including if the TLS handshake fails.
 CURLcode configure_certificate_verification(CURL*, AIACollector&);
 
