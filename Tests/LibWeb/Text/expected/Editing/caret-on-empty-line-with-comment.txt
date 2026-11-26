@@ -1,0 +1,8 @@
+forward by line: P@1, "last"@4
+forward by character: P@1, "last"@0
+backward by line: P@1, "first"@4
+backward by character: P@1, "first"@5
+image line, forward by character: P@0, P@1, P@2
+image line, forward by line: P@1, P@2, "B"@1
+only-image, forward by line: P@0, "B"@1
+only-inline-block, forward by character: P@0, "B"@0

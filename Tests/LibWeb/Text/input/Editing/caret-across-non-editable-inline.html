@@ -3,6 +3,8 @@
 <script src="../include.js"></script>
 <div contenteditable="true" id="editor">A <span contenteditable="false">★</span>B</div>
 <div contenteditable="true" id="empty">A <span contenteditable="false"></span>B</div>
+<div contenteditable="true" id="image">ab<img contenteditable="false" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'/>">cd</div>
+<div contenteditable="true" id="image-line">text<br><img contenteditable="false" style="width: 20px; height: 20px" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'/>">after</div>
 <script>
     test(() => {
         const selection = getSelection();
@@ -26,6 +28,23 @@
             selection.collapse(editor.firstChild, 2);
             internals.sendKey(editor, "Right", internals.MOD_SHIFT);
             println(`  Shift+Right: ${describe()}`);
+        }
+
+        // A word step backward from just after a non-editable image moves past it.
+        const image = document.getElementById("image");
+        image.focus();
+        selection.collapse(image.lastChild, 0);
+        selection.modify("move", "backward", "word");
+        println(`image: word backward from "cd"@0: ${describe()}`);
+
+        // A step backward from just after an image that starts a line doesn't take the end of the line before it for
+        // the position in front of the image.
+        const imageLine = document.getElementById("image-line");
+        imageLine.focus();
+        for (const granularity of ["word", "character"]) {
+            selection.collapse(imageLine.lastChild, 0);
+            selection.modify("move", "backward", granularity);
+            println(`image-line: ${granularity} backward from "after"@0: ${describe()}`);
         }
     });
 </script>

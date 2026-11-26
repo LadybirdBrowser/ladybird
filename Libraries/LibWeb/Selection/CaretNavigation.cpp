@@ -64,6 +64,8 @@ static bool is_empty_line_break(DOM::Node& node)
     return br && br->is_editable() && br->represents_empty_line(read);
 }
 
+static bool is_atomic_inline_caret_host(DOM::Node&);
+
 // A block-level element that renders no text but hosts an empty line where the caret can sit, such as `<p><br></p>`.
 static bool is_empty_line_host(DOM::Node& node)
 {
@@ -81,14 +83,30 @@ static bool is_empty_line_host(DOM::Node& node)
             has_rendered_content = true;
             return TraversalDecision::Break;
         }
-        auto const* layout_node = descendant.layout_node(read);
-        if (descendant.is_editable() && layout_node && layout_node->is_atomic_inline()) {
+        // An atomic inline with caret positions of its own, such as an image, is the line's content.
+        if (is_atomic_inline_caret_host(descendant)) {
             has_rendered_content = true;
             return TraversalDecision::Break;
         }
         return TraversalDecision::Continue;
     });
     return !has_rendered_content;
+}
+
+// The caret on an empty line sits before the line's <br> — past anything ahead of it that renders nothing, such as a
+// comment, which would otherwise be a second caret position on the same line.
+static CaretLocation location_on_empty_line(DOM::Node& empty_line_host)
+{
+    GC::Ptr<DOM::Node> line_break;
+    empty_line_host.for_each_in_subtree([&](DOM::Node& descendant) {
+        if (!is_empty_line_break(descendant))
+            return TraversalDecision::Continue;
+        line_break = descendant;
+        return TraversalDecision::Break;
+    });
+    if (line_break && line_break->parent())
+        return { *line_break->parent(), line_break->index(), TextAffinity::Downstream };
+    return { empty_line_host, 0, TextAffinity::Downstream };
 }
 
 // Atomic inline content, such as an image, has no caret positions inside it. Its two caret positions are represented
@@ -99,7 +117,11 @@ static bool is_atomic_inline_caret_host(DOM::Node& node)
     if (is<HTML::HTMLBRElement>(node))
         return false;
     auto const* layout_node = node.layout_node(read);
-    return node.is_editable() && node.parent() && layout_node && layout_node->is_atomic_inline();
+    if (!node.parent() || !layout_node || !layout_node->is_atomic_inline())
+        return false;
+    // Replaced content in editable content, such as an image, has a caret position on each side of it, even where it
+    // isn't editable itself.
+    return node.is_editable() || (node.parent()->is_editable() && layout_node->is_replaced_box());
 }
 
 // An atomic inline box with no content, such as an empty inline-block, holds a caret position inside it, on no line.
@@ -371,6 +393,8 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
     } else if (is<HTML::HTMLBRElement>(*target) && target->parent()) {
         offset = target->index();
         target = target->parent();
+    } else if (is_empty_line_host(*target)) {
+        return location_on_empty_line(*target);
     }
 
     if (auto* text = as_if<DOM::Text>(*target))
@@ -532,15 +556,25 @@ Optional<CaretLocation> CaretNavigator::location_before_atomic_inline(DOM::Node&
     if (alteration == SelectionAlteration::Extend)
         return CaretLocation { *atomic_inline.parent(), atomic_inline.index(), TextAffinity::Downstream };
 
+    // A non-editable atomic inline, such as an image, isn't inside its parent's editing host, but its caret positions are.
     auto editing_host = atomic_inline.editing_host();
     if (!editing_host)
+        editing_host = atomic_inline.parent()->editing_host();
+    if (!editing_host)
         return {};
+    CaretLocation before { *atomic_inline.parent(), atomic_inline.index(), TextAffinity::Downstream };
     auto previous = adjacent_caret_host(atomic_inline, *editing_host, SelectionDirection::Backward);
     if (auto* previous_text = as_if<DOM::Text>(previous.ptr())) {
-        if (auto position = text_edge_location(*previous_text, true); position.has_value())
-            return position;
+        // Only the end of text on the atomic inline's own line is the same caret position as the boundary before it.
+        if (auto position = text_edge_location(*previous_text, true); position.has_value()) {
+            Layout::ForcedReadScope read { *m_document };
+            auto text_line = caret_line(*m_document, read, *position);
+            auto atomic_line = caret_line(*m_document, read, before);
+            if (!text_line.has_value() || !atomic_line.has_value() || is_same_line(*m_document, *text_line, *atomic_line))
+                return position;
+        }
     }
-    return CaretLocation { *atomic_inline.parent(), atomic_inline.index(), TextAffinity::Downstream };
+    return before;
 }
 
 Optional<CaretLocation> CaretNavigator::canonicalize_backward_word_location(CaretLocation const& location, SelectionAlteration alteration)
@@ -688,7 +722,7 @@ Optional<CaretLocation> CaretNavigator::first_position_on_another_line(CaretLoca
         } else if (is<HTML::HTMLBRElement>(*host) && host->parent()) {
             candidate = CaretLocation { *host->parent(), host->index() };
         } else {
-            candidate = CaretLocation { *host, 0 };
+            candidate = location_on_empty_line(*host);
         }
         if (!candidate.has_value())
             continue;
@@ -920,12 +954,19 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
     auto destination = *position;
     // Point-to-caret resolution naturally returns the parent boundary before an atomic inline. For a collapsed caret,
     // prefer the visually equivalent preceding text edge so horizontal movement does not revisit the same position.
+    // Only text on the atomic inline's own line is equivalent: The end of text on the line before it is another line.
     if (alteration == SelectionAlteration::Move && !is<DOM::Text>(*destination.node)) {
         auto* child_after = destination.node->child_at_index(destination.offset);
         if (child_after && is_atomic_inline_caret_host(*child_after)) {
             auto previous = adjacent_caret_host(*child_after, *editing_host, SelectionDirection::Backward);
-            if (auto* previous_text = as_if<DOM::Text>(previous.ptr()))
-                destination = { *previous_text, previous_text->length(), TextAffinity::Downstream };
+            if (auto* previous_text = as_if<DOM::Text>(previous.ptr())) {
+                CaretLocation previous_end { *previous_text, previous_text->length(), TextAffinity::Downstream };
+                Layout::ForcedReadScope read { *m_document };
+                auto previous_line = caret_line(*m_document, read, previous_end);
+                auto destination_line = caret_line(*m_document, read, destination);
+                if (previous_line.has_value() && destination_line.has_value() && is_same_line(*m_document, *previous_line, *destination_line))
+                    destination = previous_end;
+            }
         }
     }
     auto* destination_text = as_if<DOM::Text>(*destination.node);
