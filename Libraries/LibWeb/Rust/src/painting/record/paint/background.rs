@@ -1000,22 +1000,31 @@ fn paint_image_layer_in_current_space<O: Observer>(
             };
             // The image is rendered at one scale in both axes, in a viewport of the size of the destination, since a
             // viewport of other proportions can change how the image is laid out.
+            // NB: The destination is in device pixels, and the image lays out in CSS pixels.
+            let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
+            let css_dest_rect = FloatRect::new(
+                0.0,
+                0.0,
+                dest_rect.width as f32 / device_scale,
+                dest_rect.height as f32 / device_scale,
+            );
             let geometry = match scaled_tile_size {
                 Some(tile_size) => {
-                    let scale = tile_size.width as f32 / dest_rect.width as f32;
+                    let scale = tile_size.width as f32 / dest_rect.width as f32 * device_scale;
                     vector_image_render_geometry(
-                        FloatRect::new(0.0, 0.0, dest_rect.width as f32, dest_rect.height as f32),
+                        css_dest_rect,
                         FloatSize {
                             width: scale,
                             height: scale,
                         },
                         false,
+                        device_scale,
                     )
                 }
                 None => VectorImageRenderGeometry {
-                    css_width: CssPixels::from_integer(i64::from(dest_rect.width)),
-                    css_height: CssPixels::from_integer(i64::from(dest_rect.height)),
-                    raster_scale: 1.0,
+                    css_width: CssPixels::nearest_value_for_f32(css_dest_rect.width),
+                    css_height: CssPixels::nearest_value_for_f32(css_dest_rect.height),
+                    raster_scale: device_scale,
                     list_size: destination_size,
                 },
             };
