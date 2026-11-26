@@ -38,8 +38,6 @@ VulkanExportableImagePool::~VulkanExportableImagePool()
 
 VulkanExportableImagePool::Image::~Image()
 {
-    if (m_abandoned)
-        return;
     MutexLocker locker { m_pool->m_mutex };
     m_pool->m_free_images.append({ m_image, m_memory, move(m_surface) });
 }

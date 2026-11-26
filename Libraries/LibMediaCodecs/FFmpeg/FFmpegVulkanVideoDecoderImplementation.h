@@ -170,7 +170,6 @@ private:
     RefPtr<VulkanExportableImagePool> m_exportable_images;
     VkCommandPool m_copy_command_pool { VK_NULL_HANDLE };
     VkCommandBuffer m_copy_command_buffer { VK_NULL_HANDLE };
-    bool m_copy_stalled { false };
 };
 
 }
