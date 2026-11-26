@@ -252,12 +252,20 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(
     if (!codec_initialization_data.has_value())
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Coded frame starting a decode sequence carries no codec configuration"sv);
 
-    auto selection = select_decoder_for_frame(frame, m_decoder_that_failed_due_to_missing_features);
-    m_decoder_that_failed_due_to_missing_features = {};
-    if (!selection.has_value())
-        return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find a video decoder for codec {}", frame.codec_id());
+    // A decoder that cannot be created for the codec after all, such as one whose server cannot be reached, is passed
+    // over for the next one.
+    auto selection = exchange(m_decoder_that_failed_due_to_missing_features, {});
+    while (true) {
+        selection = select_decoder_for_frame(frame, selection);
+        if (!selection.has_value())
+            return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find a video decoder for codec {}", frame.codec_id());
 
-    m_decoder = TRY(create_video_decoder(selection, frame.codec_id(), *codec_initialization_data));
+        auto decoder_or_error = create_video_decoder(selection, frame.codec_id(), *codec_initialization_data);
+        if (decoder_or_error.is_error() && decoder_or_error.error().category() == DecoderErrorCategory::NotImplemented)
+            continue;
+        m_decoder = TRY(move(decoder_or_error));
+        break;
+    }
     m_decoder_selection = selection;
     // Only the decode thread waits for storage, so a release on the decode thread itself never needs a wake:
     // its next attempt to take output comes after this release in program order.
