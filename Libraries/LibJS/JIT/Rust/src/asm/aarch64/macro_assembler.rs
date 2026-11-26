@@ -23,8 +23,12 @@ use super::super::PortableMacroAssembler;
 use super::super::Width;
 use super::super::Width::W32;
 use super::super::Width::W64;
+use super::super::relocation::CellConstant;
+use super::super::relocation::CellEncoding;
+use super::super::relocation::RelocationKind;
 use super::*;
 use ak::ZoneMap;
+use ak::ZoneVec;
 
 /// Scratch register for address legalization and call targets.
 const ADDRESS_SCRATCH: Gpr = X16;
@@ -45,6 +49,13 @@ pub struct MacroAssembler<'a> {
     constants: ZoneMap<'a, u64, Label>,
     /// 128-bit constants, in the same pool.
     constants128: ZoneMap<'a, u128, Label>,
+    /// The cells of `PortableMacroAssembler::move_cell()` and its kind, in the same pool.
+    cell_constants: ZoneMap<'a, CellConstant, Label>,
+    /// See `PortableMacroAssembler::forbid_untyped_cells()`: how cells are encoded, the addresses of the cells,
+    /// sorted, and whether an immediate of plain bits was one of them.
+    cell_encoding: Option<CellEncoding>,
+    forbidden_cells: ZoneVec<'a, u64>,
+    has_untyped_cell: bool,
 }
 
 /// The encodings of the registers of a set (at most 32), in its order, as the first ones of an array and their count.
@@ -141,6 +152,12 @@ enum LogicalOp {
 }
 
 impl MacroAssembler<'_> {
+    /// Completes code that tests assemble, like `PortableMacroAssembler::finish()`, without the cells it holds.
+    #[cfg(test)]
+    pub fn finish(self) -> Result<usize, AsmError> {
+        PortableMacroAssembler::finish(self, &mut Vec::new())
+    }
+
     /// Turns a portable address into an encodable operand for an access of
     /// `1 << size_log2` bytes, using `ADDRESS_SCRATCH` when needed.
     fn legalize(&mut self, address: &Address, size_log2: u32) -> MemOperand {
@@ -259,9 +276,43 @@ impl MacroAssembler<'_> {
             .or_insert_with(|| self.assembler.new_label())
     }
 
+    /// Notes if the 64-bit immediate of plain bits `imm` is one of the cells of `forbid_untyped_cells()`.
+    fn check_plain_bits(&mut self, imm: u64) {
+        if self
+            .cell_encoding
+            .is_some_and(|encoding| encoding.is_one_of(&self.forbidden_cells, imm))
+        {
+            self.has_untyped_cell = true;
+        }
+    }
+
+    /// The label of `cell` in the constant pool.
+    fn cell_constant(&mut self, cell: CellConstant) -> Label {
+        *self
+            .cell_constants
+            .entry(cell)
+            .or_insert_with(|| self.assembler.new_label())
+    }
+
+    /// `dst = compressed`, the compressed pointer of a cell, as a `movz` and a `movk` that `finish()` lists.
+    fn mov_cell32(&mut self, dst: Gpr, compressed: u32) {
+        let offset = self.assembler.mov_imm32_pair(dst, compressed);
+        self.assembler
+            .buffer_mut()
+            .note_cell_place(offset, RelocationKind::Aarch64CompressedMove);
+    }
+
     /// `dst = imm`, from the constant pool if building it would take more
     /// than two instructions.
     fn mov_imm(&mut self, width: Width, dst: Gpr, imm: u64) {
+        if width == W64 {
+            self.check_plain_bits(imm);
+        }
+        self.mov_mask(width, dst, imm);
+    }
+
+    /// `dst = mask`, like `mov_imm()`, for a mask of bits to test, which is never a cell.
+    fn mov_mask(&mut self, width: Width, dst: Gpr, imm: u64) {
         if width == W64 && Assembler::mov_imm_instruction_count(imm) > 2 {
             let label = self.constant(imm);
             self.assembler.ldr_literal(dst, label);
@@ -402,7 +453,7 @@ impl MacroAssembler<'_> {
         } else if encode_logical_immediate(mask, width).is_some() {
             self.assembler.tst_imm(width, value, mask);
         } else {
-            self.mov_imm(width, VALUE_SCRATCH, mask);
+            self.mov_mask(width, VALUE_SCRATCH, mask);
             self.assembler.tst(width, value, VALUE_SCRATCH);
         }
     }
@@ -483,6 +534,10 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
             assembler: Assembler::new(code, work),
             constants: ZoneMap::new_in(work),
             constants128: ZoneMap::new_in(work),
+            cell_constants: ZoneMap::new_in(work),
+            cell_encoding: None,
+            forbidden_cells: ZoneVec::new_in(work),
+            has_untyped_cell: false,
         }
     }
 
@@ -515,7 +570,10 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         JumpPatch::new(&(0x1400_0000 | (words as u32 & 0x03ff_ffff)).to_le_bytes())
     }
 
-    fn finish(mut self) -> Result<usize, AsmError> {
+    fn finish(mut self, cells: &mut impl core::iter::Extend<(u32, RelocationKind)>) -> Result<usize, AsmError> {
+        if self.has_untyped_cell {
+            return Err(AsmError::UntypedCell);
+        }
         let data_offset = self.assembler.offset();
         if !self.constants128.is_empty() {
             self.assembler.align_data(16);
@@ -532,8 +590,26 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
                 self.assembler.data_u64(*value);
             }
         }
+        cells.extend(self.assembler.buffer().cell_places().iter().copied());
+        if !self.cell_constants.is_empty() {
+            self.assembler.align_data(8);
+            for (cell, label) in self.cell_constants.iter() {
+                self.assembler.bind(*label);
+                cells.extend([(
+                    u32::try_from(self.assembler.offset()).expect("code fits in 4 GiB"),
+                    cell.kind(),
+                )]);
+                self.assembler.data_u64(cell.bits());
+            }
+        }
         self.assembler.finish()?;
         Ok(data_offset)
+    }
+
+    fn forbid_untyped_cells(&mut self, encoding: CellEncoding, cells: &[u64]) {
+        self.cell_encoding = Some(encoding);
+        self.forbidden_cells.clear();
+        self.forbidden_cells.extend_from_slice(cells);
     }
 
     fn unreachable(&mut self) {
@@ -557,6 +633,11 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
 
     fn move_imm64(&mut self, dst: Gpr, imm: u64) {
         self.mov_imm(W64, dst, imm);
+    }
+
+    fn move_cell(&mut self, dst: Gpr, cell: CellConstant) {
+        let label = self.cell_constant(cell);
+        self.assembler.ldr_literal(dst, label);
     }
 
     fn move_imm32(&mut self, dst: Gpr, imm: u32) {
@@ -623,6 +704,16 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         self.store_imm32_with(MemOp::StrW, address, imm);
     }
 
+    fn store_cell32(&mut self, address: &Address, compressed: u32) {
+        self.mov_cell32(VALUE_SCRATCH, compressed);
+        self.load_store(MemOp::StrW, VALUE_SCRATCH.0, address);
+    }
+
+    fn store_cell64(&mut self, address: &Address, cell: CellConstant) {
+        self.move_cell(VALUE_SCRATCH, cell);
+        self.load_store(MemOp::StrX, VALUE_SCRATCH.0, address);
+    }
+
     fn store_imm64(&mut self, address: &Address, imm: u64) {
         let source = if imm == 0 {
             XZR
@@ -664,6 +755,8 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
     }
 
     fn load_imm128(&mut self, dst: Fpr, imm: u128) {
+        self.check_plain_bits(imm as u64);
+        self.check_plain_bits((imm >> 64) as u64);
         let label = self.constant128(imm);
         self.assembler.ldr_literal_quad(dst, label);
     }
@@ -908,9 +1001,27 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         self.branch_compare_imm(W64, condition, lhs, imm, target);
     }
 
+    fn branch64_cell(&mut self, condition: Condition, lhs: Gpr, cell: CellConstant, target: Label) {
+        self.move_cell(VALUE_SCRATCH, cell);
+        self.branch64(condition, lhs, VALUE_SCRATCH, target);
+    }
+
     fn branch32_memory_imm(&mut self, condition: Condition, address: &Address, imm: i32, target: Label) {
         self.load_store(MemOp::LdrW, ADDRESS_SCRATCH.0, address);
         self.compare_imm(W32, ADDRESS_SCRATCH, i64::from(imm));
+        self.assembler.b_cond(condition_code(condition), target);
+    }
+
+    fn branch32_memory_cell(&mut self, condition: Condition, address: &Address, compressed: u32, target: Label) {
+        self.load_store(MemOp::LdrW, ADDRESS_SCRATCH.0, address);
+        self.mov_cell32(VALUE_SCRATCH, compressed);
+        self.assembler.cmp(W32, ADDRESS_SCRATCH, VALUE_SCRATCH);
+        self.assembler.b_cond(condition_code(condition), target);
+    }
+
+    fn branch32_cell(&mut self, condition: Condition, lhs: Gpr, compressed: u32, target: Label) {
+        self.mov_cell32(VALUE_SCRATCH, compressed);
+        self.assembler.cmp(W32, lhs, VALUE_SCRATCH);
         self.assembler.b_cond(condition_code(condition), target);
     }
 

@@ -712,6 +712,40 @@ mod macro_assembler {
     }
 
     #[test]
+    fn veneer_pools_do_not_split_the_moves_of_a_cell() {
+        // NB: Sweep the distance so that some pool is due between the movz and the movk of the cell, which the cell
+        //     place must cover both of.
+        use crate::asm::relocation::RelocationKind;
+        let cell = crate::asm::relocation::CellId::from_address(0x2_0000_1000).compressed();
+        for nop_count in 8100..8192 {
+            let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+            let mut masm = MacroAssembler::new(&mut code, &work);
+            let label = masm.new_label();
+            masm.assembler.tbz(X3, 3, label);
+            for _ in 0..nop_count {
+                masm.assembler.nop();
+            }
+            masm.branch32_cell(Condition::Equal, X0, cell, label);
+            masm.bind(label);
+            let mut places = Vec::new();
+            PortableMacroAssembler::finish(masm, &mut places).unwrap();
+            let [(offset, RelocationKind::Aarch64CompressedMove)] = places[..] else {
+                panic!("{places:?}");
+            };
+            let offset = offset as usize;
+            // NB: A movz and a movk of the halfwords of w17, the value scratch register.
+            let (movz, movk) = (word_at(&code, offset), word_at(&code, offset + 4));
+            assert_eq!(movz & 0xffe0_001f, 0x5280_0011, "{nop_count} nops");
+            assert_eq!(movk & 0xffe0_001f, 0x72a0_0011, "{nop_count} nops");
+            assert_eq!(
+                crate::asm::relocation::compressed_at(RelocationKind::Aarch64CompressedMove, &code[offset..]),
+                cell.bits(),
+                "{nop_count} nops"
+            );
+        }
+    }
+
+    #[test]
     fn addresses_are_legalized() {
         assert_encodings!(MacroAssembler, disassembler::aarch64, {
             "ldr x0, [x1, #0x8]" => |m| m.load64(X0, &base(X1, 8));

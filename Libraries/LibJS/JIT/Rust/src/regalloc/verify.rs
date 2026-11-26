@@ -25,6 +25,7 @@ use super::Location;
 use super::Move;
 use super::RegisterSet;
 use super::liveness::phi_inputs_from;
+use crate::code::Repr;
 use crate::codegen::lowering_info::Clobbers;
 use crate::codegen::lowering_info::InputConstraint;
 use crate::codegen::lowering_info::lowering_info;
@@ -39,7 +40,8 @@ use crate::tables::Run;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Content {
     Value(NodeId),
-    Constant(u64),
+    /// A constant, whose representation tells code whether its bits are a cell (see `Location::Constant`).
+    Constant(u64, Repr),
     /// The value a slot that nothing writes holds, which every load of it loads.
     UnwrittenSlot(u32),
 }
@@ -54,7 +56,7 @@ fn place(location: Location) -> Option<usize> {
     match location {
         Location::Register(register) => Some(usize::from(register)),
         Location::Stack(slot) => Some(REGISTER_PLACES + slot as usize),
-        Location::Constant(_) | Location::Frame(_) => None,
+        Location::Constant(..) | Location::Frame(_) => None,
     }
 }
 
@@ -308,7 +310,7 @@ impl Verifier<'_, '_> {
 
     fn content_of_value(&self, value: NodeId) -> Content {
         if matches!(self.graph.node(value).op, Op::VirtualObject { .. }) {
-            return Content::Constant(crate::ir::value::EMPTY);
+            return Content::Constant(crate::ir::value::EMPTY, Repr::Tagged);
         }
         if let Op::LoadSlot { slot } = self.graph.node(value).op
             && self.graph.is_unwritten_slot(slot)
@@ -316,14 +318,14 @@ impl Verifier<'_, '_> {
             return Content::UnwrittenSlot(slot);
         }
         match self.graph.constant_value(value) {
-            Some(bits) => Content::Constant(bits),
+            Some(bits) => Content::Constant(bits, super::constant_repr(self.graph, value)),
             None => Content::Value(value),
         }
     }
 
     fn read(&self, state: &(impl Holds + ?Sized), location: Location) -> Option<Content> {
         match location {
-            Location::Constant(bits) => Some(Content::Constant(bits)),
+            Location::Constant(bits, repr) => Some(Content::Constant(bits, repr)),
             Location::Frame(slot) if self.graph.is_unwritten_slot(slot) => Some(Content::UnwrittenSlot(slot)),
             _ => state.holds(location),
         }
@@ -411,7 +413,7 @@ impl Verifier<'_, '_> {
 
     fn apply_moves(&mut self, state: &mut State, moves: &[Move], context: Context) {
         for m in moves {
-            if matches!(m.to, Location::Constant(_) | Location::Frame(_)) {
+            if matches!(m.to, Location::Constant(..) | Location::Frame(_)) {
                 self.error(format_args!("{context}: move into {:?}", m.to));
                 continue;
             }
@@ -530,9 +532,11 @@ impl Verifier<'_, '_> {
             ));
         }
         for (index, (input, location)) in node.inputs.iter().zip(allocation.inputs).enumerate() {
-            if let Location::Constant(bits) = location {
-                if self.graph.constant_value(*input) != Some(*bits) {
-                    self.error(format_args!("{context}: input {index} is not the constant {bits:#x}"));
+            if let Location::Constant(bits, repr) = *location {
+                if self.content_of_value(*input) != Content::Constant(bits, repr) {
+                    self.error(format_args!(
+                        "{context}: input {index} is not the constant {bits:#x} of {repr:?}"
+                    ));
                 }
                 continue;
             }
@@ -608,19 +612,22 @@ mod tests {
         let work = crate::test_work();
         let mut state = State::new_in(4, &work);
         let mut stored = ZoneVec::new_in(&work);
-        state.insert(Location::Stack(3), Content::Constant(1));
+        state.insert(Location::Stack(3), Content::Constant(1, Repr::Tagged));
         state.insert(Location::Register(200), Content::Value(NodeId(2)));
         state.insert(Location::Register(1), Content::Value(NodeId(3)));
         state.insert(Location::Stack(0), Content::UnwrittenSlot(4));
-        assert_eq!(state.remove(Location::Stack(3)), Some(Content::Constant(1)));
-        state.insert(Location::Stack(3), Content::Constant(5));
-        state.insert(Location::Frame(7), Content::Constant(6));
+        assert_eq!(
+            state.remove(Location::Stack(3)),
+            Some(Content::Constant(1, Repr::Tagged))
+        );
+        state.insert(Location::Stack(3), Content::Constant(5, Repr::Tagged));
+        state.insert(Location::Frame(7), Content::Constant(6, Repr::Tagged));
         state.store(&mut stored);
         let expected = [
             (Location::Register(1), Content::Value(NodeId(3))),
             (Location::Register(200), Content::Value(NodeId(2))),
             (Location::Stack(0), Content::UnwrittenSlot(4)),
-            (Location::Stack(3), Content::Constant(5)),
+            (Location::Stack(3), Content::Constant(5, Repr::Tagged)),
         ];
         assert_eq!(stored, expected);
         assert_eq!(stored.holds(Location::Stack(0)), Some(Content::UnwrittenSlot(4)));

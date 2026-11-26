@@ -26,6 +26,7 @@ pub mod debug_text;
 pub mod ir;
 pub mod passes;
 pub mod regalloc;
+pub use asm::relocation;
 pub mod scratch;
 pub mod snapshot;
 pub mod tables;
@@ -185,9 +186,13 @@ fn embedded_cells<'w>(graph: &ir::Graph<'_>, snapshot: &Snapshot, work: &'w Zone
         .executables
         .first()
         .map_or(&[][..], |executable| &snapshot[executable.constants]);
+    // NB: The code of `typeof` moves the strings it makes, as values.
+    let has_typeof = graph.nodes.iter().any(|node| matches!(node.op, ir::Op::Typeof));
+    let typeof_strings = runtime.layout.typeof_strings.all().into_iter().filter(|_| has_typeof);
     let mut value_cells = ak::ZoneVec::from_iter_in(
         values
             .chain(frame_constants.iter().copied())
+            .chain(typeof_strings)
             .filter(|bits| bits & pattern == pattern)
             .map(|bits| runtime.heap_region_base + (bits & runtime.heap_region_offset_mask)),
         work,
@@ -291,6 +296,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         );
     }
     let mut artifact = ArtifactWriter::new_in(work);
+    let embedded_cells = embedded_cells(&graph, snapshot, work);
     let mut generated = codegen::generate::<M>(
         &graph,
         snapshot,
@@ -298,10 +304,17 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         &mut artifact,
         &allocation,
         &mut compiled.code,
+        &embedded_cells,
         work,
     )?;
     generated.osr_entries.sort_unstable();
-    let embedded_cells = embedded_cells(&graph, snapshot, work);
+    let relocations = codegen::relocations(
+        &compiled.code,
+        &generated.cell_places,
+        generated.cell_encoding,
+        &embedded_cells,
+        work,
+    )?;
     let layout = artifact.finish(
         &Tail {
             osr_entries: &generated.osr_entries,
@@ -310,6 +323,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             uncaught_handlers: &graph.uncaught_handlers,
             invalidation_patches: &generated.invalidation_patches,
             embedded_cells: &embedded_cells,
+            relocations: &relocations,
             dependencies: &graph.dependencies,
         },
         &mut compiled.words,

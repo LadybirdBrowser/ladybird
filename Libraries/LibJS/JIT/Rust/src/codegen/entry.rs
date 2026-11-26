@@ -38,6 +38,10 @@ pub fn generate_entry_trampoline<M: PortableMacroAssembler>() -> Result<Column<u
     masm.call_register(arguments[2]);
     masm.emit_epilogue(&frame);
     masm.ret();
-    masm.finish().map_err(super::assembly_failure)?;
+    let mut cells = crate::asm::NoCells::default();
+    masm.finish(&mut cells).map_err(super::assembly_failure)?;
+    if cells.held {
+        return Err(CompileFailure::CodeGeneration);
+    }
     Ok(code)
 }

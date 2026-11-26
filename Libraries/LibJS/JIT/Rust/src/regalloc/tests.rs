@@ -562,6 +562,111 @@ fn int32_operations_write_over_their_first_input_where_it_dies() {
     );
 }
 
+/// The constant in `location` as a value of another representation, if it is a constant.
+fn with_other_repr(location: Location) -> Option<Location> {
+    match location {
+        Location::Constant(bits, Repr::Pointer) => Some(Location::Constant(bits, Repr::Tagged)),
+        Location::Constant(bits, _) => Some(Location::Constant(bits, Repr::Pointer)),
+        _ => None,
+    }
+}
+
+/// Checks that the verifier rejects the allocation of `graph` with the representation of any one constant changed, and
+/// returns how many constants were inputs, move sources and exit values.
+fn check_that_constant_reprs_are_verified(graph: &Graph) -> [usize; 3] {
+    let registers = RegisterSet::test_configuration();
+    let allocation = allocate_with(graph, &registers);
+    verify(graph, &registers, &allocation, crate::test_zone()).unwrap();
+    let rejects = |change: &dyn Fn(&mut Allocated)| {
+        let mut broken = allocate_with(graph, &registers);
+        change(&mut broken);
+        verify(graph, &registers, &broken, crate::test_zone()).is_err()
+    };
+    let mut counts = [0; 3];
+    for index in 0..allocation.node_count() {
+        let node = NodeId::from_index(index);
+        for (input, location) in allocation.node(node).inputs.iter().enumerate() {
+            if let Some(other) = with_other_repr(*location) {
+                assert!(
+                    rejects(&|broken| broken.set_input(node, input, other)),
+                    "input {input} of v{index}"
+                );
+                counts[0] += 1;
+            }
+        }
+        for (exit_value, (_, location)) in allocation.node(node).exit_values.iter().enumerate() {
+            if let Some(other) = with_other_repr(*location) {
+                assert!(
+                    rejects(&|broken| broken.set_exit_value(node, exit_value, other)),
+                    "exit value {exit_value} of v{index}"
+                );
+                counts[2] += 1;
+            }
+        }
+    }
+    for (index, m) in allocation.moves().iter().enumerate() {
+        if let Some(from) = with_other_repr(m.from) {
+            assert!(rejects(&|broken| broken.set_move(index, Move { from, ..*m })), "{m:?}");
+            counts[1] += 1;
+        }
+    }
+    counts
+}
+
+#[test]
+fn the_verifier_checks_the_representation_of_constants() {
+    let direct_input = assemble(|_| {
+        vec![
+            Instruction::Enter,
+            Instruction::RightShiftRhsInt32 {
+                arith_feedback: 0,
+                dst: r(5),
+                lhs: a(0),
+                rhs: 3,
+            },
+            Instruction::Return { value: r(5) },
+        ]
+    });
+    let mut snapshot = crate::builder::tests::snapshot_for(&direct_input, crate::bytecode::test_support::test_layout());
+    snapshot.executables[0].feedback.arith = snapshot.add(&[crate::snapshot::arith_feedback::INT32]);
+    let [inputs, _, _] = check_that_constant_reprs_are_verified(&crate::builder::tests::optimized_graph(&snapshot));
+    assert!(inputs > 0);
+
+    let move_source = assemble(|label| {
+        vec![
+            Instruction::Mov { dst: l(1), src: a(0) },
+            Instruction::JumpIf {
+                condition: r(5),
+                true_target: label(2),
+                false_target: label(4),
+            },
+            Instruction::Mov { dst: l(0), src: c(0) },
+            Instruction::Jump { target: label(5) },
+            Instruction::Mov { dst: l(0), src: l(1) },
+            Instruction::Return { value: l(0) },
+        ]
+    });
+    let [_, moves, _] = check_that_constant_reprs_are_verified(&build(&move_source));
+    assert!(moves > 0);
+
+    let exit_value = assemble(|_| {
+        vec![
+            Instruction::Mov { dst: r(5), src: c(1) },
+            Instruction::Mov { dst: r(6), src: a(0) },
+            Instruction::Add {
+                arith_feedback: 0,
+                dst: r(7),
+                lhs: r(5),
+                rhs: r(6),
+            },
+            Instruction::Return { value: r(7) },
+        ]
+    });
+    let [_, _, exit_values] =
+        check_that_constant_reprs_are_verified(&build_with_layout(&exit_value, test_layout(), &[2]));
+    assert!(exit_values > 0);
+}
+
 #[test]
 fn shift_amounts_are_in_the_targets_shift_register_or_immediates() {
     let program = assemble(|_| {
@@ -612,7 +717,7 @@ fn shift_amounts_are_in_the_targets_shift_register_or_immediates() {
             None => assert!(matches!(amount, Location::Register(_)), "{dump}"),
         }
         assert!(
-            matches!(allocation.node(constant).inputs[1], Location::Constant(bits) if bits as u32 == 3),
+            matches!(allocation.node(constant).inputs[1], Location::Constant(bits, _) if bits as u32 == 3),
             "{dump}"
         );
     }
@@ -727,7 +832,7 @@ fn exits_find_constants_registers_and_spilled_values() {
     assert_eq!(
         frame.values().collect::<Vec<_>>(),
         [
-            (r(5).raw(), ValueLocation::Constant(value::int32(10))),
+            (r(5).raw(), ValueLocation::Constant(value::int32(10), Repr::Tagged)),
             (r(6).raw(), ValueLocation::Register(argument_register, Repr::Tagged)),
         ]
     );
@@ -829,7 +934,7 @@ fn the_verifier_finds_values_reloaded_from_frame_slots_that_do_not_hold_them() {
     stored.blocks[block].body.push(store);
     let mut allocation = allocation;
     allocation.push_node(&[], None);
-    allocation.push_node(&[Location::Constant(value::UNDEFINED)], None);
+    allocation.push_node(&[Location::Constant(value::UNDEFINED, Repr::Tagged)], None);
     let errors = verify(&stored, &registers, &allocation, crate::test_zone()).unwrap_err();
     assert!(errors.contains("nothing writes"), "{errors}");
 }

@@ -235,11 +235,17 @@ pub enum Location {
     Register(u8),
     /// A spill slot of the JIT frame.
     Stack(u32),
-    /// A NaN-boxed constant; only ever a move source.
-    Constant(u64),
+    /// A constant, the bits of a value of the representation; only ever a move source. A constant of
+    /// `Repr::Pointer` is the address of a cell, which code holds as a cell (see `crate::relocation`).
+    Constant(u64, Repr),
     /// A slot of the compiled function's frame (an operand), which holds the value loaded from it wherever that value
     /// is live (see `frame_home()`); only ever a move source.
     Frame(u32),
+}
+
+/// The representation of the constant `value`.
+fn constant_repr(graph: &Graph<'_>, value: NodeId) -> Repr {
+    graph.node(graph.unrefined(value)).repr.unwrap_or(Repr::Tagged)
 }
 
 impl Default for Location {
@@ -439,6 +445,16 @@ impl Allocation<'_> {
     pub(crate) fn set_move_before(&mut self, node: NodeId, index: usize, new_move: Move) {
         let moves = self.nodes[node.index()].moves_before.range();
         self.moves[moves][index] = new_move;
+    }
+
+    /// Sets the move at `index` of moves().
+    pub(crate) fn set_move(&mut self, index: usize, new_move: Move) {
+        self.moves[index] = new_move;
+    }
+
+    pub(crate) fn set_exit_value(&mut self, node: NodeId, index: usize, location: Location) {
+        let exit_values = self.nodes[node.index()].exit_values.range();
+        self.exit_values[exit_values][index].1 = location;
     }
 
     /// Adds the allocation of one more node, which has `inputs` and `output` and nothing else.
@@ -797,11 +813,11 @@ impl<'w> Allocator<'_, 'w> {
     /// Where a value can be read from right now.
     fn current_location(&self, value: NodeId) -> Location {
         if let Some(bits) = self.graph.constant_value(value) {
-            return Location::Constant(bits);
+            return Location::Constant(bits, constant_repr(self.graph, value));
         }
         // NB: Exits find virtual objects through their properties.
         if matches!(self.graph.node(value).op, Op::VirtualObject { .. }) {
-            return Location::Constant(crate::ir::value::EMPTY);
+            return Location::Constant(crate::ir::value::EMPTY, Repr::Tagged);
         }
         if let Some(register) = self.value_registers[value.index()] {
             return Location::Register(register);
@@ -880,7 +896,8 @@ impl<'w> Allocator<'_, 'w> {
             if constraint == InputConstraint::RegisterOrConstant
                 && let Some(bits) = self.graph.constant_value(input)
             {
-                self.allocation.locations[inputs_start + index] = Location::Constant(bits);
+                self.allocation.locations[inputs_start + index] =
+                    Location::Constant(bits, constant_repr(self.graph, input));
                 continue;
             }
             if constraint == InputConstraint::Anywhere {
@@ -1153,7 +1170,8 @@ impl fmt::Display for LocationName {
             Location::Register(register) if register >= FPR_BASE => write!(f, "f{}", register - FPR_BASE),
             Location::Register(register) => write!(f, "r{register}"),
             Location::Stack(slot) => write!(f, "s{slot}"),
-            Location::Constant(bits) => write!(f, "#{}", crate::ir::value::describe(bits)),
+            Location::Constant(bits, Repr::Pointer) => write!(f, "#pointer:{bits:#x}"),
+            Location::Constant(bits, _) => write!(f, "#{}", crate::ir::value::describe(bits)),
             Location::Frame(slot) => write!(f, "frame{slot}"),
         }
     }

@@ -6,6 +6,7 @@
 
 //! The code buffer shared by both assemblers: bytes, labels and fixups.
 
+use super::relocation::RelocationKind;
 use ak::Column;
 use ak::Zone;
 use ak::ZoneVec;
@@ -19,6 +20,8 @@ pub enum AsmError {
     BranchOutOfRange,
     /// The code does not fit in the memory it is written into.
     TooLarge,
+    /// The code holds a cell it embeds as plain bits (see `PortableMacroAssembler::forbid_untyped_cells()`).
+    UntypedCell,
 }
 
 /// A position in the code, bound once and referenced any number of times
@@ -120,6 +123,7 @@ pub struct PendingFixup {
 pub struct Checkpoint {
     offset: usize,
     fixup_count: usize,
+    cell_place_count: usize,
 }
 
 impl Checkpoint {
@@ -138,6 +142,9 @@ pub struct CodeBuffer<'a> {
     lost: usize,
     labels: ZoneVec<'a, LabelState>,
     fixups: ZoneVec<'a, Fixup>,
+    /// Where the code emitted so far holds cells in its instructions (see `crate::asm::relocation`). They are here, with
+    /// the code, so that rewinding the code drops them too.
+    cell_places: ZoneVec<'a, (u32, RelocationKind)>,
     /// The first error hit while emitting; reported by `finish()`.
     error: Option<AsmError>,
 }
@@ -151,8 +158,20 @@ impl<'a> CodeBuffer<'a> {
             lost: 0,
             labels: ZoneVec::new_in(work),
             fixups: ZoneVec::new_in(work),
+            cell_places: ZoneVec::new_in(work),
             error: None,
         }
+    }
+
+    /// Notes that the instruction bytes at `offset` hold a cell, as `kind` says.
+    pub fn note_cell_place(&mut self, offset: usize, kind: RelocationKind) {
+        self.cell_places
+            .push((u32::try_from(offset).expect("code fits in 4 GiB"), kind));
+    }
+
+    /// Where the code emitted so far holds cells in its instructions, by `note_cell_place()`.
+    pub fn cell_places(&self) -> &[(u32, RelocationKind)] {
+        &self.cell_places
     }
 
     /// The current emission offset.
@@ -278,10 +297,12 @@ impl<'a> CodeBuffer<'a> {
         Checkpoint {
             offset: self.offset(),
             fixup_count: self.fixups.len(),
+            cell_place_count: self.cell_places.len(),
         }
     }
 
-    /// Drops what was emitted after `checkpoint`, and the references it made. No label may have been bound since.
+    /// Drops what was emitted after `checkpoint`, the references it made and the cells it holds. No label may have been
+    /// bound since.
     pub fn rewind(&mut self, checkpoint: Checkpoint) {
         while self.fixups.len() > checkpoint.fixup_count {
             let fixup = self.fixups.pop().expect("there are fixups past the checkpoint");
@@ -294,6 +315,7 @@ impl<'a> CodeBuffer<'a> {
                 first_fixup: fixup.next,
             };
         }
+        self.cell_places.truncate(checkpoint.cell_place_count);
         let kept = checkpoint.offset.min(self.bytes.len());
         self.bytes.truncate(kept);
         self.lost = checkpoint.offset - kept;

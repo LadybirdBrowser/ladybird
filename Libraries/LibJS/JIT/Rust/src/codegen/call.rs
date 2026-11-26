@@ -25,6 +25,7 @@
 //! interpreter's `Call` fast path builds for raw native functions, and lets
 //! the runtime unwind the frame if the function throws.
 
+use ak::Zone;
 use ak::ZoneVec;
 
 use super::Codegen;
@@ -47,6 +48,8 @@ use crate::ir::AccessorPart;
 use crate::ir::NodeId;
 use crate::ir::Op;
 use crate::ir::value;
+use crate::relocation::CellConstant;
+use crate::relocation::CellEncoding;
 use crate::snapshot::CellId;
 use crate::snapshot::DirectCallTarget;
 use crate::snapshot::DirectGetterFields;
@@ -55,9 +58,22 @@ use crate::snapshot::InlinedFunctionSnapshot;
 use crate::snapshot::NativeCallTarget;
 use crate::snapshot::RuntimeOffsets;
 
-/// A field JIT code stores a constant into: its offset, its size in bytes
-/// and its value (in the low `size` bytes).
-pub(super) type ConstantField = (u32, u32, u64);
+/// A field JIT code stores a constant into: its offset, its size in bytes,
+/// its value (in the low `size` bytes) and what the value is.
+pub(super) type ConstantField = (u32, u32, u64, Holds);
+
+/// What a constant field holds, which alone says whether it holds a cell the code embeds (see `crate::relocation`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Holds {
+    /// Plain bits, never a cell.
+    Bits,
+    /// A value of 8 bytes, which is a cell if its tag says so.
+    Value,
+    /// The address of a cell, or 0, in 8 bytes.
+    Cell,
+    /// The compressed pointer of a cell, or 0, in 4 bytes.
+    CompressedCell,
+}
 
 /// The most inputs a `CallDirect` or `CallNative` node takes in registers:
 /// the callee, the `this` value and the arguments. Calls with more operands
@@ -449,8 +465,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             let callee_address = self.slot_address(callee.raw())?;
             self.masm.load64(temp, &callee_address);
             if let Some(call_function) = call_function {
-                self.masm
-                    .branch64_imm(Condition::NotEqual, temp, self.boxed_object(call_function) as i64, slow);
+                self.branch64_value(Condition::NotEqual, temp, self.boxed_object(call_function), slow);
                 let function_address = self.slot_address(this_value.raw())?;
                 self.masm.load64(temp, &function_address);
             }
@@ -510,10 +525,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         // OPTIMIZATION: The function's compressed shared data is the shared
         //               data's compressed pointer exactly when it is that
         //               shared data, so it is compared without decoding.
-        self.masm.branch32_memory_imm(
+        self.masm.branch32_memory_cell(
             Condition::NotEqual,
             &Address::new(temp, layout.ecmascript_function_shared_data as i32),
-            shared_data.compressed() as i32,
+            shared_data.compressed(),
             fail,
         );
     }
@@ -528,10 +543,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         if target.closures {
             self.emit_closure_check(callee_register, function.shared_data, aux, dynamic_call);
         } else if !self.callee_is_target_constant(Some(target_node), function.function) {
-            self.masm.branch64_imm(
+            self.branch64_value(
                 Condition::NotEqual,
                 callee_register,
-                self.boxed_object(function.function) as i64,
+                self.boxed_object(function.function),
                 dynamic_call,
             );
         }
@@ -559,7 +574,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 self.masm.or32_imm(temp, temp, 1);
                 self.masm
                     .branch32_imm(Condition::NotEqual, temp, i32::from(value::NULL_TAG), not_nullish);
-                self.masm.move_imm64(aux, self.boxed_object(function.global_this));
+                self.move_value(aux, self.boxed_object(function.global_this));
                 self.masm.jump(bound);
                 self.masm.bind(not_nullish);
                 self.branch_on_tag(Condition::NotEqual, aux, value::OBJECT_TAG, temp, slow);
@@ -648,27 +663,43 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         );
         let fields = target.function_fields;
         constants.extend([
-            (offsets.execution_context_function, 8, function.function.0),
-            (offsets.execution_context_executable, 8, header.executable.0),
-            (offsets.execution_context_slot_count, 4, u64::from(header.slot_count)),
+            (offsets.execution_context_function, 8, function.function.0, Holds::Cell),
+            (
+                offsets.execution_context_executable,
+                8,
+                header.executable.0,
+                Holds::Cell,
+            ),
+            (
+                offsets.execution_context_slot_count,
+                4,
+                u64::from(header.slot_count),
+                Holds::Bits,
+            ),
             (
                 offsets.execution_context_argument_count,
                 4,
                 u64::from(header.argument_count),
+                Holds::Bits,
             ),
-            (offsets.execution_context_lexical_environment, 8, fields.environment),
-            (offsets.execution_context_this_value, 8, value::EMPTY),
+            (
+                offsets.execution_context_lexical_environment,
+                8,
+                fields.environment,
+                Holds::Cell,
+            ),
+            (offsets.execution_context_this_value, 8, value::EMPTY, Holds::Value),
             // NB: Frames get their id when the debugger first needs it.
-            (offsets.execution_context_frame_id, 8, 0),
+            (offsets.execution_context_frame_id, 8, 0, Holds::Bits),
             // NB: A placeholder for the field stored below (see
             //     `overwritten`).
-            (offsets.execution_context_caller_frame, 8, 0),
+            (offsets.execution_context_caller_frame, 8, 0, Holds::Bits),
         ]);
         for register in 0..RESERVED_REGISTER_COUNT {
-            constants.push((slot(register), 8, value::EMPTY));
+            constants.push((slot(register), 8, value::EMPTY, Holds::Value));
         }
         for index in argument_count..formal_count {
-            constants.push((slot(arguments_base + index), 8, value::UNDEFINED));
+            constants.push((slot(arguments_base + index), 8, value::UNDEFINED, Holds::Value));
         }
         let environments = environment.is_some() || target.closures;
         let overwritten = [
@@ -992,9 +1023,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         fields.extend(
             (0u32..)
                 .zip(&self.snapshot[template.words])
-                .map(|(index, word)| (8 * index, 8, *word))
-                .filter(|(offset, _, _)| !overwritten.contains(&Some(*offset))),
+                .map(|(index, word)| (8 * index, 8, *word, Holds::Bits))
+                .filter(|(offset, _, _, _)| !overwritten.contains(&Some(*offset))),
         );
+        super::allocation::hold_image_slots(&mut fields, &self.snapshot[template.slots])?;
         self.emit_constant_fields_with_vector(cell, temp, &mut fields, Some(M::ARGUMENT_FPRS[0]), &[])?;
         self.spare_fields = fields;
         if template.inline_binding_values {
@@ -1206,10 +1238,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                     temps[1]
                 }
             };
-            self.masm.branch64_imm(
+            self.branch64_value(
                 Condition::NotEqual,
                 callee_register,
-                self.boxed_object(target.function) as i64,
+                self.boxed_object(target.function),
                 slow,
             );
         }
@@ -1455,30 +1487,48 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         constants.clear();
         constants.extend(self.new_frame_constants(false));
         constants.extend([
-            (offsets.execution_context_executable, 8, 0),
-            (offsets.execution_context_slot_count, 4, u64::from(argument_count)),
-            (offsets.execution_context_argument_count, 4, u64::from(argument_count)),
+            (offsets.execution_context_executable, 8, 0, Holds::Cell),
+            (
+                offsets.execution_context_slot_count,
+                4,
+                u64::from(argument_count),
+                Holds::Bits,
+            ),
+            (
+                offsets.execution_context_argument_count,
+                4,
+                u64::from(argument_count),
+                Holds::Bits,
+            ),
             (
                 offsets.execution_context_passed_argument_count,
                 4,
                 u64::from(argument_count),
+                Holds::Bits,
             ),
             (
                 offsets.execution_context_caller_return_pc,
                 4,
                 u64::from(site.map_or(next_pc, InlinedCallSite::return_pc)),
+                Holds::Bits,
             ),
             (
                 offsets.execution_context_caller_dst_raw,
                 4,
                 u64::from(dst.map_or(Operand::INVALID, |dst| dst.raw())),
+                Holds::Bits,
             ),
         ]);
-        constants.push((offsets.execution_context_function, 8, target.function.0));
+        constants.push((offsets.execution_context_function, 8, target.function.0, Holds::Cell));
         // NB: The frame keeps the realm of this code, which the runtime makes
         //     current again when it unwinds the frame of a function that
         //     threw.
-        constants.push((offsets.execution_context_realm_without_function, 8, runtime.realm.0));
+        constants.push((
+            offsets.execution_context_realm_without_function,
+            8,
+            runtime.realm.0,
+            Holds::Cell,
+        ));
         self.emit_constant_fields(native_frame, temp, &mut constants)?;
         self.spare_fields = constants;
         if site.is_some() {
@@ -1504,7 +1554,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         // the realm of this code current again.
         let switches_realm = target.realm != runtime.realm;
         if switches_realm {
-            self.masm.move_imm64(temp, target.realm.0);
+            self.move_cell(temp, target.realm);
             self.masm.store64(&vm_field(offsets.vm_current_realm), temp);
         }
 
@@ -1528,7 +1578,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm
             .store64(&vm_field(offsets.vm_running_execution_context), frame);
         if switches_realm {
-            self.masm.move_imm64(scratch, runtime.realm.0);
+            self.move_cell(scratch, runtime.realm);
             self.masm.store64(&vm_field(offsets.vm_current_realm), scratch);
         }
         if let (None, Some(dst)) = (site, dst) {
@@ -1587,9 +1637,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             self.masm
                 .store64(&field(offsets.execution_context_caller_frame), self.pinned.frame);
             constants.extend([
-                (offsets.execution_context_function, 8, header.function.function.0),
+                (
+                    offsets.execution_context_function,
+                    8,
+                    header.function.function.0,
+                    Holds::Cell,
+                ),
                 // NB: Frames get their id when the debugger first needs it.
-                (offsets.execution_context_frame_id, 8, 0),
+                (offsets.execution_context_frame_id, 8, 0, Holds::Bits),
             ]);
         } else if let Some(fields) = function_fields {
             // NB: The words of the function its frames start with stay the same for its lifetime.
@@ -1598,13 +1653,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 self.pinned.frame,
             );
             constants.extend([
-                (offsets.execution_context_function, 8, header.function.function.0),
-                (offsets.execution_context_lexical_environment, 8, fields.environment),
+                (
+                    offsets.execution_context_function,
+                    8,
+                    header.function.function.0,
+                    Holds::Cell,
+                ),
+                (
+                    offsets.execution_context_lexical_environment,
+                    8,
+                    fields.environment,
+                    Holds::Cell,
+                ),
                 // NB: Frames get their id when the debugger first needs it.
-                (offsets.execution_context_frame_id, 8, 0),
+                (offsets.execution_context_frame_id, 8, 0, Holds::Bits),
             ]);
         } else {
-            self.masm.move_imm64(function_register, header.function.function.0);
+            self.move_cell(function_register, header.function.function);
             self.emit_function_fields(new_frame, function_register, temp);
         }
         self.frame_header_field_constants(header, constants);
@@ -1624,12 +1689,23 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             constants,
         );
         constants.extend([
-            (offsets.execution_context_executable, 8, header.executable.0),
-            (offsets.execution_context_slot_count, 4, u64::from(header.slot_count)),
+            (
+                offsets.execution_context_executable,
+                8,
+                header.executable.0,
+                Holds::Cell,
+            ),
+            (
+                offsets.execution_context_slot_count,
+                4,
+                u64::from(header.slot_count),
+                Holds::Bits,
+            ),
             (
                 offsets.execution_context_argument_count,
                 4,
                 u64::from(header.argument_count),
+                Holds::Bits,
             ),
         ]);
     }
@@ -1660,20 +1736,22 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     pub(super) fn new_frame_constants(&self, returns_to_native_caller: bool) -> [ConstantField; 7] {
         let offsets = self.runtime.offsets;
         [
-            (offsets.execution_context_program_counter, 4, 0),
-            (offsets.execution_context_caller_is_construct, 1, 0),
-            (offsets.execution_context_caller_is_derived_construct, 1, 0),
-            (offsets.execution_context_frame_initialized, 1, 0),
-            (offsets.execution_context_new_target, 8, value::UNDEFINED),
+            (offsets.execution_context_program_counter, 4, 0, Holds::Bits),
+            (offsets.execution_context_caller_is_construct, 1, 0, Holds::Bits),
+            (offsets.execution_context_caller_is_derived_construct, 1, 0, Holds::Bits),
+            (offsets.execution_context_frame_initialized, 1, 0, Holds::Bits),
+            (offsets.execution_context_new_target, 8, value::UNDEFINED, Holds::Value),
             (
                 offsets.execution_context_returns_to_native_caller,
                 1,
                 u64::from(returns_to_native_caller),
+                Holds::Bits,
             ),
             (
                 offsets.execution_context_runs_jit_code,
                 1,
                 u64::from(returns_to_native_caller),
+                Holds::Bits,
             ),
         ]
     }
@@ -1687,13 +1765,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 offsets.execution_context_passed_argument_count,
                 4,
                 u64::from(header.passed_argument_count),
+                Holds::Bits,
             ),
             (
                 offsets.execution_context_caller_return_pc,
                 4,
                 u64::from(header.return_pc),
+                Holds::Bits,
             ),
-            (offsets.execution_context_caller_dst_raw, 4, u64::from(header.dst)),
+            (
+                offsets.execution_context_caller_dst_raw,
+                4,
+                u64::from(header.dst),
+                Holds::Bits,
+            ),
         ]);
     }
 
@@ -1783,10 +1868,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         //     the arguments of frames that are not initialized.
         let reserved_registers = layout.registers_and_locals_count.min(RESERVED_REGISTER_COUNT);
         for register in (0..reserved_registers).filter(|register| *register != THIS_VALUE_REGISTER) {
-            constants.push((slot(register), 8, value::EMPTY));
+            constants.push((slot(register), 8, value::EMPTY, Holds::Value));
         }
         for index in 0..argument_count {
-            constants.push((slot(arguments_base + index), 8, value::UNDEFINED));
+            constants.push((slot(arguments_base + index), 8, value::UNDEFINED, Holds::Value));
         }
         self.emit_constant_fields(new_frame, temp, &mut constants)?;
         self.spare_fields = constants;
@@ -1838,7 +1923,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         vector: Option<Fpr>,
         overwritten: &[u32],
     ) -> Result<(), CompileFailure> {
-        fields.sort_unstable_by_key(|(offset, _, _)| *offset);
+        fields.sort_unstable_by_key(|(offset, _, _, _)| *offset);
+        let cell_fields = take_cell_fields(self.work, self.cell_encoding, fields)?;
         // The values `temp` and `vector` hold, to store repeated values
         // without materializing them again.
         let mut held = None;
@@ -1848,7 +1934,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         while next_field < fields.len() {
             let start = fields[next_field].0;
             bytes.clear();
-            while let Some(&(offset, size, bits)) = fields.get(next_field) {
+            while let Some(&(offset, size, bits, _)) = fields.get(next_field) {
                 if start + bytes.len() as u32 != offset {
                     break;
                 }
@@ -1929,8 +2015,56 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             }
         }
         self.spare_bytes = bytes;
+        for (offset, field) in cell_fields {
+            if overwritten
+                .iter()
+                .any(|&word_offset| (word_offset..word_offset + 8).contains(&offset))
+            {
+                continue;
+            }
+            let address = Address::new(base, super::checked_i32(u64::from(offset))?);
+            match field {
+                CellField::Word(cell) => self.masm.store_cell64(&address, cell),
+                CellField::Compressed(compressed) => self.masm.store_cell32(&address, compressed),
+            }
+        }
         Ok(())
     }
+}
+
+/// Takes the cells out of `fields`, which then hold zeros in their place, as the stores that put them back, so that
+/// the code holds each cell where a relocation finds it (see `crate::relocation`). Only what a field holds says if it
+/// is a cell, never its bits.
+fn take_cell_fields<'w>(
+    work: &'w Zone,
+    encoding: CellEncoding,
+    fields: &mut [ConstantField],
+) -> Result<ZoneVec<'w, (u32, CellField)>, CompileFailure> {
+    let mut cell_fields = ZoneVec::new_in(work);
+    for (offset, size, bits, holds) in fields.iter_mut() {
+        let field = match (*holds, *size) {
+            (Holds::Bits, _) => continue,
+            (Holds::Value, 8) if encoding.is_cell_value(*bits) => CellField::Word(CellConstant::Value(*bits)),
+            (Holds::Value, 8) => continue,
+            (Holds::Cell, 8) if *bits == 0 => continue,
+            (Holds::Cell, 8) => CellField::Word(CellConstant::Address(*bits)),
+            (Holds::CompressedCell, 4) if *bits == 0 => continue,
+            (Holds::CompressedCell, 4) => {
+                CellField::Compressed(u32::try_from(*bits).map_err(|_| CompileFailure::CodeGeneration)?)
+            }
+            _ => return Err(CompileFailure::CodeGeneration),
+        };
+        cell_fields.push((*offset, field));
+        *bits = 0;
+    }
+    Ok(cell_fields)
+}
+
+/// A field of `emit_constant_fields()` that holds a cell the code embeds.
+#[derive(Clone, Copy)]
+enum CellField {
+    Word(CellConstant),
+    Compressed(u32),
 }
 
 /// The slot count and size in bytes of the frame a direct call of `target`

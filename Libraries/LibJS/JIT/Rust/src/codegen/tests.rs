@@ -549,7 +549,7 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
                             ValueLocation::Stack(offset, repr) => {
                                 value::boxed_constant(*((frame_pointer as i64 + i64::from(offset)) as *const u64), repr)
                             }
-                            ValueLocation::Constant(bits) => bits,
+                            ValueLocation::Constant(bits, _) => bits,
                             // NB: Exit stubs pass the compiled function's frame.
                             ValueLocation::Frame(slot) => *frame.add(FRAME_HEADER_WORDS + slot as usize),
                             ValueLocation::ArgumentsObject { mapped } => fake_arguments_object(mapped),
@@ -761,6 +761,12 @@ pub(super) mod fake_heap {
         cell
     }
 
+    /// The value of the object at `address`, which holds its offset into the region like the values of the runtime.
+    pub fn object_value(address: u64) -> u64 {
+        assert!(address >= base() && address - base() < REGION_SIZE as u64);
+        (u64::from(crate::ir::value::OBJECT_TAG) << 48) | (address - base())
+    }
+
     /// The compressed pointer to the cell at `address` in the region.
     pub fn compressed(address: u64) -> u64 {
         assert!(address >= base() && address - base() < REGION_SIZE as u64);
@@ -779,7 +785,9 @@ pub(super) mod fake_heap {
     fn low_region() -> &'static Region {
         static REGION: OnceLock<Region> = OnceLock::new();
         REGION.get_or_init(|| {
-            const LOWEST_ADDRESS: usize = 1 << 32;
+            // NB: Above the continuation words of slow path calls (see `CONTINUATION_BIT`), which code holds as
+            //     plain bits that may not be the address of a cell it embeds.
+            const LOWEST_ADDRESS: usize = 1 << 33;
             let mut hint = LOWEST_ADDRESS;
             loop {
                 assert!(hint + COMMITTED_SIZE <= REGION_SIZE, "no room for the low fake heap");
@@ -3987,6 +3995,7 @@ mod direct_calls {
                     allocator,
                     cell_size: 14 * 8,
                     words: snapshot.add(&(0..12).map(|index| 0x1000 + index).collect::<Vec<_>>()),
+                    slots: crate::snapshot::List::default(),
                     inline_binding_values: true,
                     binding_values_offset: 48,
                     binds_this: true,
@@ -4141,7 +4150,11 @@ mod direct_calls {
         /// The word of a fake `Executable` with the slot count before the
         /// arguments.
         const EXECUTABLE_ARGUMENTS_BASE_WORD: usize = 4;
-        const CALL_FUNCTION: u64 = 0xca11_0000;
+        /// A fake `Function.prototype.call`, in the region so that a value can be the cell.
+        fn call_function_cell() -> u64 {
+            static CALL_FUNCTION: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+            *CALL_FUNCTION.get_or_init(|| fake_heap::cell(&[0]).as_ptr() as u64)
+        }
 
         impl DynamicCallee {
             fn new(formal_parameter_count: u64, flags: u64) -> Self {
@@ -4222,7 +4235,7 @@ mod direct_calls {
             let (snapshot, compiled) = compile_program_with(&caller(), caller_layout(), &[], |snapshot| {
                 dynamic_runtime(&mut snapshot.runtime, &callee);
                 snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                    target: Some(CellId(CALL_FUNCTION)),
+                    target: Some(CellId(call_function_cell())),
                     flags: if through_call { 0 } else { 1 },
                     target_intrinsic: through_call.then_some(crate::snapshot::Intrinsic::FunctionPrototypeCall),
                     ..CallFeedbackSnapshot::default()
@@ -4379,7 +4392,7 @@ mod direct_calls {
                         prepare_call_environment as *const () as u64;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                        target: Some(CellId(CALL_FUNCTION)),
+                        target: Some(CellId(call_function_cell())),
                         flags: 1,
                         ..CallFeedbackSnapshot::default()
                     }]);
@@ -4502,7 +4515,7 @@ mod direct_calls {
                     allocation.local_cell_size_offset = 24;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                        target: Some(CellId(CALL_FUNCTION)),
+                        target: Some(CellId(call_function_cell())),
                         flags: 1,
                         ..CallFeedbackSnapshot::default()
                     }]);
@@ -4600,7 +4613,7 @@ mod direct_calls {
             // `callee.call(a2, a1, 10)` with Function.prototype.call in a0 and
             // the called function in a2: it gets a1 as its `this` and 10.
             let mut callee = DynamicCallee::new(2, CAN_INLINE_CALL | STRICT | USES_THIS);
-            let call_function = (u64::from(value::OBJECT_TAG) << 48) | CALL_FUNCTION;
+            let call_function = fake_heap::object_value(call_function_cell());
             let arguments = [call_function, value::int32(7), callee.value()];
             let (result, machine) = run_dynamic(&mut callee, &arguments, true);
             assert_eq!(result, returned(value::int32(99)));
@@ -4656,7 +4669,7 @@ mod direct_calls {
                 ]);
                 let table = vec![0, 0, fake_native as *const () as u64, 0];
                 let native_value = (u64::from(value::OBJECT_TAG) << 48) | native.as_ptr() as u64;
-                let call_function = (u64::from(value::OBJECT_TAG) << 48) | CALL_FUNCTION;
+                let call_function = fake_heap::object_value(call_function_cell());
                 // `a0.call(a2, a1, 10)`: with Function.prototype.call in a0,
                 // the native function gets this = a1 and 10.
                 let arguments = if through_call {
@@ -4676,7 +4689,7 @@ mod direct_calls {
                     layout.native_function_table_entry_function = 0;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                        target: Some(CellId(CALL_FUNCTION)),
+                        target: Some(CellId(call_function_cell())),
                         flags: if through_call { 0 } else { 1 },
                         target_intrinsic: through_call.then_some(crate::snapshot::Intrinsic::FunctionPrototypeCall),
                         ..CallFeedbackSnapshot::default()

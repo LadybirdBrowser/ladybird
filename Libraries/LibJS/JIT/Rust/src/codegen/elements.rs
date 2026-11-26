@@ -313,7 +313,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         }
         if let InputValue::Constant(bits) = self.input_value(node, 2) {
             let ElementsKind::TypedArray(element) = kind else {
-                self.masm.store_imm64(&address, bits);
+                self.store_value(&address, bits);
                 return;
             };
             let integer = (bits as u32).cast_signed();

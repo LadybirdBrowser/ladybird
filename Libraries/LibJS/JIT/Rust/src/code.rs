@@ -423,9 +423,10 @@ pub enum ValueLocation {
     /// A slot of the compiled function's frame (an operand) that holds the value wherever compiled code runs, which
     /// is tagged: one of its arguments or its `this` value register that nothing writes.
     Frame(u32),
-    /// A NaN-boxed constant, or for the environments of a closure the code never created (see
-    /// `VirtualObjectDescriptorKind::Closure`), the address of a cell the code embeds, or null.
-    Constant(u64),
+    /// A constant: NaN-boxed if `Repr::Tagged`, or if `Repr::Pointer`, for the environments of a closure the code
+    /// never created (see `VirtualObjectDescriptorKind::Closure`), the address of a cell the code embeds, or null. The
+    /// repr is what tells the runtime which constants are cells it moves.
+    Constant(u64, Repr),
     /// The frame's arguments object, which the compiled code never created:
     /// the runtime creates it from the frame's arguments like
     /// `CreateArguments` does, mapped or unmapped, once per exit.
@@ -435,7 +436,7 @@ pub enum ValueLocation {
 }
 
 /// How a value is represented in a register or stack slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Repr {
     /// A NaN-boxed JS value.
     Tagged,

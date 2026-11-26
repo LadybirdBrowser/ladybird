@@ -16,7 +16,7 @@ fn check_constant_pools<M: PortableMacroAssembler>() {
             masm.call_absolute(*bits);
             masm.load_imm128(M::ARGUMENT_FPRS[0], vector_constant(*bits));
         }
-        let data_offset = masm.finish().unwrap();
+        let data_offset = masm.finish(&mut Vec::new()).unwrap();
         (code[..].to_vec(), data_offset)
     };
     let (code, data_offset) = assemble();

@@ -253,12 +253,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             let next = self.masm.new_label();
             self.masm
                 .branch32_imm(Condition::NotEqual, scratch, i32::from(tag), next);
-            self.masm.move_imm64(output, string);
+            self.move_value(output, string);
             self.masm.jump(done);
             self.masm.bind(next);
         }
         // Every other value is a double.
-        self.masm.move_imm64(output, strings.number);
+        self.move_value(output, strings.number);
         self.masm.jump(done);
 
         // Objects are "function" if they are callable, unless they are
@@ -277,7 +277,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 u32::from(self.runtime.layout.object_flag_is_htmldda),
                 not_htmldda,
             );
-            self.masm.move_imm64(output, strings.undefined);
+            self.move_value(output, strings.undefined);
             self.masm.jump(done);
         }
         self.masm.bind(not_htmldda);
@@ -287,10 +287,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             u32::from(self.runtime.object_flag_is_function),
             not_function,
         );
-        self.masm.move_imm64(output, strings.function);
+        self.move_value(output, strings.function);
         self.masm.jump(done);
         self.masm.bind(not_function);
-        self.masm.move_imm64(output, strings.object);
+        self.move_value(output, strings.object);
         self.masm.bind(done);
     }
 

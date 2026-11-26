@@ -23,8 +23,12 @@ use super::super::PortableMacroAssembler;
 use super::super::Width;
 use super::super::Width::W32;
 use super::super::Width::W64;
+use super::super::relocation::CellConstant;
+use super::super::relocation::CellEncoding;
+use super::super::relocation::RelocationKind;
 use super::*;
 use ak::ZoneMap;
+use ak::ZoneVec;
 
 /// General scratch register: immediates, call targets, working values.
 const SCRATCH: Gpr = R11;
@@ -49,6 +53,13 @@ pub struct MacroAssembler<'a> {
     constants: ZoneMap<'a, u64, Label>,
     /// 128-bit constants, in the same pool.
     constants128: ZoneMap<'a, u128, Label>,
+    /// The cells of `PortableMacroAssembler::move_cell()` and its kind, in the same pool.
+    cell_constants: ZoneMap<'a, CellConstant, Label>,
+    /// See `PortableMacroAssembler::forbid_untyped_cells()`: how cells are encoded, the addresses of the cells,
+    /// sorted, and whether an immediate of plain bits was one of them.
+    cell_encoding: Option<CellEncoding>,
+    forbidden_cells: ZoneVec<'a, u64>,
+    has_untyped_cell: bool,
 }
 
 fn condition_code(condition: Condition) -> Cond {
@@ -143,6 +154,12 @@ impl<'a> BranchGroups<'a> for MacroAssembler<'a> {
 }
 
 impl<'a> MacroAssembler<'a> {
+    /// Completes code that tests assemble, like `PortableMacroAssembler::finish()`, without the cells it holds.
+    #[cfg(test)]
+    pub fn finish(self) -> Result<usize, AsmError> {
+        PortableMacroAssembler::finish(self, &mut Vec::new())
+    }
+
     /// The bytes the prologue of `frame` moves the stack pointer down by after saving the general purpose registers.
     fn reserved_frame_bytes(frame: &MachineFrame) -> u32 {
         frame.locals_size + 8 * frame.saved_fprs.len() as u32
@@ -184,6 +201,7 @@ impl<'a> MacroAssembler<'a> {
 
     /// `dst = lhs op imm` for a 64-bit operation with an arbitrary immediate.
     fn with_imm64(&mut self, op: AluOp, dst: Gpr, lhs: Gpr, imm: i64) {
+        self.check_plain_bits(imm as u64);
         if let Ok(imm) = i32::try_from(imm) {
             self.with_imm32(op, W64, dst, lhs, imm);
         } else {
@@ -233,6 +251,43 @@ impl<'a> MacroAssembler<'a> {
         self.assembler.mov_rr(width, dst, SCRATCH);
     }
 
+    /// Notes if the 64-bit immediate of plain bits `imm` is one of the cells of `forbid_untyped_cells()`.
+    fn check_plain_bits(&mut self, imm: u64) {
+        if self
+            .cell_encoding
+            .is_some_and(|encoding| encoding.is_one_of(&self.forbidden_cells, imm))
+        {
+            self.has_untyped_cell = true;
+        }
+    }
+
+    /// `dst = imm`, like `move_imm64()`, for a mask of bits to test, which is never a cell.
+    fn move_mask(&mut self, dst: Gpr, imm: u64) {
+        if u32::try_from(imm).is_ok() || i32::try_from(imm as i64).is_ok() {
+            self.assembler.mov_ri(dst, imm);
+        } else {
+            let label = self.constant(imm);
+            self.assembler.mov_r_label(dst, label);
+        }
+    }
+
+    /// The label of `cell` in the constant pool.
+    fn cell_constant(&mut self, cell: CellConstant) -> Label {
+        *self
+            .cell_constants
+            .entry(cell)
+            .or_insert_with(|| self.assembler.new_label())
+    }
+
+    /// Notes that the instruction just emitted ends in the 32-bit compressed pointer of a cell. Inside a branch group,
+    /// which may emit its code again, the code buffer drops the place along with the code it rewinds.
+    fn note_cell_immediate(&mut self) {
+        let offset = self.assembler.offset() - 4;
+        self.assembler
+            .buffer_mut()
+            .note_cell_place(offset, RelocationKind::X86CompressedImmediate);
+    }
+
     /// The label of `value` in the constant pool.
     fn constant(&mut self, value: u64) -> Label {
         *self
@@ -253,8 +308,12 @@ impl<'a> MacroAssembler<'a> {
         if imm == 0 {
             self.assembler.test_rr(width, lhs, lhs);
         } else if let Ok(imm) = i32::try_from(imm) {
+            if width == W64 {
+                self.check_plain_bits(imm as u64);
+            }
             self.assembler.cmp_ri(width, lhs, imm);
         } else {
+            self.check_plain_bits(imm as u64);
             let label = self.constant(imm as u64);
             self.assembler.cmp_r_label(lhs, label);
         }
@@ -272,7 +331,7 @@ impl<'a> MacroAssembler<'a> {
         } else if let Ok(imm) = i32::try_from(mask as i64) {
             self.assembler.test_ri(W64, value, imm);
         } else {
-            self.move_imm64(SCRATCH, mask);
+            self.move_mask(SCRATCH, mask);
             self.assembler.test_rr(W64, value, SCRATCH);
         }
     }
@@ -371,6 +430,10 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
             assembler: Assembler::new(code, work),
             constants: ZoneMap::new_in(work),
             constants128: ZoneMap::new_in(work),
+            cell_constants: ZoneMap::new_in(work),
+            cell_encoding: None,
+            forbidden_cells: ZoneVec::new_in(work),
+            has_untyped_cell: false,
         }
     }
 
@@ -403,7 +466,10 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         JumpPatch::new(&[0xe9, b0, b1, b2, b3])
     }
 
-    fn finish(mut self) -> Result<usize, AsmError> {
+    fn finish(mut self, cells: &mut impl Extend<(u32, RelocationKind)>) -> Result<usize, AsmError> {
+        if self.has_untyped_cell {
+            return Err(AsmError::UntypedCell);
+        }
         let data_offset = self.assembler.offset();
         if !self.constants128.is_empty() {
             self.assembler.align_data(16);
@@ -420,8 +486,26 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
                 self.assembler.data_u64(*value);
             }
         }
+        cells.extend(self.assembler.buffer().cell_places().iter().copied());
+        if !self.cell_constants.is_empty() {
+            self.assembler.align_data(8);
+            for (cell, label) in self.cell_constants.iter() {
+                self.assembler.bind(*label);
+                cells.extend([(
+                    u32::try_from(self.assembler.offset()).expect("code fits in 4 GiB"),
+                    cell.kind(),
+                )]);
+                self.assembler.data_u64(cell.bits());
+            }
+        }
         self.assembler.finish()?;
         Ok(data_offset)
+    }
+
+    fn forbid_untyped_cells(&mut self, encoding: CellEncoding, cells: &[u64]) {
+        self.cell_encoding = Some(encoding);
+        self.forbidden_cells.clear();
+        self.forbidden_cells.extend_from_slice(cells);
     }
 
     fn unreachable(&mut self) {
@@ -437,12 +521,13 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
     }
 
     fn move_imm64(&mut self, dst: Gpr, imm: u64) {
-        if u32::try_from(imm).is_ok() || i32::try_from(imm as i64).is_ok() {
-            self.assembler.mov_ri(dst, imm);
-        } else {
-            let label = self.constant(imm);
-            self.assembler.mov_r_label(dst, label);
-        }
+        self.check_plain_bits(imm);
+        self.move_mask(dst, imm);
+    }
+
+    fn move_cell(&mut self, dst: Gpr, cell: CellConstant) {
+        let label = self.cell_constant(cell);
+        self.assembler.mov_r_label(dst, label);
     }
 
     fn move_imm32(&mut self, dst: Gpr, imm: u32) {
@@ -512,13 +597,24 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         self.assembler.mov_mi(W32, address, imm as i32);
     }
 
+    fn store_cell32(&mut self, address: &Address, compressed: u32) {
+        self.assembler.mov_mi(W32, address, compressed as i32);
+        self.note_cell_immediate();
+    }
+
     fn store_imm64(&mut self, address: &Address, imm: u64) {
         if let Ok(imm) = i32::try_from(imm as i64) {
+            self.check_plain_bits(imm as u64);
             self.assembler.mov_mi(W64, address, imm);
         } else {
             self.move_imm64(SCRATCH, imm);
             self.assembler.mov_mr(W64, address, SCRATCH);
         }
+    }
+
+    fn store_cell64(&mut self, address: &Address, cell: CellConstant) {
+        self.move_cell(SCRATCH, cell);
+        self.assembler.mov_mr(W64, address, SCRATCH);
     }
 
     fn add32_to_memory_imm(&mut self, address: &Address, imm: i32) {
@@ -542,6 +638,8 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
     }
 
     fn load_imm128(&mut self, dst: Fpr, imm: u128) {
+        self.check_plain_bits(imm as u64);
+        self.check_plain_bits((imm >> 64) as u64);
         let label = self.constant128(imm);
         self.assembler.movups_r_label(dst, label);
     }
@@ -816,9 +914,33 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         });
     }
 
+    fn branch64_cell(&mut self, condition: Condition, lhs: Gpr, cell: CellConstant, target: Label) {
+        let label = self.cell_constant(cell);
+        self.branch_group(|m| {
+            m.assembler.cmp_r_label(lhs, label);
+            m.assembler.jcc(condition_code(condition), target);
+        });
+    }
+
     fn branch32_memory_imm(&mut self, condition: Condition, address: &Address, imm: i32, target: Label) {
         self.branch_group(|m| {
             m.assembler.cmp_mi(W32, address, imm);
+            m.assembler.jcc(condition_code(condition), target);
+        });
+    }
+
+    fn branch32_memory_cell(&mut self, condition: Condition, address: &Address, compressed: u32, target: Label) {
+        self.branch_group(|m| {
+            m.assembler.cmp_mi32(W32, address, compressed as i32);
+            m.note_cell_immediate();
+            m.assembler.jcc(condition_code(condition), target);
+        });
+    }
+
+    fn branch32_cell(&mut self, condition: Condition, lhs: Gpr, compressed: u32, target: Label) {
+        self.branch_group(|m| {
+            m.assembler.cmp_ri32(W32, lhs, compressed as i32);
+            m.note_cell_immediate();
             m.assembler.jcc(condition_code(condition), target);
         });
     }
@@ -866,7 +988,7 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
 
     fn branch_test64(&mut self, condition: Condition, value: Gpr, mask: u64, target: Label) {
         if mask != u64::MAX && i32::try_from(mask as i64).is_err() {
-            self.move_imm64(SCRATCH, mask);
+            self.move_mask(SCRATCH, mask);
             self.branch_group(|m| {
                 m.assembler.test_rr(W64, value, SCRATCH);
                 m.assembler.jcc(condition_code(condition), target);

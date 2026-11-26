@@ -109,7 +109,7 @@ impl RegisterDump {
 /// Reads a value that is not an object the code never created, with the compiled function's frame at `root`.
 fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<ExecutionContext>) -> Value {
     let (bits, repr) = match location {
-        ValueLocation::Constant(bits) => return Value::from_bits(bits),
+        ValueLocation::Constant(bits, _) => return Value::from_bits(bits),
         // NB: Nothing writes such a slot, so it still holds the value while frames are written.
         ValueLocation::Frame(slot) => return frame_of(root).slots()[slot as usize].get(),
         _ => read_bits(location, dump),
@@ -128,7 +128,7 @@ fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<Exe
 fn read_cell_address<T>(location: ValueLocation, dump: &RegisterDump) -> Option<Gc<T>> {
     // NB: Closures that inlined callees create have the environments of the callee, which the code embeds.
     let bits = match location {
-        ValueLocation::Constant(bits) => bits,
+        ValueLocation::Constant(bits, _) => bits,
         _ => {
             let (bits, repr) = read_bits(location, dump);
             assert_eq!(repr, Repr::Pointer);
@@ -156,7 +156,7 @@ fn read_bits(location: ValueLocation, dump: &RegisterDump) -> (u64, Repr) {
             // SAFETY: The JIT frame of the site is still on the stack, and the slot holds the value.
             (unsafe { address.read() }, repr)
         }
-        ValueLocation::Constant(_) | ValueLocation::Frame(_) => {
+        ValueLocation::Constant(..) | ValueLocation::Frame(_) => {
             unreachable!("only registers and stack slots hold bits")
         }
         ValueLocation::ArgumentsObject { .. } | ValueLocation::VirtualObject(_) => {
@@ -1001,7 +1001,7 @@ pub fn call_site_frames<'vm>(
         // NB: Frames of inlined closures run the closure that was called. Walks create no objects, and the closure
         //     never is one the code did not create.
         let closure = frame_state.callee().and_then(|location| match location {
-            ValueLocation::Stack(..) | ValueLocation::Constant(_) | ValueLocation::Frame(_) => {
+            ValueLocation::Stack(..) | ValueLocation::Constant(..) | ValueLocation::Frame(_) => {
                 Some(read_location(location, &dump, NonNull::from(frame)))
             }
             _ => None,
