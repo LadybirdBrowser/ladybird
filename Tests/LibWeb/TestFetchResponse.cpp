@@ -11,6 +11,9 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -61,7 +64,7 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
     auto algorithms = Web::Fetch::Infrastructure::FetchAlgorithms::create(Web::Fetch::Infrastructure::FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DeliverStreamToConsumerAgent });
     Web::Fetch::Infrastructure::FetchControllerRegistry controller_registry;
     auto controller = GC::make_root(Web::Fetch::Infrastructure::FetchController::create(controller_registry));
-    auto fetch_params = Web::Fetch::Infrastructure::FetchParams::create(*controller, request, algorithms, Web::Fetch::Infrastructure::FetchTimingInfo::create(), Web::current_loader_config());
+    auto fetch_params = controller->create_fetch_params(request, algorithms, Web::Fetch::Infrastructure::FetchTimingInfo::create(), Web::current_loader_config());
     Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
     fetch_params->set_engine_record(*records.start(Web::Fetch::Engine::FetchId { 1 }, make<IgnoringEventSink>(), Web::Fetch::Engine::NetworkActivityObservers::create()));
     auto response = TransferTrackingResponse::create();

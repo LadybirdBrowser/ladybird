@@ -19,6 +19,7 @@
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -85,7 +86,7 @@ NonnullRefPtr<FetchParams> create_sync_xhr_fetch_params(Web::Fetch::Infrastructu
     auto algorithms = FetchAlgorithms::create(FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::SyncAccumulate });
     auto request = Web::Fetch::Infrastructure::Request::create();
     auto timing_info = Web::Fetch::Infrastructure::FetchTimingInfo::create();
-    return FetchParams::create(controller, move(request), algorithms, move(timing_info), Web::current_loader_config());
+    return controller.create_fetch_params(move(request), algorithms, move(timing_info), Web::current_loader_config());
 }
 
 struct BodyStreamHarness {

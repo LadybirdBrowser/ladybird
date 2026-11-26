@@ -72,28 +72,25 @@ void FetchController::finalize()
         m_registry->remove({}, m_token);
 }
 
-void FetchController::set_algorithms(Badge<FetchParams>, GC::Ref<FetchAlgorithms const> algorithms)
+NonnullRefPtr<FetchParams> FetchController::create_fetch_params(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
 {
     VERIFY(!m_algorithms);
+    VERIFY(!m_request);
+    VERIFY(!m_network_observation);
+
+    auto fetch_params = FetchParams::create(m_token, m_registry, m_control_block, request, move(timing_info), move(loader_config));
     m_algorithms = algorithms;
     m_control_block->set_body_intent({}, algorithms->body_intent());
+    m_original_fetch_params = fetch_params;
+    m_network_observation = request->ensure_network_observation();
+    m_request = move(request);
+    return fetch_params;
 }
 
 void FetchController::retarget(TaskDestination task_destination, Engine::BodyIntent body_intent)
 {
     m_task_destination = move(task_destination);
     m_control_block->set_body_intent({}, body_intent);
-}
-
-void FetchController::set_original_fetch_params(Badge<FetchParams>, FetchParams const& fetch_params)
-{
-    m_original_fetch_params = fetch_params;
-}
-
-void FetchController::set_network_observation(Badge<FetchParams>, NonnullRefPtr<NetworkObservation> network_observation)
-{
-    VERIFY(!m_network_observation);
-    m_network_observation = move(network_observation);
 }
 
 void FetchController::report_webdriver_bidi_fetch_error(StringView error_text) const
@@ -115,12 +112,6 @@ void FetchController::cancel_webdriver_bidi_network_interception() const
 RefPtr<FetchParams> FetchController::original_fetch_params() const
 {
     return m_original_fetch_params.strong_ref();
-}
-
-void FetchController::set_request(Badge<FetchParams>, NonnullRefPtr<Request> request)
-{
-    VERIFY(!m_request);
-    m_request = move(request);
 }
 
 NonnullRefPtr<Request> FetchController::request() const
