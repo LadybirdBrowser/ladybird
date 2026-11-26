@@ -1026,6 +1026,7 @@ TEST_CASE(test_exif)
     EXPECT(plugin_decoder->metadata().has_value());
     auto const& exif_metadata = static_cast<Gfx::ExifMetadata const&>(plugin_decoder->metadata().value());
     EXPECT_EQ(*exif_metadata.orientation(), Gfx::TIFF::Orientation::Rotate90Clockwise);
+    EXPECT_EQ(frame.image->alpha_type(), Gfx::AlphaType::Unpremultiplied);
 
     EXPECT_EQ(frame.image->get_pixel(65, 70), Gfx::Color(0, 255, 0));
     EXPECT_EQ(frame.image->get_pixel(190, 10), Gfx::Color(255, 0, 0));

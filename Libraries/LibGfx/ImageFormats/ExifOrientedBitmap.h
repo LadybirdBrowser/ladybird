@@ -14,9 +14,9 @@ namespace Gfx {
 
 class ExifOrientedBitmap {
 public:
-    static ErrorOr<ExifOrientedBitmap> create(TIFF::Orientation orientation, IntSize size, BitmapFormat format)
+    static ErrorOr<ExifOrientedBitmap> create(TIFF::Orientation orientation, IntSize size, BitmapFormat format, AlphaType alpha_type)
     {
-        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(format, AlphaType::Premultiplied, oriented_size(size, orientation)));
+        auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(format, alpha_type, oriented_size(size, orientation)));
         return ExifOrientedBitmap(move(bitmap), size, orientation);
     }
 

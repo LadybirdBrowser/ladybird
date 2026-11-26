@@ -179,7 +179,7 @@ ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
 
     for (auto& img_frame_descriptor : frame_descriptors) {
         auto& img = img_frame_descriptor.image;
-        auto oriented_bmp = TRY(ExifOrientedBitmap::create(orientation, img->size(), img->format()));
+        auto oriented_bmp = TRY(ExifOrientedBitmap::create(orientation, img->size(), img->format(), img->alpha_type()));
 
         for (int y = 0; y < img->size().height(); ++y) {
             for (int x = 0; x < img->size().width(); ++x) {
