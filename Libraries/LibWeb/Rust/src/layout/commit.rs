@@ -1009,22 +1009,39 @@ impl<'tree> Commit<'_, 'tree> {
         previous_content: Option<&crate::layout::inline_content::InlineContent>,
         content: Option<&crate::layout::inline_content::InlineContent>,
     ) {
-        let atomic_inlines_before_and_after: Vec<NodeSlotId> = [previous_content, content]
-            .into_iter()
-            .flatten()
-            .flat_map(|content| content.fragments.iter())
-            .filter(|fragment| fragment.is_atomic_inline)
-            .map(|fragment| fragment.layout_node)
-            .collect();
-        let is_atomic_inline_of_content = |node: NodeSlotId| {
-            content.is_some_and(|content| {
-                content
-                    .fragment_indices_of(node)
-                    .iter()
-                    .any(|&index| content.fragments[index as usize].is_atomic_inline)
-            })
-        };
-        for node in atomic_inlines_before_and_after {
+        fn atomic_inlines_of(
+            content: Option<&crate::layout::inline_content::InlineContent>,
+        ) -> impl Iterator<Item = NodeSlotId> + '_ {
+            content
+                .into_iter()
+                .flat_map(|content| content.fragments.iter())
+                .filter(|fragment| fragment.is_atomic_inline)
+                .map(|fragment| fragment.layout_node)
+        }
+        // OPTIMIZATION: The inputs of a box were settled against the content before, so only a box that is an atomic
+        //     inline of one content and not the other can disagree now. A relayout mostly keeps the atomic inlines in
+        //     the same order, adding or removing a few, so the runs both contents share at their ends are skipped
+        //     without reading any box.
+        let common_prefix = atomic_inlines_of(previous_content)
+            .zip(atomic_inlines_of(content))
+            .take_while(|(before, after)| before == after)
+            .count();
+        let mut before: Vec<NodeSlotId> = atomic_inlines_of(previous_content).skip(common_prefix).collect();
+        let mut after: Vec<NodeSlotId> = atomic_inlines_of(content).skip(common_prefix).collect();
+        let common_suffix = before
+            .iter()
+            .rev()
+            .zip(after.iter().rev())
+            .take_while(|(before, after)| before == after)
+            .count();
+        before.truncate(before.len() - common_suffix);
+        after.truncate(after.len() - common_suffix);
+        if before.is_empty() && after.is_empty() {
+            return;
+        }
+        after.sort_unstable_by_key(|node| node.index);
+        for &node in before.iter().chain(after.iter()) {
+            let is_atomic_inline_now = after.binary_search_by_key(&node.index, |node| node.index).is_ok();
             let arena = self.arena();
             if !arena.slot_is_live(node) || !arena.paintable_row_is_populated(node) {
                 continue;
@@ -1032,7 +1049,7 @@ impl<'tree> Commit<'_, 'tree> {
             let inputs_disagree = arena
                 .committed_side_data(node)
                 .prepared_order_inputs()
-                .is_some_and(|inputs| inputs.is_atomic_inline_content() != is_atomic_inline_of_content(node));
+                .is_some_and(|inputs| inputs.is_atomic_inline_content() != is_atomic_inline_now);
             if inputs_disagree {
                 self.arena_mut().refresh_paint_order_inputs(node);
             }

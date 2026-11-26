@@ -1125,6 +1125,9 @@ impl LayoutNodeArena {
             }
         }
         content.index_inline_boxes();
+        drop(side);
+        // The replacement gathered its paint order inputs while this content still named the old box.
+        self.refresh_paint_order_inputs(new_node);
     }
 
     pub(crate) fn push_propagated_text_decoration_damage(&mut self, root: NodeSlotId) {
