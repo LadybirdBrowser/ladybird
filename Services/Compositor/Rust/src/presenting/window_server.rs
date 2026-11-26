@@ -28,7 +28,7 @@ use libcompositing_rust::display_list::tiles::TileCoord;
 use libcompositing_rust::display_list::window_server_placement::{
     WhyWindowServerCannotShowMedia, WindowServerPlacement,
 };
-use libgfx_rust::{AffineTransform, Color, CornerRadii, FloatRect, IntRect, IntSize, ScalingMode};
+use libgfx_rust::{AffineTransform, Color, CornerRadii, FloatRect, IntRect, ScalingMode};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -159,8 +159,6 @@ pub(super) struct WindowServerLayers {
     /// overlays went into the frame's store since.
     compositor_overlays_surface_holds_overlays_of_latest_frame: bool,
     next_sublayer_ordinal: u32,
-    /// A surface on the GPU the compositor renders with, which tiles are made like for a frame painted into no store.
-    surface_tiles_are_made_like_without_store: Option<Rc<PaintingSurface>>,
 }
 
 impl WindowServerLayers {
@@ -173,18 +171,6 @@ impl WindowServerLayers {
     /// shows overlays from holds those of an earlier frame.
     pub(super) fn did_paint_compositor_overlays_into_store(&mut self) {
         self.compositor_overlays_surface_holds_overlays_of_latest_frame = false;
-    }
-
-    /// A surface that tiles are made like for a frame painted into no store, or none where it cannot be made.
-    pub(super) fn surface_tiles_are_made_like_without_store(
-        &mut self,
-        env: &PresentingEnvironment<'_>,
-    ) -> Option<Rc<PaintingSurface>> {
-        if self.surface_tiles_are_made_like_without_store.is_none() {
-            self.surface_tiles_are_made_like_without_store =
-                env.raster.create_surface(IntSize { width: 1, height: 1 }, None, false);
-        }
-        self.surface_tiles_are_made_like_without_store.clone()
     }
 }
 

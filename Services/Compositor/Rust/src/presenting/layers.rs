@@ -7,6 +7,7 @@
 //! The layers a frame is painted in, each cached as tiles from one frame and one list to the next, and what of them the
 //! window server shows above the frame by itself.
 
+use super::damage::FrameDamage;
 use super::layer_overlay::{
     FrameWorkCounts, LayerOverlayModel, MediaPresentation, ModelLayer, ModelLayerContent, NamedVisualContextNode,
     PaintedLayerPresentation, RasterCountsByCause, layers_whose_names_are_shown,
@@ -1649,28 +1650,28 @@ impl ContextPresenting {
         painted_layers
     }
 
-    /// Paints what the frame holds of its layers over `damage_rect`, and presents the layers the window server shows to
-    /// it. Answers the rect it painted, which grows to the whole raster where the frame has to hold what the window
-    /// server was to show by itself, and the sublayers the window server shows of the frame, bottom to top. Unless
-    /// `paints_ui_overlays` is set, the frame leaves out the overlays of the browser and of the layers.
+    /// Rasters the tiles of the layers of the frame, made like `like`, and presents the layers the window server shows
+    /// to it. Where it cannot be given them, the frame holds every layer and repaints all of the raster. A frame that
+    /// changes nothing it holds rasters no tile unless the window server shows tiles, and keeps the overlays the window
+    /// server shows where they draw as in the latest frame. Answers the sublayers the window server shows of the frame,
+    /// bottom to top, and the rects of the frame where tiles are painted straight from the list.
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn paint_layered_frame(
+    pub(super) fn raster_and_present_layers(
         &mut self,
         env: &PresentingEnvironment<'_>,
-        surface: &Rc<PaintingSurface>,
+        like: &Rc<PaintingSurface>,
         frame: &FrameToPaint<'_>,
-        mut damage_rect: IntRect,
-        layer_update: &mut LayerUpdate,
+        frame_damage: &mut FrameDamage,
         live_content: &LiveContent,
-        paints_ui_overlays: bool,
-    ) -> (IntRect, Vec<FfiSublayer>) {
-        // A store can miss the damage of several frames, which joined can reach part of what a composited effect reads.
-        // A frame that maps the raster to its pixels through a transform repaints all of them, and what effects read is
-        // in the pixels of the raster.
-        if frame.frame_inputs.raster_to_frame.is_none() {
-            damage_rect = layer_update.damage_grown_over_what_composited_effects_read(damage_rect);
-        }
-        let rects_painted_straight = self.raster_tiles_of_layers(env, surface, frame, layer_update);
+        frame_changes_nothing_it_holds: bool,
+        overlays_draw_same_as_in_latest_frame: bool,
+    ) -> (Vec<FfiSublayer>, Vec<IntRect>) {
+        let layer_update = &mut frame_damage.layers;
+        let rects_painted_straight = if frame_changes_nothing_it_holds && !layer_update.window_server_shows_tiles() {
+            Vec::new()
+        } else {
+            self.raster_tiles_of_layers(env, like, frame, layer_update)
+        };
 
         // The overlay goes into the surface the window server shows the overlays from, so it is worked out first,
         // expecting presenting to the window server to succeed.
@@ -1690,17 +1691,25 @@ impl ContextPresenting {
             let presented_sublayers = rects_painted_straight
                 .is_empty()
                 .then(|| {
-                    self.present_layers_to_window_server(env, frame, &layer_update.layers, surface, live_content, false)
+                    self.present_layers_to_window_server(
+                        env,
+                        frame,
+                        &layer_update.layers,
+                        like,
+                        live_content,
+                        frame_changes_nothing_it_holds && overlays_draw_same_as_in_latest_frame,
+                    )
                 })
                 .flatten();
             match presented_sublayers {
                 Some(presented_sublayers) => sublayers = presented_sublayers,
                 None => {
                     layer_update.hold_every_layer_in_frame();
-                    damage_rect = self.raster_rect();
+                    frame_damage.rect_in_raster_device_pixels = self.raster_rect();
                 }
             }
         }
+        let layer_update = &frame_damage.layers;
         if layer_update.shown_by_window_server() != expected_shown_by_window_server {
             self.update_layer_overlay_with_frame(
                 env,
@@ -1711,55 +1720,8 @@ impl ContextPresenting {
                 live_content,
             );
         }
-
-        self.composite_frame_from_layers(
-            env,
-            surface,
-            frame,
-            damage_rect,
-            layer_update,
-            &rects_painted_straight,
-            paints_ui_overlays,
-        );
-        if !layer_update.shown_by_window_server() {
-            self.layers.window_server.did_paint_compositor_overlays_into_store();
-        }
         self.layer_overlay.did_paint_frame();
-        (damage_rect, sublayers)
-    }
-
-    /// Presents to the window server the layers it shows of a frame that changes nothing of what the frame holds, or
-    /// that holds nothing, once it has rastered the tiles those layers show, and answers the sublayers the window
-    /// server then shows of the frame, bottom to top. None where the window server cannot be given the layers, which
-    /// the frame then has to hold.
-    pub(super) fn present_layers_of_frame_painted_into_no_store(
-        &mut self,
-        env: &PresentingEnvironment<'_>,
-        frame: &FrameToPaint<'_>,
-        layer_update: &mut LayerUpdate,
-        live_content: &LiveContent,
-        overlays_draw_same_as_in_latest_frame: bool,
-    ) -> Option<Vec<FfiSublayer>> {
-        let surface_tiles_are_made_like = self
-            .layers
-            .window_server
-            .surface_tiles_are_made_like_without_store(env)?;
-        let rects_painted_straight =
-            self.raster_tiles_of_layers(env, &surface_tiles_are_made_like, frame, layer_update);
-        if !rects_painted_straight.is_empty() {
-            return None;
-        }
-        self.update_layer_overlay_with_frame(env, frame, layer_update, true, false, live_content);
-        let sublayers = self.present_layers_to_window_server(
-            env,
-            frame,
-            &layer_update.layers,
-            &surface_tiles_are_made_like,
-            live_content,
-            overlays_draw_same_as_in_latest_frame,
-        )?;
-        self.layer_overlay.did_paint_frame();
-        Some(sublayers)
+        (sublayers, rects_painted_straight)
     }
 
     /// Rasters the tiles that each painted layer of the frame shows and that lack current pixels, and answers the
@@ -1898,17 +1860,25 @@ impl ContextPresenting {
         rects_painted_straight
     }
 
+    /// Composites what the frame holds of its layers into the surface over `damage_rect`, and answers the rect it
+    /// painted. Unless `paints_ui_overlays` is set, the frame leaves out the overlays of the browser and of the layers.
     #[allow(clippy::too_many_arguments)]
-    fn composite_frame_from_layers(
-        &self,
+    pub(super) fn composite_frame_from_layers(
+        &mut self,
         env: &PresentingEnvironment<'_>,
         surface: &Rc<PaintingSurface>,
         frame: &FrameToPaint<'_>,
-        damage_rect: IntRect,
+        mut damage_rect: IntRect,
         layer_update: &LayerUpdate,
         rects_painted_straight: &[IntRect],
         paints_ui_overlays: bool,
-    ) {
+    ) -> IntRect {
+        // A store can miss the damage of several frames, which joined can reach part of what a composited effect reads.
+        // A frame that maps the raster to its pixels through a transform repaints all of them, and what effects read is
+        // in the pixels of the raster.
+        if frame.frame_inputs.raster_to_frame.is_none() {
+            damage_rect = layer_update.damage_grown_over_what_composited_effects_read(damage_rect);
+        }
         let raster = env.raster;
         let save_count = raster.save(surface);
         raster.clip_rect(surface, damage_rect);
@@ -1974,6 +1944,10 @@ impl ContextPresenting {
             self.paint_overlays(env, surface, frame.frame_inputs);
         }
         raster.restore_to_count(surface, save_count);
+        if !window_server_shows_layers {
+            self.layers.window_server.did_paint_compositor_overlays_into_store();
+        }
+        damage_rect
     }
 
     /// Composites the layers that the window server showed by itself with the latest frame into the surface, which
