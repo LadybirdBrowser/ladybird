@@ -11,13 +11,8 @@
 
 namespace Web::HTML {
 
-class DragDataStore;
-
 class DataTransfer final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(DataTransfer, data_transfer)
-
-public:
-    static GC::Ref<DataTransfer> create(DragDataStore const&);
 };
 
 }

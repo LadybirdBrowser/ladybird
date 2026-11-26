@@ -109,7 +109,7 @@ impl DragDataStoreItem {
 }
 
 /// https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store
-pub(super) struct DragDataStore {
+pub(crate) struct DragDataStore {
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-item-list
     item_list: RefCell<Vec<DragDataStoreItem>>,
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-mode
@@ -231,7 +231,7 @@ pub(super) struct OwnedDragDataStore(NonNull<DragDataStore>);
 pub struct LentDragDataStore<'a>(NonNull<DragDataStore>, PhantomData<&'a OwnedDragDataStore>);
 
 impl LentDragDataStore<'_> {
-    pub(super) fn to_rc(&self) -> Rc<DragDataStore> {
+    pub(crate) fn to_rc(&self) -> Rc<DragDataStore> {
         let store = self.0.as_ptr();
         // SAFETY: The C++ owner lends a live strong reference from Rc::into_raw.
         unsafe {

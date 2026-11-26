@@ -12,12 +12,13 @@ use core::ffi::c_void;
 use ak::Utf16String;
 use libjs_rust::api::{Gc, Realm, Vm};
 
-use crate::bindings::interface::{InterfaceCell, cell_into_abi};
+use crate::bindings::interface::cell_into_abi;
 use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::clipboard::clipboard::Clipboard;
 use crate::clipboard::clipboard_event::ClipboardEvent;
 use crate::dom::event::EventInit;
 use crate::html::data_transfer::DataTransfer;
+use crate::html::drag_data_store::LentDragDataStore;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn web_rust_clipboard_create_clipboard(vm: &Vm, realm: Gc<Realm>) -> *mut c_void {
@@ -33,7 +34,7 @@ pub extern "C" fn web_rust_clipboard_create_clipboard_event(
     bubbles: bool,
     cancelable: bool,
     composed: bool,
-    clipboard_data: Option<&InterfaceCell>,
+    store: LentDragDataStore<'_>,
 ) -> *mut c_void {
     let event_name: Utf16String = event_name.to_utf16_fly_string().into();
     let event_init = EventInit {
@@ -41,8 +42,8 @@ pub extern "C" fn web_rust_clipboard_create_clipboard_event(
         cancelable,
         composed,
     };
-    let clipboard_data = clipboard_data.map(InterfaceCell::object::<DataTransfer>);
-    ClipboardEvent::create(vm, realm, &event_name, &event_init, clipboard_data)
+    let clipboard_data = DataTransfer::create(vm, store.to_rc());
+    ClipboardEvent::create(vm, realm, &event_name, &event_init, Some(clipboard_data))
         .event()
         .as_ptr()
 }
