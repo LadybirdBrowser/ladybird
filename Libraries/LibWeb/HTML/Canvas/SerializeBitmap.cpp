@@ -7,6 +7,7 @@
 #include <AK/Assertions.h>
 #include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
@@ -41,11 +42,17 @@ static bool type_is_jpeg(Utf16View type)
     return type.equals_ignoring_ascii_case(u"image/jpeg"sv);
 }
 
-bool serialization_of_the_bitmap_supports_color_profiles(Utf16View type)
+bool serialization_of_the_bitmap_supports_coding_independent_code_points(Utf16View type)
 {
     // NB: The color space of a canvas is described by coding-independent code points, which PNG can carry and JPEG
     //     cannot. Every type that is not JPEG is serialized as PNG.
     return !type_is_jpeg(type);
+}
+
+bool serialization_of_the_bitmap_supports_color_space(Utf16View type, Gfx::ColorSpace const& color_space)
+{
+    // NB: Every type that is serialized can carry an ICC profile.
+    return !color_space.data().has<Gfx::ColorSpace::CICP>() || serialization_of_the_bitmap_supports_coding_independent_code_points(type);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#a-serialisation-of-the-bitmap-as-a-file

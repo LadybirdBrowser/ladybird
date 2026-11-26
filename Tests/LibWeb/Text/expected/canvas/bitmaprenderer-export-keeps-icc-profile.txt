@@ -1,0 +1,2 @@
+image/png: matches the image
+image/jpeg: matches the image
