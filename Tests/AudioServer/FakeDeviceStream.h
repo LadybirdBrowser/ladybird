@@ -54,6 +54,8 @@ public:
 
     void notify_data_available() override { }
 
+    void set_on_output_lost(Function<void()>) override { }
+
     NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override
     {
         auto promise = Core::ThreadedPromise<void>::create();

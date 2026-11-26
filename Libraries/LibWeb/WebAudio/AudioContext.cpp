@@ -60,7 +60,7 @@ void RustFFI::web_audio_output_open(void* factory, void const* renderer)
         return buffer.trim(RustFFI::web_audio_realtime_renderer_fill(reference->renderer(), buffer, buffer_starts_playing_at.nanoseconds()));
     });
     promise->when_resolved([reference](NonnullRefPtr<Audio::PlaybackStream>& stream) {
-        stream->on_output_lost = [reference] { RustFFI::web_audio_realtime_renderer_output_lost(reference->renderer()); };
+        stream->set_on_output_lost([reference] { RustFFI::web_audio_realtime_renderer_output_lost(reference->renderer()); });
         auto specification = stream->sample_specification();
         RustFFI::FfiSharedCppObject shared_stream { stream.ptr(), [](void* stream) { static_cast<Audio::PlaybackStream*>(stream)->ref(); }, [](void* stream) { static_cast<Audio::PlaybackStream*>(stream)->unref(); } };
         RustFFI::web_audio_realtime_renderer_output_opened(reference->renderer(), shared_stream, specification.channel_count(), specification.sample_rate());

@@ -357,10 +357,10 @@ void AudioPlaybackSink::create_playback_stream()
             MutexLocker locker { self->m_output_thread_data->m_output_mutex };
             self->m_output_thread_data->m_playback_stream = stream;
         }
-        stream->on_output_lost = [weak_self = self->make_weak_ref()] {
+        stream->set_on_output_lost([weak_self = self->make_weak_ref()] {
             if (auto self = weak_self.strong_ref())
                 self->reopen_playback_stream_after_loss();
-        };
+        });
         self->set_volume(self->m_volume);
 
         if (self->m_seek_target_awaiting_discard.has_value()) {

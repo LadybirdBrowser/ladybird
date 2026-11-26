@@ -33,6 +33,7 @@ public:
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() override;
     virtual void notify_data_available() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) override;
+    virtual void set_on_output_lost(Function<void()> on_output_lost) override { m_on_output_lost = move(on_output_lost); }
 
     u64 stream_id() const { return m_stream_id; }
 
@@ -65,6 +66,7 @@ private:
     SampleSpecification const m_sample_specification;
     size_t const m_fill_target_frames { 0 };
     AudioDataRequestCallback m_callback;
+    Function<void()> m_on_output_lost;
 
     mutable Mutex m_mutex;
     Optional<SharedAudioFrameRing> m_ring;

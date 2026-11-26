@@ -22,6 +22,7 @@ public:
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() override;
     virtual void notify_data_available() override;
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
+    virtual void set_on_output_lost(Function<void()>) override { }
 
 private:
     class State;

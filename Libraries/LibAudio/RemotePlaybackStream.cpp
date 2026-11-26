@@ -218,8 +218,8 @@ void RemotePlaybackStream::connection_lost()
         if (m_ring.has_value())
             m_ring->publish_consumption(MonotonicTime::now().nanoseconds(), false);
     }
-    if (on_output_lost)
-        on_output_lost();
+    if (m_on_output_lost)
+        m_on_output_lost();
 }
 
 }

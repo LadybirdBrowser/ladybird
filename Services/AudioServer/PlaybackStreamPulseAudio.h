@@ -28,6 +28,7 @@ public:
     virtual void notify_data_available() override;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
+    virtual void set_on_output_lost(Function<void()>) override { }
 
 private:
     // This struct is kept alive until the control thread exits to prevent a use-after-free without blocking on

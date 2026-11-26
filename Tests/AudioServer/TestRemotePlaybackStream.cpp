@@ -464,7 +464,7 @@ TEST_CASE(losing_the_connection_reports_output_lost_and_settles_requests)
     EXPECT(fixture.pump_until([&] { return source.frames_supplied.load() >= 480; }));
 
     bool output_lost = false;
-    stream->on_output_lost = [&] { output_lost = true; };
+    stream->set_on_output_lost([&] { output_lost = true; });
 
     // Dropping the server end closes the transport; the client notices and tells its streams.
     fixture.server = nullptr;
@@ -707,7 +707,7 @@ TEST_CASE(a_session_rebound_while_playing_keeps_its_new_group_through_output_los
 
     // The connection goes away, and the stream that replaces it is heard as part of the group the session has now.
     bool output_lost = false;
-    stream->on_output_lost = [&] { output_lost = true; };
+    stream->set_on_output_lost([&] { output_lost = true; });
     fixture.servers.clear();
     EXPECT(fixture.pump_until([&] { return output_lost; }));
     stream = open_stream();
@@ -716,7 +716,7 @@ TEST_CASE(a_session_rebound_while_playing_keeps_its_new_group_through_output_los
 
     // The client goes before the loop does.
     output_lost = false;
-    stream->on_output_lost = [&] { output_lost = true; };
+    stream->set_on_output_lost([&] { output_lost = true; });
     fixture.accepting_connections = false;
     fixture.servers.clear();
     EXPECT(fixture.pump_until([&] { return output_lost; }));
