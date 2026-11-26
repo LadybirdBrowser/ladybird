@@ -1,0 +1,17 @@
+Ladybird snaps a replaced box’s content box from its device-snapped
+border box, inset by the device border widths and the padding, so its
+content meets the border’s inner edges. Chrome 158 and Firefox 151 draw
+a bordered 18px image at a 1.25 device pixel ratio inside its border on
+all four sides too (both run). Chrome lays out in device pixels at that
+scale, so Blink’s ImagePainter pixel-snaps an exact ReplacedContentRect,
+and Gecko’s nsImageFrame::GetDestRect() works in 1/60-pixel app units,
+which store 0.8px exactly. WebKit 26.5 draws the image over the border’s
+top and left edges and leaves a gap at its right: RenderImage snaps a
+replacedContentRect() in 1/64-pixel layout units, as Ladybird did.
+
+An image placed against one edge of its content box (“object-fit:
+contain” with object-position 0 0, e.g.) moves that edge with the
+content box’s snapped edge in Ladybird, so its first row stays inside
+the border. Firefox 151 renders that test page pixel-for-pixel like its
+reference, and Chrome 149 keeps the image’s outer row inside the border
+too (both run); WebKit 26.5 again draws the image over the border.
