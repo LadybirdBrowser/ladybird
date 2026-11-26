@@ -20,6 +20,7 @@
 #include <LibDevTools/Actors/WatcherActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWebCommon/WebView/ConsoleOutput.h>
 
 namespace DevTools {
@@ -635,7 +636,7 @@ void FrameActor::on_network_response_headers_received(DevToolsDelegate::NetworkR
     for (auto const& header : data.response_headers) {
         headers_size += static_cast<i64>(header.name.bytes().size() + header.value.bytes().size() + 4);
         if (header.name.equals_ignoring_ascii_case("content-type"sv))
-            mime_type = MUST(String::from_byte_string(header.value));
+            mime_type = TextCodec::isomorphic_decode(header.value);
     }
 
     actor.set_response_headers(move(data.response_headers));

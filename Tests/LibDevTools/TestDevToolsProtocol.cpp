@@ -5768,6 +5768,31 @@ TEST_CASE(network_event_reports_non_utf8_request_body)
     EXPECT_EQ(post_data.get_integer<i64>("size"sv).value(), 3);
 }
 
+TEST_CASE(network_event_reports_non_utf8_content_type)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    session->delegate.on_network_request_started(make_binary_post_request());
+    auto network_actor = read_resource(client, "network-event"sv).get_string("actor"sv).release_value();
+
+    Vector<HTTP::Header> response_headers;
+    response_headers.append({ "Content-Type", ByteString { "text/\xff; charset=\xff", 17 } });
+    session->delegate.on_network_response_headers_received({ .request_id = 100,
+        .status_code = 200,
+        .reason_phrase = "OK"_string,
+        .response_headers = move(response_headers),
+        .cache_state = Requests::CacheState::NotCached });
+
+    auto update = read_resource(client, "network-event"sv, "resources-updated-array"sv);
+    EXPECT_EQ(update.get_object("resourceUpdates"sv)->get_string("mimeType"sv).value(), "text/\xc3\xbf; charset=\xc3\xbf"sv);
+
+    auto content = client.request(network_actor, "getResponseContent"sv).get_object("content"sv).release_value();
+    EXPECT_EQ(content.get_string("mimeType"sv).value(), "text/\xc3\xbf"sv);
+}
+
 TEST_CASE(console_network_navigation_and_accessibility)
 {
     auto session = create_session();
