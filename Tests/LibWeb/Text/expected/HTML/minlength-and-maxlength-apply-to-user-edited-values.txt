@@ -1,0 +1,34 @@
+text, too short, set by a script: tooShort=false tooLong=false valid=true
+text, too short, typed: tooShort=true tooLong=false valid=false
+text, emptied by an edit: tooShort=false tooLong=false valid=true
+text, too long, set by a script: tooShort=false tooLong=false valid=true
+text, too long, after a deletion: tooShort=false tooLong=true valid=false
+text, too long, after setRangeText(): tooShort=false tooLong=false valid=true
+password, too short, set by a script: tooShort=false tooLong=false valid=true
+password, too short, typed: tooShort=true tooLong=false valid=false
+password, emptied by an edit: tooShort=false tooLong=false valid=true
+textarea, too short, set by a script: tooShort=false tooLong=false valid=true
+textarea, too short, typed: tooShort=true tooLong=false valid=false
+textarea, emptied by an edit: tooShort=false tooLong=false valid=true
+textarea, too long, set by a script: tooShort=false tooLong=false valid=true
+textarea, too long, after a deletion: tooShort=false tooLong=true valid=false
+textarea, too long, after setRangeText(): tooShort=false tooLong=false valid=true
+text, after setRangeText() threw IndexSizeError: tooShort=true tooLong=false valid=false
+text, too short, color: rgb(255, 0, 0)
+text, after the same value is set by a script: tooShort=false tooLong=false valid=true
+text, after the same value is set by a script, color: rgb(0, 0, 0)
+text, typed then undone to "": tooShort=false tooLong=false valid=true
+text, redone to "ab cd": tooShort=true tooLong=false valid=false
+text, a replacement undone to "abcdefgh": tooShort=false tooLong=false valid=true
+text, a replacement undone, color: rgb(0, 0, 0)
+text, typing blocked at maxlength, then maxlength lowered: tooShort=false tooLong=false valid=true
+number, two digits typed: tooShort=false tooLong=false valid=true
+submit fired with too-short values: false
+text, after a form reset: tooShort=false tooLong=false valid=true
+textarea, after a form reset: tooShort=false tooLong=false valid=true
+text, a short default value after a reset and a no-op setRangeText(): tooShort=false tooLong=false valid=true
+textarea, a short default value after a reset and a no-op setRangeText(): tooShort=false tooLong=false valid=true
+restored, a short value set while hidden, after a no-op setRangeText(): tooShort=false tooLong=false valid=true
+restored, a short value attribute after a clear, after a no-op setRangeText(): tooShort=false tooLong=false valid=true
+original, a clone of a typed short value: tooShort=true tooLong=false valid=false
+original-textarea, a clone of a typed short value: tooShort=true tooLong=false valid=false

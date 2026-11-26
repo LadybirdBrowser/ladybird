@@ -601,9 +601,11 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
     return {};
 }
 
-void HTMLInputElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data, Utf16View)
+void HTMLInputElement::did_edit_text_node(Utf16FlyString const& input_type, Optional<Utf16String> const& data, Utf16View previous_value)
 {
     m_dirty_value = true;
+    if (relevant_value() != previous_value)
+        set_value_was_last_changed_by_user_edit(true);
     m_has_uncommitted_changes = true;
 
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
@@ -763,6 +765,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16View value)
     // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number)
     // If the user agent provides a user interface for selecting a number, then the value must be set to the best
     // representation of the number representing the user's selection as a floating-point number.
+    auto old_value = move(m_value);
     if (type_state() == TypeAttributeState::Number) {
         m_value = {};
         if (auto parsed = parse_floating_point_number(value); parsed.has_value() && isfinite(*parsed))
@@ -770,6 +773,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_relevant_value(Utf16View value)
     } else {
         m_value = value_sanitization_algorithm(value);
     }
+
+    // AD-HOC: Changing the value may change which validity pseudo-classes match.
+    if (m_value != old_value)
+        CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
     update_text_input_decorations();
     return {};
@@ -795,6 +802,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
 
         // 3. Set the element's dirty value flag to true.
         m_dirty_value = true;
+        set_value_was_last_changed_by_user_edit(false);
 
         // 4. Invoke the value sanitization algorithm, if the element's type attribute's current state defines one.
         auto sanitized_value = value_sanitization_algorithm(value);
@@ -1896,6 +1904,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
     } else if (name == HTML::AttributeNames::value) {
         if (!m_dirty_value) {
             auto old_value = move(m_value);
+            set_value_was_last_changed_by_user_edit(false);
 
             if (value.has_value())
                 m_value = value_sanitization_algorithm(*value);
@@ -2005,6 +2014,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
         else
             m_value = {};
         m_dirty_value = false;
+        set_value_was_last_changed_by_user_edit(false);
     }
 
     // 3. Otherwise, if the previous state of the element's type attribute put the value IDL attribute in any mode other
@@ -2537,6 +2547,7 @@ void HTMLInputElement::reset_algorithm()
     // The reset algorithm for input elements is to set its user validity, dirty value flag, and dirty checkedness flag back to false,
     m_user_validity = false;
     m_dirty_value = false;
+    set_value_was_last_changed_by_user_edit(false);
 
     // set the value of the element to the value of the value content attribute, if there is one, or the empty string otherwise,
     auto old_value = move(m_value);
@@ -2771,6 +2782,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree
     auto& input_clone = as<HTMLInputElement>(copy);
     input_clone.m_value = m_value;
     input_clone.m_dirty_value = m_dirty_value;
+    input_clone.set_value_was_last_changed_by_user_edit(value_was_last_changed_by_user_edit());
     input_clone.m_checked = m_checked;
     input_clone.m_dirty_checkedness = m_dirty_checkedness;
     input_clone.m_indeterminateness = m_indeterminateness;
@@ -2908,6 +2920,52 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_max_length(WebIDL::Long value)
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
     set_attribute_value(HTML::AttributeNames::maxlength, Utf16String::from_utf8(TRY(convert_non_negative_integer_to_string(value))));
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#do-not-apply
+static bool minlength_and_maxlength_apply(HTMLInputElement::TypeAttributeState state)
+{
+    switch (state) {
+    case HTMLInputElement::TypeAttributeState::Text:
+    case HTMLInputElement::TypeAttributeState::Search:
+    case HTMLInputElement::TypeAttributeState::Telephone:
+    case HTMLInputElement::TypeAttributeState::URL:
+    case HTMLInputElement::TypeAttributeState::Email:
+    case HTMLInputElement::TypeAttributeState::Password:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+bool HTMLInputElement::suffering_from_being_too_short() const
+{
+    if (!minlength_and_maxlength_apply(type_state()))
+        return false;
+
+    // Constraint validation: If an element has a minimum allowed value length, its dirty value flag is true, its value
+    // was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and
+    // the length of the element's API value is less than the element's minimum allowed value length, then the element
+    // is suffering from being too short.
+    auto minimum_length = min_length();
+    return minimum_length >= 0 && m_dirty_value && value_was_last_changed_by_user_edit() && !m_value.is_empty()
+        && m_value.length_in_code_units() < static_cast<size_t>(minimum_length);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#limiting-user-input-length:-the-maxlength-attribute
+bool HTMLInputElement::suffering_from_being_too_long() const
+{
+    if (!minlength_and_maxlength_apply(type_state()))
+        return false;
+
+    // Constraint validation: If an element has a maximum allowed value length, its dirty value flag is true, its value
+    // was last changed by a user edit (as opposed to a change made by a script), and the length of the element's API
+    // value is greater than the element's maximum allowed value length, then the element is suffering from being too
+    // long.
+    auto maximum_length = max_length();
+    return maximum_length >= 0 && m_dirty_value && value_was_last_changed_by_user_edit()
+        && m_value.length_in_code_units() > static_cast<size_t>(maximum_length);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-minlength

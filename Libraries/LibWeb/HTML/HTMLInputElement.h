@@ -166,6 +166,9 @@ public:
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);
 
     WebIDL::Long min_length() const;
+
+    virtual bool suffering_from_being_too_long() const override;
+    virtual bool suffering_from_being_too_short() const override;
     WebIDL::ExceptionOr<void> set_min_length(WebIDL::Long);
 
     WebIDL::UnsignedLong size() const;
