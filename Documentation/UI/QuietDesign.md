@@ -815,7 +815,7 @@ address field → page. F6 moves between the chrome and the page.
 | New window | ⌘N | Ctrl+N |
 | New private window | ⇧⌘N | Ctrl+Shift+N |
 | Next / previous tab | ⌃Tab, ⌥⌘→ / ⌃⇧Tab, ⌥⌘← | Ctrl+Tab / Ctrl+Shift+Tab |
-| Go to tab 1–8 / last tab | ⌘1–8 / ⌘9 | Ctrl+1–8 / Ctrl+9 |
+| Go to tab 1–8 / last tab | ⌘1–8 / ⌘9 | Ctrl+1–8 / Ctrl+9, and Alt+1–8 / Alt+9 on Linux |
 | Search all tabs | ⇧⌘A | Ctrl+Shift+A |
 | Focus address field | ⌘L | Ctrl+L, Alt+D |
 | Back / forward | ⌘[ / ⌘] | Alt+← / Alt+→ |
