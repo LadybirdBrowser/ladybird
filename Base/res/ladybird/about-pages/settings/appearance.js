@@ -1,4 +1,5 @@
 const showAllTabsButton = document.querySelector("#show-all-tabs-button");
+const showSidebarButton = document.querySelector("#show-sidebar-button");
 const showMenuBar = document.querySelector("#show-menu-bar");
 const alwaysShowScrollbars = document.querySelector("#always-show-scrollbars");
 const showMenuBarGroup = document.querySelector("#show-menu-bar-group");
@@ -41,6 +42,7 @@ const loadSettings = settings => {
     APPEARANCE = settings.appearance || {};
 
     showAllTabsButton.checked = !!APPEARANCE.showAllTabsButton;
+    showSidebarButton.checked = !!APPEARANCE.showSidebarButton;
     showMenuBar.checked = !!APPEARANCE.showMenuBar;
     alwaysShowScrollbars.checked = !!APPEARANCE.alwaysShowScrollbars;
     showBookmarksBar.value = APPEARANCE.showBookmarksBar || "never";
@@ -55,6 +57,11 @@ function saveAppearance() {
 
 showAllTabsButton.addEventListener("change", () => {
     APPEARANCE.showAllTabsButton = showAllTabsButton.checked;
+    saveAppearance();
+});
+
+showSidebarButton.addEventListener("change", () => {
+    APPEARANCE.showSidebarButton = showSidebarButton.checked;
     saveAppearance();
 });
 

@@ -377,7 +377,7 @@ public:
     void update_tab_layout();
     void place_horizontal_new_tab_button();
     int horizontal_tab_strip_drag_space() const;
-    void set_show_all_tabs_button(bool);
+    void update_toolbar_button_visibility();
     void show_all_tabs();
     void update_all_tabs_entries();
     void update_all_tabs_entries_soon();
@@ -413,6 +413,7 @@ private:
     void rebuild_layout();
     void rebuild_layout_for_horizontal_tabs();
     bool sidebar_toggle_stays_in_corner() const;
+    int sidebar_footer_reserved_height() const;
     bool bookmarks_are_in_sidebar() const;
     void place_all_tabs_and_sidebar_toggle();
     void place_sidebar_toggle_in_corner();
@@ -478,6 +479,7 @@ private:
     // The Ladybird button, with the all-tabs button when both are on the left.
     QWidget* m_ladybird_buttons { nullptr };
     ChromeHeaderButton* m_vertical_tabs_toggle_button { nullptr };
+    bool m_show_sidebar_button { true };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };
     QToolButton* m_close_window_button { nullptr };
