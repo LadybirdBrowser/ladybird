@@ -2493,8 +2493,8 @@ fn run_with_global_cache(
         arguments,
         |snapshot| {
             snapshot.executables[0].globals = Some(crate::snapshot::GlobalsSnapshot {
-                object: crate::snapshot::CellId(globals.object.as_ptr() as u64),
-                declarative_environment: crate::snapshot::CellId(globals.environment.address()),
+                object: crate::snapshot::CellId::from_address(globals.object.as_ptr() as u64),
+                declarative_environment: crate::snapshot::CellId::from_address(globals.environment.address()),
                 environment_serial: serial,
                 caches: snapshot.add(&[None, Some(cache)]),
             });
@@ -2537,7 +2537,7 @@ fn global_variables_the_snapshot_knows() {
         value: value.map(value_of),
     };
     let property = |shape: u64, offset: u32, value: u64| GlobalCacheSnapshot::Property {
-        shape: CellId(shape),
+        shape: CellId::from_address(shape),
         dictionary_generation: None,
         offset,
         writes_data_property: true,
@@ -2600,7 +2600,7 @@ fn global_variables_the_snapshot_knows() {
     // assigned are constants: the code reads neither the shape nor the
     // property.
     let unassigned = GlobalCacheSnapshot::Property {
-        shape: CellId(shape + 8),
+        shape: CellId::from_address(shape + 8),
         dictionary_generation: Some(3),
         offset: 2,
         writes_data_property: true,
@@ -2701,7 +2701,7 @@ fn instance_of_global_functions_walks_prototype_chains() {
                     intrinsic: None,
                     typed_array: None,
                     has_instance: Some(OrdinaryHasInstanceSnapshot {
-                        shape: CellId(shape),
+                        shape: CellId::from_address(shape),
                         dictionary_generation: None,
                         prototype_offset: 1,
                     }),
@@ -2713,8 +2713,8 @@ fn instance_of_global_functions_walks_prototype_chains() {
             &[value],
             |snapshot| {
                 snapshot.executables[0].globals = Some(crate::snapshot::GlobalsSnapshot {
-                    object: CellId(globals.object.as_ptr() as u64),
-                    declarative_environment: CellId(globals.environment.address()),
+                    object: CellId::from_address(globals.object.as_ptr() as u64),
+                    declarative_environment: CellId::from_address(globals.environment.address()),
                     environment_serial: 99,
                     caches: snapshot.add(&caches),
                 });
@@ -3122,9 +3122,9 @@ impl FakeCachedObject {
                     ]);
                 }
                 let executable = &mut snapshot.executables[0];
-                executable.string_prototype = prototypes.string.map(crate::snapshot::CellId);
-                executable.number_prototype = prototypes.number.map(crate::snapshot::CellId);
-                executable.boolean_prototype = prototypes.boolean.map(crate::snapshot::CellId);
+                executable.string_prototype = prototypes.string.map(crate::snapshot::CellId::from_address);
+                executable.number_prototype = prototypes.number.map(crate::snapshot::CellId::from_address);
+                executable.boolean_prototype = prototypes.boolean.map(crate::snapshot::CellId::from_address);
             },
             |machine| machine.frame[4] = self.executable.as_ptr() as u64,
         );
@@ -3273,8 +3273,8 @@ fn get_by_id_reads_direct_getter_wrappers_inline_from(compressed_field: bool) {
     fake.object[1] = u64::from(FLAG_IS_PLATFORM_OBJECT);
     fake.object[10] = implementation.as_ptr() as u64;
     let target = NativeCallTarget {
-        function: CellId(function.as_ptr() as u64),
-        realm: CellId(crate::builder::tests::inlining::REALM),
+        function: CellId::from_address(function.as_ptr() as u64),
+        realm: CellId::from_address(crate::builder::tests::inlining::REALM),
         entry: core::num::NonZeroU64::new(fake_native_getter as *const () as u64),
         direct_getter: Some(DirectGetterFields {
             wrapper_implementation: 80,
@@ -3373,8 +3373,8 @@ fn put_by_id_calls_native_setters_of_prototypes() {
     let validity = vec![1u64];
     let fake = FakeCachedObject::new(&[value::int32(10)]);
     let target = NativeCallTarget {
-        function: CellId(function.as_ptr() as u64),
-        realm: CellId(crate::builder::tests::inlining::REALM),
+        function: CellId::from_address(function.as_ptr() as u64),
+        realm: CellId::from_address(crate::builder::tests::inlining::REALM),
         entry: core::num::NonZeroU64::new(fake_native_setter as *const () as u64),
         direct_getter: None,
     };
@@ -3383,8 +3383,8 @@ fn put_by_id_calls_native_setters_of_prototypes() {
         fake.shape.as_ptr() as u64,
         0,
     );
-    entry.prototype = Some(CellId(prototype.object.as_ptr() as u64));
-    entry.prototype_chain_validity = Some(CellId(validity.as_ptr() as u64));
+    entry.prototype = Some(CellId::from_address(prototype.object.as_ptr() as u64));
+    entry.prototype_chain_validity = Some(CellId::from_address(validity.as_ptr() as u64));
     entry.prototype_chain_valid = true;
     entry.holds_accessor = true;
     entry.accessor_function = Some(AccessorFunctionSnapshot {

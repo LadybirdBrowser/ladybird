@@ -242,8 +242,15 @@ pub mod dependencies {
     use super::Vm;
     use crate::layout::object::Object;
 
+    /// A cell that JIT code depends on, which nothing reads without the JIT.
     #[derive(Clone, Copy)]
-    pub struct CellId(pub u64);
+    pub struct CellId;
+
+    impl CellId {
+        pub const fn from_address(_address: u64) -> CellId {
+            CellId
+        }
+    }
 
     /// What JIT code may depend on, which the runtime notes when it stops holding.
     pub enum Dependency {

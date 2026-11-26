@@ -23,8 +23,10 @@
 use core::ptr::NonNull;
 use std::collections::HashMap;
 
+use crate::layout::shape::Shape;
 use libjs_abi::register;
 use libjs_jit::code::{CALLEE_SLOT, Repr, ResumeMode, SiteKind, ValueLocation, VirtualObjectDescriptorKind};
+use libjs_jit::snapshot::CellId;
 use libjs_runtime_macros::Trace;
 
 use super::allocation::{clone_function, sample_in};
@@ -107,9 +109,20 @@ impl RegisterDump {
 }
 
 /// Reads a value that is not an object the code never created, with the compiled function's frame at `root`.
-fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<ExecutionContext>) -> Value {
+fn read_location(
+    vm: &Vm,
+    code: &JitCode,
+    location: ValueLocation,
+    dump: &RegisterDump,
+    root: NonNull<ExecutionContext>,
+) -> Value {
     let (bits, repr) = match location {
-        ValueLocation::Constant(bits, _) => return Value::from_bits(bits),
+        ValueLocation::Constant(bits) => return Value::from_bits(bits),
+        ValueLocation::Cell { cell, tag } => {
+            assert_ne!(tag, 0, "only virtual closures have cell addresses in frame states");
+            let cell = CellId::from_address(code.embedded_cell(cell).as_ptr() as u64);
+            return Value::from_bits(super::cell_encoding(vm).value_of(cell, tag));
+        }
         // NB: Nothing writes such a slot, so it still holds the value while frames are written.
         ValueLocation::Frame(slot) => return frame_of(root).slots()[slot as usize].get(),
         _ => read_bits(location, dump),
@@ -125,10 +138,12 @@ fn read_location(location: ValueLocation, dump: &RegisterDump, root: NonNull<Exe
 
 /// Reads the cell address at `location`, null or the address of a live cell, which only the environments of a closure
 /// the code never created are (see `libjs_jit::code::VirtualObjectDescriptorKind::Closure`).
-fn read_cell_address<T>(location: ValueLocation, dump: &RegisterDump) -> Option<Gc<T>> {
+fn read_cell_address<T>(code: &JitCode, location: ValueLocation, dump: &RegisterDump) -> Option<Gc<T>> {
     // NB: Closures that inlined callees create have the environments of the callee, which the code embeds.
     let bits = match location {
-        ValueLocation::Constant(bits, _) => bits,
+        ValueLocation::Constant(0) => 0,
+        ValueLocation::Cell { cell, tag: 0 } => code.embedded_cell(cell).as_ptr() as u64,
+        ValueLocation::Constant(_) | ValueLocation::Cell { .. } => unreachable!("environments are cell addresses"),
         _ => {
             let (bits, repr) = read_bits(location, dump);
             assert_eq!(repr, Repr::Pointer);
@@ -156,7 +171,7 @@ fn read_bits(location: ValueLocation, dump: &RegisterDump) -> (u64, Repr) {
             // SAFETY: The JIT frame of the site is still on the stack, and the slot holds the value.
             (unsafe { address.read() }, repr)
         }
-        ValueLocation::Constant(..) | ValueLocation::Frame(_) => {
+        ValueLocation::Constant(_) | ValueLocation::Cell { .. } | ValueLocation::Frame(_) => {
             unreachable!("only registers and stack slots hold bits")
         }
         ValueLocation::ArgumentsObject { .. } | ValueLocation::VirtualObject(_) => {
@@ -206,7 +221,7 @@ impl<'a> SiteValues<'a> {
 
     fn value(&mut self, location: ValueLocation) -> Value {
         let ValueLocation::VirtualObject(index) = location else {
-            return read_location(location, self.dump, self.root);
+            return read_location(self.vm, self.code, location, self.dump, self.root);
         };
         if let Some(object) = self.created.get(&index) {
             return Value::from_object(*object);
@@ -228,8 +243,16 @@ impl<'a> SiteValues<'a> {
                 let closure = clone_function(
                     self.vm,
                     sample_in(sample_slot),
-                    read_cell_address(description.property(0).expect("a closure has environments"), self.dump),
-                    read_cell_address(description.property(1).expect("a closure has environments"), self.dump),
+                    read_cell_address(
+                        self.code,
+                        description.property(0).expect("a closure has environments"),
+                        self.dump,
+                    ),
+                    read_cell_address(
+                        self.code,
+                        description.property(1).expect("a closure has environments"),
+                        self.dump,
+                    ),
                 )
                 .upcast::<Object>();
                 self.created.insert(index, closure);
@@ -240,8 +263,11 @@ impl<'a> SiteValues<'a> {
                 return Value::from_object(closure);
             }
         };
-        // SAFETY: The code embeds the shape, which keeps it alive.
-        let shape = unsafe { Gc::from_non_null(NonNull::new(shape.0 as *mut _).expect("a shape")) };
+        let shape = self
+            .code
+            .embedded_cell(shape)
+            .downcast::<Shape>()
+            .expect("objects the code never created have shapes");
         let object = Object::create_with_premade_shape(self.vm, shape);
         // NB: The object exists before its properties, which may refer to it.
         self.created.insert(index, object);
@@ -1001,9 +1027,10 @@ pub fn call_site_frames<'vm>(
         // NB: Frames of inlined closures run the closure that was called. Walks create no objects, and the closure
         //     never is one the code did not create.
         let closure = frame_state.callee().and_then(|location| match location {
-            ValueLocation::Stack(..) | ValueLocation::Constant(..) | ValueLocation::Frame(_) => {
-                Some(read_location(location, &dump, NonNull::from(frame)))
-            }
+            ValueLocation::Stack(..)
+            | ValueLocation::Constant(_)
+            | ValueLocation::Cell { .. }
+            | ValueLocation::Frame(_) => Some(read_location(vm, code, location, &dump, NonNull::from(frame))),
             _ => None,
         });
         let function = match closure {

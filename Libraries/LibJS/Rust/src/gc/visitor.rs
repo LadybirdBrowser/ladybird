@@ -10,9 +10,8 @@ use core::ptr::NonNull;
 use super::capi::{
     GCMarker, GCVisitor, gc_marker_pin_cell, gc_marker_visit_cell, gc_marker_visit_ephemeron_without_pinning,
     gc_marker_visit_interior_pointer, gc_marker_visit_member, gc_marker_visit_owned_cell_pointer,
-    gc_marker_visit_owned_member, gc_marker_visit_owned_values,
-    gc_marker_visit_self_pointer, gc_marker_visit_values, gc_visitor_visit_cell, gc_visitor_visit_ephemeron,
-    gc_visitor_visit_values,
+    gc_marker_visit_owned_member, gc_marker_visit_owned_values, gc_marker_visit_self_pointer, gc_marker_visit_values,
+    gc_visitor_visit_cell, gc_visitor_visit_ephemeron, gc_visitor_visit_values,
 };
 use crate::layout::cell::Gc;
 use crate::layout::member::{Member, NullableMember};
@@ -232,6 +231,22 @@ impl Visitor {
         //         holds.
         unsafe {
             gc_marker_pin_cell(marker.as_ptr(), value.as_ptr().cast());
+            gc_marker_visit_ephemeron_without_pinning(marker.as_ptr(), key.as_ptr().cast(), value.as_ptr().cast());
+        }
+    }
+
+    /// Visits `value`, a cell that is reachable only while `key` is, without keeping either from moving.
+    ///
+    /// # Safety
+    ///
+    /// If the value survives a collection that moves cells, its holder must hand its slot to Sweep::record_slot().
+    pub unsafe fn visit_ephemeron_cell_without_pinning<K, V>(&mut self, key: Gc<K>, value: Gc<V>) {
+        let Some(marker) = self.marker() else {
+            self.visit(value);
+            return;
+        };
+        // SAFETY: The marker is the visitor's, and both are live cells.
+        unsafe {
             gc_marker_visit_ephemeron_without_pinning(marker.as_ptr(), key.as_ptr().cast(), value.as_ptr().cast());
         }
     }

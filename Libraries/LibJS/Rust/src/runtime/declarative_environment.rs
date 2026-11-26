@@ -544,7 +544,7 @@ impl DeclarativeEnvironment {
             crate::jit::dependencies::invalidate_dependents(
                 vm,
                 Dependency::GlobalDeclarations {
-                    environment: CellId(core::ptr::from_ref(self) as u64),
+                    environment: CellId::from_address(core::ptr::from_ref(self) as u64),
                     serial,
                 },
             );
@@ -595,7 +595,7 @@ impl DeclarativeEnvironment {
             crate::jit::dependencies::invalidate_dependents(
                 vm,
                 Dependency::GlobalBindingUnassigned {
-                    environment: CellId(core::ptr::from_ref(self) as u64),
+                    environment: CellId::from_address(core::ptr::from_ref(self) as u64),
                     index: u32::try_from(index).expect("binding indices fit in u32"),
                 },
             );

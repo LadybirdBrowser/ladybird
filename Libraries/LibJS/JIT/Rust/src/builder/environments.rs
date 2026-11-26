@@ -96,7 +96,9 @@ impl GraphBuilder<'_, '_> {
         }
         .ok_or(missing)?;
         self.embed(cell);
-        Ok(self.typed_constant(cell.0, Repr::Pointer))
+        // SAFETY: Code holds pointer constants that are cells it embeds as cells (see `Codegen::constant_cell()`), and
+        //         this one is.
+        Ok(self.typed_constant(unsafe { cell.address() }, Repr::Pointer))
     }
 
     /// Builds the binding instructions that have a static environment

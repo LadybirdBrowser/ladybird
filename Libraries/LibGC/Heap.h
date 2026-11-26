@@ -227,6 +227,9 @@ public:
     }
 
     void enqueue_post_gc_task(AK::Function<void()>);
+    // Like enqueue_post_gc_task(), for a task that updates what still holds the old addresses of cells that the
+    // collection moved: it runs before every other post-GC task, which may use what it updates.
+    void enqueue_post_move_task(AK::Function<void()>);
 
     WeakImpl* create_weak_impl(void*);
 
@@ -422,6 +425,7 @@ private:
     FunctionTable m_function_table;
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 
+    Vector<AK::Function<void()>> m_post_move_tasks;
     Vector<AK::Function<void()>> m_post_gc_tasks;
     Vector<AK::Function<void()>> m_sweep_callbacks;
 

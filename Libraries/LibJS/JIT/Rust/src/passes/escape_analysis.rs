@@ -60,6 +60,7 @@ use crate::ir::Op;
 use crate::ir::VirtualObjectKind;
 use crate::ir::value;
 use crate::snapshot::CellId;
+use crate::snapshot::SampleSlot;
 use ak::Zone;
 use ak::ZoneBitSet;
 use ak::ZoneMap;
@@ -68,7 +69,14 @@ use ak::ZoneVec;
 
 /// The shape and property count each object has at some point, which
 /// `AddNamed` nodes change.
-type Shapes<'w> = ZoneMap<'w, NodeId, (CellId, u32)>;
+/// The shape of a candidate: that of an object, or for a closure, the slot of the sample it is a copy of.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum ObjectShape {
+    Object(CellId),
+    Closure(SampleSlot),
+}
+
+type Shapes<'w> = ZoneMap<'w, NodeId, (ObjectShape, u32)>;
 
 /// The analysis of one graph.
 struct Analysis<'w> {
@@ -232,7 +240,7 @@ fn analyze<'w>(graph: &Graph, work: &'w Zone, placed: &[NodeId], escaping: &[Nod
                 Op::LoadNamed { offset, .. } => *offset < count,
                 Op::CheckShape { shapes } => shapes
                     .iter()
-                    .any(|check| check.shape == shape && check.dictionary_generation.is_none()),
+                    .any(|check| ObjectShape::Object(check.shape) == shape && check.dictionary_generation.is_none()),
                 Op::InitializeNamed { offset } | Op::StoreNamed { offset, .. } if index != 1 => *offset < count,
                 Op::AddNamed { offset, .. } if index != 1 => *offset == count,
                 Op::InitializeNamed { offset } | Op::StoreNamed { offset, .. } | Op::AddNamed { offset, .. } => {
@@ -338,7 +346,7 @@ fn shapes_before_uses<'w>(
     candidates: &ZoneSet<NodeId>,
     roots: &ZoneMap<NodeId, NodeId>,
     escaped: &mut ZoneBitSet,
-) -> ZoneMap<'w, (NodeId, NodeId), (CellId, u32)> {
+) -> ZoneMap<'w, (NodeId, NodeId), (ObjectShape, u32)> {
     let mut before = ZoneMap::new_in(work);
     let block_count = graph.blocks.len();
     let mut entries: ZoneVec<Shapes> = ZoneVec::from_iter_in((0..block_count).map(|_| Shapes::new_in(work)), work);
@@ -368,17 +376,17 @@ fn shapes_before_uses<'w>(
                 Op::AllocateObject {
                     shape, property_count, ..
                 } if candidates.contains(&node) => {
-                    shapes.insert(node, (shape, property_count));
+                    shapes.insert(node, (ObjectShape::Object(shape), property_count));
                 }
                 // NB: A closure has one shape, and no properties that this pass knows.
                 Op::AllocateFunction { sample_slot, .. } if candidates.contains(&node) => {
-                    shapes.insert(node, (sample_slot, 0));
+                    shapes.insert(node, (ObjectShape::Closure(sample_slot), 0));
                 }
                 Op::AddNamed {
                     shape, property_count, ..
                 } => {
                     if let Some(root) = roots.get(&data.inputs[0]) {
-                        shapes.insert(*root, (shape, property_count));
+                        shapes.insert(*root, (ObjectShape::Object(shape), property_count));
                     }
                 }
                 _ => {}
@@ -627,11 +635,11 @@ fn replace_objects<'w>(graph: &mut Graph, analysis: &Analysis, work: &'w Zone) -
                     for offset in 0..property_count {
                         properties.insert((node, offset), undefined);
                     }
-                    shapes.insert(node, (shape, property_count));
+                    shapes.insert(node, (ObjectShape::Object(shape), property_count));
                     removed.insert(node.index());
                 }
                 Op::AllocateFunction { sample_slot, .. } if is_replaced(node) => {
-                    shapes.insert(node, (sample_slot, 0));
+                    shapes.insert(node, (ObjectShape::Closure(sample_slot), 0));
                     removed.insert(node.index());
                 }
                 Op::AddNamed {
@@ -643,7 +651,7 @@ fn replace_objects<'w>(graph: &mut Graph, analysis: &Analysis, work: &'w Zone) -
                         .root(object.expect("checked"))
                         .expect("replaced objects have roots");
                     properties.insert((root, offset), replacements.resolve(second_input()));
-                    shapes.insert(root, (shape, property_count));
+                    shapes.insert(root, (ObjectShape::Object(shape), property_count));
                     removed.insert(node.index());
                 }
                 Op::InitializeNamed { offset } | Op::StoreNamed { offset, .. } if object.is_some() => {
@@ -750,10 +758,9 @@ fn virtualize_frame_state(
             return *object;
         }
         let (shape, _) = *shapes.get(&root).expect("replaced objects have shapes");
-        let kind = if analysis.closures.contains(&root) {
-            VirtualObjectKind::Closure { sample_slot: shape }
-        } else {
-            VirtualObjectKind::Object { shape }
+        let kind = match shape {
+            ObjectShape::Closure(sample_slot) => VirtualObjectKind::Closure { sample_slot },
+            ObjectShape::Object(shape) => VirtualObjectKind::Object { shape },
         };
         let object = graph.add(
             Op::VirtualObject { kind, allocation: root },

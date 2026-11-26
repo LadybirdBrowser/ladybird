@@ -1319,7 +1319,7 @@ impl Shape {
         if flags & shape_flag::HAS_DEPENDENT_CODE != 0 {
             crate::jit::dependencies::invalidate_dependents(
                 vm,
-                Dependency::StableShape(CellId(core::ptr::from_ref(self) as u64)),
+                Dependency::StableShape(CellId::from_address(core::ptr::from_ref(self) as u64)),
             );
         }
     }

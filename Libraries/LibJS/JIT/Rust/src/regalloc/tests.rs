@@ -809,6 +809,11 @@ fn exits_find_constants_registers_and_spilled_values() {
         stack_slot_offset: &|slot| -8 * (i32::try_from(slot).unwrap() + 1),
         saves: &[],
         work: crate::test_zone(),
+        embedded: &crate::relocation::EmbeddedCells::new_in(
+            &[],
+            crate::codegen::cell_encoding(&crate::snapshot::RuntimeInfo::default()),
+            &work,
+        ),
     }
     .write(&mut sites, &mut artifact)
     .unwrap();
@@ -832,7 +837,7 @@ fn exits_find_constants_registers_and_spilled_values() {
     assert_eq!(
         frame.values().collect::<Vec<_>>(),
         [
-            (r(5).raw(), ValueLocation::Constant(value::int32(10), Repr::Tagged)),
+            (r(5).raw(), ValueLocation::Constant(value::int32(10))),
             (r(6).raw(), ValueLocation::Register(argument_register, Repr::Tagged)),
         ]
     );

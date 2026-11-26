@@ -424,7 +424,7 @@ impl<'a> InlinedCallSite<'a> {
 
 impl<'a, 'z> GraphBuilder<'a, 'z> {
     pub(super) fn boxed_object(&self, cell: CellId) -> u64 {
-        (u64::from(value::OBJECT_TAG) << 48) | (cell.0 & self.runtime.heap_region_offset_mask)
+        crate::codegen::cell_encoding(self.runtime).value_of(cell, u64::from(value::OBJECT_TAG) << 48)
     }
 
     /// The values of `operands`, as arguments of an inlined call.
@@ -816,6 +816,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
             self.embed(target.function.shared_data);
         } else {
             self.embed(target.function.function);
+            self.embed_frame_fields(target.function_fields);
         }
         self.embed(target.executable);
         self.embed(target.function.realm);
@@ -1108,8 +1109,9 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                     self.runtime.heap_region_offset_mask,
                 );
                 for bits in bound_values.filter(|bits| bits & pattern == pattern) {
-                    if !self.graph.embedded_cells.contains(&CellId(base + (bits & mask))) {
-                        self.graph.embedded_cells.push(CellId(base + (bits & mask)));
+                    let cell = CellId::from_address(base + (bits & mask));
+                    if !self.graph.embedded_cells.contains(&cell) {
+                        self.graph.embedded_cells.push(cell);
                     }
                 }
                 InlinedCallSite {
@@ -2361,6 +2363,13 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         };
 
         self.embed(function.function);
+        // NB: Frames of inlined calls without a closure start with the words of the function (see
+        //     `Codegen::emit_frame_header()`).
+        if closure.is_none()
+            && let Some(fields) = callee_executable.function_fields
+        {
+            self.embed_frame_fields(fields);
+        }
         if let Some(closure) = closure
             && check_closure
         {

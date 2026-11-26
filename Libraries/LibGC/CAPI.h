@@ -144,6 +144,9 @@ GC_API void gc_heap_uproot_cell(GCHeap*, GCCell*);
 // The bounds of the stack of the thread that created the heap; base is the lowest address.
 GC_API void gc_heap_stack_bounds(GCHeap const*, uintptr_t* base, uintptr_t* top);
 GC_API void gc_heap_enqueue_post_gc_task(GCHeap*, GCCallback, void* context);
+// Like gc_heap_enqueue_post_gc_task(), for a task that updates what still holds the old addresses of cells that the
+// collection moved: it runs before every other post-GC task.
+GC_API void gc_heap_enqueue_post_move_task(GCHeap*, GCCallback, void* context);
 // Runs during every collection after marking and finalization and before dead cells are swept, when weak holders can
 // drop the cells that did not survive. There is no way to unregister a sweep callback, and it also runs when the heap
 // is destroyed.

@@ -38,6 +38,7 @@ use crate::code::ResumeMode;
 use crate::snapshot::CellId;
 use crate::snapshot::Intrinsic;
 use crate::snapshot::NativeCallTarget;
+use crate::snapshot::SampleSlot;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub struct NodeId(pub u32);
@@ -433,7 +434,7 @@ pub enum VirtualObjectKind {
     /// the `AllocateFunction` it stands for copies, with the lexical and
     /// private environments in inputs 0 and 1: cell pointers, the latter null
     /// for none.
-    Closure { sample_slot: CellId },
+    Closure { sample_slot: SampleSlot },
 }
 
 /// Defines `Op` and `Op::name()`, the name of each variant, so that names cannot drift from the variants. Everything
@@ -839,7 +840,7 @@ define_ops! {
         AllocateFunction {
             executable: u32,
             shared_function_data_index: u32,
-            sample_slot: CellId,
+            sample_slot: SampleSlot,
             legacy_caller: bool,
         },
         /// A new lexical environment of the compiled function's
@@ -2218,7 +2219,9 @@ mod tests {
         let value = graph.add(Op::Constant(value::UNDEFINED), &[], Some(Repr::Tagged), 0);
         let inner = graph.add(
             Op::VirtualObject {
-                kind: VirtualObjectKind::Object { shape: CellId(1) },
+                kind: VirtualObjectKind::Object {
+                    shape: CellId::from_address(1),
+                },
                 allocation: NodeId(0),
             },
             &[value],
@@ -2227,7 +2230,9 @@ mod tests {
         );
         let outer = graph.add(
             Op::VirtualObject {
-                kind: VirtualObjectKind::Object { shape: CellId(2) },
+                kind: VirtualObjectKind::Object {
+                    shape: CellId::from_address(2),
+                },
                 allocation: NodeId(1),
             },
             &[inner, value],

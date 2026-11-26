@@ -14,8 +14,9 @@ use std::collections::{HashMap, HashSet};
 use ak::Zone;
 use libjs_jit::artifact::{Artifact, FrameView, Layout, Patch, SiteView};
 use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
-use libjs_jit::code::ExitKind;
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
+use libjs_jit::code::{EmbeddedCell, ExitKind};
+use libjs_jit::relocation::{self, CellEncoding};
 use libjs_runtime_macros::Trace;
 
 use super::allocation::SampleSlots;
@@ -190,13 +191,16 @@ pub struct JitCode {
     /// The tables of the code that the runtime reads once the code is installed, which have `layout`.
     tables: DataMemory,
     layout: Layout,
-    /// The cells the code compares against or uses, which keep their addresses for as long as the code lives. While a
-    /// frame runs the code, the VM keeps them alive. Otherwise the code keeps a realm, a shape or an object alive only
-    /// while that realm is otherwise alive (see `realm_of_embedded_cell()`), so that the code of one realm does not
-    /// keep another realm that went away alive through the shapes of its objects. The code is dropped once one of
-    /// them dies (see `Executable::drop_jit_code_that_lost_embedded_cells()`). The inlined functions of
-    /// `snapshot_executables` are held the same way.
+    /// The cells the code compares against or uses. While a frame runs the code, the VM keeps them alive and where
+    /// they are. Otherwise the code keeps a realm, a shape or an object alive only while that realm is otherwise alive
+    /// (see `realm_of_embedded_cell()`), so that the code of one realm does not keep another realm that went away
+    /// alive through the shapes of its objects. The code is dropped once one of them dies (see
+    /// `Executable::drop_jit_code_that_lost_embedded_cells()`). The inlined functions of `snapshot_executables` are
+    /// held the same way. A collection may move them, and the code is patched once it is over (see `relocate()`).
     embedded_cells: Vec<Gc<CellHeader>>,
+    /// The cells the code holds in its instructions and its tables (see `libjs_jit::relocation`), in the order of
+    /// `Artifact::embedded_cells()`, which its relocations name them by.
+    relocated_cells: Vec<RelocatedCell>,
     /// Cells that belong to an ECMAScript function among the embedded cells, with that function: its environments,
     /// which the code embeds too, and its shared data and executable if the code embeds them. The code keeps such a
     /// cell alive only while the function is alive, as these cells may reach the function's realm, but have no realm
@@ -221,6 +225,22 @@ pub struct JitCode {
     /// past its compiled code leaves its objects here until the code detaches. Invalidated code is entered no more,
     /// so no other frame that runs it can come to have the address of one of them.
     materialized_objects: RefCell<Vec<MaterializedObject>>,
+}
+
+/// A cell that JIT code holds (see `JitCode::relocated_cells`).
+struct RelocatedCell {
+    /// The address of the cell that the code holds now.
+    held: Cell<u64>,
+    slot: CellSlot,
+}
+
+/// Where JIT code keeps a cell it holds, which a collection rewrites when it moves the cell.
+#[derive(Clone, Copy)]
+enum CellSlot {
+    /// An index into `JitCode::embedded_cells`.
+    Embedded(u32),
+    /// An index into `JitCode::function_cells`, for its cell.
+    Function(u32),
 }
 
 /// An object created for a frame running JIT code, standing for the object its code never allocated at `allocation`
@@ -250,7 +270,30 @@ impl JitCode {
         defer_gc: &DeferGc<'_>,
     ) -> Self {
         let entry = entry_at(&memory, entry_offset);
+        let addresses: Vec<u64> = embedded_cells.iter().map(|cell| cell.as_ptr() as u64).collect();
         let (embedded_cells, function_cells) = split_function_cells(embedded_cells, defer_gc);
+        let index = |index: usize| u32::try_from(index).expect("code embeds fewer than 4 G cells");
+        let mut slots = HashMap::with_capacity(embedded_cells.len() + function_cells.len());
+        for (position, cell) in embedded_cells.iter().enumerate() {
+            slots
+                .entry(cell.as_ptr() as u64)
+                .or_insert(CellSlot::Embedded(index(position)));
+        }
+        for (position, &(_, cell)) in function_cells.iter().enumerate() {
+            slots
+                .entry(cell.as_ptr() as u64)
+                .or_insert(CellSlot::Function(index(position)));
+        }
+        let relocated_cells = addresses
+            .into_iter()
+            .map(|address| {
+                let slot = *slots.get(&address).expect("the code keeps every cell it embeds");
+                RelocatedCell {
+                    held: Cell::new(address),
+                    slot,
+                }
+            })
+            .collect();
         Self {
             exit_count: Cell::new(0),
             interpreted_frames: RefCell::new(HashMap::new()),
@@ -260,6 +303,7 @@ impl JitCode {
             tables,
             layout,
             embedded_cells,
+            relocated_cells,
             function_cells,
             snapshot_executables,
             sample_slots: Vec::new(),
@@ -268,6 +312,14 @@ impl JitCode {
             site_index_frame_offset: 0,
             register_dump_frame_offset: 0,
             materialized_objects: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// The cell `cell` of the cells the code embeds, where it is now.
+    pub fn embedded_cell(&self, cell: EmbeddedCell) -> Gc<CellHeader> {
+        match self.relocated_cells[cell.0 as usize].slot {
+            CellSlot::Embedded(index) => self.embedded_cells[index as usize],
+            CellSlot::Function(index) => self.function_cells[index as usize].1,
         }
     }
 
@@ -366,6 +418,75 @@ impl JitCode {
         }
         for &(_, cell) in &self.function_cells {
             visitor.visit(cell);
+        }
+    }
+
+    /// Hands the slots of the cells that `trace()` visited without keeping them in place to the collection, which moves
+    /// cells, for code that survived it, and so did every cell it holds.
+    pub fn record_cell_slots(&self, sweep: &Sweep<'_>) {
+        // SAFETY: The code is dropped only once the collection is over (see
+        //         `Executable::drop_jit_code_that_lost_embedded_cells()`), and nothing changes the slots meanwhile.
+        unsafe {
+            for cell in &self.embedded_cells {
+                if realm_of_embedded_cell(*cell).is_some() {
+                    sweep.record_slot(cell);
+                }
+            }
+            for (function, cell) in &self.function_cells {
+                sweep.record_slot(function);
+                sweep.record_slot(cell);
+            }
+            for snapshot in &self.snapshot_executables {
+                match &snapshot.function {
+                    Some(InlinedFunction::Ecmascript(function)) => sweep.record_slot(function),
+                    Some(InlinedFunction::Builtin(function)) => sweep.record_slot(function),
+                    None => {}
+                }
+            }
+        }
+    }
+
+    /// Patches the code and its tables where they hold cells that a collection moved, once it is over. No frame runs
+    /// code whose cells moved: the VM keeps the cells of the code that frames run where they are.
+    pub fn relocate(&self, encoding: CellEncoding) {
+        let current = |slot: CellSlot| match slot {
+            CellSlot::Embedded(index) => self.embedded_cells[index as usize],
+            CellSlot::Function(index) => self.function_cells[index as usize].1,
+        };
+        if self
+            .relocated_cells
+            .iter()
+            .all(|cell| cell.held.get() == current(cell.slot).as_ptr() as u64)
+        {
+            return;
+        }
+        let artifact = self.artifact();
+        let mut patches = Vec::new();
+        for relocation in artifact.relocations() {
+            let cell = &self.relocated_cells[relocation.cell as usize];
+            let address = current(cell.slot).as_ptr() as u64;
+            if cell.held.get() == address {
+                continue;
+            }
+            let size = relocation.kind.size();
+            assert!(relocation.offset as usize + size <= self.memory.size());
+            let mut bytes = [0; 8];
+            // SAFETY: The relocation is within the code, as asserted, which is readable.
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    self.memory.address().add(relocation.offset as usize),
+                    bytes.as_mut_ptr(),
+                    size,
+                );
+            }
+            let bytes = relocation::relocated_bytes(relocation.kind, &bytes, address, encoding);
+            patches.push(Patch::new(relocation.offset, &bytes[..size]));
+        }
+        self.memory.patch(&patches);
+        // NB: The tables name the cells they hold by index (see `libjs_jit::code::EmbeddedCell`), so only the code
+        //     holds addresses.
+        for cell in &self.relocated_cells {
+            cell.held.set(current(cell.slot).as_ptr() as u64);
         }
     }
 
@@ -540,17 +661,39 @@ fn realm_of_embedded_cell(cell: Gc<CellHeader>) -> Option<Gc<Realm>> {
 // swept (see `JitCode::embedded_cells`).
 unsafe impl Trace for JitCode {
     fn trace(&self, visitor: &mut Visitor) {
-        for cell in self.cells_held_by_realm() {
-            match realm_of_embedded_cell(cell) {
-                Some(realm) => visitor.visit_ephemeron_cell(realm, cell),
-                None => visitor.visit(cell),
+        // NB: The cells are visited without keeping them in place: the code hands the slots of the ones a realm or a
+        //     function holds to the collection once it survived it (see `record_cell_slots()`), and the code is
+        //     patched where they moved (see `relocate()`).
+        for cell in &self.embedded_cells {
+            match realm_of_embedded_cell(*cell) {
+                // SAFETY: See above.
+                Some(realm) => unsafe { visitor.visit_ephemeron_cell_without_pinning(realm, *cell) },
+                // SAFETY: Nothing writes the cells, and only dropping the code frees them, which a sweep callback
+                //         defers until the collection is over if it moves cells.
+                None => unsafe { visitor.visit_owned(cell) },
             }
         }
+        for function in self
+            .snapshot_executables
+            .iter()
+            .filter_map(|snapshot| snapshot.function)
+        {
+            let function: Gc<CellHeader> = match function {
+                InlinedFunction::Ecmascript(function) => function.upcast(),
+                InlinedFunction::Builtin(function) => function.upcast(),
+            };
+            let realm = realm_of_embedded_cell(function).expect("functions are objects");
+            // SAFETY: See above.
+            unsafe { visitor.visit_ephemeron_cell_without_pinning(realm, function) };
+        }
         for &(function, cell) in &self.function_cells {
-            visitor.visit_ephemeron_cell(function, cell);
+            // SAFETY: See above.
+            unsafe { visitor.visit_ephemeron_cell_without_pinning(function, cell) };
         }
         for materialized in self.materialized_objects.borrow().iter() {
-            visitor.visit(materialized.object);
+            // SAFETY: Only the main thread changes the list, which runs no code during a collection, and only dropping
+            //         the code frees it, which a sweep callback defers until the collection is over if it moves cells.
+            unsafe { visitor.visit_owned(&materialized.object) };
         }
         // NB: The executables of inlined calls are held like the cells of their functions.
         for snapshot in &self.snapshot_executables {
@@ -918,7 +1061,14 @@ impl Executable {
     /// frame runs such code, as the VM keeps the embedded cells of code that frames run alive, so it is dropped before
     /// the dead cell is swept and its memory reused.
     pub fn drop_jit_code_that_lost_embedded_cells(&self, vm: &Vm, sweep: &Sweep<'_>) {
-        if !self.jit_code(vm).is_some_and(|code| code.lost_embedded_cell(sweep)) {
+        let Some(code) = self.jit_code(vm) else {
+            return;
+        };
+        if !code.lost_embedded_cell(sweep) {
+            if sweep.moves_cells() {
+                code.record_cell_slots(sweep);
+                vm.jit.relocate_code_once_collection_is_over(vm);
+            }
             return;
         }
         // NB: A collection that moves cells may still rewrite the slots that the code's trace handed it (see

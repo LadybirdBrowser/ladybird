@@ -1789,6 +1789,14 @@ impl Vm {
         self.jit.dependents.remove_dead_entries(self, sweep);
     }
 
+    /// Calls `f` with every executable of the VM, which must not make or drop any meanwhile.
+    #[cfg_attr(not(feature = "jit"), allow(dead_code))]
+    pub(crate) fn for_each_executable(&self, mut f: impl FnMut(Gc<Executable>)) {
+        for executable in self.executables.borrow().iter() {
+            f(*executable);
+        }
+    }
+
     /// Has the JIT code that idled long enough in this collection flushed once the collection is over.
     pub(crate) fn enqueue_code_flushing_task(&self) {
         // SAFETY: The VM outlives its heap, whose collections run the task.

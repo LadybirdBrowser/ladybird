@@ -1141,7 +1141,7 @@ mod tests {
 
     fn shape(id: u64) -> ShapeCheck {
         ShapeCheck {
-            shape: CellId(id),
+            shape: CellId::from_address(id),
             dictionary_generation: None,
         }
     }
@@ -1295,7 +1295,7 @@ mod tests {
         let (first, second, value) = (NodeId(1), NodeId(2), NodeId(3));
         let binding = |environment, index| Location::Binding { environment, index };
         let global = Location::GlobalBinding {
-            environment: CellId(7),
+            environment: CellId::from_address(7),
             index: 0,
         };
         let mut facts = facts();

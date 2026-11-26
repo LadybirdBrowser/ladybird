@@ -333,6 +333,11 @@ void gc_heap_enqueue_post_gc_task(GCHeap* heap, GCCallback callback, void* conte
     as_heap(heap).enqueue_post_gc_task([callback, context] { callback(context); });
 }
 
+void gc_heap_enqueue_post_move_task(GCHeap* heap, GCCallback callback, void* context)
+{
+    as_heap(heap).enqueue_post_move_task([callback, context] { callback(context); });
+}
+
 void gc_heap_register_sweep_callback(GCHeap* heap, GCCallback callback, void* context)
 {
     as_heap(heap).register_sweep_callback([callback, context] { callback(context); });

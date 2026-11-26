@@ -29,12 +29,12 @@ use crate::bytecode::ExceptionHandler;
 use crate::bytecode::FrameLayout;
 use crate::code::ExitKind;
 
-/// The address of a GC cell on the main thread, used as an opaque identity.
-/// It is never dereferenced by the compiler.
+/// The address of the slot that holds the sample of a closure template (see `ClosureTemplateSnapshot::sample_slot`).
+/// It is not a cell: the runtime keeps the slot where it is, and plain bits may hold it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct CellId(pub u64);
+pub struct SampleSlot(pub u64);
 
-pub use crate::asm::relocation::COMPRESSED_POINTER_SHIFT;
+pub use crate::asm::relocation::{COMPRESSED_POINTER_SHIFT, CellId, CompressedCell};
 
 /// What a slot of a cell image holds, as tracing the cell found it. Bytes of the image outside its slots are plain
 /// bits, whatever their value.
@@ -55,14 +55,6 @@ pub enum CellSlotHolds {
 pub struct CellSlot {
     pub offset: u32,
     pub holds: CellSlotHolds,
-}
-
-impl CellId {
-    /// The cell's compressed pointer, which a field that holds the cell
-    /// compares equal to without decoding.
-    pub fn compressed(self) -> u32 {
-        (self.0 >> COMPRESSED_POINTER_SHIFT) as u32
-    }
 }
 
 /// One bytecode executable: the function being compiled (index 0) or an
@@ -306,7 +298,7 @@ pub struct ClosureTemplateSnapshot {
     /// The address of the slot that holds the sample, a function object
     /// the closures are copies of, which is no cell: the code that copies
     /// the sample keeps the slot, and the sample may move.
-    pub sample_slot: CellId,
+    pub sample_slot: SampleSlot,
     /// The cells the words refer to, the shape and the shared function
     /// data of the sample, which code that copies the words embeds.
     pub shape: CellId,
@@ -616,9 +608,9 @@ impl ForwardedCallSnapshot {
 /// one JIT code can allocate itself. Its executable and realm stay the same
 /// for as long as the function lives. Code that calls it embeds
 /// `function.function` (`function.shared_data` for `closures`), `executable`,
-/// `function.realm` (and
-/// `function.global_this` if it binds `this` to it, and the cells of its
-/// environment template) and must list them in
+/// `function.realm`, the environment in `function_fields` unless it calls
+/// `closures` (and `function.global_this` if it binds `this` to it, and the
+/// cells of its environment template) and must list them in
 /// `CompiledCode::embedded_cells`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DirectCallTarget {
@@ -696,8 +688,9 @@ pub struct EnvironmentTemplateSnapshot {
 /// as long as the function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FunctionFrameFields {
+    /// The `ScriptOrModuleSlot` word, plain bits: scripts and modules never move.
     pub script_or_module: u64,
-    pub environment: u64,
+    pub environment: CellId,
 }
 
 impl FunctionFrameFields {

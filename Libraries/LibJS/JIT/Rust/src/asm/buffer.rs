@@ -22,6 +22,8 @@ pub enum AsmError {
     TooLarge,
     /// The code holds a cell it embeds as plain bits (see `PortableMacroAssembler::forbid_untyped_cells()`).
     UntypedCell,
+    /// A place where the code holds a cell holds none of the cells it embeds.
+    UnknownCell,
 }
 
 /// A position in the code, bound once and referenced any number of times

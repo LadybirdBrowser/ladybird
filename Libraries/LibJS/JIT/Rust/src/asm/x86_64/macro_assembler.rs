@@ -25,6 +25,8 @@ use super::super::Width::W32;
 use super::super::Width::W64;
 use super::super::relocation::CellConstant;
 use super::super::relocation::CellEncoding;
+use super::super::relocation::CompressedCell;
+use super::super::relocation::EmbeddedCells;
 use super::super::relocation::RelocationKind;
 use super::*;
 use ak::ZoneMap;
@@ -502,10 +504,10 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         Ok(data_offset)
     }
 
-    fn forbid_untyped_cells(&mut self, encoding: CellEncoding, cells: &[u64]) {
-        self.cell_encoding = Some(encoding);
+    fn forbid_untyped_cells(&mut self, cells: &EmbeddedCells<'_>) {
+        self.cell_encoding = Some(cells.encoding());
         self.forbidden_cells.clear();
-        self.forbidden_cells.extend_from_slice(cells);
+        self.forbidden_cells.extend(cells.addresses());
     }
 
     fn unreachable(&mut self) {
@@ -597,7 +599,8 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         self.assembler.mov_mi(W32, address, imm as i32);
     }
 
-    fn store_cell32(&mut self, address: &Address, compressed: u32) {
+    fn store_cell32(&mut self, address: &Address, compressed: CompressedCell) {
+        let compressed = compressed.bits();
         self.assembler.mov_mi(W32, address, compressed as i32);
         self.note_cell_immediate();
     }
@@ -929,7 +932,14 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         });
     }
 
-    fn branch32_memory_cell(&mut self, condition: Condition, address: &Address, compressed: u32, target: Label) {
+    fn branch32_memory_cell(
+        &mut self,
+        condition: Condition,
+        address: &Address,
+        compressed: CompressedCell,
+        target: Label,
+    ) {
+        let compressed = compressed.bits();
         self.branch_group(|m| {
             m.assembler.cmp_mi32(W32, address, compressed as i32);
             m.note_cell_immediate();
@@ -937,7 +947,8 @@ impl PortableMacroAssembler for MacroAssembler<'_> {
         });
     }
 
-    fn branch32_cell(&mut self, condition: Condition, lhs: Gpr, compressed: u32, target: Label) {
+    fn branch32_cell(&mut self, condition: Condition, lhs: Gpr, compressed: CompressedCell, target: Label) {
+        let compressed = compressed.bits();
         self.branch_group(|m| {
             m.assembler.cmp_ri32(W32, lhs, compressed as i32);
             m.note_cell_immediate();
