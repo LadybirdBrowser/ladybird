@@ -1,0 +1,11 @@
+An inline-block in Ladybird now takes no baseline from a block-level
+table inside it, so below such a table it sits on its bottom margin
+edge. Chrome 158 and Firefox 151 give the same baseline and box height
+in all eight cases of the new test, run with engine-compare. WebKit
+26.5 agrees except in the two cases that depend on the font’s ascent.
+
+Blink’s BlockLayoutAlgorithm::PropagateBaselineFromBlockChild() returns
+early for a table child when it computes an inline-block’s baseline,
+and Gecko’s nsBlockFrame::GetBaselineBOffset() skips a table wrapper
+frame when it exports a baseline for line layout. This paragraph comes
+from reading their sources, not running them.
