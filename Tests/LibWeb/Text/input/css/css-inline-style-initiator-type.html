@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="attribute"></div>
+<div id="declaration"></div>
+<script>
+    function resourceEntry(url) {
+        return new Promise(resolve => {
+            new PerformanceObserver((list, observer) => {
+                const entry = list.getEntriesByName(url)[0];
+                if (!entry)
+                    return;
+                observer.disconnect();
+                resolve(entry);
+            }).observe({ type: "resource", buffered: true });
+        });
+    }
+
+    promiseTest(async () => {
+        const echo = path => httpTestServer().createEcho("GET", path, {
+            status: 200,
+            headers: { "Cache-Control": "no-store", "Content-Type": "image/png" },
+            body: "",
+        });
+        const attributeURL = await echo("/css-inline-style-initiator-type-attribute.png");
+        const declarationURL = await echo("/css-inline-style-initiator-type-declaration.png");
+        const attributeEntry = resourceEntry(attributeURL);
+        const declarationEntry = resourceEntry(declarationURL);
+
+        document.getElementById("attribute").setAttribute("style", `background-image: url("${attributeURL}")`);
+        document.getElementById("declaration").style.backgroundImage = `url("${declarationURL}")`;
+        document.body.offsetWidth;
+
+        println(`style attribute initiator type: ${(await attributeEntry).initiatorType}`);
+        println(`style declaration initiator type: ${(await declarationEntry).initiatorType}`);
+    });
+</script>
