@@ -16,7 +16,7 @@
 namespace Web::Fetch::Fetching {
 
 // Handles the commands posted for the fetches of the agent on whose thread it runs.
-class FetchEngine final : public Engine::EngineCommandSink {
+class WEB_API FetchEngine final : public Engine::EngineCommandSink {
 public:
     FetchEngine(NonnullRefPtr<Engine::NetworkActivityObservers const>, NonnullOwnPtr<Engine::FetchEngineRecords::Agent>);
 

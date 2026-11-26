@@ -157,6 +157,58 @@ TEST_CASE(a_followed_redirect_runs_its_next_hop_under_the_id_of_its_fetch)
     EXPECT(is_rooted(*token));
 }
 
+namespace {
+
+// Sends an invalid follow before forwarding the navigation's real follow.
+class InvalidFollowInjector final : public Web::Fetch::Engine::EngineCommandSink {
+public:
+    explicit InvalidFollowInjector(NonnullRefPtr<ReachedSteps> misbehaviors)
+        : m_engine(Web::HTML::surrounding_agent().network_activity_observers, make<MisbehaviorRecordingAgent>(move(misbehaviors)))
+    {
+    }
+
+    virtual void attach_to_executor(Web::Fetch::Engine::FetchExecutor& executor) override { m_engine.attach_to_executor(executor); }
+
+    virtual void handle_command(Web::Fetch::Engine::EngineCommand command) override
+    {
+        if (auto* resolve = command.get_pointer<ResolveRedirect>()) {
+            if (auto* follow = resolve->resolution.get_pointer<ResolveRedirect::Follow>()) {
+                Web::Fetch::Engine::MainFetchInput next_hop { follow->next_hop.fetch_params, Web::Fetch::Infrastructure::Response::create() };
+                m_engine.handle_command(ResolveRedirect { resolve->fetch_id, resolve->continuation_id, ResolveRedirect::Follow { move(next_hop) } });
+            }
+        }
+        m_engine.handle_command(move(command));
+    }
+
+private:
+    Web::Fetch::Fetching::FetchEngine m_engine;
+};
+
+}
+
+TEST_CASE(a_rejected_follow_leaves_the_redirect_open)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto misbehaviors = make_ref_counted<ReachedSteps>();
+    harness.run_fetches_on(make<InvalidFollowInjector>(misbehaviors));
+    StandInRequestServer request_server { harness };
+    auto completions = make_ref_counted<ReachedSteps>();
+
+    start_navigation(harness, completions, "http://127.0.0.1:8000/rejected-follow"sv, "rejected-follow"_utf16);
+    auto redirect_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(redirect_id, 302, { location("/rejected-follow-final"sv) });
+    auto final_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(final_id, 200);
+    run_until_completions(harness, completions, 1);
+    harness.settle();
+
+    EXPECT_EQ(misbehaviors->steps, (Vector<ByteString> { "The agent gave main fetch a response other than a network error" }));
+    EXPECT_EQ(completions->steps, (Vector<ByteString> { "navigation params" }));
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /rejected-follow", "release lease 0", "stop 0", "start 1 GET /rejected-follow-final" }));
+}
+
 TEST_CASE(a_redirect_without_a_location_is_accepted_as_the_navigations_response)
 {
     Core::EventLoop event_loop;

@@ -64,6 +64,20 @@ struct HandedOverResponses : RefCounted<HandedOverResponses> {
     Vector<NonnullRefPtr<Web::Fetch::Infrastructure::Response const>> responses;
 };
 
+// Records the commands no honest agent could have posted, as steps, instead of dying.
+class MisbehaviorRecordingAgent final : public Web::Fetch::Engine::FetchEngineRecords::Agent {
+public:
+    explicit MisbehaviorRecordingAgent(NonnullRefPtr<ReachedSteps> misbehaviors)
+        : m_misbehaviors(move(misbehaviors))
+    {
+    }
+
+    virtual void misbehaved(StringView reason) override { m_misbehaviors->steps.append(ByteString { reason }); }
+
+private:
+    NonnullRefPtr<ReachedSteps> m_misbehaviors;
+};
+
 // The commands posted to an engine that applies none of them, for the test to hand on.
 struct PostedCommands : RefCounted<PostedCommands> {
     Vector<Web::Fetch::Engine::EngineCommand> commands;
@@ -191,7 +205,7 @@ private:
             [&](Stop const& stop) { return ByteString::formatted("stop {}", fetch(stop.fetch_id)); },
             [&](ResolveRedirect const& resolve) {
                 return resolve.resolution.visit(
-                    [&](ResolveRedirect::Follow) { return ByteString::formatted("follow redirect of {}", fetch(resolve.fetch_id)); },
+                    [&](ResolveRedirect::Follow const&) { return ByteString::formatted("follow redirect of {}", fetch(resolve.fetch_id)); },
                     [&](ResolveRedirect::AcceptAsFinal) { return ByteString::formatted("accept redirect of {} as final", fetch(resolve.fetch_id)); },
                     [&](ResolveRedirect::Abandon) { return ByteString::formatted("abandon redirect of {}", fetch(resolve.fetch_id)); });
             },
@@ -226,6 +240,17 @@ struct FetchHarness {
         // Each case has an event loop of its own, which the window agent's fetches have to run on.
         auto& agent = Web::HTML::surrounding_agent();
         agent.fetch_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
+    }
+
+    // Has the agent post the commands of the fetches it starts from now on to the engine.
+    void run_fetches_on(NonnullOwnPtr<Web::Fetch::Engine::EngineCommandSink> engine) const
+    {
+        auto& agent = Web::HTML::surrounding_agent();
+        Web::Fetch::Engine::FetchExecutorServices services {
+            .event_loop = Core::EventLoop::current_weak(),
+            .known_hsts_host_provider = agent.fetch_executor->known_hsts_host_provider(),
+        };
+        agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(engine));
     }
 
     // Records each command the agent posts from now on, before the agent's fetch engine gets it, the fetches whose

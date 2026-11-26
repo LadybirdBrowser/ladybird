@@ -93,7 +93,7 @@ void FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* netwo
         abandon_redirect();
 }
 
-FetchEngineRecord::RedirectAnswerResult FetchEngineRecord::resolve_redirect(ContinuationId continuation_id, Command::ResolveRedirect::Resolution const& resolution)
+FetchEngineRecord::RedirectAnswerResult FetchEngineRecord::resolve_redirect(ContinuationId continuation_id, RedirectAnswer answer)
 {
     ASSERT(is_on_owner_thread());
     if (!m_redirect_continuation.has_value() || m_redirect_continuation->id != continuation_id)
@@ -101,17 +101,20 @@ FetchEngineRecord::RedirectAnswerResult FetchEngineRecord::resolve_redirect(Cont
     if (!m_main_fetch.has<MainFetchEnded>())
         return RedirectAnswerResult::NotHandedOver;
 
-    resolution.visit(
-        [&](Command::ResolveRedirect::Follow) {
-            // NB: Main fetch runs again before the stop of the body transport can end the redirect's load.
-            m_main_fetch = MainFetchRunning {};
-            close_redirect_continuation();
-        },
-        [&](Command::ResolveRedirect::AcceptAsFinal) {
-            m_redirect_continuation.clear();
-            end_fetch_unless_anything_is_left();
-        },
-        [&](Command::ResolveRedirect::Abandon) { abandon_redirect(); });
+    switch (answer) {
+    case RedirectAnswer::Follow:
+        // NB: Main fetch runs again before the stop of the body transport can end the redirect's load.
+        m_main_fetch = MainFetchRunning {};
+        close_redirect_continuation();
+        break;
+    case RedirectAnswer::AcceptAsFinal:
+        m_redirect_continuation.clear();
+        end_fetch_unless_anything_is_left();
+        break;
+    case RedirectAnswer::Abandon:
+        abandon_redirect();
+        break;
+    }
     return RedirectAnswerResult::Settled;
 }
 
@@ -333,23 +336,23 @@ void FetchEngineRecords::stop(FetchId fetch_id)
     record->stop();
 }
 
-FetchEngineRecords::RedirectAnswerOutcome FetchEngineRecords::resolve_redirect(Command::ResolveRedirect const& resolve)
+FetchEngineRecords::RedirectAnswerOutcome FetchEngineRecords::resolve_redirect(FetchId fetch_id, ContinuationId continuation_id, RedirectAnswer answer)
 {
     ASSERT(is_on_owner_thread());
-    if (resolve.fetch_id > m_last_started_fetch_id) {
+    if (fetch_id > m_last_started_fetch_id) {
         m_agent->misbehaved("The agent resolved a redirect of a fetch it has not started"sv);
         return RedirectAnswerMisbehaved {};
     }
-    if (resolve.continuation_id > m_last_offered_continuation_id) {
+    if (continuation_id > m_last_offered_continuation_id) {
         m_agent->misbehaved("The agent resolved a redirect the engine never offered"sv);
         return RedirectAnswerMisbehaved {};
     }
 
-    auto found_record = m_records.get(resolve.fetch_id);
+    auto found_record = m_records.get(fetch_id);
     if (!found_record.has_value())
         return RedirectAnswerDropped {};
     NonnullRefPtr record = **found_record;
-    switch (record->resolve_redirect(resolve.continuation_id, resolve.resolution)) {
+    switch (record->resolve_redirect(continuation_id, answer)) {
     case FetchEngineRecord::RedirectAnswerResult::Settled:
         return record;
     case FetchEngineRecord::RedirectAnswerResult::NotOpen:

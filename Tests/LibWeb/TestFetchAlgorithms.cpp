@@ -1488,6 +1488,75 @@ TEST_CASE(a_fetch_waiting_for_a_preload_is_resumed_by_its_engine)
     EXPECT(!is_rooted(controller->token()));
 }
 
+namespace {
+
+// Gives each fetch it starts a preloaded response candidate that is already a response.
+class PreloadedResponseInjector final : public Web::Fetch::Engine::EngineCommandSink {
+public:
+    PreloadedResponseInjector(NonnullRefPtr<ReachedSteps> misbehaviors, NonnullRefPtr<Response> preloaded_response)
+        : m_engine(Web::HTML::surrounding_agent().network_activity_observers, make<MisbehaviorRecordingAgent>(move(misbehaviors)))
+        , m_preloaded_response(move(preloaded_response))
+    {
+    }
+
+    virtual void attach_to_executor(Web::Fetch::Engine::FetchExecutor& executor) override { m_engine.attach_to_executor(executor); }
+
+    virtual void handle_command(Web::Fetch::Engine::EngineCommand command) override
+    {
+        if (auto* start = command.get_pointer<Web::Fetch::Engine::Command::StartFetch>())
+            start->input.main_fetch.fetch_params->set_preloaded_response_candidate(m_preloaded_response);
+        m_engine.handle_command(move(command));
+    }
+
+private:
+    Web::Fetch::Fetching::FetchEngine m_engine;
+    NonnullRefPtr<Response> m_preloaded_response;
+};
+
+}
+
+// Starts a fetch whose preloaded response has the body, and returns the misbehavior the engine saw.
+static NonnullRefPtr<ReachedSteps> fetch_with_a_preloaded_response(FetchHarness const& harness, Web::Fetch::Infrastructure::ResponseBody body, NonnullRefPtr<AlgorithmCalls> const& record)
+{
+    auto misbehaviors = make_ref_counted<ReachedSteps>();
+    auto preloaded_response = Response::create();
+    preloaded_response->set_body(move(body));
+    harness.run_fetches_on(make<PreloadedResponseInjector>(misbehaviors, preloaded_response));
+    (void)harness.fetch(harness.create_request(), recording_responses(harness.realm->heap(), record));
+    harness.settle();
+    return misbehaviors;
+}
+
+TEST_CASE(a_fetch_started_with_a_preloaded_response_whose_body_is_not_all_its_bytes_is_misbehavior)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto record = make_ref_counted<AlgorithmCalls>();
+
+    auto without_bytes = fetch_with_a_preloaded_response(harness, Web::Fetch::Infrastructure::ResponseBody { Core::ImmutableBytes {}, 0 }, record);
+    auto shorter = fetch_with_a_preloaded_response(harness, Web::Fetch::Infrastructure::ResponseBody { MUST(Core::ImmutableBytes::copy("preloaded"sv.bytes())), 20 }, record);
+
+    Vector<ByteString> expected { "The agent gave main fetch a preloaded response whose body is not all its bytes" };
+    EXPECT_EQ(without_bytes->steps, expected);
+    EXPECT_EQ(shorter->steps, expected);
+    EXPECT(record->responses.is_empty());
+}
+
+TEST_CASE(a_fetch_started_with_a_preloaded_response_with_an_empty_body_hands_it_over)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto record = make_ref_counted<AlgorithmCalls>();
+
+    auto misbehaviors = fetch_with_a_preloaded_response(harness, Web::Fetch::Infrastructure::ResponseBody::from_bytes(MUST(Core::ImmutableBytes::copy({}))), record);
+
+    EXPECT(misbehaviors->steps.is_empty());
+    EXPECT_EQ(record->responses.size(), 1u);
+    EXPECT(!record->responses[0]->is_network_error());
+}
+
 TEST_CASE(a_fetch_aborted_while_it_waits_for_a_preload_ends_there)
 {
     Core::EventLoop event_loop;

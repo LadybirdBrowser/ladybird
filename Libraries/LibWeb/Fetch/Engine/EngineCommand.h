@@ -35,7 +35,10 @@ struct Stop {
 
 // The answer to the continuation of a manual redirect a fetch handed over, given at most once.
 struct ResolveRedirect {
-    struct Follow { };
+    // The redirect's next hop, whose in-parallel steps the engine runs while the fetch is ongoing.
+    struct Follow {
+        MainFetchInput next_hop;
+    };
     struct AcceptAsFinal { };
     struct Abandon { };
     using Resolution = Variant<Follow, AcceptAsFinal, Abandon>;

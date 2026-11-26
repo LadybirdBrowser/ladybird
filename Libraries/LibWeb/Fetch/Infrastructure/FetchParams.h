@@ -12,8 +12,7 @@
 #include <AK/Weakable.h>
 #include <LibGC/HoldsNoCellEdges.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
-#include <LibWeb/Fetch/Engine/StartFetchInput.h>
+#include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControlBlock.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerToken.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -21,6 +20,14 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/Loader/LoaderConfigSnapshot.h>
+
+namespace Web::Fetch::Engine {
+
+class EngineEventSink;
+class FetchEngineRecord;
+struct StartFetchInput;
+
+}
 
 namespace Web::Fetch::Infrastructure {
 
@@ -38,6 +45,7 @@ public:
 
     [[nodiscard]] static NonnullRefPtr<FetchParams> create(FetchControllerToken, WeakPtr<FetchControllerRegistry>, NonnullRefPtr<FetchControlBlock>, NonnullRefPtr<Request>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     [[nodiscard]] static NonnullRefPtr<FetchParams> copy(FetchParams const&);
+    ~FetchParams();
 
     [[nodiscard]] NonnullRefPtr<Request> request() const { return m_request; }
     void set_request(NonnullRefPtr<Request> request) { m_request = move(request); }
@@ -64,12 +72,12 @@ public:
     [[nodiscard]] Optional<FileAPI::SerializedBlobURLEntry> const& blob_url_entry() const { return m_blob_url_entry; }
     void set_blob_url_entry(Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry) { m_blob_url_entry = move(blob_url_entry); }
 
-    [[nodiscard]] Engine::StartFetchInput start_fetch_input(Engine::FetchId, NonnullOwnPtr<Engine::EngineEventSink>) const;
+    [[nodiscard]] Engine::StartFetchInput start_fetch_input(Engine::FetchId, RefPtr<Response>, NonnullOwnPtr<Engine::EngineEventSink>) const;
 
     // Set by the fetch engine when it runs main fetch's in-parallel steps, and shared with copies made after that. A
     // CORS preflight's fetch params share the record of the fetch the preflight is for.
     [[nodiscard]] Engine::FetchEngineRecord* engine_record() const { return m_engine_record; }
-    void set_engine_record(NonnullRefPtr<Engine::FetchEngineRecord> engine_record) const { m_engine_record = move(engine_record); }
+    void set_engine_record(NonnullRefPtr<Engine::FetchEngineRecord>) const;
 
     [[nodiscard]] bool is_cors_preflight() const { return m_is_cors_preflight; }
     void set_is_cors_preflight() { m_is_cors_preflight = true; }

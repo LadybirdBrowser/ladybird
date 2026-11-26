@@ -23,15 +23,12 @@
 
 namespace Web::Fetch::Infrastructure {
 
-// The fetch controllers of one agent, by token. It keeps alive the main fetch steps it defers, and the controller of
-// each started fetch until the fetch ends.
+// Tracks one agent's controllers by token and roots each started fetch's controller until the fetch ends.
 class WEB_API FetchControllerRegistry : public Weakable<FetchControllerRegistry> {
     AK_MAKE_NONCOPYABLE(FetchControllerRegistry);
     AK_MAKE_NONMOVABLE(FetchControllerRegistry);
 
 public:
-    using DeferredMainFetchSteps = GC::Function<void(NonnullRefPtr<Engine::FetchEngineRecord>)>;
-
     FetchControllerRegistry();
 
     [[nodiscard]] FetchControllerToken add(Badge<FetchController>, FetchController&);
@@ -41,11 +38,8 @@ public:
 
     [[nodiscard]] Vector<GC::Root<FetchController>> controllers() const;
 
-    // Keeps main fetch's in-parallel steps alive while they wait to be taken, under a new fetch id, or under the id of
-    // the fetch whose manual redirect they follow.
-    [[nodiscard]] Engine::FetchId defer_main_fetch_steps(GC::Ref<DeferredMainFetchSteps> steps);
-    void defer_main_fetch_steps(Engine::FetchId, GC::Ref<DeferredMainFetchSteps> steps);
-    [[nodiscard]] GC::Root<DeferredMainFetchSteps> take_deferred_main_fetch_steps(Engine::FetchId);
+    // A fetch id above every one given before.
+    [[nodiscard]] static Engine::FetchId next_fetch_id();
 
     // Keeps the controller of a fetch that has started alive until the fetch is released, and with it the controllers of
     // the fetch's CORS preflights.
@@ -58,7 +52,6 @@ public:
 private:
     u64 m_id { 0 };
     HashMap<u64, GC::Weak<FetchController>> m_controllers;
-    HashMap<Engine::FetchId, GC::Root<DeferredMainFetchSteps>> m_deferred_main_fetch_steps;
 
     struct RootedFetch {
         GC::Root<FetchController> controller;
