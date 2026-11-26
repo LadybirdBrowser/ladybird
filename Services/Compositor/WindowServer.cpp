@@ -6,7 +6,6 @@
 
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/WindowServer.h>
-#include <stdlib.h>
 
 #ifdef AK_OS_MACOS
 #    include <Compositor/CoreAnimationWindowServer.h>
@@ -40,12 +39,6 @@ ErrorOr<RefPtr<PresentableSurface>> WindowServer::try_create_presentable_surface
 #else
     return nullptr;
 #endif
-}
-
-bool WindowServer::showing_tiles_of_painted_layers_is_switched_off()
-{
-    static bool is_switched_off = getenv("LADYBIRD_WINDOW_SERVER_SHOWS_NO_TILES") != nullptr;
-    return is_switched_off;
 }
 
 }
