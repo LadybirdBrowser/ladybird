@@ -1654,11 +1654,14 @@ impl<'pass> FlexFormattingContext<'pass> {
         // AD-HOC: This is not mentioned in the spec, but if the item has an aspect ratio, we may need
         //         to adjust the main size in these ways:
         //         - using stretch-fit main size if the flex basis is indefinite, there is no
-        //           intrinsic size and no cross size to resolve the ratio against.
+        //           intrinsic size and no cross size to resolve the ratio against. Only along the
+        //           inline axis: in the block axis, the size comes from the fit-content inline size
+        //           through the ratio, as for any other block.
         //         - in response to cross size min/max constraints.
         let inputs = self.flex_item_details[index].inputs;
         if inputs.auto_content_size.aspect_ratio.is_some()
             && !basis_is_definite
+            && self.main_axis_is_parallel_to_inline_axis_of_item(index)
             && !inputs.auto_content_size.width.is_some()
             && !inputs.auto_content_size.height.is_some()
             && !self.has_definite_cross_size(index)
