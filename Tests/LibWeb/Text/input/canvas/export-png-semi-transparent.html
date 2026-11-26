@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "rgba(200, 100, 50, 0.5)";
+        context.fillRect(0, 0, 1, 1);
+        println(`Canvas pixel: ${Array.from(context.getImageData(0, 0, 1, 1).data)}`);
+
+        const image = new Image();
+        image.src = canvas.toDataURL("image/png");
+        await image.decode();
+        const decodedCanvas = document.createElement("canvas");
+        decodedCanvas.width = 1;
+        decodedCanvas.height = 1;
+        const decodedContext = decodedCanvas.getContext("2d");
+        decodedContext.drawImage(image, 0, 0);
+        println(`Exported PNG pixel: ${Array.from(decodedContext.getImageData(0, 0, 1, 1).data)}`);
+    });
+</script>

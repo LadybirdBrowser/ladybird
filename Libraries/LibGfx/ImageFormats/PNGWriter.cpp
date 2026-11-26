@@ -27,6 +27,7 @@ ErrorOr<ByteBuffer> PNGWriter::encode(Gfx::Bitmap const& bitmap, Options options
         ffi_options.cicp_video_full_range_flag = to_underlying(cicp.video_full_range_flag());
     }
     ffi_options.fast = options.compression == PNGCompression::Fast;
+    ffi_options.premultiplied = bitmap.alpha_type() == AlphaType::Premultiplied && (bitmap.format() == BitmapFormat::BGRA8888 || bitmap.format() == BitmapFormat::RGBA8888);
 
     auto is_bgra = bitmap.format() == BitmapFormat::BGRA8888 || bitmap.format() == BitmapFormat::BGRx8888;
 

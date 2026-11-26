@@ -69,7 +69,7 @@ static ErrorOr<void> test_roundtrip(Gfx::Bitmap const& bitmap)
 
 static ErrorOr<AK::NonnullRefPtr<Gfx::Bitmap>> create_test_rgb_bitmap()
 {
-    auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 47, 33 }));
+    auto bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Unpremultiplied, { 47, 33 }));
 
     for (int y = 0; y < bitmap->height(); ++y)
         for (int x = 0; x < bitmap->width(); ++x)

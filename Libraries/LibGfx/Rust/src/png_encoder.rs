@@ -21,6 +21,8 @@ pub struct PNGEncodeOptions {
     pub cicp_video_full_range_flag: u8,
     /// Encodes much faster, at the cost of a larger file.
     pub fast: bool,
+    /// The color values of the pixels are premultiplied by their alpha, which PNG does not store them as.
+    pub premultiplied: bool,
 }
 
 const STREAM_BUFFER_SIZE: usize = 256 * 1024;
@@ -44,6 +46,16 @@ impl Write for CallbackWriter {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
+}
+
+/// Divides the color values of an RGBA pixel by its alpha.
+fn unpremultiplied([red, green, blue, alpha]: [u8; 4]) -> [u8; 4] {
+    if alpha == 0 {
+        return [0, 0, 0, 0];
+    }
+    let alpha_value = u32::from(alpha);
+    let channel = |value: u8| u8::try_from((u32::from(value) * 255 + alpha_value / 2) / alpha_value).unwrap_or(u8::MAX);
+    [channel(red), channel(green), channel(blue), alpha]
 }
 
 /// Encodes 8-bit RGBA pixels, or BGRA pixels when `is_bgra` is set, as an RGBA PNG.
@@ -114,9 +126,18 @@ pub unsafe extern "C" fn png_rust_encode(
     let mut row = vec![0; row_bytes];
     for y in 0..height as usize {
         let source = &pixels[y * stride..y * stride + row_bytes];
-        let row = if is_bgra {
+        let row = if is_bgra || options.premultiplied {
             for (source, destination) in source.as_chunks::<4>().0.iter().zip(row.as_chunks_mut::<4>().0) {
-                *destination = [source[2], source[1], source[0], source[3]];
+                let pixel = if is_bgra {
+                    [source[2], source[1], source[0], source[3]]
+                } else {
+                    *source
+                };
+                *destination = if options.premultiplied {
+                    unpremultiplied(pixel)
+                } else {
+                    pixel
+                };
             }
             &row[..]
         } else {
