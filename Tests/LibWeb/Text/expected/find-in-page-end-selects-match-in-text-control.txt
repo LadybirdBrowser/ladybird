@@ -1,0 +1,4 @@
+textarea selection: 14-27 "Target phrase"
+input selection: 11-23 "input phrase"
+document selection ranges after a match in a file input's label: 1
+document selection ranges after a match in a submit button's label: 1

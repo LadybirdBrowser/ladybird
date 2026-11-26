@@ -33,6 +33,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Focus.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -2449,6 +2450,19 @@ void Page::find_in_page_end()
     set_find_in_page_active_match(nullptr);
     if (!active_match || active_match->collapsed())
         return;
+
+    // A match in the value of a text control that has a selection becomes the control's selection, which its caret
+    // follows, rather than the document's.
+    if (auto shadow_root = active_match->start_container()->containing_shadow_root()) {
+        if (auto* control = as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host())) {
+            auto const* input = as_if<HTML::HTMLInputElement>(shadow_root->host());
+            auto value_text = control->form_associated_element_to_text_node();
+            if ((!input || input->selection_or_range_applies()) && value_text && active_match->start_container() == value_text && active_match->end_container() == value_text) {
+                control->set_the_selection_range(active_match->start_offset(), active_match->end_offset());
+                return;
+            }
+        }
+    }
 
     auto selection = active_match->start_container()->document().get_selection();
     if (!selection || selection->range())
