@@ -118,14 +118,14 @@ pub enum CompilationType {
 
 /// The intrinsic accessors of each object that still has any, by the object's address.
 pub type IntrinsicAccessorMap = HashMap<
-    usize,
+    Gc<Object>,
     HashMap<Utf16FlyString, IntrinsicAccessor, foldhash::fast::RandomState>,
     foldhash::fast::RandomState,
 >;
 
 /// The properties defined with Object::define_unimplemented_property, by the address of their object.
 pub type UnimplementedPropertyMap =
-    HashMap<usize, HashSet<Utf16FlyString, foldhash::fast::RandomState>, foldhash::fast::RandomState>;
+    HashMap<Gc<Object>, HashSet<Utf16FlyString, foldhash::fast::RandomState>, foldhash::fast::RandomState>;
 
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
 pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
@@ -1473,20 +1473,21 @@ impl Vm {
         }
     }
 
-    /// Forgets the intrinsic accessors and unimplemented properties of objects that died in this collection.
+    /// Forgets the intrinsic accessors and unimplemented properties of objects that died in this collection. The maps
+    /// are keyed by the identity of the objects, which moves do not change, and a collection that moves an object
+    /// rewrites its key.
     fn remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&self, sweep: &Sweep<'_>) {
-        let is_live = |object: usize| {
-            // SAFETY: The maps only hold objects that were live when their entries were added, and a dead object is
-            //         intact until the sweep that follows this callback.
-            let object = unsafe { Gc::from_non_null(NonNull::new_unchecked(object as *mut Object)) };
-            !sweep.is_dead(object)
-        };
-        self.intrinsic_accessors
-            .borrow_mut()
-            .retain(|&object, _| is_live(object));
-        self.unimplemented_properties
-            .borrow_mut()
-            .retain(|&object, _| is_live(object));
+        let mut intrinsic_accessors = self.intrinsic_accessors.borrow_mut();
+        let mut unimplemented_properties = self.unimplemented_properties.borrow_mut();
+        intrinsic_accessors.retain(|object, _| !sweep.is_dead(*object));
+        unimplemented_properties.retain(|object, _| !sweep.is_dead(*object));
+        if sweep.moves_cells() {
+            for object in intrinsic_accessors.keys().chain(unimplemented_properties.keys()) {
+                // SAFETY: Only defining and reading the properties of objects changes the maps, which nothing does
+                //         until the collection is over.
+                unsafe { sweep.record_slot(object) };
+            }
+        }
     }
 
     pub fn intrinsic_accessors(&self) -> &RefCell<IntrinsicAccessorMap> {
