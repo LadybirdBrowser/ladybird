@@ -109,7 +109,13 @@ const internedConstant = () => "an interned constant";
 jit.neverCompile(constantString);
 jit.neverCompile(constantBigInt);
 jit.neverCompile(internedConstant);
+// The VM's caches of the strings of integers hold them weakly, and hand the slots of those that survive to the
+// collector.
+holder.smallNumeric = String(123);
+holder.largeNumeric = String(123456);
 const constantsBefore = {
+    smallNumeric: addressOf(holder.smallNumeric),
+    largeNumeric: addressOf(holder.largeNumeric),
     string: addressOf(constantString()),
     bigint: addressOf(constantBigInt()),
     interned: addressOf(internedConstant()),
@@ -250,6 +256,15 @@ runAfterMovingCollection(() => {
         expect(constantString().length).toBeGreaterThan(256);
         expect(addressOf(constantBigInt())).not.toBe(constantsBefore.bigint);
         expect(constantBigInt()).toBe(123456789012345678901234567890n);
+    });
+
+    test("strings of integers move, and stay in the caches of the VM", () => {
+        expect(addressOf(holder.smallNumeric)).not.toBe(constantsBefore.smallNumeric);
+        expect(addressOf(String(123))).toBe(addressOf(holder.smallNumeric));
+        expect(holder.smallNumeric).toBe("123");
+        expect(addressOf(holder.largeNumeric)).not.toBe(constantsBefore.largeNumeric);
+        expect(addressOf(String(123456))).toBe(addressOf(holder.largeNumeric));
+        expect(holder.largeNumeric).toBe("123456");
     });
 
     test("interned strings move, and stay the interned strings of their contents", () => {
