@@ -440,9 +440,14 @@ fn search_node(arena: &LayoutNodeArena, node: NodeSlotId) -> SearchNode {
     if data.kind.get() == NodeKind::BreakNode {
         return SearchNode::LineBreak;
     }
-    let pseudo = data.generated_for.get();
-    if kind_is_box(data.kind.get()) || (pseudo != 0 && pseudo != GENERATED_FOR_FIRST_LETTER) {
+    if kind_is_box(data.kind.get()) {
         return SearchNode::Break;
+    }
+    // Generated content isn't the document's text, so find-in-page leaves it out, and the text on either side of an
+    // inline pseudo-element reads on as one run, just as it does in the DOM.
+    let pseudo = data.generated_for.get();
+    if pseudo != 0 && pseudo != GENERATED_FOR_FIRST_LETTER {
+        return SearchNode::Skip;
     }
     if kind_is_text(data.kind.get()) {
         let style = node_style_view(arena.data(data.parent.get())).expect("text parent has style");

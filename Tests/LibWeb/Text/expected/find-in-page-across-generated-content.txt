@@ -1,0 +1,5 @@
+quoted text: true
+adjacent text: true
+plain text: true
+blocked text: false
+’ text: false

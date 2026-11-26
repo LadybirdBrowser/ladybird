@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<style>
+    .quote::before { content: "\2018"; }
+    .quote::after { content: "\2019"; }
+    .empty::after { content: ""; }
+    .block::after { content: "!"; display: block; }
+</style>
+<p>Some <span class="quote">quoted</span> text.</p>
+<p>Some <span class="empty">adjacent</span> text.</p>
+<p>Some <span>plain</span> text.</p>
+<p>Some <span class="block">blocked</span> text.</p>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        for (const query of ["quoted text", "adjacent text", "plain text", "blocked text", "’ text"]) {
+            getSelection().removeAllRanges();
+            println(`${query}: ${window.find(query)}`);
+        }
+    });
+</script>
