@@ -748,9 +748,13 @@ impl NodeProcessor for StereoPannerRenderNode {
     unsafe fn process(&mut self, data: &RenderNodeData, graph: &RenderGraph, context: &RenderContext) {
         unsafe {
             let input = BusRef(data.pull_input(graph, context, 0).cast_mut());
-            self.pan.compute(graph, context, &mut self.pan_values);
             let panner_output = BusRef(data.output(0));
             panner_output.set_channel_count(2);
+            if input.is_silent() {
+                panner_output.zero();
+                return;
+            }
+            self.pan.compute(graph, context, &mut self.pan_values);
             let output_left = panner_output.channel_mut(0);
             let output_right = panner_output.channel_mut(1);
             let input_left = input.channel(0);
