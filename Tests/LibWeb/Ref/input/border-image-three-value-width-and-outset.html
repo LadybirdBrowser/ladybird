@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/border-image-three-value-width-and-outset-ref.html" />
+<style>
+    body { margin: 0; }
+    div { position: absolute; top: 20px; }
+    #width {
+        left: 20px;
+        width: 100px;
+        height: 100px;
+        border: 30px solid transparent;
+        border-image: linear-gradient(green, green) 1 / 10px 20px 30px;
+    }
+    #outset {
+        left: 220px;
+        width: 60px;
+        height: 60px;
+        border: 10px solid transparent;
+        border-image: linear-gradient(green, green) 1 / 10px / 0 10px 20px;
+    }
+</style>
+<!-- With three values, the left side takes the value of the right side. -->
+<div id="width"></div>
+<div id="outset"></div>
