@@ -144,8 +144,12 @@ impl GenericIndexedPropertyStorage {
 // SAFETY: Visits the value of every element.
 unsafe impl Trace for GenericIndexedPropertyStorage {
     fn trace(&self, visitor: &mut Visitor) {
+        // NB: The values are visited as owned values, so that a collection that moves their cells rewrites them in the
+        //     map rather than keeping their cells where they are.
         for element in self.sparse_elements.values() {
-            element.trace(visitor);
+            // SAFETY: The map is the storage of the object that owns it, which only the object's own methods change,
+            //         and only its destructor frees.
+            unsafe { visitor.visit_owned_values(core::slice::from_ref(&element.value)) };
         }
     }
 }
