@@ -37,6 +37,7 @@ use libgfx_rust::font::FontHandle;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libipc_rust::wire::{Decode, Decoder};
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 /// What presented a navigable's last frame: the recording of a frame a rendering update committed, or a tick of the
@@ -987,6 +988,39 @@ pub extern "C" fn navigable_presenter_forget_compositor_display_list(presenter: 
     let mut state = presenter.state();
     state.compositor_display_list_paint_config = None;
     state.compositor_display_list = None;
+}
+
+/// Writes the scroll positions the window of the display list the navigable's compositor context holds was placed at
+/// to `receiver` through `write`, for a test: one `(x, y)` in CSS pixels per scroller that was scrolled, in the order
+/// of their nodes, and nothing where the list has no window.
+///
+/// # Safety
+/// `write` must be safe to call with `receiver` and a pointer to `byte_count` bytes that live for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn navigable_presenter_display_list_window_scroll_positions_for_testing(
+    presenter: &NavigablePresenter,
+    receiver: *mut c_void,
+    write: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) {
+    let state = presenter.state();
+    let window = state
+        .compositor_display_list
+        .as_ref()
+        .and_then(|display_list| display_list.output.window.as_deref());
+    let positions: Vec<String> = window
+        .into_iter()
+        .flat_map(|window| {
+            let scale = window.device_pixels_per_css_pixel as f32;
+            window
+                .scroll_offsets
+                .iter()
+                .filter(|offset| offset.x != 0.0 || offset.y != 0.0)
+                .map(move |offset| format!("({}, {})", 0.0 - offset.x / scale, 0.0 - offset.y / scale))
+        })
+        .collect();
+    let positions = positions.join(" ");
+    // SAFETY: The caller keeps `write` callable with `receiver`, and the bytes live until it returns.
+    unsafe { write(receiver, positions.as_ptr(), positions.len()) };
 }
 
 /// What presented the navigable's last frame.

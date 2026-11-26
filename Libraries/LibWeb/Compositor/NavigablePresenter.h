@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Rect.h>
@@ -75,6 +76,7 @@ public:
     void forget_compositor_display_list();
 
     Optional<PresentedBy> last_frame_presented_by() const;
+    String display_list_window_scroll_positions_for_testing() const;
     // The generation of the keyboard scroll state the last frame handed the compositor, if it handed one.
     Optional<u64> last_keyboard_scroll_state_generation() const;
 

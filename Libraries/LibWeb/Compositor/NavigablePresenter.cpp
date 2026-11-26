@@ -70,6 +70,15 @@ void NavigablePresenter::forget_compositor_display_list()
     Layout::RustFFI::navigable_presenter_forget_compositor_display_list(m_presenter);
 }
 
+String NavigablePresenter::display_list_window_scroll_positions_for_testing() const
+{
+    String positions;
+    Layout::RustFFI::navigable_presenter_display_list_window_scroll_positions_for_testing(m_presenter, &positions, [](void* receiver, u8 const* bytes, size_t byte_count) {
+        *static_cast<String*>(receiver) = MUST(String::from_utf8(StringView { bytes, byte_count }));
+    });
+    return positions;
+}
+
 Optional<PresentedBy> NavigablePresenter::last_frame_presented_by() const
 {
     switch (Layout::RustFFI::navigable_presenter_last_frame_presented_by(m_presenter)) {
