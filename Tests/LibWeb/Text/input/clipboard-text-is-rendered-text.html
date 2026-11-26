@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="./include.js"></script>
+<p id="collapsed">Read this
+        as one sentence.</p>
+<pre id="preformatted">Keep
+    this</pre>
+<h2 id="heading">Heading<a style="visibility: hidden">¶</a></h2>
+<p id="body">Body text.</p>
+<table id="cells"><tr><td>a </td><td>b</td></tr><tr><td>c </td><td>d</td></tr></table>
+<div id="wrapped" style="width: 60px; font: 10px monospace">aaaa <img alt="bbbb" style="display: inline-block; width: 50px; height: 10px"></div>
+<script>
+    test(() => {
+        function show(label) {
+            println(`${label}: "${internals.selectedTextForClipboard().replace(/\n/g, "\\n").replace(/\t/g, "\\t")}"`);
+        }
+        getSelection().selectAllChildren(document.getElementById("collapsed"));
+        show("collapsed whitespace");
+        getSelection().selectAllChildren(document.getElementById("preformatted"));
+        show("preserved whitespace");
+        getSelection().setBaseAndExtent(document.getElementById("heading").firstChild, 0, document.getElementById("body").firstChild, 10);
+        show("across visibility: hidden");
+        getSelection().selectAllChildren(document.getElementById("wrapped"));
+        show("image alt text after a soft wrap");
+        getSelection().selectAllChildren(document.getElementById("cells"));
+        show("table cells ending in a space");
+    });
+</script>

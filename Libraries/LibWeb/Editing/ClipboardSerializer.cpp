@@ -103,6 +103,17 @@ private:
         m_builder.append(text);
     }
 
+    // Appends inline content after text, keeping the space a soft wrap trimmed from the end of that text.
+    void append_after_text(Utf16View text)
+    {
+        if (text.is_empty())
+            return;
+        if (m_pending_space && !m_builder.is_empty() && !m_pending_line_breaks && !m_builder.view().ends_with(u' ') && !text.starts_with(u' '))
+            m_builder.append_ascii(' ');
+        m_pending_space = false;
+        append(text);
+    }
+
     static DOM::Node const* child_on_path_to(DOM::Node const& ancestor, DOM::Node const& descendant)
     {
         for (auto const* node = &descendant; node; node = node->parent()) {
@@ -318,25 +329,9 @@ private:
             auto used_value = can_use_parent_value ? inherited.value : layout_node->user_select_used_value();
             if (used_value == CSS::UserSelect::None)
                 return;
-            if (m_destination == TextDestination::Selection) {
-                append_selected_text(as<Layout::TextNode>(*layout_node), *text);
-                return;
-            }
-            // Source formatting whitespace between blocks has a layout node but produces no painted text. TextIterator
-            // based engines omit it from the plain-text clipboard representation.
-            if (!Layout::RustFFI::render_state_text_has_lines(layout_node->document_host(), Layout::Node::slot_id(layout_node)))
-                return;
-
-            Utf16String data;
-            if (&node == m_range->start_container().ptr() && &node == m_range->end_container().ptr())
-                data = MUST(text->substring_data(m_range->start_offset(), m_range->end_offset() - m_range->start_offset()));
-            else if (&node == m_range->start_container().ptr())
-                data = MUST(text->substring_data(m_range->start_offset(), text->length_in_utf16_code_units() - m_range->start_offset()));
-            else if (&node == m_range->end_container().ptr())
-                data = MUST(text->substring_data(0, m_range->end_offset()));
-            else
-                data = text->data();
-            append(data);
+            // Copied text is the text the page shows, as the selection's stringification is: Whitespace collapsed as
+            // it's rendered, and nothing from text that isn't visible.
+            append_selected_text(as<Layout::TextNode>(*layout_node), *text);
         } else if (is<HTML::HTMLBRElement>(node)) {
             auto const* box = as_if<Layout::NodeWithStyle>(layout_node);
             bool selectable = box && box->visibility() == CSS::Visibility::Visible && box->user_select_used_value() != CSS::UserSelect::None;
@@ -347,7 +342,7 @@ private:
                 request_explicit_line_break();
         } else if (auto const* image = as_if<HTML::HTMLImageElement>(node)) {
             if (m_destination == TextDestination::Clipboard && node_is_fully_contained && layout_node && layout_node->user_select_used_value() != CSS::UserSelect::None)
-                append(image->alt());
+                append_after_text(image->alt());
         } else {
             if (m_destination == TextDestination::Selection && node.has_children()) {
                 if (auto const* element = as_if<DOM::Element>(node))
@@ -360,8 +355,11 @@ private:
 
         if (m_destination == TextDestination::Clipboard && layout_node && is<Layout::NodeWithStyle>(*layout_node)) {
             auto display = as<Layout::NodeWithStyle>(*layout_node).display();
-            if (display.is_table_cell() && node.next_sibling())
+            // A space trimmed from the end of a cell's text belongs to that cell, not to the next one.
+            if (display.is_table_cell() && node.next_sibling()) {
+                m_pending_space = false;
                 append("\t"_utf16);
+            }
             if (display.is_table_row() && node.next_sibling())
                 request_explicit_line_break();
         }
