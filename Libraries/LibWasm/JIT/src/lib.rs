@@ -171,6 +171,8 @@ pub struct Stats {
     pub moves: u32,
     /// The nodes loop invariant code motion moved out of loops.
     pub hoisted: u32,
+    /// How many times the allocator went over the function.
+    pub allocation_passes: u32,
 }
 
 /// The time stamp counter, for the phase timers.
@@ -298,6 +300,7 @@ pub fn compile(context: &mut CompileContext, request: &CompileRequest) -> Result
     stats.slots = context.allocation.slot_count;
     stats.moves = context.allocation.moves.len() as u32;
     stats.hoisted = if no_licm { 0 } else { context.licm.hoisted };
+    stats.allocation_passes = context.allocator.passes;
     let mut compiled = CompiledFunction {
         code: generated.code,
         frame_size: generated.frame_size,

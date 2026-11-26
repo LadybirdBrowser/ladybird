@@ -384,6 +384,8 @@ pub struct Allocator {
     pub liveness: Liveness,
     /// The time stamp counter ticks the last liveness computation took.
     pub liveness_ticks: u64,
+    /// How many times the last allocation went over the function (see MAX_PASSES).
+    pub passes: u32,
     dominators: crate::passes::dominators::Dominators,
     contents: [u32; REGISTER_COUNT],
     value_registers: Vec<u8>,
@@ -409,7 +411,12 @@ pub struct Allocator {
     /// The fp offset and the values of each spill slot a web has.
     slot_offsets: Vec<i32>,
     slot_values: Vec<Vec<Value>>,
+    /// The values each loop's header keeps in their slots, though they have none yet when the header is allocated.
+    header_drops: Vec<Vec<Value>>,
 }
+
+/// The most times a function is allocated, each time with more values in their slots at loop headers.
+const MAX_PASSES: u32 = 3;
 
 use convention::{STRESS_FPRS, STRESS_GPRS};
 
@@ -425,6 +432,21 @@ impl Allocator {
         self.liveness.compute(func);
         self.liveness_ticks = crate::ticks() - start;
         self.dominators.compute(func);
+        self.header_drops.clear();
+        self.header_drops.resize(func.loops.len(), Vec::new());
+        // NB: A value that a loop only carries through stays in a register at its header if it has no slot yet. If the
+        //     loop then needs the register, every back edge reloads the value. Such values stay in their slots in the
+        //     next pass, so that the loop has the register to itself.
+        for pass in 0..MAX_PASSES {
+            self.allocate_pass(func, allocation);
+            self.passes = pass + 1;
+            if pass + 1 == MAX_PASSES || !self.find_header_drops(func, allocation) {
+                break;
+            }
+        }
+    }
+
+    fn allocate_pass(&mut self, func: &Func, allocation: &mut Allocation) {
         let count = func.nodes.len();
         allocation.nodes.clear();
         allocation.nodes.resize(count, NodeAllocation::default());
@@ -478,6 +500,47 @@ impl Allocator {
                 }
             }
         }
+    }
+
+    /// Adds the values that the back edges of loops reload from their slots but that the loops do not use to
+    /// `header_drops`, and returns whether there were any.
+    fn find_header_drops(&mut self, func: &Func, allocation: &Allocation) -> bool {
+        let mut found = false;
+        for block in 0..func.blocks.len() as BlockId {
+            let data = func.blocks[block as usize];
+            for (index, &successor) in func.successors(block).iter().enumerate() {
+                if successor > block {
+                    continue;
+                }
+                let loop_index = func.blocks[successor as usize].loop_index;
+                let loop_end = self.liveness.loop_ends[loop_index as usize];
+                let header_position = block_start_position(func, successor);
+                let state = self.header_states[loop_index as usize];
+                for edge_move in allocation.edge(data.successors_start + index as u32) {
+                    let (Location::Slot(slot), Location::Register(register)) = (edge_move.from, edge_move.to) else {
+                        continue;
+                    };
+                    let value = state[register as usize];
+                    // NB: A move from the slot that breaks a cycle of moves reloads nothing.
+                    if value == NONE
+                        || allocation.slots[value as usize] != slot
+                        || self.liveness.block[value as usize] == successor
+                        || self
+                            .liveness
+                            .next_use(value, header_position)
+                            .is_some_and(|position| position <= loop_end)
+                    {
+                        continue;
+                    }
+                    let drops = &mut self.header_drops[loop_index as usize];
+                    if !drops.contains(&value) {
+                        drops.push(value);
+                        found = true;
+                    }
+                }
+            }
+        }
+        found
     }
 
     // Register state.
@@ -748,18 +811,20 @@ impl Allocator {
             let entry = predecessors[0];
             debug_assert!(entry < block);
             let mut state = self.filtered(func, &self.end_states[entry as usize], block);
-            // The values the loop only carries through stay in their slots, if they have one, so that the loop can
-            // use their registers.
+            // The values the loop only carries through stay in their slots, if they have one or an earlier pass found
+            // that back edges reload them (they get their slot here), so that the loop can use their registers.
             let loop_index = func.blocks[block as usize].loop_index;
             let loop_end = self.liveness.loop_ends[loop_index as usize];
             for value in &mut state {
                 if *value != NONE
-                    && allocation.slots[*value as usize] != NO_SLOT
+                    && (allocation.slots[*value as usize] != NO_SLOT
+                        || self.header_drops[loop_index as usize].contains(value))
                     && self
                         .liveness
                         .next_use(*value, self.position)
                         .is_none_or(|position| position > loop_end)
                 {
+                    self.ensure_slot(func, allocation, *value);
                     *value = NONE;
                 }
             }

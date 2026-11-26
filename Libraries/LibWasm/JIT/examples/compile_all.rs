@@ -294,6 +294,7 @@ fn main() {
                 stats.slots += result.stats.slots;
                 stats.moves += result.stats.moves;
                 stats.hoisted += result.stats.hoisted;
+                stats.allocation_passes += result.stats.allocation_passes;
             }
         }
         let mut worst = (0.0, 0, 0);
@@ -380,11 +381,12 @@ fn main() {
             );
         }
         println!(
-            "  per byte: {:.2} nodes, {:.3} slots, {:.3} moves; {} nodes hoisted out of loops",
+            "  per byte: {:.2} nodes, {:.3} slots, {:.3} moves; {} nodes hoisted out of loops; {} allocation passes",
             stats.nodes as f64 / compiled_bytes.max(1) as f64,
             stats.slots as f64 / compiled_bytes.max(1) as f64,
             stats.moves as f64 / compiled_bytes.max(1) as f64,
-            stats.hoisted
+            stats.hoisted,
+            stats.allocation_passes
         );
         for (what, count) in &failures {
             println!("  unsupported: {count} x {what}");
