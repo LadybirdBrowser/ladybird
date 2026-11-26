@@ -1,0 +1,5 @@
+collapsed whitespace: "Read this as one sentence."
+preserved whitespace: "Keep\n    this"
+across visibility: hidden: "Heading\n\nBody text."
+image alt text after a soft wrap: "aaaa bbbb"
+table cells ending in a space: "a\tb\nc\td"
