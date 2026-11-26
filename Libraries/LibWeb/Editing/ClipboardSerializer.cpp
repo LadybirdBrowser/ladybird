@@ -340,7 +340,10 @@ private:
         } else if (is<HTML::HTMLBRElement>(node)) {
             auto const* box = as_if<Layout::NodeWithStyle>(layout_node);
             bool selectable = box && box->visibility() == CSS::Visibility::Visible && box->user_select_used_value() != CSS::UserSelect::None;
-            if (node_is_fully_contained && (m_destination == TextDestination::Clipboard || selectable))
+            // A line break that's laid out breaks the copied text even where it's hidden, but one with no box (as for
+            // display: none) breaks nothing.
+            bool breaks_line = m_destination == TextDestination::Clipboard ? box != nullptr : selectable;
+            if (node_is_fully_contained && breaks_line)
                 request_explicit_line_break();
         } else if (auto const* image = as_if<HTML::HTMLImageElement>(node)) {
             if (m_destination == TextDestination::Clipboard && node_is_fully_contained && layout_node && layout_node->user_select_used_value() != CSS::UserSelect::None)

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="./include.js"></script>
+<p id="none">One <br style="display: none">line</p>
+<p id="hidden">One <br style="visibility: hidden">line</p>
+<p id="rendered">One<br>line</p>
+<script>
+    test(() => {
+        function clip(label, id) {
+            getSelection().selectAllChildren(document.getElementById(id));
+            println(`${label}: "${internals.selectedTextForClipboard().replace(/\n/g, "\\n")}"`);
+        }
+        clip("display: none", "none");
+        clip("visibility: hidden", "hidden");
+        clip("rendered", "rendered");
+    });
+</script>
