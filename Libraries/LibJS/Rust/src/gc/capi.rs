@@ -152,6 +152,8 @@ unsafe extern "C" {
     pub fn gc_marker_visit_values(marker: *mut GCMarker, values: *const u64, count: usize);
     pub fn gc_marker_visit_owned_values(marker: *mut GCMarker, values: *const u64, count: usize);
     pub fn gc_marker_visit_member(marker: *mut GCMarker, slot: *const u32);
+    pub fn gc_marker_visit_owned_member(marker: *mut GCMarker, slot: *const u32);
+    pub fn gc_marker_visit_owned_cell_pointer(marker: *mut GCMarker, slot: *const usize);
     pub fn gc_marker_visit_interior_pointer(marker: *mut GCMarker, slot: *const usize, cell: *mut c_void);
     pub fn gc_marker_visit_self_pointer(marker: *mut GCMarker, slot: *const usize);
     pub fn gc_marker_pin_cell(marker: *mut GCMarker, cell: *const c_void);
