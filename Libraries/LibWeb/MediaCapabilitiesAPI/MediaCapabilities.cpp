@@ -281,9 +281,18 @@ static NonnullRefPtr<DecoderCapabilitiesPromise> request_file_decoding_capabilit
     auto media_client = MediaClient::Client::acquire();
     if (media_client.is_error())
         return unsupported();
-    return media_client.value()->request_file_media_support(mime_type.type(), mime_type.subtype(), mime_type.parameters().get("codecs"sv))->map<Optional<Media::DecoderCapabilities>>([](Media::MediaSupportInfo& support) -> Optional<Media::DecoderCapabilities> {
+
+    // NB: Without a codecs parameter, a container that implies its only codec is answered with "maybe", which is as
+    //     exact as an answer for that container gets.
+    auto exact_support = Media::MediaSupport::Probably;
+    if (!mime_type.parameters().contains("codecs"sv)) {
+        if (auto container = Media::container_mime_type_from_mime_type(mime_type.type(), mime_type.subtype()); container.has_value() && Media::codec_implied_by_file_container(*container).has_value())
+            exact_support = Media::MediaSupport::Maybe;
+    }
+
+    return media_client.value()->request_file_media_support(mime_type.type(), mime_type.subtype(), mime_type.parameters().get("codecs"sv))->map<Optional<Media::DecoderCapabilities>>([exact_support](Media::MediaSupportInfo& support) -> Optional<Media::DecoderCapabilities> {
         // AD-HOC: An inexact answer is treated as unsupported, as Chromium does.
-        if (support.support != Media::MediaSupport::Probably)
+        if (support.support < exact_support)
             return {};
         return support.capabilities;
     });

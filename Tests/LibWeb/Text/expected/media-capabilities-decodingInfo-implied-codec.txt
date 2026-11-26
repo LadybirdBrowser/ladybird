@@ -1,0 +1,7 @@
+audio/flac: supported=true
+audio/aac: supported=true
+audio/mpeg: TypeError
+audio/mpeg;: TypeError
+audio/mpeg; codecs="mp3": supported=true
+audio/mp4; codecs="mp4a.40.2": supported=true
+audio/webm: TypeError
