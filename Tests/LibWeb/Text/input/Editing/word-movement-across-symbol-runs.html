@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<div contenteditable id="emoji">aa 👍👍👍 bb</div>
+<div contenteditable id="mixed">x ,.;:+~ y</div>
+<div contenteditable id="selectors">x ☀️☀️ y</div>
+<textarea id="textarea"></textarea>
+<script>
+    test(() => {
+        const selection = getSelection();
+        function moveByWord(id, offset, direction) {
+            const text = document.getElementById(id).firstChild;
+            selection.collapse(text, offset);
+            selection.modify("move", direction, "word");
+            println(`${id} ${direction} from ${offset}: ${selection.focusOffset}`);
+        }
+        moveByWord("emoji", 3, "forward");
+        moveByWord("emoji", 9, "backward");
+        moveByWord("mixed", 2, "forward");
+        moveByWord("mixed", 8, "backward");
+        moveByWord("selectors", 2, "forward");
+        moveByWord("selectors", 6, "backward");
+
+        // Word deletion is Option+Backspace on macOS, and Ctrl+Backspace elsewhere.
+        const wordModifier = navigator.platform.startsWith("Mac") ? internals.MOD_ALT : internals.MOD_CTRL;
+        const textarea = document.getElementById("textarea");
+        textarea.focus();
+        for (const [value, offset, key] of [["ab $$$$", 7, "Backspace"], ["$$$$ ab", 0, "Delete"], ["ab +-~", 6, "Backspace"], ["ab ☀️☀️", 7, "Backspace"]]) {
+            textarea.value = value;
+            textarea.setSelectionRange(offset, offset);
+            internals.sendKey(textarea, key, wordModifier);
+            println(`textarea "${value}" word ${key} from ${offset}: "${textarea.value}"`);
+        }
+    });
+</script>

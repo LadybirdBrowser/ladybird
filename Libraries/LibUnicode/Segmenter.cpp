@@ -741,11 +741,14 @@ OwnPtr<Segmenter> Segmenter::try_create_for_ascii_line(Utf16View const& text)
 
 bool Segmenter::should_continue_beyond_word(Utf16View const& word)
 {
+    bool has_base = false;
     for (auto code_point : word) {
-        if (!code_point_has_punctuation_general_category(code_point) && !code_point_has_separator_general_category(code_point))
+        if (code_point_has_punctuation_general_category(code_point) || code_point_has_symbol_general_category(code_point) || code_point_has_separator_general_category(code_point))
+            has_base = true;
+        else if (!code_point_extends_grapheme_cluster(code_point))
             return false;
     }
-    return true;
+    return has_base;
 }
 
 }
