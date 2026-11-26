@@ -956,7 +956,7 @@ Here is a full sequence of instructions creating a Ladybird build linked against
 5. **Verify the link.** Confirm Ladybird picked up the patched Qt rather than the system one:
 
    ```sh
-   ldd Build/release/bin/Ladybird | grep libQt6Gui
+   ldd Build/release/bin/ladybird | grep libQt6Gui
    ```
 
    The output should reference `libQt6Gui.so.6` under your install prefix (`/opt/qt-6.11.0-patched/lib/...` in the example above) — not a system path such as `/usr/lib/...`.

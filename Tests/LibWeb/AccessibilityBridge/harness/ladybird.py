@@ -20,7 +20,7 @@ gi.require_version("Atspi", "2.0")
 from gi.repository import Atspi  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
-DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird"
+DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "ladybird"
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parents[1] / "input"
 
 

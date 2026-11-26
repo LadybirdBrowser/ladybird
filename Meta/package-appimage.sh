@@ -80,7 +80,7 @@ done
 
 "$work_directory/linuxdeploy" --appdir "$appdir" \
     --deploy-deps-only "$appdir/usr/lib" --deploy-deps-only "$appdir/usr/libexec" \
-    --executable "$appdir/usr/bin/Ladybird" \
+    --executable "$appdir/usr/bin/ladybird" \
     --desktop-file "$appdir/usr/share/applications/org.ladybird.Ladybird.desktop" \
     --icon-file "$appdir/usr/share/icons/hicolor/scalable/apps/org.ladybird.Ladybird.svg"
 
@@ -95,7 +95,7 @@ while IFS= read -r library; do
     fi
 done < <(find "$appdir/usr/lib" -mindepth 2 -type f -name '*.so*')
 
-ln -sf usr/bin/Ladybird "$appdir/AppRun"
+ln -sf usr/bin/ladybird "$appdir/AppRun"
 
 ARCH="$architecture" "$work_directory/appimagetool" --no-appstream --runtime-file "$work_directory/runtime" \
     -u "$update_information" "$appdir" "$output_directory/$name"

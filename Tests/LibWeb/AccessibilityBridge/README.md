@@ -46,7 +46,7 @@ The runner is also usable directly:
 
 By default the runner uses your current session’s display and AT-SPI2 bus, running pytest directly against them — no changes to that session. (Set `CI=1` or pass `--isolated` to run in a private display and bus instead; see below.)
 
-Set `LADYBIRD_BINARY=/path/to/Ladybird` if your build isn’t at the default `Build/release/bin/Ladybird`.
+Set `LADYBIRD_BINARY=/path/to/ladybird` if your build isn’t at the default `Build/release/bin/ladybird`.
 
 Set `CI=1` (or pass `--isolated`) to make the runner spin up a private Xvfb display, a fresh D-Bus session, `at-spi-bus-launcher`, and `at-spi2-registryd` before the tests run — independent of your live session. GitHub Actions automatically sets `CI=true` — so our CI Lagom job takes the isolated path without any extra configuration. Use that locally only when your session’s AT-SPI2 state is wedged — or when you want to debug what CI is seeing.
 
@@ -55,7 +55,7 @@ Prerequisites:
 - `python3-gi` and `at-spi2-core` are needed for either mode.
 - Isolated mode additionally needs `xvfb`, `dbus` (for `dbus-run-session`), and the `at-spi-bus-launcher` + `at-spi2-registryd` binaries that ship with `at-spi2-core`.
 - Layer 2 needs the distro’s `orca` package; without it, Layer 2 is skipped cleanly instead of failing.
-- A Release build of Ladybird (by default at `Build/release/bin/Ladybird`; override with `LADYBIRD_BINARY`).
+- A Release build of Ladybird (by default at `Build/release/bin/ladybird`; override with `LADYBIRD_BINARY`).
 
 ## Flakiness budget
 

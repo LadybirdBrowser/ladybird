@@ -162,10 +162,10 @@ def main():
         sys.exit(1)
 
     if "target" in args:
-        if platform.host_system != HostSystem.Windows and args.target == "ladybird":
-            args.target = "Ladybird"
+        if args.target == "Ladybird":
+            args.target = "ladybird"
         if not args.target and args.command not in ("build", "rebuild"):
-            args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
+            args.target = "ladybird"
 
     if args.command == "build":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs)
@@ -475,7 +475,9 @@ HELPER_EXECUTABLE_NAMES = {
 
 def executable_path(host_system: HostSystem, build_dir: Path, target: str) -> Path:
     name = HELPER_EXECUTABLE_NAMES.get(target, target)
-    if host_system == HostSystem.macOS and (target == "Ladybird" or target in HELPER_EXECUTABLE_NAMES):
+    if host_system == HostSystem.macOS and target == "ladybird":
+        return build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", "Ladybird")
+    if host_system == HostSystem.macOS and target in HELPER_EXECUTABLE_NAMES:
         return build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", name)
     return build_dir.joinpath("bin", name)
 
@@ -502,7 +504,7 @@ def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: 
     for cmd in debugger_commands:
         gdb_args.extend(["-ex" if debugger == "gdb" else "-o", cmd])
 
-    if target == "Ladybird" and host_system == HostSystem.macOS:
+    if target == "ladybird" and host_system == HostSystem.macOS:
         gdb_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
     elif host_system == HostSystem.Windows:
         gdb_args.append(str(build_dir.joinpath("bin", HELPER_EXECUTABLE_NAMES.get(target, target) + ".exe")))
@@ -519,7 +521,7 @@ def profile_main(host_system: HostSystem, build_dir: Path, target: str, args: li
 
     valgrind_args = ["valgrind", "--tool=callgrind", "--instr-atstart=yes"]
 
-    if target == "Ladybird" and host_system == HostSystem.macOS:
+    if target == "ladybird" and host_system == HostSystem.macOS:
         valgrind_args.append(str(build_dir.joinpath("bin", "Ladybird.app")))
     else:
         valgrind_args.append(str(executable_path(host_system, build_dir, target)))

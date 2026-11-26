@@ -329,7 +329,7 @@ ninja -C Build/release debug-ladybird
 
 To run without ninja rule on non-macOS systems:
 ```
-./Build/release/bin/Ladybird
+./Build/release/bin/ladybird
 ```
 
 To run without ninja rule on macOS:

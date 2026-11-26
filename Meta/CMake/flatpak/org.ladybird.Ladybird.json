@@ -7,7 +7,7 @@
     "org.freedesktop.Sdk.Extension.llvm20",
     "org.freedesktop.Sdk.Extension.rust-stable"
   ],
-  "command": "Ladybird",
+  "command": "ladybird",
   "finish-args": [
     "--device=dri",
     "--device=input",
