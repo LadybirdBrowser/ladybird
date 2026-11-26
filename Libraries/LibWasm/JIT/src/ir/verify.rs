@@ -6,7 +6,7 @@
 
 //! The IR verifier: checks the invariants every phase relies on. It runs under `verify-ir` and in tests.
 
-use super::{Effect, Func, NONE, Op, Shape, Type, Value};
+use super::{Effect, Func, IntCondition, NONE, Op, SELECT_TEST, Shape, Type, Value};
 
 /// The immediate dominator of each block, with the entry its own. Linear order is a topological order of the
 /// forward edges, so one pass over the blocks in it finds them; loops add back edges only.
@@ -244,6 +244,20 @@ fn check_types(func: &Func, value: Value, error: &mut impl FnMut(String)) {
         Op::ExtendI32S | Op::ExtendI32U => node.ty == Type::I64 && input_type(0) == Type::I32,
         Op::Wrap => node.ty == Type::I32 && input_type(0) == Type::I64,
         Op::Select => input_type(0) == Type::I32 && input_type(1) == node.ty && input_type(2) == node.ty,
+        Op::SelectCompare => {
+            inputs.len() == 4
+                && !node.ty.uses_xmm()
+                && input_type(0) == node.ty
+                && input_type(3) == node.ty
+                && matches!(input_type(1), Type::I32 | Type::I64 | Type::Ref | Type::Pointer)
+                && input_type(1) == input_type(2)
+                && (node.flags & !SELECT_TEST) < IntCondition::ALL.len() as u8
+                && (node.flags & SELECT_TEST == 0
+                    || matches!(
+                        IntCondition::from_flags(node.flags & !SELECT_TEST),
+                        IntCondition::Eq | IntCondition::Ne
+                    ))
+        }
         Op::Phi => same(node.ty),
         // NB: GC objects' fields are accessed at the object's reference.
         Op::Load | Op::Store => matches!(input_type(0), Type::Pointer | Type::Ref) && input_type(1) == Type::I32,
@@ -287,7 +301,11 @@ fn check_types(func: &Func, value: Value, error: &mut impl FnMut(String)) {
     if !ok {
         error(format!("v{value} ({}) has inputs of the wrong types", node.op.name()));
     }
-    if node.op.shape() == Shape::Variadic && node.op != Op::Phi && node.effect() == Effect::Pure {
+    // NB: Fusing selects makes the only pure variadic nodes but phis, after value numbering.
+    if node.op.shape() == Shape::Variadic
+        && !matches!(node.op, Op::Phi | Op::SelectCompare)
+        && node.effect() == Effect::Pure
+    {
         error(format!("v{value} is a pure variadic node"));
     }
 }

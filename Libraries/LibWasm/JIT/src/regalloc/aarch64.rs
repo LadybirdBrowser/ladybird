@@ -24,7 +24,7 @@ pub(super) fn constraints(func: &Func, value: Value) -> Constraints {
         Output::Register
     };
     let mut constraints = Constraints {
-        inputs: [Input::Register; 3],
+        inputs: [Input::Register; 4],
         output,
         temps: [Temp::None; 2],
         clobbers: 0,
@@ -50,6 +50,7 @@ pub(super) fn constraints(func: &Func, value: Value) -> Constraints {
         | Op::GlobalSet
         | Op::WriteField
         | Op::RefTest => constraints.inputs[1] = Input::RegisterOrConstant,
+        Op::SelectCompare => constraints.inputs[2] = Input::RegisterOrConstant,
         Op::Store => {
             constraints.inputs[1] = Input::RegisterOrConstant;
             constraints.inputs[2] = Input::RegisterOrConstant;
