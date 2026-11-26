@@ -12,6 +12,10 @@
 #include <LibGfx/VulkanContext.h>
 #include <string.h>
 
+#if defined(USE_VULKAN_DMABUF_IMAGES) && defined(AK_OS_LINUX)
+#    include <sys/sysmacros.h>
+#endif
+
 namespace Gfx {
 
 #if VULKAN_VALIDATION_LAYERS_DEBUG
@@ -101,18 +105,38 @@ static constexpr Array<char const*, 5> s_enabled_device_extensions = {
     VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME,
 };
 
-static ReadonlySpan<char const*> device_extensions_to_enable(VkPhysicalDevice physical_device)
+static bool device_has_extension(VkPhysicalDevice physical_device, char const* extension_name)
 {
     uint32_t extension_count = 0;
     vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, nullptr);
     Vector<VkExtensionProperties> extensions;
     extensions.resize(extension_count);
     vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &extension_count, extensions.data());
+    return any_of(extensions, [&](auto const& extension) { return strcmp(extension.extensionName, extension_name) == 0; });
+}
 
+static ReadonlySpan<char const*> device_extensions_to_enable(VkPhysicalDevice physical_device)
+{
     ReadonlySpan<char const*> enabled_extensions = s_enabled_device_extensions;
-    if (any_of(extensions, [](auto const& extension) { return strcmp(extension.extensionName, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME) == 0; }))
+    if (device_has_extension(physical_device, VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME))
         return enabled_extensions;
     return enabled_extensions.trim(enabled_extensions.size() - 1);
+}
+
+static Optional<dev_t> render_node_of(VkPhysicalDevice physical_device)
+{
+    if (!device_has_extension(physical_device, VK_EXT_PHYSICAL_DEVICE_DRM_EXTENSION_NAME))
+        return {};
+
+    VkPhysicalDeviceDrmPropertiesEXT drm_properties {};
+    drm_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT;
+    VkPhysicalDeviceProperties2 properties {};
+    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    properties.pNext = &drm_properties;
+    vkGetPhysicalDeviceProperties2(physical_device, &properties);
+    if (!drm_properties.hasRender)
+        return {};
+    return makedev(drm_properties.renderMajor, drm_properties.renderMinor);
 }
 #else
 static ReadonlySpan<char const*> device_extensions_to_enable(VkPhysicalDevice)
@@ -286,6 +310,7 @@ ErrorOr<VulkanContext> create_vulkan_context(Optional<GpuDeviceIdentity> const& 
 #ifdef USE_VULKAN_DMABUF_IMAGES
         .command_pool = command_pool,
         .command_buffer = command_buffer,
+        .render_node = render_node_of(physical_device),
         .ext_procs = {
             .get_memory_fd = pfn_vk_get_memory_fd_khr,
             .get_memory_fd_properties = pfn_vk_get_memory_fd_properties_khr,
