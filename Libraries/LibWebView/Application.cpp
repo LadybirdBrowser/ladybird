@@ -2656,7 +2656,16 @@ Optional<Process&> Application::find_process(pid_t pid)
     return m_process_manager->find_process(pid);
 }
 
-void Application::process_did_exit(Process&& process, Optional<int>)
+static bool exited_on_its_own_without_error(int exit_status)
+{
+#if defined(AK_OS_WINDOWS)
+    return exit_status == 0;
+#else
+    return WIFEXITED(exit_status) && WEXITSTATUS(exit_status) == 0;
+#endif
+}
+
+void Application::process_did_exit(Process&& process, Optional<int> exit_status)
 {
 #if defined(AK_OS_MACOS)
     // A helper that exits before it fetches its transport leaves its ports registered. Holding them would keep the
@@ -2692,6 +2701,7 @@ void Application::process_did_exit(Process&& process, Optional<int>)
         break;
     case ProcessType::VideoDecoderServer:
         // The MediaServer it served asks for a new one once its decoders notice the loss.
+        video_decoder_server_exited(process.child_id(), exit_status.has_value() && !exited_on_its_own_without_error(*exit_status));
         break;
     case ProcessType::WebRTCClient:
         // The WebContent process it served asks for a new one the next time it needs one.

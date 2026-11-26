@@ -53,6 +53,9 @@ WEBVIEW_API ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_proc
 WEBVIEW_API ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64 owner_child_id, IsPrivate);
 WEBVIEW_API ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(u64 owner_child_id, IsPrivate, Optional<Gfx::GpuDeviceIdentity> const&);
 WEBVIEW_API void shut_down_video_decoder_servers();
+// A server that crashed or was ended by anything but the Browser counts towards keeping new VideoDecoderServers from
+// launching for a while, as one found stuck does.
+WEBVIEW_API void video_decoder_server_exited(u64 child_id, bool was_lost);
 // The features are the Compositor's own, in the text form of PlatformFeatures::ProcessFeatures.
 WEBVIEW_API ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process(ByteString const& platform_features);
 // Serves the given site's partitions, or all partitions if site is empty.

@@ -59,12 +59,14 @@ ReadonlySpan<Media::VideoDecoderRegistration> hosted_decoders()
 }
 
 Atomic<u32> s_server_launch_count { 0 };
+Atomic<u32> s_unresponsive_server_report_count { 0 };
 
 // The server that is running, if any. Its connection is only touched on its own thread.
 Mutex s_running_server_mutex;
 Core::EventLoop* s_running_server_event_loop { nullptr };
 Media::VideoDecoderServerConnection* s_running_server_connection { nullptr };
 u32 s_close_every_server_after_frames { 0 };
+u32 s_stall_every_server_after_frames { 0 };
 
 // Hosts a server on a thread of its own, as the VideoDecoderServer process would.
 ErrorOr<NonnullOwnPtr<IPC::Transport>> launch_in_process_server()
@@ -79,6 +81,8 @@ ErrorOr<NonnullOwnPtr<IPC::Transport>> launch_in_process_server()
             MutexLocker locker { s_running_server_mutex };
             if (s_close_every_server_after_frames > 0)
                 connection->close_after_decoded_frame_count(s_close_every_server_after_frames);
+            if (s_stall_every_server_after_frames > 0)
+                connection->stall_after_decoded_frame_count(s_stall_every_server_after_frames);
             s_running_server_event_loop = &loop;
             s_running_server_connection = connection.ptr();
         }
@@ -108,6 +112,20 @@ void close_servers_after_decoded_frames(u32 frame_count)
         MutexLocker locker { s_running_server_mutex };
         if (s_running_server_connection != nullptr)
             s_running_server_connection->close_after_decoded_frame_count(frame_count);
+    });
+}
+
+// Likewise, for servers whose decoders stop making progress.
+void stall_servers_after_decoded_frames(u32 frame_count)
+{
+    MutexLocker locker { s_running_server_mutex };
+    s_stall_every_server_after_frames = frame_count;
+    if (s_running_server_event_loop == nullptr)
+        return;
+    s_running_server_event_loop->deferred_invoke([frame_count] {
+        MutexLocker locker { s_running_server_mutex };
+        if (s_running_server_connection != nullptr)
+            s_running_server_connection->stall_after_decoded_frame_count(frame_count);
     });
 }
 
@@ -203,7 +221,14 @@ void install_transport_requester_on_its_own_thread()
     IGNORE_USE_IN_ESCAPING_LAMBDA bool requester_is_installed = false;
     auto thread = MUST(Threading::Thread::try_create("Transport Requester"sv, [&]() -> intptr_t {
         Core::EventLoop loop;
-        Media::RemoteVideoDecoder::set_transport_requester([](auto callback) { callback(launch_in_process_server()); });
+        Media::RemoteVideoDecoder::set_server_broker(
+            [](auto callback) { callback(launch_in_process_server()); },
+            [] {
+                // Only the stuck server stalls, and its replacement is only requested after this report.
+                MutexLocker locker { s_running_server_mutex };
+                s_stall_every_server_after_frames = 0;
+                s_unresponsive_server_report_count++;
+            });
         {
             MutexLocker locker { mutex };
             requester_is_installed = true;
@@ -262,6 +287,30 @@ TEST_CASE(a_lost_server_is_relaunched_and_decoding_resumes_where_it_left_off)
     }
     EXPECT_EQ(actual, expected);
     EXPECT(s_server_launch_count.load() > launches_before);
+}
+
+TEST_CASE(a_stuck_server_is_reported_and_replaced)
+{
+    auto expected = decode_every_frame_locally(test_video_path);
+
+    Media::RemoteVideoDecoder::set_time_without_progress_until_server_is_stuck(AK::Duration::from_milliseconds(500));
+    auto launches_before = s_server_launch_count.load();
+    auto reports_before = s_unresponsive_server_report_count.load();
+    stall_servers_after_decoded_frames(7);
+    auto& loop = never_destroyed_event_loop();
+    auto producer = create_started_producer(loop, test_video_path);
+    Vector<FrameDigest> actual;
+    while (true) {
+        auto digest = take_frame(*producer, loop);
+        if (!digest.has_value())
+            break;
+        append_unless_repeated(actual, *digest);
+    }
+    Media::RemoteVideoDecoder::set_time_without_progress_until_server_is_stuck(AK::Duration::from_seconds(10));
+
+    EXPECT_EQ(actual, expected);
+    EXPECT(s_server_launch_count.load() > launches_before);
+    EXPECT_EQ(s_unresponsive_server_report_count.load() - reports_before, 1u);
 }
 
 TEST_CASE(a_decoder_that_keeps_losing_its_server_falls_back_to_the_next_decoder)
