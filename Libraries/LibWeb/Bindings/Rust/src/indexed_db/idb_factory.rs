@@ -27,7 +27,7 @@ use crate::indexed_db::internal::function::{NoCells, create_function, create_fun
 use crate::indexed_db::internal::key::Key;
 use crate::indexed_db::remote;
 use crate::storage_api::storage_key::obtain_a_storage_key;
-use libwebcommon_rust::indexed_db::backend::DatabaseInfo;
+use libwebcommon_rust::indexed_db::backend::{DatabaseInfo, Error as BackendError};
 
 /// The dictionary IDBDatabaseInfo of IndexedDB/IDBFactory.idl.
 pub(crate) struct IDBDatabaseInfo {
@@ -291,7 +291,9 @@ impl IDBFactory {
             create_function_with(
                 vm,
                 (realm, promise),
-                |vm, &(realm, promise), databases: Vec<DatabaseInfo>| {
+                |vm, &(realm, promise), databases: Result<Vec<DatabaseInfo>, BackendError>| {
+                    // 2. If databases is null, then queue a database task to reject p with an "UnknownError"
+                    //    DOMException and abort these steps.
                     // 4. Queue a database task to resolve p with result.
                     queue_a_database_task(
                         vm,
@@ -301,8 +303,16 @@ impl IDBFactory {
                             |vm, &(realm, promise, ref databases), ()| {
                                 crate::bindings::interface::with_temporary_execution_context_and_callbacks(
                                     realm,
-                                    || {
-                                        resolve_database_info_list_promise(vm, realm, promise, &databases.0);
+                                    || match &databases.0 {
+                                        Ok(databases) => {
+                                            resolve_database_info_list_promise(vm, realm, promise, databases);
+                                        }
+                                        Err(error) => {
+                                            let cx = CallContext::new(vm, realm);
+                                            let message = Utf16String::from_utf8(&error.message);
+                                            let error = Exception::Dom("UnknownError", message).throw(&cx);
+                                            reject_promise(vm, promise, error.value());
+                                        }
                                     },
                                 );
                             },

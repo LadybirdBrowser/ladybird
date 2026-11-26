@@ -73,6 +73,8 @@ fn with_generated_key(key: &Key, index_key_path: &KeyPath, store_key_path: &Name
 // https://w3c.github.io/IndexedDB/#index-construct
 #[derive(Clone)]
 pub struct Index {
+    // NB: A number that stays the index's own while it exists, whatever its name, which its persisted records use.
+    pub id: u64,
     pub name: Name,
     pub key_path: KeyPath,
     pub unique: bool,
@@ -89,8 +91,9 @@ pub struct Index {
 }
 
 impl Index {
-    pub fn new(name: Name, key_path: KeyPath, unique: bool, multi_entry: bool) -> Self {
+    pub fn new(id: u64, name: Name, key_path: KeyPath, unique: bool, multi_entry: bool) -> Self {
         Self {
+            id,
             name,
             key_path,
             unique,
@@ -217,6 +220,7 @@ pub(crate) enum Undo {
     /// Put back an object store's record, or remove the one a transaction added.
     Record {
         store: Name,
+        store_id: u64,
         key: OrderedKey,
         previous: Option<Value>,
         previous_index_records: Vec<(Name, Vec<OrderedKey>)>,
@@ -228,6 +232,9 @@ pub(crate) enum Undo {
 // https://w3c.github.io/IndexedDB/#object-store-construct
 #[derive(Clone)]
 pub struct ObjectStore {
+    // NB: A number that stays the object store's own while it exists, whatever its name, which its persisted records
+    //     use.
+    pub id: u64,
     pub name: Name,
     pub key_path: Option<KeyPath>,
     pub key_generator: Option<KeyGenerator>,
@@ -244,8 +251,9 @@ pub struct ObjectStore {
 }
 
 impl ObjectStore {
-    pub fn new(name: Name, key_path: Option<KeyPath>, auto_increment: bool) -> Self {
+    pub fn new(id: u64, name: Name, key_path: Option<KeyPath>, auto_increment: bool) -> Self {
         Self {
+            id,
             name,
             key_path,
             key_generator: auto_increment.then(KeyGenerator::new),
@@ -493,9 +501,16 @@ impl ObjectStore {
             });
         }
 
+        // NB: An existing record keeps the key it was stored under, which an equal key can differ from in its bytes (0
+        //     and -0); the undo entry holds that one, so the row it names is the one in the profile.
+        let stored_key = self
+            .records
+            .get_key_value(&ordered_key)
+            .map_or_else(|| ordered_key.clone(), |(key, _)| key.clone());
         undo.push(Undo::Record {
             store: self.name.clone(),
-            key: ordered_key.clone(),
+            store_id: self.id,
+            key: stored_key,
             previous: self.records.get(&ordered_key).cloned(),
             previous_index_records: self.index_records_of(&ordered_key),
         });
@@ -529,6 +544,36 @@ impl ObjectStore {
         Ok(key.as_ref().clone())
     }
 
+    /// Puts back a record that the store held when it was persisted, with its index keys by index id. Index keys of
+    /// an index that no longer exists are dropped.
+    pub(crate) fn load_record(&mut self, key: Key, value: Value, index_keys: Vec<(u64, Vec<Key>)>) {
+        let ordered_key = OrderedKey(Rc::new(key));
+        for (index_id, keys) in index_keys {
+            if let Some(index) = self.indexes.iter_mut().find(|index| index.id == index_id) {
+                for index_key in keys {
+                    index.insert(OrderedKey(Rc::new(index_key)), ordered_key.clone());
+                }
+            }
+        }
+        self.insert_record(ordered_key, value);
+    }
+
+    /// The index keys of a record, by index id, as they are persisted.
+    pub(crate) fn index_keys_by_id(&self, primary_key: &OrderedKey) -> Vec<(u64, Vec<Key>)> {
+        self.indexes
+            .iter()
+            .map(|index| {
+                let keys = index
+                    .keys_of(primary_key)
+                    .iter()
+                    .map(|key| key.key().as_ref().clone())
+                    .collect();
+                (index.id, keys)
+            })
+            .filter(|(_, keys): &(u64, Vec<Key>)| !keys.is_empty())
+            .collect()
+    }
+
     // https://w3c.github.io/IndexedDB/#delete-records-from-an-object-store
     pub(crate) fn delete_records(&mut self, range: &KeyRange, undo: &mut Vec<Undo>) {
         // 1. Remove all records, if any, from store's list of records with key in range.
@@ -537,6 +582,7 @@ impl ObjectStore {
             self.record_changed(&key);
             undo.push(Undo::Record {
                 store: self.name.clone(),
+                store_id: self.id,
                 key: key.clone(),
                 previous: self.remove_record(&key),
                 previous_index_records: self.index_records_of(&key),

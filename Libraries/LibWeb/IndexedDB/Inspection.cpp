@@ -32,6 +32,7 @@ enum class InspectionStatus : u8 {
     NoObjectStore = 2,
     NoRecord = 3,
     Blocked = 4,
+    Failed = 5,
 };
 
 void web_rust_indexed_db_inspect_databases(JSVM*, void* realm, void* ctx, void (*on_database)(void*, FlatPtr name, u64 version, FlatPtr const* object_store_names, size_t count));
@@ -241,6 +242,8 @@ ErrorOr<bool> delete_indexed_database_for_inspection(DOM::Document& document, Fu
 
     auto name = Utf16String::from_utf8(database_name);
     auto status = web_rust_indexed_db_delete_database_for_inspection(vm(), &HTML::relevant_realm(entry->document), name.raw_identity());
+    if (status == InspectionStatus::Failed)
+        return Error::from_string_literal("Unable to delete the IndexedDB database from the profile");
     return status == InspectionStatus::Blocked;
 }
 
@@ -255,6 +258,8 @@ static ErrorOr<void> error_for_status(InspectionStatus status)
         return Error::from_string_literal("Unable to find IndexedDB object store");
     case InspectionStatus::NoRecord:
         return Error::from_string_literal("Unable to find IndexedDB record");
+    case InspectionStatus::Failed:
+        return Error::from_string_literal("Unable to change the IndexedDB database in the profile");
     case InspectionStatus::Blocked:
         return Error::from_string_literal("The IndexedDB object store is in use by a transaction");
     }

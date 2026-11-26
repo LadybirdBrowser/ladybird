@@ -98,6 +98,8 @@ pub(crate) struct IDBTransaction {
 
     store_mutation_logs: GcRefCell<Vec<StoreMutationLog>>,
     original_version: Cell<u64>,
+    // Whether the backend confirmed that it committed the transaction, whose complete event is then on its way.
+    commit_confirmed: Cell<bool>,
 
     // The client of the transaction's connection, and the number the backend knows the transaction by.
     #[gc(untraced)]
@@ -144,6 +146,7 @@ impl IDBTransaction {
             index_handles: GcRefCell::new(Vec::new()),
             store_mutation_logs: GcRefCell::new(Vec::new()),
             original_version: Cell::new(0),
+            commit_confirmed: Cell::new(false),
             remote_client: Cell::new(connection.remote_client()),
             remote_id: Cell::new(0),
         });
@@ -170,6 +173,14 @@ impl IDBTransaction {
             );
         }
         transaction
+    }
+
+    pub(crate) fn commit_confirmed(&self) -> bool {
+        self.commit_confirmed.get()
+    }
+
+    pub(crate) fn set_commit_confirmed(&self) {
+        self.commit_confirmed.set(true);
     }
 
     pub(crate) fn remote_client(&self) -> u64 {

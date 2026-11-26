@@ -11,6 +11,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/kmalloc.h>
 #include <LibWebCommon/IndexedDB/Backend.h>
 #include <LibWebView/Export.h>
@@ -49,6 +50,10 @@ public:
     void remove_owner(IndexedDBClientOwner&);
     void remove_session(u64 session_id);
 
+    // Deletes the IndexedDB databases of every storage key of the session whose databases changed at or after the
+    // time, as when the user clears site data: in the session's backend, and in its profile.
+    void clear_site_data_since(BrowsingSession&, UnixDateTime);
+
 private:
     IndexedDBRegistry() = default;
 
@@ -57,7 +62,8 @@ private:
         IndexedDBClientOwner* owner { nullptr };
     };
 
-    Web::IndexedDB::Backend& backend_for_session(u64 session_id);
+    Web::IndexedDB::Backend& backend_for_session(BrowsingSession&);
+    Web::IndexedDB::Backend& backend_of_client(Client const&);
     void deliver_events(Web::IndexedDB::Backend&);
 
     HashMap<u64, NonnullOwnPtr<Web::IndexedDB::Backend>> m_backends;

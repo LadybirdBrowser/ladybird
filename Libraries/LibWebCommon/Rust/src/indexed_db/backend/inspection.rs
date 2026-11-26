@@ -8,6 +8,7 @@
 
 use libipc_rust::wire::{Decode, Encode};
 
+use super::store::Undo;
 use super::{Backend, ClientId, DatabaseMetadata};
 use crate::indexed_db::Name;
 use crate::indexed_db::key::Key;
@@ -31,6 +32,7 @@ pub enum InspectionStatus {
     NoObjectStore = 2,
     NoRecord = 3,
     Blocked = 4,
+    Failed = 5,
 }
 
 #[derive(Clone, Encode, Decode)]
@@ -104,6 +106,14 @@ impl Backend {
 
     /// Deletes a database that no connection, and no request in its connection queue, is using.
     fn delete_database_for_inspection(&mut self, storage_key: &str, name: &Name) -> InspectionStatus {
+        let unreadable = (storage_key.to_owned(), name.clone());
+        if self.unreadable.contains(&unreadable) {
+            if !self.persist_deletion(storage_key, name) {
+                return InspectionStatus::Failed;
+            }
+            self.unreadable.remove(&unreadable);
+            return InspectionStatus::Done;
+        }
         let Some(database) = self.database(storage_key, name) else {
             return InspectionStatus::NoDatabase;
         };
@@ -114,7 +124,9 @@ impl Backend {
         if !database.connections.is_empty() || queued {
             return InspectionStatus::Blocked;
         }
-        self.remove_database(storage_key, name);
+        if !self.remove_database(storage_key, name) {
+            return InspectionStatus::Failed;
+        }
         InspectionStatus::Done
     }
 
@@ -166,6 +178,29 @@ impl Backend {
         };
         let mut undo = Vec::new();
         object_store.delete_records(&range, &mut undo);
+        if !self.persist_records(storage_key, database_name, &undo) {
+            // NB: The profile still has the records, so they come back.
+            let database = self
+                .database_mut(storage_key, database_name)
+                .expect("the database exists");
+            let object_store = database
+                .object_stores
+                .iter_mut()
+                .find(|object_store| object_store.name == *store_name)
+                .expect("the object store exists");
+            for entry in undo.into_iter().rev() {
+                if let Undo::Record {
+                    key,
+                    previous,
+                    previous_index_records,
+                    ..
+                } = entry
+                {
+                    object_store.restore_record(key, previous, previous_index_records);
+                }
+            }
+            return InspectionStatus::Failed;
+        }
         InspectionStatus::Done
     }
 }

@@ -45,6 +45,7 @@ class HistoryStore;
 class HSTSStore;
 class ImageDecoderControlClient;
 class ImageDecoderManager;
+class IndexedDBStore;
 class MicrophoneAuthorizer;
 class NavigationLoader;
 class OutOfProcessWebView;

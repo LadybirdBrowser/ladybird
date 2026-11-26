@@ -91,7 +91,7 @@ struct PendingDelete {
 }
 
 /// What runs with the databases that a databases() call listed.
-type DatabaseListHandler = FunctionWith<Vec<DatabaseInfo>>;
+type DatabaseListHandler = FunctionWith<Result<Vec<DatabaseInfo>, BackendError>>;
 
 /// The handler of an operation's result, with the transaction the operation is for.
 type PendingResult = (NoCells<u64>, ResultHandler);
@@ -452,7 +452,7 @@ pub(crate) fn delete_a_database(
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
-pub(crate) fn list_databases(vm: &Vm, client_id: u64, on_complete: FunctionWith<Vec<DatabaseInfo>>) {
+pub(crate) fn list_databases(vm: &Vm, client_id: u64, on_complete: DatabaseListHandler) {
     let request_id = next_id(vm);
     remote(vm)
         .remote()
@@ -735,11 +735,23 @@ pub(crate) fn handle_event(vm: &Vm, client_id: u64, event: Event) {
             };
             pending.on_complete.call(vm, Ok(old_version));
         }
+        Event::DeleteFailed { request, error } => {
+            let Some(pending) = remote.deletes.borrow_mut(vm).remove(&(client_id, request)) else {
+                return;
+            };
+            pending.on_complete.call(vm, Err(dom_exception_from(&error)));
+        }
         Event::DatabasesListed { request, databases } => {
             let Some(on_complete) = remote.database_lists.borrow_mut(vm).remove(&(client_id, request)) else {
                 return;
             };
-            on_complete.call(vm, databases);
+            on_complete.call(vm, Ok(databases));
+        }
+        Event::DatabasesFailed { request, error } => {
+            let Some(on_complete) = remote.database_lists.borrow_mut(vm).remove(&(client_id, request)) else {
+                return;
+            };
+            on_complete.call(vm, Err(error));
         }
         Event::OperationSucceeded { request, result, .. } => {
             let Some((_, handler)) = remote.results.borrow_mut(vm).remove(&(client_id, request)) else {
@@ -754,12 +766,35 @@ pub(crate) fn handle_event(vm: &Vm, client_id: u64, event: Event) {
             handler.call(vm, Err(error));
         }
         Event::TransactionCompleted { transaction } => {
-            remote.transactions.borrow_mut(vm).remove(&(client_id, transaction));
+            let entry = remote.transactions.borrow_mut(vm).remove(&(client_id, transaction));
+            if let Some(entry) = entry {
+                entry.set_commit_confirmed();
+            }
             // NB: The map's borrow ends before the steps run, as they may reach the map again.
             let after = remote.commits.borrow_mut(vm).remove(&(client_id, transaction));
             if let Some(after) = after {
                 after.call(vm, ());
             }
+        }
+        Event::ForcedClose { connection } => {
+            let entry = remote
+                .connections
+                .borrow()
+                .get(&(client_id, connection))
+                .and_then(GcWeak::get);
+            let Some(entry) = entry else {
+                return;
+            };
+            if entry.state() == crate::indexed_db::idb_database::ConnectionState::Closed {
+                return;
+            }
+            // NB: The backend closed the connection already, so the agent only runs the steps for script.
+            queue_a_database_task(
+                vm,
+                create_function(vm, entry, |vm, &entry, ()| {
+                    crate::indexed_db::internal::algorithms::close_a_database_connection(vm, entry, None, true);
+                }),
+            );
         }
         Event::TransactionAborted { transaction } => {
             // NB: An abort the agent asked for already ran its steps. The backend decides on one itself when it can't

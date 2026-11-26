@@ -328,6 +328,10 @@ pub(crate) fn close_a_database_connection(
     // 2. If the forced flag is true, then for each transaction created using connection run abort a transaction with transaction and newly created "AbortError" DOMException.
     if forced {
         for transaction in connection.transactions(vm).values().iter() {
+            // NB: A transaction that the backend already committed finishes as committed: Its writes are saved.
+            if transaction.commit_confirmed() {
+                continue;
+            }
             abort_a_transaction(
                 vm,
                 *transaction,

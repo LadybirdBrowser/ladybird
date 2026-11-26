@@ -13,6 +13,7 @@
 
 pub mod cursor;
 pub mod inspection;
+pub mod persistence;
 pub mod store;
 
 #[cfg(test)]
@@ -26,6 +27,7 @@ use libipc_rust::wire::{Decode, Encode};
 use crate::indexed_db::Name;
 
 use crate::indexed_db::backend::cursor::{Cursor, Direction, FoundRecord, Source, records_from};
+use crate::indexed_db::backend::persistence::Persistence;
 use crate::indexed_db::backend::store::{Index, IndexKeys, KeyPath, NamedIndexKeys, ObjectStore, Undo, key_bytes};
 use crate::indexed_db::key::Key;
 use crate::indexed_db::key_range::{KeyRange, OrderedKey};
@@ -47,6 +49,13 @@ pub type TransactionId = u64;
 pub type CursorId = u64;
 
 pub(crate) const UPGRADE_TRANSACTION_ID_BASE: TransactionId = 1 << 63;
+
+/// Milliseconds since the epoch.
+fn now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_millis() as u64)
+}
 
 const MIB: u64 = 1024 * 1024;
 
@@ -372,9 +381,17 @@ pub enum Event {
         request: RequestId,
         old_version: u64,
     },
+    DeleteFailed {
+        request: RequestId,
+        error: Error,
+    },
     DatabasesListed {
         request: RequestId,
         databases: Vec<DatabaseInfo>,
+    },
+    DatabasesFailed {
+        request: RequestId,
+        error: Error,
     },
     OperationSucceeded {
         transaction: TransactionId,
@@ -392,13 +409,24 @@ pub enum Event {
     TransactionAborted {
         transaction: TransactionId,
     },
+    /// The backend closed a connection with the forced flag, as when the user clears a site's data: Its transactions
+    /// abort, and it gets a close event.
+    /// https://w3c.github.io/IndexedDB/#close-a-database-connection
+    ForcedClose {
+        connection: ConnectionId,
+    },
 }
+
+const UNREADABLE_DATABASE: &str = "The database couldn't be read from the profile";
 
 // https://w3c.github.io/IndexedDB/#database-construct
 struct Database {
     name: Name,
     version: u64,
     object_stores: Vec<ObjectStore>,
+
+    // The number the next object store or index gets as its id.
+    next_id: u64,
 
     // The connections associated with the database, open or close pending.
     connections: Vec<ConnectionId>,
@@ -408,11 +436,18 @@ struct Database {
 }
 
 impl Database {
+    fn take_id(&mut self) -> u64 {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
+    }
+
     fn new(name: Name) -> Self {
         Self {
             name,
             version: 0,
             object_stores: Vec::new(),
+            next_id: 1,
             connections: Vec::new(),
             transactions: Vec::new(),
         }
@@ -509,7 +544,7 @@ struct Transaction {
     undo: Vec<Undo>,
     // The records that the undo log holds an entry for, and the bytes of the values those entries keep: Only a record's
     // first entry is kept, since it holds what the record was before the transaction.
-    undone: BTreeSet<(Vec<u16>, OrderedKey)>,
+    undone: BTreeSet<(u64, OrderedKey)>,
     retained: u64,
     snapshot: Option<UpgradeSnapshot>,
     cursors: HashMap<CursorId, Cursor>,
@@ -566,7 +601,18 @@ pub struct Backend {
     // The acknowledgements of versionchange events still to come for requests that went away before them, by
     // connection, which must not count for a later request's events.
     stale_acknowledgements: HashMap<ConnectionId, u32>,
+    // Where the databases are kept between runs, if anywhere, and the storage keys whose databases it handed over.
+    persistence: Option<Box<dyn Persistence>>,
+    loaded: HashSet<String>,
+    // The databases of loaded storage keys whose rows this version can't read, and the storage keys whose rows
+    // couldn't be read at all.
+    unreadable: HashSet<(String, Name)>,
+    unavailable: HashSet<String>,
     limits: Limits,
+    // When each storage key's databases last changed in this run, in milliseconds since the epoch.
+    written: HashMap<String, u64>,
+    // The storage key whose site data is being cleared, whose connection queues wait until that's done.
+    clearing: Option<String>,
 }
 
 impl Backend {
@@ -577,13 +623,161 @@ impl Backend {
         }
     }
 
+    /// A backend that keeps its databases between runs in the persistence.
+    pub fn with_persistence(persistence: Box<dyn Persistence>) -> Self {
+        Self {
+            persistence: Some(persistence),
+            ..Self::new()
+        }
+    }
+
     pub fn set_limits(&mut self, limits: Limits) {
         self.limits = limits;
+    }
+
+    /// The storage keys whose databases changed in this run at or after the time, in milliseconds since the epoch.
+    pub fn storage_keys_written_since(&self, since: u64) -> Vec<String> {
+        self.written
+            .iter()
+            .filter(|(_, written)| **written >= since)
+            .map(|(storage_key, _)| storage_key.clone())
+            .collect()
+    }
+
+    /// Deletes every database of the storage key, as when the user clears the site's data: Each connection to one is
+    /// closed with the forced flag, which aborts its transactions, and the databases go, along with their rows.
+    /// Returns whether every database's rows went; a database whose rows couldn't be deleted stays.
+    pub fn clear_storage_key(&mut self, storage_key: &str) -> bool {
+        // NB: The connection queues wait until the clear is done: A request that one of the steps below let go on
+        //     would otherwise run against a database that's about to go.
+        self.clearing = Some(storage_key.to_owned());
+        let connections: Vec<_> = self
+            .connections
+            .iter()
+            .filter(|(_, connection)| connection.storage_key == storage_key)
+            .map(|(id, connection)| (*id, connection.client))
+            .collect();
+        for (connection, client) in &connections {
+            self.events.push((
+                *client,
+                Event::ForcedClose {
+                    connection: *connection,
+                },
+            ));
+            if let Some(entry) = self.connections.get_mut(connection) {
+                entry.close_pending = true;
+            }
+        }
+        self.abort_transactions_of_storage_key(storage_key);
+        self.fail_started_opens_of_storage_key(storage_key);
+
+        let names: Vec<Name> = self
+            .databases
+            .get(storage_key)
+            .map(|databases| databases.iter().map(|database| database.name.clone()).collect())
+            .unwrap_or_default();
+        let mut deleted_all = true;
+        for name in names {
+            if self.persist_deletion(storage_key, &name) {
+                self.forget_database(storage_key, &name);
+            } else {
+                deleted_all = false;
+            }
+        }
+        let unreadable: Vec<Name> = self
+            .unreadable
+            .iter()
+            .filter(|(key, _)| key == storage_key)
+            .map(|(_, name)| name.clone())
+            .collect();
+        for name in unreadable {
+            if self.persist_deletion(storage_key, &name) {
+                self.unreadable.remove(&(storage_key.to_owned(), name));
+            } else {
+                deleted_all = false;
+            }
+        }
+
+        for (connection, _) in connections {
+            self.close_connection(connection);
+        }
+        if deleted_all {
+            self.written.remove(storage_key);
+        }
+
+        // NB: The requests that hadn't started go on now, so an open among them creates its database anew.
+        self.clearing = None;
+        let keys: Vec<_> = self.queues.keys().filter(|key| key.0 == storage_key).cloned().collect();
+        for key in keys {
+            self.advance_queue(&key);
+        }
+        deleted_all
+    }
+
+    /// Fails the opens at the heads of a storage key's connection queues that wait for other connections, whose
+    /// databases are about to go: Their upgrades would run against a database that no longer exists.
+    fn fail_started_opens_of_storage_key(&mut self, storage_key: &str) {
+        let keys: Vec<_> = self.queues.keys().filter(|key| key.0 == storage_key).cloned().collect();
+        for key in keys {
+            let Some(queue) = self.queues.get_mut(&key) else {
+                continue;
+            };
+            let Some(QueueEntry {
+                pending:
+                    Pending::Open {
+                        client,
+                        request,
+                        connection,
+                        ..
+                    },
+                stage:
+                    stage @ (Stage::WaitingForVersionChangeEvents { .. } | Stage::WaitingForConnectionsToClose { .. }),
+            }) = queue.front()
+            else {
+                continue;
+            };
+            let (client, request, connection) = (*client, *request, *connection);
+            if let Stage::WaitingForVersionChangeEvents { unhandled } = stage {
+                for other in unhandled.clone() {
+                    *self.stale_acknowledgements.entry(other).or_default() += 1;
+                }
+            }
+            queue.pop_front();
+            self.events.push((
+                client,
+                Event::OpenFailed {
+                    request,
+                    error: Error::new(ErrorKind::Abort, "The site's data was cleared"),
+                },
+            ));
+            if let Some(connection) = connection {
+                self.connections.remove(&connection);
+                if let Some(database) = self.database_mut(&key.0, &key.1) {
+                    database.connections.retain(|other| *other != connection);
+                }
+            }
+        }
+    }
+
+    /// Aborts the transactions on a storage key's databases, the waiting ones first: Aborting a running one would
+    /// otherwise start one that waits for it.
+    fn abort_transactions_of_storage_key(&mut self, storage_key: &str) {
+        let mut transactions: Vec<_> = self
+            .transactions
+            .iter()
+            .filter(|(_, transaction)| transaction.storage_key == storage_key)
+            .map(|(id, transaction)| (transaction.state == TransactionState::Running, *id))
+            .collect();
+        transactions.sort();
+        for (_, (client, transaction)) in transactions {
+            self.abort_transaction(client, transaction);
+        }
     }
 
     /// Binds a client to a storage key, which every request the client makes acts within. The caller numbers its
     /// clients, and never reuses a number.
     pub fn connect_client(&mut self, client: ClientId, storage_key: String) {
+        self.load_storage_key(&storage_key);
         self.clients.insert(client, storage_key);
     }
 
@@ -683,6 +877,18 @@ impl Backend {
             }
             Request::Databases { request } => {
                 // https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
+                // 2. If the databases' names and versions couldn't be determined, reject the promise.
+                if self.unavailable.contains(&storage_key) {
+                    self.events.push((
+                        client,
+                        Event::DatabasesFailed {
+                            request,
+                            error: Error::new(ErrorKind::Unknown, UNREADABLE_DATABASE),
+                        },
+                    ));
+                    return;
+                }
+                // https://w3c.github.io/IndexedDB/#dom-idbfactory-databases
                 // NB: A database whose first upgrade has not committed has version 0, which no caller is to see.
                 // NB: A database's version is the committed one, so an upgrade under way doesn't show yet.
                 let committed_version = |database: &Database| {
@@ -773,7 +979,18 @@ impl Backend {
             .and_then(|databases| databases.iter_mut().find(|database| database.name == *name))
     }
 
-    fn remove_database(&mut self, storage_key: &str, name: &Name) {
+    /// Deletes a database, and its rows, and returns whether it could.
+    fn remove_database(&mut self, storage_key: &str, name: &Name) -> bool {
+        if !self.persist_deletion(storage_key, name) {
+            return false;
+        }
+        self.written.insert(storage_key.to_owned(), now());
+        self.forget_database(storage_key, name);
+        true
+    }
+
+    /// Drops a database that has no rows: one whose first upgrade never committed.
+    fn forget_database(&mut self, storage_key: &str, name: &Name) {
         if let Some(databases) = self.databases.get_mut(storage_key) {
             databases.retain(|database| database.name != *name);
         }
@@ -790,6 +1007,9 @@ impl Backend {
 
     /// Runs the request at the head of a connection queue as far as it can get, and the ones after it once it is done.
     fn advance_queue(&mut self, key: &(String, Name)) {
+        if self.clearing.as_deref() == Some(key.0.as_str()) {
+            return;
+        }
         loop {
             let Some(entry) = self.queues.get_mut(key).and_then(|queue| queue.front_mut()) else {
                 self.queues.remove(key);
@@ -840,6 +1060,16 @@ impl Backend {
                 ..
             } => {
                 let (client, request, name, version) = (*client, *request, name.clone(), *version);
+                if self.unavailable.contains(&key.0) || self.unreadable.contains(&(key.0.clone(), name.clone())) {
+                    self.events.push((
+                        client,
+                        Event::OpenFailed {
+                            request,
+                            error: Error::new(ErrorKind::Unknown, UNREADABLE_DATABASE),
+                        },
+                    ));
+                    return true;
+                }
 
                 // 4. Let db be the database named name in storageKey, or null otherwise.
                 // 5. If version is undefined, let version be 1 if db is null, or db's version otherwise.
@@ -858,9 +1088,6 @@ impl Backend {
                 // 7. If db's version is greater than version, return a newly created "VersionError" DOMException and
                 //    abort these steps.
                 if current_version > version {
-                    if current_version == 0 || !existed {
-                        self.remove_database(&key.0, &name);
-                    }
                     self.events.push((
                         client,
                         Event::OpenFailed {
@@ -924,6 +1151,34 @@ impl Backend {
             // https://w3c.github.io/IndexedDB/#delete-a-database
             Pending::Delete { client, request, name } => {
                 let (client, request, name) = (*client, *request, name.clone());
+                if self.unavailable.contains(&key.0) {
+                    self.events.push((
+                        client,
+                        Event::DeleteFailed {
+                            request,
+                            error: Error::new(ErrorKind::Unknown, UNREADABLE_DATABASE),
+                        },
+                    ));
+                    return true;
+                }
+                // NB: A database whose rows can't be read can still go: Deleting its rows needs none of them read.
+                //     Its version is unknown, so the request reports 0.
+                if self.unreadable.contains(&(key.0.clone(), name.clone())) {
+                    let event = if self.persist_deletion(&key.0, &name) {
+                        self.unreadable.remove(&(key.0.clone(), name.clone()));
+                        Event::DeleteSucceeded {
+                            request,
+                            old_version: 0,
+                        }
+                    } else {
+                        Event::DeleteFailed {
+                            request,
+                            error: Error::new(ErrorKind::Unknown, "The database couldn't be deleted from the profile"),
+                        }
+                    };
+                    self.events.push((client, event));
+                    return true;
+                }
 
                 // 4. Let db be the database named name in storageKey, if one exists. Otherwise, return 0 (zero).
                 let Some(database) = self.database(&key.0, &name) else {
@@ -1081,9 +1336,15 @@ impl Backend {
                 // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError"
                 //     or "UnknownError" DOMException).
                 // 12. Return version.
-                self.remove_database(&key.0, &key.1);
-                self.events
-                    .push((client, Event::DeleteSucceeded { request, old_version }));
+                let event = if self.remove_database(&key.0, &key.1) {
+                    Event::DeleteSucceeded { request, old_version }
+                } else {
+                    Event::DeleteFailed {
+                        request,
+                        error: Error::new(ErrorKind::Unknown, "The database couldn't be deleted from the profile"),
+                    }
+                };
+                self.events.push((client, event));
                 true
             }
         }
@@ -1389,6 +1650,19 @@ impl Backend {
     // https://w3c.github.io/IndexedDB/#commit-a-transaction
     fn commit_transaction(&mut self, client: ClientId, id: TransactionId) {
         let transaction = self.transactions.remove(&(client, id)).expect("the transaction exists");
+
+        // 4. If an error occurs while writing the changes to the database, then run abort a transaction with
+        //    transaction and an appropriate type for the error, for example a "QuotaExceededError" or an
+        //    "UnknownError" DOMException, and terminate these steps.
+        if !self.persist_commit(&transaction) {
+            self.transactions.insert((client, id), transaction);
+            self.abort_transaction(client, id);
+            return;
+        }
+        // NB: Only a transaction that changed something marks its storage key as written.
+        if transaction.snapshot.is_some() || !transaction.undo.is_empty() {
+            self.written.insert(transaction.storage_key.clone(), now());
+        }
         self.events
             .push((client, Event::TransactionCompleted { transaction: id }));
         self.finish_transaction(client, id, transaction, true);
@@ -1414,6 +1688,7 @@ impl Backend {
                             key,
                             previous,
                             previous_index_records,
+                            ..
                         } => {
                             if let Ok(store) = database.store_mut(&store) {
                                 store.restore_record(key, previous, previous_index_records);
@@ -1453,7 +1728,7 @@ impl Backend {
                 for connection in connections {
                     self.connections.remove(&connection);
                 }
-                self.remove_database(&key.0, &key.1);
+                self.forget_database(&key.0, &key.1);
             }
             self.finish_upgrade(&key, committed);
         }
@@ -1495,13 +1770,25 @@ impl Backend {
             .and_then(|databases| databases.iter_mut().find(|database| database.name == name))
             .ok_or_else(|| Error::new(ErrorKind::Unknown, "The database is gone"));
         let undo_before = undo.len();
-        // NB: An upgrade's snapshot keeps what a store or an index that it deletes held, until the upgrade ends.
+        // NB: An upgrade's snapshot keeps what a store or an index that it deletes held before the upgrade, until the
+        //     upgrade ends; one that the upgrade created leaves nothing behind.
+        let snapshot_has = |store_id: u64, index_id: Option<u64>| {
+            transaction.snapshot.as_ref().is_some_and(|snapshot| {
+                snapshot.object_stores.iter().any(|store| {
+                    store.id == store_id && index_id.is_none_or(|id| store.indexes.iter().any(|index| index.id == id))
+                })
+            })
+        };
         let kept_by_snapshot = match (&database, &operation) {
-            (Ok(database), Operation::DeleteObjectStore { name }) => database.store(name).map_or(0, ObjectStore::bytes),
+            (Ok(database), Operation::DeleteObjectStore { name }) => database
+                .store(name)
+                .ok()
+                .filter(|store| snapshot_has(store.id, None))
+                .map_or(0, ObjectStore::bytes),
             (Ok(database), Operation::DeleteIndex { store, name }) => database
                 .store(store)
                 .ok()
-                .and_then(|store| store.index(name))
+                .and_then(|store| store.index(name).filter(|index| snapshot_has(store.id, Some(index.id))))
                 .map_or(0, Index::bytes),
             _ => 0,
         };
@@ -1512,15 +1799,25 @@ impl Backend {
             .expect("the transaction exists");
         for entry in undo.split_off(undo_before) {
             if let Undo::Record {
-                store, key, previous, ..
+                store_id,
+                key,
+                previous,
+                previous_index_records,
+                ..
             } = &entry
             {
-                if !transaction.undone.insert((store.0.clone(), key.clone())) {
+                if !transaction.undone.insert((*store_id, key.clone())) {
                     continue;
                 }
+                // NB: An abort puts back the record's index records too.
+                let index_bytes: u64 = previous_index_records
+                    .iter()
+                    .flat_map(|(_, index_keys)| index_keys)
+                    .map(|index_key| key_bytes(index_key.key()) + key_bytes(key.key()))
+                    .sum();
                 transaction.retained += previous
                     .as_ref()
-                    .map_or(0, |value| key_bytes(key.key()) + value.len() as u64);
+                    .map_or(0, |value| key_bytes(key.key()) + value.len() as u64 + index_bytes);
             }
             undo.push(entry);
         }
@@ -1611,7 +1908,7 @@ impl Backend {
             Operation::Put { key: Some(key), .. } => self.transactions.get(&(client, id)).is_some_and(|transaction| {
                 transaction
                     .undone
-                    .contains(&(store.name.0.clone(), OrderedKey(Rc::new(key.clone()))))
+                    .contains(&(store.id, OrderedKey(Rc::new(key.clone()))))
             }),
             _ => false,
         };
@@ -1799,9 +2096,10 @@ impl Backend {
                         "An object store with this name already exists",
                     ));
                 }
+                let id = database.take_id();
                 database
                     .object_stores
-                    .push(ObjectStore::new(name, key_path, auto_increment));
+                    .push(ObjectStore::new(id, name, key_path, auto_increment));
                 Ok(OperationResult::Undefined)
             }
             // https://w3c.github.io/IndexedDB/#dom-idbdatabase-deleteobjectstore
@@ -1841,6 +2139,7 @@ impl Backend {
                 multi_entry,
             } => {
                 require_upgrade()?;
+                let id = database.take_id();
                 let store = database.store_mut(&store)?;
                 if store.index(&name).is_some() {
                     return Err(Error::new(
@@ -1848,7 +2147,7 @@ impl Backend {
                         "An index with this name already exists",
                     ));
                 }
-                store.indexes.push(Index::new(name, key_path, unique, multi_entry));
+                store.indexes.push(Index::new(id, name, key_path, unique, multi_entry));
                 Ok(OperationResult::Undefined)
             }
             // https://w3c.github.io/IndexedDB/#dom-idbobjectstore-deleteindex

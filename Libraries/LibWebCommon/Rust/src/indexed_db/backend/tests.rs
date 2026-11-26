@@ -119,12 +119,19 @@ impl Harness {
                 operation,
             },
         );
-        for (_, event) in self.events() {
+        // NB: The answer has to reach the client that asked, for the transaction it asked in.
+        for (target, event) in self.events() {
             match event {
                 Event::OperationSucceeded {
-                    request: id, result, ..
-                } if id == request => return Ok(result),
-                Event::OperationFailed { request: id, error, .. } if id == request => return Err(error),
+                    transaction: answered,
+                    request: id,
+                    result,
+                } if id == request && target == client && answered == transaction => return Ok(result),
+                Event::OperationFailed {
+                    transaction: answered,
+                    request: id,
+                    error,
+                } if id == request && target == client && answered == transaction => return Err(error),
                 _ => {}
             }
         }
@@ -598,7 +605,14 @@ fn cursors_walk_in_each_direction() {
                 },
             )
             .unwrap();
-        while let OperationResult::Cursor(Some(record)) = result {
+        // NB: The walk has to end with the cursor finding no record, within the store's five records.
+        loop {
+            assert!(seen.len() <= 5, "the walk ends after the store's records");
+            let record = match result {
+                OperationResult::Cursor(Some(record)) => record,
+                OperationResult::Cursor(None) => break,
+                _ => panic!("a cursor's iteration finds a record or none"),
+            };
             seen.push((
                 String::from_utf16_lossy(&record.key.value_as_string().to_utf16()),
                 record.primary_key.value_as_double(),
@@ -1241,6 +1255,669 @@ fn a_long_chain_of_committing_transactions_finishes() {
     assert_eq!(completed as u64, COUNT);
 }
 
+/// Rows that outlive each backend that writes them, as a profile's database does.
+// A record's row: its storage key, its database's name, its object store, and its key.
+type RecordRow = (String, Vec<u8>, u64, Vec<u8>);
+
+#[derive(Default)]
+struct Rows {
+    databases: std::collections::BTreeMap<(String, Vec<u8>), Vec<u8>>,
+    records: std::collections::BTreeMap<RecordRow, (Vec<u8>, Vec<u8>)>,
+}
+
+struct FakePersistence(Rc<core::cell::RefCell<Rows>>);
+
+/// A persistence whose writes all fail, as when the disk is full.
+struct FailingPersistence;
+
+/// A persistence whose reads fail until told otherwise, as when the profile is briefly out of reach, and then hand
+/// over the rows.
+struct FlakyPersistence(Rc<core::cell::Cell<bool>>, FakePersistence);
+
+impl persistence::Persistence for FlakyPersistence {
+    fn load(
+        &mut self,
+        storage_key: &str,
+        on_database: &mut persistence::DatabaseRowSink<'_>,
+        on_record: &mut persistence::RecordRowSink<'_>,
+    ) -> bool {
+        self.0.get() && self.1.load(storage_key, on_database, on_record)
+    }
+
+    fn write(&mut self, storage_key: &str, database: &[u8], writes: Vec<persistence::Write>) -> bool {
+        self.1.write(storage_key, database, writes)
+    }
+}
+
+impl persistence::Persistence for FailingPersistence {
+    fn load(
+        &mut self,
+        _: &str,
+        _: &mut persistence::DatabaseRowSink<'_>,
+        _: &mut persistence::RecordRowSink<'_>,
+    ) -> bool {
+        true
+    }
+
+    fn write(&mut self, _: &str, _: &[u8], _: Vec<persistence::Write>) -> bool {
+        false
+    }
+}
+
+impl persistence::Persistence for FakePersistence {
+    fn load(
+        &mut self,
+        storage_key: &str,
+        on_database: &mut persistence::DatabaseRowSink<'_>,
+        on_record: &mut persistence::RecordRowSink<'_>,
+    ) -> bool {
+        let rows = self.0.borrow();
+        for ((key, name), metadata) in &rows.databases {
+            if key == storage_key {
+                on_database(name, metadata);
+            }
+        }
+        for ((key, database, store, record_key), (value, index_keys)) in &rows.records {
+            if key == storage_key {
+                on_record(database, *store, record_key, value, index_keys);
+            }
+        }
+        true
+    }
+
+    fn write(&mut self, storage_key: &str, database: &[u8], writes: Vec<persistence::Write>) -> bool {
+        let mut rows = self.0.borrow_mut();
+        let of_database = |entry: &RecordRow| entry.0 == storage_key && entry.1 == database;
+        for write in writes {
+            match write {
+                persistence::Write::Metadata(metadata) => {
+                    rows.databases
+                        .insert((storage_key.to_owned(), database.to_vec()), metadata);
+                }
+                persistence::Write::Record {
+                    store,
+                    key,
+                    value,
+                    index_keys,
+                } => {
+                    rows.records.insert(
+                        (storage_key.to_owned(), database.to_vec(), store, key),
+                        (value.as_ref().clone(), index_keys),
+                    );
+                }
+                persistence::Write::DeleteRecord { store, key } => {
+                    rows.records
+                        .remove(&(storage_key.to_owned(), database.to_vec(), store, key));
+                }
+                persistence::Write::DeleteStore(store) => {
+                    rows.records
+                        .retain(|entry, _| !(of_database(entry) && entry.2 == store));
+                }
+                persistence::Write::DeleteDatabase => {
+                    rows.databases.remove(&(storage_key.to_owned(), database.to_vec()));
+                    rows.records.retain(|entry, _| !of_database(entry));
+                }
+            }
+        }
+        true
+    }
+}
+
+fn persistent_harness(rows: &Rc<core::cell::RefCell<Rows>>) -> Harness {
+    Harness::with_backend(Backend::with_persistence(Box::new(FakePersistence(Rc::clone(rows)))))
+}
+
+fn put_with_email(store: &str, key: f64, email: &str) -> Operation {
+    Operation::Put {
+        store: name(store),
+        value: value(email.as_bytes()),
+        key: Some(number(key)),
+        index_keys: vec![NamedIndexKeys {
+            index: name("email"),
+            keys: IndexKeys::Keys(vec![string(email)]),
+        }],
+        no_overwrite: false,
+    }
+}
+
+fn get_by_email(
+    harness: &mut Harness,
+    client: ClientId,
+    transaction: TransactionId,
+    store: &str,
+    email: &str,
+) -> Option<f64> {
+    match harness
+        .operation(
+            client,
+            transaction,
+            Operation::Get {
+                source: Source::Index {
+                    store: name(store),
+                    index: name("email"),
+                },
+                range: KeyRange::only(string(email)),
+            },
+        )
+        .unwrap()
+    {
+        OperationResult::Value(record) => record.map(|record| record.primary_key.value_as_double()),
+        _ => panic!("a get returns a value"),
+    }
+}
+
+#[test]
+fn databases_outlive_the_backend_that_wrote_them() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+
+    // The first run creates a database with two object stores, one of them with an index, and changes its records.
+    {
+        let mut harness = persistent_harness(&rows);
+        let client = harness.client();
+        let (connection, upgrade) = harness.open(client, "db", Some(1));
+        let upgrade = upgrade.unwrap();
+        harness.create_store(client, upgrade, "people", false);
+        harness
+            .operation(
+                client,
+                upgrade,
+                Operation::CreateIndex {
+                    store: name("people"),
+                    name: name("email"),
+                    key_path: KeyPath::String(name("email")),
+                    unique: true,
+                    multi_entry: false,
+                },
+            )
+            .unwrap();
+        harness
+            .operation(client, upgrade, put_with_email("people", 1.0, "a@x.co"))
+            .unwrap();
+        harness
+            .operation(client, upgrade, put_with_email("people", 2.0, "b@x.co"))
+            .unwrap();
+        harness.create_store(client, upgrade, "notes", true);
+        harness.put(client, upgrade, "notes", None, b"first").unwrap();
+        harness.commit(client, upgrade);
+
+        harness.transaction(client, connection, 1, &["people", "notes"], Mode::ReadWrite);
+        harness
+            .operation(
+                client,
+                1,
+                Operation::Delete {
+                    store: name("people"),
+                    range: KeyRange::only(number(2.0)),
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            harness
+                .put(client, 1, "notes", None, b"second")
+                .unwrap()
+                .value_as_double(),
+            2.0
+        );
+        harness.commit(client, 1);
+
+        // A read-only transaction writes nothing.
+        harness.transaction(client, connection, 2, &["people"], Mode::ReadOnly);
+        harness.commit(client, 2);
+    }
+
+    // The next run finds the records, the index, and the key generator where the first one left them.
+    {
+        let mut harness = persistent_harness(&rows);
+        let client = harness.client();
+        let (connection, upgrade) = harness.open(client, "db", None);
+        assert!(upgrade.is_none());
+        harness.transaction(client, connection, 1, &["people", "notes"], Mode::ReadWrite);
+        assert_eq!(harness.get(client, 1, "people", number(1.0)), Some(value(b"a@x.co")));
+        assert_eq!(harness.get(client, 1, "people", number(2.0)), None);
+        assert_eq!(get_by_email(&mut harness, client, 1, "people", "a@x.co"), Some(1.0));
+        assert_eq!(get_by_email(&mut harness, client, 1, "people", "b@x.co"), None);
+        assert_eq!(
+            harness
+                .put(client, 1, "notes", None, b"third")
+                .unwrap()
+                .value_as_double(),
+            3.0
+        );
+        harness.commit(client, 1);
+        harness.backend.handle(client, Request::Close { connection });
+
+        // An upgrade renames one object store and deletes the other.
+        let (_, upgrade) = harness.open(client, "db", Some(2));
+        let upgrade = upgrade.unwrap();
+        harness
+            .operation(
+                client,
+                upgrade,
+                Operation::RenameObjectStore {
+                    name: name("people"),
+                    new_name: name("persons"),
+                },
+            )
+            .unwrap();
+        harness
+            .operation(client, upgrade, Operation::DeleteObjectStore { name: name("notes") })
+            .unwrap();
+        harness.commit(client, upgrade);
+    }
+
+    // The run after that sees the upgrade's shape, with the renamed object store's records and index.
+    {
+        let mut harness = persistent_harness(&rows);
+        let client = harness.client();
+        let (connection, upgrade) = harness.open(client, "db", Some(2));
+        assert!(upgrade.is_none());
+        harness.transaction(client, connection, 1, &["persons"], Mode::ReadOnly);
+        assert_eq!(harness.get(client, 1, "persons", number(1.0)), Some(value(b"a@x.co")));
+        assert_eq!(get_by_email(&mut harness, client, 1, "persons", "a@x.co"), Some(1.0));
+        harness.commit(client, 1);
+        assert!(rows.borrow().records.keys().all(|(_, _, store, _)| *store == 1));
+        harness.backend.handle(client, Request::Close { connection });
+
+        let request = harness.request();
+        harness.backend.handle(
+            client,
+            Request::DeleteDatabase {
+                request,
+                name: name("db"),
+            },
+        );
+        assert!(
+            harness
+                .events()
+                .iter()
+                .any(|(_, event)| matches!(event, Event::DeleteSucceeded { .. }))
+        );
+    }
+
+    // And a deleted database is gone for good.
+    assert!(rows.borrow().databases.is_empty());
+    assert!(rows.borrow().records.is_empty());
+}
+
+#[test]
+fn a_transaction_whose_changes_cant_be_written_aborts() {
+    let mut harness = Harness::with_backend(Backend::with_persistence(Box::new(FailingPersistence)));
+    let client = harness.client();
+    let (_, upgrade) = harness.open(client, "db", Some(1));
+    let upgrade = upgrade.unwrap();
+    // NB: The open was the harness's last request.
+    let open = harness.next_request;
+    harness.create_store(client, upgrade, "store", false);
+    harness.backend.handle(client, Request::Commit { transaction: upgrade });
+    let events = harness.events();
+    assert!(
+        events
+            .iter()
+            .any(|(_, event)| matches!(event, Event::TransactionAborted { .. }))
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|(_, event)| matches!(event, Event::TransactionCompleted { .. }))
+    );
+    // And the open that started the upgrade fails, so the agent can finish it.
+    assert!(
+        events.iter().any(|(target, event)| *target == client
+            && matches!(event, Event::OpenFailed { request, .. } if *request == open))
+    );
+
+    // The database that the upgrade would have created is gone again, as after any first upgrade that aborts.
+    let request = harness.request();
+    harness.backend.handle(client, Request::Databases { request });
+    assert!(
+        harness
+            .events()
+            .iter()
+            .any(|(_, event)| matches!(event, Event::DatabasesListed { databases, .. } if databases.is_empty()))
+    );
+}
+
+#[test]
+fn equal_keys_with_different_bytes_leave_one_row() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    let mut harness = persistent_harness(&rows);
+    let client = harness.client();
+    let (connection, upgrade) = harness.open(client, "db", Some(1));
+    let upgrade = upgrade.unwrap();
+    harness.create_store(client, upgrade, "store", false);
+    harness
+        .put(client, upgrade, "store", Some(number(-0.0)), b"negative zero")
+        .unwrap();
+    harness.commit(client, upgrade);
+
+    // Deleting the record under -0 and putting one under 0 in one transaction leaves only the 0 row.
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+    harness
+        .operation(
+            client,
+            1,
+            Operation::Delete {
+                store: name("store"),
+                range: KeyRange::only(number(-0.0)),
+            },
+        )
+        .unwrap();
+    harness.put(client, 1, "store", Some(number(0.0)), b"zero").unwrap();
+    harness.commit(client, 1);
+    let records: Vec<_> = rows.borrow().records.values().map(|(value, _)| value.clone()).collect();
+    assert_eq!(records, vec![value(b"zero")]);
+}
+
+#[test]
+fn a_key_generator_that_an_unfinished_transaction_moved_is_written_as_it_was() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    {
+        let mut harness = persistent_harness(&rows);
+        let client = harness.client();
+        let (connection, upgrade) = harness.open(client, "db", Some(1));
+        let upgrade = upgrade.unwrap();
+        harness.create_store(client, upgrade, "a", true);
+        harness.create_store(client, upgrade, "b", true);
+        harness.commit(client, upgrade);
+
+        // One transaction generates a key in "a", and another generates one in "b" and commits, which writes the
+        // database's shape, while the first is under way.
+        harness.transaction(client, connection, 1, &["a"], Mode::ReadWrite);
+        assert_eq!(
+            harness
+                .put(client, 1, "a", None, b"uncommitted")
+                .unwrap()
+                .value_as_double(),
+            1.0
+        );
+        harness.transaction(client, connection, 2, &["b"], Mode::ReadWrite);
+        harness.put(client, 2, "b", None, b"committed").unwrap();
+        harness.commit(client, 2);
+        harness.backend.handle(client, Request::Abort { transaction: 1 });
+    }
+
+    // The next run has the committed record, and generates the key that the aborted transaction never committed.
+    let mut harness = persistent_harness(&rows);
+    let client = harness.client();
+    let (connection, _) = harness.open(client, "db", None);
+    harness.transaction(client, connection, 1, &["a", "b"], Mode::ReadWrite);
+    assert_eq!(harness.get(client, 1, "b", number(1.0)), Some(b"committed".to_vec()));
+    assert_eq!(
+        harness.put(client, 1, "a", None, b"first").unwrap().value_as_double(),
+        1.0
+    );
+    assert_eq!(
+        harness.put(client, 1, "b", None, b"second").unwrap().value_as_double(),
+        2.0
+    );
+}
+
+#[test]
+fn a_database_whose_rows_cant_be_read_can_only_be_deleted() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    let mut encoder = libipc_rust::wire::Encoder::new();
+    encoder.encode(&name("db")).unwrap();
+    let database_name = encoder.finish().0;
+    // A shape in a format that this version doesn't know, as a later version may write.
+    rows.borrow_mut()
+        .databases
+        .insert((STORAGE_KEY.to_owned(), database_name.clone()), vec![0xff; 8]);
+
+    let mut harness = persistent_harness(&rows);
+    let client = harness.client();
+    let request = harness.request();
+    harness.backend.handle(
+        client,
+        Request::Open {
+            request,
+            name: name("db"),
+            version: Some(1),
+        },
+    );
+    assert!(
+        harness
+            .events()
+            .iter()
+            .any(|(_, event)| matches!(event, Event::OpenFailed { .. }))
+    );
+    let request = harness.request();
+    harness.backend.handle(
+        client,
+        Request::DeleteDatabase {
+            request,
+            name: name("db"),
+        },
+    );
+    // Deleting it needs none of its rows read, so that works, and then a new database can take the name.
+    assert!(
+        harness
+            .events()
+            .iter()
+            .any(|(_, event)| matches!(event, Event::DeleteSucceeded { old_version: 0, .. }))
+    );
+    assert!(
+        !rows
+            .borrow()
+            .databases
+            .contains_key(&(STORAGE_KEY.to_owned(), database_name))
+    );
+    let (_, upgrade) = harness.open(client, "db", Some(1));
+    assert!(upgrade.is_some());
+}
+
+#[test]
+fn an_index_cursor_past_its_last_record_fails_the_next_request() {
+    let mut harness = Harness::new();
+    let client = harness.client();
+    let (connection, upgrade) = harness.open(client, "db", Some(1));
+    let upgrade = upgrade.unwrap();
+    harness.create_store(client, upgrade, "store", false);
+    harness
+        .operation(
+            client,
+            upgrade,
+            Operation::CreateIndex {
+                store: name("store"),
+                name: name("email"),
+                key_path: KeyPath::String(name("email")),
+                unique: false,
+                multi_entry: false,
+            },
+        )
+        .unwrap();
+    harness
+        .operation(client, upgrade, put_with_email("store", 1.0, "a@x.co"))
+        .unwrap();
+    harness.commit(client, upgrade);
+
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadOnly);
+    let source = Source::Index {
+        store: name("store"),
+        index: name("email"),
+    };
+    let opened = harness.operation(
+        client,
+        1,
+        Operation::OpenCursor {
+            cursor: 1,
+            source,
+            range: KeyRange::unbounded(),
+            direction: Direction::Next,
+            key_only: false,
+        },
+    );
+    assert!(matches!(opened, Ok(OperationResult::Cursor(Some(_)))));
+    let iterate = Operation::IterateCursor {
+        cursor: 1,
+        key: None,
+        primary_key: None,
+        count: 1,
+    };
+    assert!(matches!(
+        harness.operation(client, 1, iterate.clone()),
+        Ok(OperationResult::Cursor(None))
+    ));
+    // The agent iterates an exhausted cursor no more; one that does gets an error.
+    assert!(harness.operation(client, 1, iterate).is_err());
+}
+
+#[test]
+fn a_record_overwritten_and_deleted_under_an_equal_key_leaves_no_row() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    let mut harness = persistent_harness(&rows);
+    let client = harness.client();
+    let (connection, upgrade) = harness.open(client, "db", Some(1));
+    let upgrade = upgrade.unwrap();
+    harness.create_store(client, upgrade, "store", false);
+    harness
+        .put(client, upgrade, "store", Some(number(-0.0)), b"negative zero")
+        .unwrap();
+    harness.commit(client, upgrade);
+
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+    harness.put(client, 1, "store", Some(number(0.0)), b"zero").unwrap();
+    harness
+        .operation(
+            client,
+            1,
+            Operation::Delete {
+                store: name("store"),
+                range: KeyRange::only(number(0.0)),
+            },
+        )
+        .unwrap();
+    harness.commit(client, 1);
+    assert!(rows.borrow().records.is_empty());
+}
+
+#[test]
+fn a_database_with_a_record_that_cant_be_read_is_left_alone() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    {
+        let mut harness = persistent_harness(&rows);
+        let client = harness.client();
+        harness.database_with_records(client, &[(1.0, b"a")]);
+    }
+    // The record's index keys are bytes that don't decode.
+    for (_, index_keys) in rows.borrow_mut().records.values_mut() {
+        *index_keys = vec![0xff; 3];
+    }
+
+    let mut harness = persistent_harness(&rows);
+    let client = harness.client();
+    let request = harness.request();
+    harness.backend.handle(
+        client,
+        Request::Open {
+            request,
+            name: name("db"),
+            version: None,
+        },
+    );
+    assert!(
+        harness
+            .events()
+            .iter()
+            .any(|(_, event)| matches!(event, Event::OpenFailed { .. }))
+    );
+    assert_eq!(rows.borrow().records.len(), 1);
+}
+
+#[test]
+fn a_storage_key_whose_rows_couldnt_be_read_is_read_again_by_the_next_client() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    {
+        let mut harness = persistent_harness(&rows);
+        let client = harness.client();
+        harness.database_with_records(client, &[(1.0, b"kept")]);
+    }
+
+    let readable = Rc::new(core::cell::Cell::new(false));
+    let mut harness = Harness::with_backend(Backend::with_persistence(Box::new(FlakyPersistence(
+        Rc::clone(&readable),
+        FakePersistence(Rc::clone(&rows)),
+    ))));
+    let client = harness.client();
+    let request = harness.request();
+    harness.backend.handle(client, Request::Databases { request });
+    assert!(
+        harness
+            .events()
+            .iter()
+            .any(|(_, event)| matches!(event, Event::DatabasesFailed { .. }))
+    );
+
+    // The next client reads the rows, so the database opens without an upgrade, and has its record.
+    readable.set(true);
+    let client = harness.client();
+    let (connection, upgrade) = harness.open(client, "db", Some(1));
+    assert!(upgrade.is_none());
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadOnly);
+    assert_eq!(harness.get(client, 1, "store", number(1.0)), Some(b"kept".to_vec()));
+}
+
+#[test]
+fn a_transaction_number_in_use_is_refused() {
+    let mut harness = Harness::new();
+    let client = harness.client();
+    let first = harness.database_with_records(client, &[(1.0, b"a")]);
+    let (second, upgrade) = harness.open(client, "other", Some(1));
+    let upgrade = upgrade.unwrap();
+    harness.create_store(client, upgrade, "store", false);
+    harness.commit(client, upgrade);
+
+    // A second transaction under the same number, on another database, and one under an upgrade transaction's
+    // number, are refused, so the first transaction and its database stay as they were.
+    harness.transaction(client, first, 7, &["store"], Mode::ReadOnly);
+    harness.transaction(client, second, 7, &["store"], Mode::ReadOnly);
+    harness.transaction(
+        client,
+        second,
+        UPGRADE_TRANSACTION_ID_BASE + 1,
+        &["store"],
+        Mode::ReadOnly,
+    );
+    let request = harness.request();
+    harness.backend.handle(
+        client,
+        Request::Operation {
+            transaction: UPGRADE_TRANSACTION_ID_BASE + 1,
+            request,
+            operation: Operation::Count {
+                source: Source::ObjectStore(name("store")),
+                range: KeyRange::unbounded(),
+            },
+        },
+    );
+    assert!(
+        harness.events().is_empty(),
+        "no transaction exists under the upgrade transaction's number"
+    );
+    assert_eq!(harness.get(client, 7, "store", number(1.0)), Some(value(b"a")));
+    harness.commit(client, 7);
+    harness.transaction(client, first, 8, &["store"], Mode::ReadOnly);
+    assert_eq!(harness.get(client, 8, "store", number(1.0)), Some(value(b"a")));
+}
+
+#[test]
+fn the_persisted_rows_keep_their_format() {
+    // NB: The profile keeps these bytes from one version of Ladybird to the next, so a change to them, or to the wire
+    //     encoding under them, must come with a new FORMAT and a way to read the old one.
+    let key = Key::create_array(vec![
+        Key::create_number(1.5),
+        Key::create_string(ak::Utf16String::from_utf8("ab")),
+        Key::create_binary(vec![1, 2]),
+    ]);
+    let mut encoder = libipc_rust::wire::Encoder::new();
+    encoder.encode(key.as_ref()).unwrap();
+    assert_eq!(
+        encoder.finish().0,
+        vec![
+            4, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 248, 63, 2, 1, 2, 0, 0, 0, 97, 98, 3, 2, 0, 0, 0, 1, 2
+        ]
+    );
+}
+
 #[test]
 fn a_put_past_the_storage_key_quota_fails() {
     let mut backend = Backend::new();
@@ -1281,6 +1958,55 @@ fn a_put_past_the_storage_key_quota_fails() {
         .err()
         .expect("the put fails");
     assert_eq!(error.kind, ErrorKind::QuotaExceeded);
+}
+
+#[test]
+fn an_aborted_put_gives_back_its_quota() {
+    let mut backend = Backend::new();
+    backend.set_limits(Limits {
+        storage_key: 100,
+        session: u64::MAX,
+    });
+    let mut harness = Harness::with_backend(backend);
+    let client = harness.client();
+    let connection = harness.database_with_records(client, &[(1.0, &[0; 40])]);
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+    harness.put(client, 1, "store", Some(number(2.0)), &[0; 40]).unwrap();
+    harness.backend.handle(client, Request::Abort { transaction: 1 });
+
+    // The second record fits again only if the abort gave back what the aborted one took.
+    harness.transaction(client, connection, 2, &["store"], Mode::ReadWrite);
+    assert!(harness.put(client, 2, "store", Some(number(3.0)), &[0; 40]).is_ok());
+}
+
+#[test]
+fn the_old_values_a_transaction_keeps_count_against_the_session_limit() {
+    let mut backend = Backend::new();
+    backend.set_limits(Limits {
+        storage_key: u64::MAX,
+        session: 110,
+    });
+    let mut harness = Harness::with_backend(backend);
+    let client = harness.client();
+    let connection = harness.database_with_records(client, &[(1.0, &[0; 40])]);
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+
+    // Replacing the record keeps its old value for an abort, so the session holds 96 bytes; replacing it again keeps
+    // nothing more, since the first old value is what an abort puts back. So a 12-byte record still fits, but only
+    // once.
+    harness.put(client, 1, "store", Some(number(1.0)), &[1; 40]).unwrap();
+    harness.put(client, 1, "store", Some(number(1.0)), &[2; 40]).unwrap();
+    assert!(harness.put(client, 1, "store", Some(number(2.0)), &[0; 4]).is_ok());
+    let error = harness
+        .put(client, 1, "store", Some(number(3.0)), &[0; 4])
+        .err()
+        .expect("the put fails");
+    assert_eq!(error.kind, ErrorKind::QuotaExceeded);
+
+    // An abort puts back the value from before the transaction.
+    harness.backend.handle(client, Request::Abort { transaction: 1 });
+    harness.transaction(client, connection, 2, &["store"], Mode::ReadOnly);
+    assert_eq!(harness.get(client, 2, "store", number(1.0)), Some(vec![0; 40]));
 }
 
 #[test]
@@ -1360,4 +2086,234 @@ fn a_new_index_past_the_quota_fails() {
         .err()
         .expect("the population fails");
     assert_eq!(error.kind, ErrorKind::QuotaExceeded);
+}
+
+fn limited_harness(storage_key: u64, session: u64) -> Harness {
+    let mut backend = Backend::new();
+    backend.set_limits(Limits { storage_key, session });
+    Harness::with_backend(backend)
+}
+
+#[test]
+fn an_array_of_empty_arrays_takes_room_in_the_quota() {
+    let mut harness = limited_harness(100, u64::MAX);
+    let client = harness.client();
+    let connection = harness.database_with_records(client, &[]);
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+    // 20 empty arrays take 160 bytes, though they hold no number, string, or bytes.
+    let key = Key::create_array((0..20).map(|_| Key::create_array(Vec::new())).collect())
+        .as_ref()
+        .clone();
+    let error = harness
+        .put(client, 1, "store", Some(key), b"")
+        .err()
+        .expect("the put fails");
+    assert_eq!(error.kind, ErrorKind::QuotaExceeded);
+}
+
+#[test]
+fn what_another_transaction_could_restore_counts_against_the_quota() {
+    // Each record takes 48 bytes: an 8-byte number key and a 40-byte value.
+    let mut harness = limited_harness(90, u64::MAX);
+    let client = harness.client();
+    let (connection, upgrade) = harness.open(client, "db", Some(1));
+    let upgrade = upgrade.unwrap();
+    harness.create_store(client, upgrade, "a", false);
+    harness.create_store(client, upgrade, "b", false);
+    harness.put(client, upgrade, "a", Some(number(1.0)), &[0; 40]).unwrap();
+    harness.commit(client, upgrade);
+
+    // The first transaction clears "a", but could still abort and bring its record back, so the second can't use
+    // that room in "b".
+    harness.transaction(client, connection, 1, &["a"], Mode::ReadWrite);
+    harness
+        .operation(client, 1, Operation::Clear { store: name("a") })
+        .unwrap();
+    harness.transaction(client, connection, 2, &["b"], Mode::ReadWrite);
+    let error = harness
+        .put(client, 2, "b", Some(number(1.0)), &[0; 40])
+        .err()
+        .expect("the put fails");
+    assert_eq!(error.kind, ErrorKind::QuotaExceeded);
+}
+
+#[test]
+fn what_an_upgrade_snapshot_keeps_counts_against_the_session_limit() {
+    let mut harness = limited_harness(u64::MAX, 90);
+    let client = harness.client();
+    let connection = harness.database_with_records(client, &[(1.0, &[0; 40])]);
+    harness.backend.handle(client, Request::Close { connection });
+
+    // The upgrade deletes the store, whose record its snapshot keeps until the upgrade ends.
+    let (_, upgrade) = harness.open(client, "db", Some(2));
+    let upgrade = upgrade.unwrap();
+    harness
+        .operation(client, upgrade, Operation::DeleteObjectStore { name: name("store") })
+        .unwrap();
+    harness.create_store(client, upgrade, "other", false);
+    let error = harness
+        .put(client, upgrade, "other", Some(number(1.0)), &[0; 40])
+        .err()
+        .expect("the put fails");
+    assert_eq!(error.kind, ErrorKind::QuotaExceeded);
+}
+
+#[test]
+fn clearing_a_storage_key_closes_its_connections_and_deletes_its_databases() {
+    let rows = Rc::new(core::cell::RefCell::new(Rows::default()));
+    let mut harness = persistent_harness(&rows);
+    let client = harness.client();
+    let connection = harness.database_with_records(client, &[(1.0, b"one")]);
+    let other = harness.client_of("https://other.example");
+    harness.database_with_records(other, &[(1.0, b"other")]);
+    assert_eq!(
+        {
+            let mut keys = harness.backend.storage_keys_written_since(0);
+            keys.sort();
+            keys
+        },
+        vec!["https://other.example".to_owned(), STORAGE_KEY.to_owned()]
+    );
+
+    // A transaction under way aborts, and the connection gets a forced close.
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+    harness.put(client, 1, "store", Some(number(2.0)), b"two").unwrap();
+    harness.events();
+    harness.backend.clear_storage_key(STORAGE_KEY);
+    let events = harness.events();
+    assert!(
+        events
+            .iter()
+            .any(|(_, event)| matches!(event, Event::ForcedClose { connection: closed } if *closed == connection))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|(_, event)| matches!(event, Event::TransactionAborted { transaction: 1 }))
+    );
+
+    // The database is gone, from memory and from the profile, so opening it creates it again.
+    assert!(rows.borrow().databases.keys().all(|(key, _)| key != STORAGE_KEY));
+    assert!(rows.borrow().records.keys().all(|(key, ..)| key != STORAGE_KEY));
+    let (_, upgrade) = harness.open(client, "db", Some(1));
+    assert!(upgrade.is_some());
+
+    // Another storage key keeps its databases.
+    assert!(
+        rows.borrow()
+            .records
+            .keys()
+            .any(|(key, ..)| key == "https://other.example")
+    );
+    assert_eq!(
+        harness.backend.storage_keys_written_since(0),
+        vec!["https://other.example".to_owned()]
+    );
+}
+
+#[test]
+fn clearing_a_storage_key_fails_an_open_that_waits_for_another_connection() {
+    let mut harness = Harness::new();
+    let first = harness.client();
+    harness.database_with_records(first, &[(1.0, b"one")]);
+
+    // A second client's open at version 2 waits for the first client's connection, which never closes.
+    let second = harness.client();
+    let request = harness.request();
+    harness.backend.handle(
+        second,
+        Request::Open {
+            request,
+            name: name("db"),
+            version: Some(2),
+        },
+    );
+    for (target, event) in harness.events() {
+        if let Event::VersionChange { connection, .. } = event {
+            harness
+                .backend
+                .handle(target, Request::VersionChangeHandled { connection });
+        }
+    }
+
+    harness.backend.clear_storage_key(STORAGE_KEY);
+    let events = harness.events();
+    assert!(events.iter().any(|(target, event)| *target == second
+        && matches!(event, Event::OpenFailed { request: failed, .. } if *failed == request)));
+
+    // The database is gone, so the next open creates it.
+    let (_, upgrade) = harness.open(second, "db", Some(1));
+    assert!(upgrade.is_some());
+}
+
+#[test]
+fn a_transaction_that_only_reads_doesnt_mark_its_storage_key_as_written() {
+    let mut harness = Harness::new();
+    let client = harness.client();
+    let connection = harness.database_with_records(client, &[(1.0, b"one")]);
+    assert!(harness.backend.written.contains_key(STORAGE_KEY));
+    // NB: A time that no commit could stamp, so any stamp shows, even one in the setup's millisecond.
+    harness.backend.written.insert(STORAGE_KEY.to_owned(), 1);
+    harness.transaction(client, connection, 1, &["store"], Mode::ReadWrite);
+    harness.get(client, 1, "store", number(1.0));
+    harness.commit(client, 1);
+    assert_eq!(harness.backend.written.get(STORAGE_KEY).copied(), Some(1));
+}
+
+#[test]
+fn clearing_a_storage_key_starts_no_upgrade_against_a_database_it_deletes() {
+    let mut harness = Harness::new();
+    let first = harness.client();
+    let connection = harness.database_with_records(first, &[(1.0, b"one")]);
+
+    // The first connection's close waits for its transaction, and a second client's open at version 2 waits for it.
+    harness.transaction(first, connection, 1, &["store"], Mode::ReadWrite);
+    harness.put(first, 1, "store", Some(number(2.0)), b"two").unwrap();
+    harness.backend.handle(first, Request::Close { connection });
+    let second = harness.client();
+    let request = harness.request();
+    harness.backend.handle(
+        second,
+        Request::Open {
+            request,
+            name: name("db"),
+            version: Some(2),
+        },
+    );
+    harness.events();
+
+    // Aborting the transaction lets the first connection close, but the open doesn't go on against the database
+    // that the clear deletes: It fails.
+    harness.backend.clear_storage_key(STORAGE_KEY);
+    let events = harness.events();
+    assert!(
+        !events
+            .iter()
+            .any(|(_, event)| matches!(event, Event::UpgradeNeeded { .. }))
+    );
+    assert!(events.iter().any(|(target, event)| *target == second
+        && matches!(event, Event::OpenFailed { request: failed, .. } if *failed == request)));
+}
+
+#[test]
+fn deleting_a_store_that_the_upgrade_created_keeps_nothing_for_the_session_limit() {
+    let mut harness = limited_harness(u64::MAX, 90);
+    let client = harness.client();
+    let (_, upgrade) = harness.open(client, "db", Some(1));
+    let upgrade = upgrade.unwrap();
+    harness.create_store(client, upgrade, "scratch", false);
+    harness
+        .put(client, upgrade, "scratch", Some(number(1.0)), &[0; 40])
+        .unwrap();
+    harness
+        .operation(client, upgrade, Operation::DeleteObjectStore { name: name("scratch") })
+        .unwrap();
+
+    // The snapshot from before the upgrade never held the scratch store's record, so another fits.
+    harness.create_store(client, upgrade, "kept", false);
+    assert!(
+        harness
+            .put(client, upgrade, "kept", Some(number(1.0)), &[0; 40])
+            .is_ok()
+    );
 }
