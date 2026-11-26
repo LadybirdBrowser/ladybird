@@ -1,0 +1,23 @@
+Ladybird focuses the first invalid field and shows its message below
+the validation anchor. Blink’s ListedElement::ShowValidationMessage
+scrolls the anchor into view, focuses it or its host, and calls
+UpdateVisibleValidationMessage to pass the message to the client.
+
+WebKit’s ValidatedFormListedElement::updateVisibleValidationMessage
+passes the anchor and its message to ValidationMessage. In Firefox,
+HTMLFormElement::CheckValidFormSubmission collects invalid controls.
+FormValidationChild focuses the field and passes its message and
+position to FormValidationParent to open the popup.
+
+On a form with an empty required email field, Chrome 158.0.8127.38,
+Firefox 151.0, and WebKit 26.5 all fired the invalid event, focused
+the field, and supplied a message asking the user to fill it in.
+
+When a custom control has a hidden validation anchor, Ladybird
+reports the next invalid field whose anchor can be shown. Firefox
+151.0 and WebKit 26.5 also focused that next field. Chrome
+158.0.8127.38 focused the custom-element host.
+
+Ladybird suppresses the prompt if focusing hides the anchor. Chrome
+158, Firefox 151, and WebKit 26.5 also focus only the first control
+when its focus handler hides it and a second invalid field is visible.
