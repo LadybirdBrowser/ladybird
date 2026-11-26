@@ -9,7 +9,8 @@ use core::ptr::NonNull;
 
 use super::capi::{
     GCMarker, GCVisitor, gc_marker_pin_cell, gc_marker_visit_cell, gc_marker_visit_ephemeron_without_pinning,
-    gc_marker_visit_interior_pointer, gc_marker_visit_member, gc_marker_visit_owned_values,
+    gc_marker_visit_interior_pointer, gc_marker_visit_member, gc_marker_visit_owned_cell_pointer,
+    gc_marker_visit_owned_member, gc_marker_visit_owned_values,
     gc_marker_visit_self_pointer, gc_marker_visit_values, gc_visitor_visit_cell, gc_visitor_visit_ephemeron,
     gc_visitor_visit_values,
 };
@@ -145,6 +146,72 @@ impl Visitor {
         }
         // SAFETY: The visitor is live, and Value is a NaN-boxed u64.
         unsafe { gc_visitor_visit_values(self.0.as_ptr(), values.as_ptr().cast(), values.len()) };
+    }
+
+    /// Visits the cell a member names, in memory that the cell being visited owns outside the heap, such as a box,
+    /// which a collection that moves the cell rewrites where it is rather than keeping the cell where it is.
+    ///
+    /// # Safety
+    ///
+    /// As for visit_owned_values().
+    pub unsafe fn visit_owned_member<T>(&mut self, slot: &Member<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, the slot holds a compressed pointer to a live cell, and the caller
+            //         vouches for the memory.
+            unsafe { gc_marker_visit_owned_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
+        self.visit(slot.get());
+    }
+
+    /// Like visit_owned_member(), for a member that may be null.
+    ///
+    /// # Safety
+    ///
+    /// As for visit_owned_values().
+    pub unsafe fn visit_owned_nullable_member<T>(&mut self, slot: &NullableMember<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, the slot holds 0 or a compressed pointer to a live cell, and the
+            //         caller vouches for the memory.
+            unsafe { gc_marker_visit_owned_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
+        if let Some(cell) = slot.get() {
+            self.visit(cell);
+        }
+    }
+
+    /// Visits the cell that `slot` points to, in memory that the cell being visited owns outside the heap, which a
+    /// collection that moves the cell rewrites where it is rather than keeping the cell where it is.
+    ///
+    /// # Safety
+    ///
+    /// As for visit_owned_values().
+    pub unsafe fn visit_owned<T>(&mut self, slot: &Gc<T>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: The marker is the visitor's, a Gc is a pointer to a live cell, and the caller vouches for the
+            //         memory.
+            unsafe { gc_marker_visit_owned_cell_pointer(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
+        self.visit(*slot);
+    }
+
+    /// Like visit_owned(), for a slot that may be empty.
+    ///
+    /// # Safety
+    ///
+    /// As for visit_owned_values().
+    pub unsafe fn visit_owned_option<T>(&mut self, slot: &Option<Gc<T>>) {
+        if let Some(marker) = self.marker() {
+            // SAFETY: A Gc is a NonNull, so an Option of one is a pointer to a live cell or null. The marker is the
+            //         visitor's, and the caller vouches for the memory.
+            unsafe { gc_marker_visit_owned_cell_pointer(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
+        if let Some(cell) = *slot {
+            self.visit(cell);
+        }
     }
 
     /// Visits a value that is reachable only while `key` is. A collection that moves cells keeps both where they are.

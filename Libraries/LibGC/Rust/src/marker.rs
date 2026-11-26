@@ -325,11 +325,27 @@ impl Marker {
     /// Marks the cell a compressed pointer at `slot` points to, if it is not null.
     #[inline(always)]
     fn visit_member(&self, slot: *const u32) {
+        self.visit_member_of::<false>(slot);
+    }
+
+    #[inline(always)]
+    fn visit_member_of<const SLOT_IS_OWNED: bool>(&self, slot: *const u32) {
         // SAFETY: The caller passes a live slot.
         let compressed = unsafe { slot.read() };
         if compressed != 0 {
             let address = self.job().decompress(compressed);
-            self.mark_through_slot(RecordedSlot::new(slot.cast(), SlotKind::Member), address);
+            self.mark_through_slot_of::<SLOT_IS_OWNED>(RecordedSlot::new(slot.cast(), SlotKind::Member), address);
+        }
+    }
+
+    /// Marks the cell that the pointer at `slot` points to, if it is not null, as a slot in memory that the cell being
+    /// visited owns, which the collector can update.
+    fn visit_owned_cell_pointer(&self, slot: *const usize) {
+        // SAFETY: The caller passes a live slot.
+        let address = unsafe { slot.read() };
+        if address != 0 {
+            // NB: A pointer to the start of a cell is an interior pointer at offset 0.
+            self.mark_through_slot_of::<true>(RecordedSlot::new(slot.cast(), SlotKind::InteriorPointer), address);
         }
     }
 
@@ -612,6 +628,31 @@ pub unsafe extern "C" fn rust_gc_marker_visit_owned_values(marker: *mut Marker, 
 pub unsafe extern "C" fn rust_gc_marker_visit_member(marker: *mut Marker, slot: *const u32) {
     // SAFETY: The caller passes a live marker and slot.
     unsafe { &*marker }.visit_member(slot);
+}
+
+/// Marks the cell that the compressed pointer at `slot` points to, if it is not null, as a slot in memory that the cell
+/// being visited owns outside the heap region, which the collector can update.
+///
+/// # Safety
+///
+/// As for rust_gc_marker_visit_member(), and the slot must be in memory that the cell being visited owns, which nothing
+/// frees, moves or writes until the collection is over: no finalizer, destructor or sweep callback touches it.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_marker_visit_owned_member(marker: *mut Marker, slot: *const u32) {
+    // SAFETY: The caller passes a live marker and slot.
+    unsafe { &*marker }.visit_member_of::<true>(slot);
+}
+
+/// Marks the cell that the pointer at `slot` points to, if it is not null, as a slot in memory that the cell being
+/// visited owns outside the heap region, which the collector can update.
+///
+/// # Safety
+///
+/// As for rust_gc_marker_visit_owned_member(), and `slot` must hold a pointer to the start of a cell, or null.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_gc_marker_visit_owned_cell_pointer(marker: *mut Marker, slot: *const usize) {
+    // SAFETY: The caller passes a live marker and slot.
+    unsafe { &*marker }.visit_owned_cell_pointer(slot);
 }
 
 /// Marks `cell`, which the pointer at `slot` points into, as a slot the collector can update.
