@@ -34,6 +34,8 @@ struct VulkanImage : public RefCounted<VulkanImage> {
         uint64_t modifier { DRM_FORMAT_MOD_INVALID };
     } info;
     VulkanContext const& context;
+    // The dma-buf that the memory was imported from, which is shared in its place.
+    int imported_dma_buf_fd { -1 };
 
     int get_dma_buf_fd() const;
     void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout);
@@ -62,6 +64,9 @@ Vector<uint64_t> renderable_drm_format_modifiers(VulkanContext const& context, V
 bool can_import_dmabuf_image(VkPhysicalDevice, VkFormat, uint64_t modifier, VkImageUsageFlags);
 
 ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, ReadonlySpan<uint64_t> modifiers);
+// Like create_shared_vulkan_image(), but the memory is allocated so that a display can scan it out. Vulkan cannot ask for
+// that, and NVIDIA's displays can show garbage in place of memory that was not allocated for them.
+ErrorOr<NonnullRefPtr<VulkanImage>> create_scanout_capable_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, ReadonlySpan<uint64_t> modifiers);
 
 struct ImportedDmaBufImage {
     VkImage image { VK_NULL_HANDLE };
