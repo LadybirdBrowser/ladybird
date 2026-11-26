@@ -12,7 +12,7 @@ use crate::asm::aarch64::{
     Cond, FloatBinary, FloatSize, FloatUnary, Shift, VectorArrangement, encode_logical_immediate,
 };
 use crate::convention::Register;
-use crate::ir::{FLAG_CANNOT_TRAP, FloatCondition, IntCondition, Op, Type, Value};
+use crate::ir::{FLAG_CANNOT_TRAP, FloatCondition, IntCondition, Op, SELECT_TEST, Type, Value};
 use crate::regalloc::CONSTANT_INPUT;
 use libwasm_module::abi::{TRAP_INTEGER_DIVIDE_BY_ZERO, TRAP_INTEGER_OVERFLOW, TRAP_INVALID_CONVERSION};
 
@@ -37,7 +37,7 @@ impl CodeGenerator<'_> {
         let func = self.func;
         let node = *func.node(value);
         let record = *self.allocation.node(value);
-        let [a, b, c] = record.inputs;
+        let [a, b, c, _] = record.inputs;
         let output = record.output;
         let ty = node.ty;
         match node.op {
@@ -112,6 +112,29 @@ impl CodeGenerator<'_> {
             Op::Extend16S => self.asm.sxth(width(ty), gpr(output), gpr(a)),
             Op::Extend32S | Op::ExtendI32S => self.asm.sxtw(gpr(output), gpr(a)),
             Op::ExtendI32U | Op::Wrap => self.asm.mov(Width::W32, gpr(output), gpr(a)),
+            Op::SelectCompare => {
+                let [if_false, lhs, rhs, if_true] = record.inputs;
+                let input_type = func.node(func.inputs(value)[1]).ty;
+                let w = width(input_type);
+                if node.flags & SELECT_TEST != 0 {
+                    let bits = if rhs == CONSTANT_INPUT {
+                        self.immediate(value, 2) & mask(w)
+                    } else {
+                        0
+                    };
+                    if rhs == CONSTANT_INPUT && encode_logical_immediate(bits, w).is_some() {
+                        self.asm.tst_imm(w, gpr(lhs), bits);
+                    } else {
+                        let rhs = self.input_or_scratch(value, 2, rhs, input_type);
+                        self.asm.tst(w, gpr(lhs), rhs);
+                    }
+                } else {
+                    self.compare(value, input_type, lhs, rhs, 2);
+                }
+                let holds = condition(IntCondition::from_flags(node.flags & !SELECT_TEST));
+                self.asm
+                    .csel(Width::W64, gpr(output), gpr(if_true), gpr(if_false), holds);
+            }
             Op::Select => {
                 if ty == Type::V128 {
                     let skip = self.asm.new_label();

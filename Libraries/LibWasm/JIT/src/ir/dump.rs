@@ -6,7 +6,7 @@
 
 //! The text form of the IR, for `dump-ir` and the IR tests.
 
-use super::{FloatCondition, Func, IntCondition, LoadKind, Op, Shape, Type, Value};
+use super::{FloatCondition, Func, IntCondition, LoadKind, Op, SELECT_TEST, Shape, Type, Value};
 use std::fmt::Write;
 
 /// The value as text: a constant's value, or `vN`.
@@ -33,6 +33,15 @@ pub fn node_text(func: &Func, value: Value) -> String {
     }
     match node.op {
         Op::Compare | Op::BranchCompare => write!(text, " {}", IntCondition::from_flags(node.flags).name()).unwrap(),
+        Op::SelectCompare => {
+            let test = if node.flags & SELECT_TEST != 0 { "test " } else { "" };
+            write!(
+                text,
+                " {test}{}",
+                IntCondition::from_flags(node.flags & !SELECT_TEST).name()
+            )
+            .unwrap();
+        }
         Op::FloatCompare | Op::BranchFloatCompare => {
             write!(text, " {}", FloatCondition::from_flags(node.flags).name()).unwrap();
         }

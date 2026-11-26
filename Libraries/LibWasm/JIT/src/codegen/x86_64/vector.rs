@@ -553,7 +553,7 @@ impl CodeGenerator<'_> {
         let func = self.func;
         let node = *func.node(value);
         let record = *self.allocation.node(value);
-        let [a, b, c] = record.inputs;
+        let [a, b, c, _] = record.inputs;
         let output = record.output;
         let temp = record.temps[0];
         match node.op {

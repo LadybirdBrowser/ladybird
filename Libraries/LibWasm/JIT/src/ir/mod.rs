@@ -102,6 +102,9 @@ pub enum Effect {
     Terminator,
 }
 
+/// In `Node::flags` of `SelectCompare`: the condition compares lhs & rhs with zero, `Eq` or `Ne`.
+pub const SELECT_TEST: u8 = 0x80;
+
 /// An integer comparison, in `Node::flags` of `Compare` and `BranchCompare`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -654,6 +657,9 @@ ops! {
 
     /// args: condition, value if nonzero, value if zero.
     Select: Fixed(3), Pure, "select";
+    /// operands: value if the condition fails, lhs, rhs, value if it holds; flags: `IntCondition` of lhs and rhs, or
+    /// with SELECT_TEST, `Eq` or `Ne` of lhs & rhs and zero. A select on a comparison that only it uses.
+    SelectCompare: Variadic, Pure, "select_compare";
 
     // Vectors. The SIMD sub-opcode says which operation; the node's type is its result's.
     /// args: operand, sub-opcode. Splats, unary lane operations and the reductions to an i32.

@@ -81,6 +81,7 @@ truncations, unless their flags say they cannot), and are neither removed nor mo
 | FAdd ... FNearest, FloatCompare | Float arithmetic and comparison (`FloatCondition`). |
 | TruncS, TruncU, TruncSatS, TruncSatU, ConvertS, ConvertU, Demote, Promote, Reinterpret | Conversions to the node's type from the input's. The plain truncations trap on NaN and out of range values. |
 | Select | Input 1 where input 0 is nonzero, else input 2. |
+| SelectCompare | A select of integers on a comparison of its operands 1 and 2 (or on whether their `and` is zero): operand 3 where it holds, else operand 0. |
 | InstanceField, LoadPointer | Pointers in instance data that never change, like `globals` and `globals[i]`, and type identities. |
 | Offset | A pointer plus a constant, like the address of a segment. |
 | ReadField, WriteField | Fields of runtime data that change, like the size of a memory or table, or a segment's length. |
@@ -154,8 +155,12 @@ a large one do not pay for its capacity.
 
 `passes/cleanup.rs` forwards trivial phis to a fixed point, rewrites every use of a forwarded phi,
 counts uses, removes pure nodes without uses (transitively), and unlinks dead phis. Then a branch on
-a comparison (or `eqz`) in its own block that nothing else uses compares itself
-(`BranchCompare`, `BranchFloatCompare`).
+a comparison (or `eqz`) in its own block that nothing else uses compares itself (`BranchCompare`,
+`BranchFloatCompare`). A select of integers on a comparison, an `eqz` or an `and` that only selects
+in its block use compares or tests itself (`SelectCompare`), which x86-64 lowers to a compare or
+test and a conditional move into the register of the value where the condition fails, if that value
+dies there.
+These are the only pure variadic nodes but phis: they are made after value numbering.
 
 ## 6. Loop invariant code motion and scheduling
 

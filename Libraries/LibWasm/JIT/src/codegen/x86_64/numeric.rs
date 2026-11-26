@@ -10,7 +10,7 @@ use super::{CodeGenerator, SCRATCH, SCRATCH_FPR, condition, fpr, gpr, precision,
 use crate::asm::x86_64::{AluOp, BitCount, BitwiseOp, Cond, FloatOp, Precision, Rounding, ShiftOp, ShiftX};
 use crate::asm::{Address, Fpr, Gpr, Width};
 use crate::convention::Register;
-use crate::ir::{FLAG_CANNOT_TRAP, FloatCondition, IntCondition, Op, Type, Value};
+use crate::ir::{FLAG_CANNOT_TRAP, FloatCondition, IntCondition, Op, SELECT_TEST, Type, Value};
 use crate::regalloc::{CONSTANT_INPUT, SLOT_INPUT};
 use libwasm_module::abi::{TRAP_INTEGER_DIVIDE_BY_ZERO, TRAP_INTEGER_OVERFLOW, TRAP_INVALID_CONVERSION};
 
@@ -32,7 +32,7 @@ impl CodeGenerator<'_> {
         let func = self.func;
         let node = *func.node(value);
         let record = *self.allocation.node(value);
-        let [a, b, c] = record.inputs;
+        let [a, b, c, _] = record.inputs;
         let output = record.output;
         let ty = node.ty;
         match node.op {
@@ -157,6 +157,27 @@ impl CodeGenerator<'_> {
                     self.asm.test_rr(Width::W32, gpr(a), gpr(a));
                     self.asm.cmovcc(Cond::NotEqual, Width::W64, gpr(output), gpr(b));
                 }
+            }
+            Op::SelectCompare => {
+                let [if_false, lhs, rhs, if_true] = record.inputs;
+                let operands = func.inputs(value);
+                let input_type = func.node(operands[1]).ty;
+                let holds = condition(IntCondition::from_flags(node.flags & !SELECT_TEST));
+                if node.flags & SELECT_TEST != 0 {
+                    if rhs == CONSTANT_INPUT {
+                        let bits = func.node(operands[2]).constant().expect("a constant");
+                        self.asm.test_ri(width(input_type), gpr(lhs), bits as i32);
+                    } else {
+                        self.asm.test_rr(width(input_type), gpr(lhs), gpr(rhs));
+                    }
+                } else {
+                    self.compare(input_type, lhs, rhs, operands[2]);
+                }
+                // NB: The output is the register of the value if the condition fails, or one no input has.
+                if output != if_false {
+                    self.asm.mov_rr(Width::W64, gpr(output), gpr(if_false));
+                }
+                self.asm.cmovcc(holds, Width::W64, gpr(output), gpr(if_true));
             }
             Op::FAdd | Op::FSub | Op::FMul | Op::FDiv => {
                 let op = match node.op {

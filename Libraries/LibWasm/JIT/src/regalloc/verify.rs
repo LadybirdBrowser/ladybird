@@ -182,7 +182,7 @@ pub fn verify(func: &Func, allocation: &Allocation) -> Result<(), String> {
                 _ => {
                     let count = match node.op.shape() {
                         Shape::Fixed(count) => count as usize,
-                        Shape::Variadic => inputs.len().min(3),
+                        Shape::Variadic => inputs.len().min(4),
                     };
                     for (index, &input) in inputs.iter().enumerate().take(count) {
                         let register = record.inputs[index];
@@ -320,7 +320,10 @@ pub fn dump(func: &Func, allocation: &Allocation) -> String {
             if record.moves_count > 0 {
                 writeln!(out, "  moves {}", moves(allocation.node_moves(value))).unwrap();
             }
-            let inputs = record.inputs.iter().map(|input| register(*input)).collect::<Vec<_>>();
+            let inputs = record.inputs[..func.inputs(value).len().min(4)]
+                .iter()
+                .map(|input| register(*input))
+                .collect::<Vec<_>>();
             write!(out, "  v{value} {} ({})", node.op.name(), inputs.join(", ")).unwrap();
             if record.output != NO_REGISTER {
                 write!(out, " -> {}", register(record.output)).unwrap();

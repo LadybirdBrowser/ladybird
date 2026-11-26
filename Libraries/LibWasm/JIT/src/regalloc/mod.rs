@@ -93,9 +93,9 @@ struct MoveScratch {
 /// How the allocator placed one node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NodeAllocation {
-    /// The registers of the first three inputs, or CONSTANT_INPUT for immediates. Variadic nodes but stores get
+    /// The registers of the first four inputs, or CONSTANT_INPUT for immediates. Variadic nodes but stores get
     /// theirs moved into place instead.
-    pub inputs: [u8; 3],
+    pub inputs: [u8; 4],
     pub output: u8,
     pub temps: [u8; 2],
     /// The moves before the node: `Allocation::moves[start..start + count]`.
@@ -106,7 +106,7 @@ pub struct NodeAllocation {
 impl Default for NodeAllocation {
     fn default() -> Self {
         Self {
-            inputs: [NO_REGISTER; 3],
+            inputs: [NO_REGISTER; 4],
             output: NO_REGISTER,
             temps: [NO_REGISTER; 2],
             moves_start: 0,
@@ -180,7 +180,7 @@ enum Temp {
 }
 
 struct Constraints {
-    inputs: [Input; 3],
+    inputs: [Input; 4],
     output: Output,
     temps: [Temp; 2],
     /// The registers the node overwrites once it has read its inputs.
@@ -226,7 +226,7 @@ fn constraints_for_cpu(func: &Func, value: Value, cpu_features: crate::asm::x86_
         Output::Register
     };
     let mut constraints = Constraints {
-        inputs: [Input::Register; 3],
+        inputs: [Input::Register; 4],
         output,
         temps: [Temp::None; 2],
         clobbers: 0,
@@ -284,6 +284,15 @@ fn constraints_for_cpu(func: &Func, value: Value, cpu_features: crate::asm::x86_
             if !node.ty.uses_xmm() {
                 constraints.reuse_first = false;
             }
+        }
+        // NB: The output takes the register of the value if the condition fails where it can, so that the select
+        //     is a compare and a conditional move.
+        Op::SelectCompare => {
+            constraints.inputs[2] = Input::RegisterOrConstant;
+            if node.flags & crate::ir::SELECT_TEST == 0 {
+                constraints.slot_inputs = 0b0100;
+            }
+            constraints.reuse_first = true;
         }
         Op::TruncS | Op::TruncU | Op::TruncSatS | Op::TruncSatU => {
             constraints.temps[0] = Temp::Fpr;
@@ -1239,7 +1248,7 @@ impl Allocator {
         let node = *func.node(value);
         let inputs = func.inputs(value);
         let mut blocked = 0u32;
-        let mut registers = [NO_REGISTER; 3];
+        let mut registers = [NO_REGISTER; 4];
         // Fixed temps first, then fixed inputs, so that other inputs do not take their registers.
         for temp in constraints.temps {
             if let Temp::Fixed(register) = temp {
@@ -1247,14 +1256,14 @@ impl Allocator {
                 blocked |= 1 << register;
             }
         }
-        for (index, &input) in inputs.iter().enumerate().take(3) {
+        for (index, &input) in inputs.iter().enumerate().take(4) {
             if let Input::Fixed(register) = constraints.inputs[index] {
                 self.fix_input(func, allocation, input, register, blocked);
                 blocked |= 1 << register;
                 registers[index] = register;
             }
         }
-        for (index, &input) in inputs.iter().enumerate().take(3) {
+        for (index, &input) in inputs.iter().enumerate().take(4) {
             match constraints.inputs[index] {
                 Input::Fixed(_) => continue,
                 Input::RegisterOrConstant if func.node(input).op.is_constant() && fits_immediate(func, input) => {
