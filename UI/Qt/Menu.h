@@ -72,6 +72,7 @@ void enable_menu_icons(QMenu&);
 #endif
 
 void execute_context_menu(QMenu&, QPoint const& global_position);
+void delete_menu_later(QMenu&);
 QMenu& replace_context_menu(QPointer<QMenu>& shown_menu, QWidget& parent, Menu&);
 void execute_context_menu_later(QPointer<QMenu>& shown_menu, QWidget& parent, Menu&, QPoint const& global_position);
 
