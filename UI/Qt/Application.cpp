@@ -1365,6 +1365,9 @@ void Application::will_create_event_loop(Main::Arguments& arguments)
     qputenv("NO_AT_BRIDGE", "1");
 #endif
     m_application = make<LadybirdQApplication>(arguments);
+    // NB: Qt names the application after its executable by default, but accessibility tools and window managers know
+    //     it by this name.
+    QCoreApplication::setApplicationName(QStringLiteral("Ladybird"));
 #if defined(AK_OS_MACOS)
     // NB: Qt owns its converters, and deletes them along with the QApplication.
     new PNGMimeConverter;

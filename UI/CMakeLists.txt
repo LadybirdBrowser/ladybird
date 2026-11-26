@@ -44,8 +44,15 @@ if (APPLE AND LADYBIRD_ENABLE_SPARKLE)
 endif()
 
 function(create_ladybird_bundle target_name)
+    # NB: CMake names the macOS bundle after the executable, so there the executable keeps the bundle's capitalized
+    #     name.
+    if (APPLE)
+        set(executable_name "Ladybird")
+    else()
+        set(executable_name "ladybird")
+    endif()
     set_target_properties(${target_name} PROPERTIES
-        OUTPUT_NAME "Ladybird"
+        OUTPUT_NAME "${executable_name}"
         MACOSX_BUNDLE_GUI_IDENTIFIER ${LADYBIRD_BUNDLE_IDENTIFIER}
         MACOSX_BUNDLE_BUNDLE_VERSION ${LADYBIRD_BROWSER_VERSION}
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${LADYBIRD_BROWSER_VERSION}

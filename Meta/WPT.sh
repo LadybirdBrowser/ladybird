@@ -89,7 +89,7 @@ ensure_run_dir() {
     echo "$runpath/merged"
 }
 
-LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
+LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/ladybird-driver"}
 TEST_WEB_BINARY=${TEST_WEB_BINARY:-"${BUILD_DIR}/bin/test-web"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}

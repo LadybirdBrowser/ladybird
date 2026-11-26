@@ -98,6 +98,10 @@ static StringView executable_name_for_process(StringView process_name)
         { "Compositor"sv, "ladybird-gpu"sv },
         { "Hub"sv, "ladybird-hub"sv },
         { "ImageDecoder"sv, "ladybird-image"sv },
+#if !defined(AK_OS_MACOS)
+        // NB: On macOS, the executable keeps the capitalized name of the application bundle.
+        { "Ladybird"sv, "ladybird"sv },
+#endif
         { "MediaServer"sv, "ladybird-media"sv },
         { "ProcessReaper"sv, "ladybird-reaper"sv },
         { "RequestServer"sv, "ladybird-net"sv },
