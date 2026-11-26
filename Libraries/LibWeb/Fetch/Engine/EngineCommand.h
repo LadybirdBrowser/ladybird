@@ -9,11 +9,11 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Variant.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibWeb/Fetch/Engine/BodyPresentation.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/StartFetchInput.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
 namespace Web::Fetch::Engine::Command {
 
@@ -45,21 +45,10 @@ struct ResolveRedirect {
     Resolution resolution;
 };
 
-// Only ever complete: all bytes present, or a network error with no body.
-struct CompletedPreloadResponse {
-    struct Completed {
-        Delivered<Core::ImmutableBytes> body;
-    };
-    struct Failure {
-        NullBody body;
-    };
-
-    Variant<Completed, Failure> outcome;
-};
-
+// The response of the preload that the fetch's main fetch waits for.
 struct PreloadResponseResolved {
     FetchId fetch_id;
-    CompletedPreloadResponse response;
+    NonnullRefPtr<Infrastructure::Response> response;
 };
 
 // Main fetch's wait for a preload's response, which the agent can no longer resolve.

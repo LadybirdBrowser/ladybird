@@ -717,12 +717,24 @@ TEST_CASE(a_handover_after_main_fetch_has_ended_delivers_nothing)
     EXPECT_EQ(received->events, (Vector<StringView> { "end of fetch"sv }));
 }
 
+// A preload's response, whose body is all its bytes.
+static NonnullRefPtr<Web::Fetch::Infrastructure::Response> preloaded_response()
+{
+    auto response = Web::Fetch::Infrastructure::Response::create();
+    response->set_body(Web::Fetch::Infrastructure::ResponseBody::from_bytes(Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("preloaded"sv.bytes())))));
+    return response;
+}
+
+static void ignore_preload_response(NonnullRefPtr<Web::Fetch::Infrastructure::Response>)
+{
+}
+
 TEST_CASE(an_abandoned_preload_wait_ends_the_fetch_whose_main_fetch_waits)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto waiting_ends = make_ref_counted<FetchEnds>();
     auto waiting = start_fetch(records, 1, waiting_ends);
-    waiting->main_fetch_waits_for_preload();
+    waiting->wait_for_preload(ignore_preload_response);
     records.abandon_preload_wait(FetchId { 1 });
     EXPECT_EQ(waiting_ends->count, 1u);
 
@@ -733,8 +745,8 @@ TEST_CASE(an_abandoned_preload_wait_ends_the_fetch_whose_main_fetch_waits)
     // A wait the agent resolved ends as any other main fetch does.
     auto resolved_ends = make_ref_counted<FetchEnds>();
     auto resolved = start_fetch(records, 2, resolved_ends);
-    resolved->main_fetch_waits_for_preload();
-    resolved->main_fetch_stops_waiting_for_preload();
+    resolved->wait_for_preload(ignore_preload_response);
+    records.resolve_preload_wait(FetchId { 2 }, preloaded_response());
     EXPECT_EQ(resolved_ends->count, 0u);
     resolved->main_fetch_hands_over(delivery());
     EXPECT_EQ(resolved_ends->count, 1u);
@@ -749,8 +761,8 @@ TEST_CASE(an_abandoned_preload_wait_of_a_fetch_that_waits_for_none_is_misbehavio
     auto record = start_fetch(records, 1);
     records.abandon_preload_wait(FetchId { 1 });
 
-    record->main_fetch_waits_for_preload();
-    record->main_fetch_stops_waiting_for_preload();
+    record->wait_for_preload(ignore_preload_response);
+    records.resolve_preload_wait(FetchId { 1 }, preloaded_response());
     records.abandon_preload_wait(FetchId { 1 });
     records.abandon_preload_wait(FetchId { 2 });
 
@@ -762,11 +774,135 @@ TEST_CASE(an_abandoned_preload_wait_of_a_fetch_that_waits_for_none_is_misbehavio
                             }));
 }
 
+TEST_CASE(a_resolved_preload_wait_resumes_main_fetch_with_the_response)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    RefPtr<Web::Fetch::Infrastructure::Response> resumed_with;
+    record->wait_for_preload([&](NonnullRefPtr<Web::Fetch::Infrastructure::Response> response) { resumed_with = move(response); });
+
+    auto response = preloaded_response();
+    records.resolve_preload_wait(FetchId { 1 }, response);
+    EXPECT_EQ(resumed_with.ptr(), response.ptr());
+    EXPECT(!record->main_fetch_has_ended());
+}
+
+TEST_CASE(a_fetch_stopped_while_main_fetch_waits_for_a_preload_ends_and_takes_no_response)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto ends = make_ref_counted<FetchEnds>();
+    auto record = start_fetch(records, 1, ends);
+    bool resumed = false;
+    record->wait_for_preload([&](auto) { resumed = true; });
+
+    records.stop(FetchId { 1 });
+    EXPECT_EQ(ends->count, 1u);
+    records.resolve_preload_wait(FetchId { 1 }, preloaded_response());
+    EXPECT(!resumed);
+}
+
+TEST_CASE(a_preload_wait_resolved_before_main_fetch_waits_resumes_main_fetch_when_it_waits)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    record->expect_preload_resolution();
+    auto response = preloaded_response();
+    records.resolve_preload_wait(FetchId { 1 }, response);
+
+    RefPtr<Web::Fetch::Infrastructure::Response> resumed_with;
+    record->wait_for_preload([&](NonnullRefPtr<Web::Fetch::Infrastructure::Response> response) { resumed_with = move(response); });
+    EXPECT_EQ(resumed_with.ptr(), response.ptr());
+}
+
+TEST_CASE(a_preload_response_that_came_before_main_fetch_waited_goes_when_main_fetch_ends)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    auto load = record->start_load();
+    record->expect_preload_resolution();
+    auto response = preloaded_response();
+    records.resolve_preload_wait(FetchId { 1 }, response);
+
+    record->main_fetch_hands_over(delivery());
+    EXPECT(!record->has_ended());
+    EXPECT_EQ(response->ref_count(), 1u);
+}
+
+TEST_CASE(a_preload_wait_resolved_twice_or_for_a_fetch_not_started_is_misbehavior)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto record = start_fetch(records, 1);
+    record->wait_for_preload(ignore_preload_response);
+    records.resolve_preload_wait(FetchId { 1 }, preloaded_response());
+    records.resolve_preload_wait(FetchId { 1 }, preloaded_response());
+    records.resolve_preload_wait(FetchId { 2 }, preloaded_response());
+
+    EXPECT(!record->has_ended());
+    EXPECT_EQ(misbehaviors, (Vector<ByteString> {
+                                "The agent resolved a preload wait twice",
+                                "The agent resolved a preload wait of a fetch it has not started",
+                            }));
+}
+
+TEST_CASE(a_preload_wait_resolved_for_a_fetch_whose_main_fetch_waits_for_no_preload_is_misbehavior)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto record = start_fetch(records, 1);
+    records.resolve_preload_wait(FetchId { 1 }, preloaded_response());
+
+    EXPECT(!record->has_ended());
+    EXPECT_EQ(misbehaviors, (Vector<ByteString> { "The agent resolved a preload wait of a fetch whose main fetch waits for no preload" }));
+}
+
+TEST_CASE(a_preload_wait_resolved_with_a_body_that_is_not_all_its_bytes_is_misbehavior)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto record = start_fetch(records, 1);
+    bool resumed = false;
+    record->wait_for_preload([&](auto) { resumed = true; });
+
+    auto streamed = Web::Fetch::Infrastructure::Response::create();
+    streamed->set_body(Web::Fetch::Infrastructure::ResponseBody { Web::Fetch::Infrastructure::ResponseBody::ReadThroughStream {}, {} });
+    records.resolve_preload_wait(FetchId { 1 }, streamed);
+    records.resolve_preload_wait(FetchId { 1 }, Web::Fetch::Infrastructure::Response::create());
+    auto without_bytes = Web::Fetch::Infrastructure::Response::create();
+    without_bytes->set_body(Web::Fetch::Infrastructure::ResponseBody { Core::ImmutableBytes {}, 0 });
+    records.resolve_preload_wait(FetchId { 1 }, without_bytes);
+    auto shorter = Web::Fetch::Infrastructure::Response::create();
+    shorter->set_body(Web::Fetch::Infrastructure::ResponseBody { MUST(Core::ImmutableBytes::copy("preloaded"sv.bytes())), 20 });
+    records.resolve_preload_wait(FetchId { 1 }, shorter);
+
+    EXPECT(!resumed);
+    EXPECT_EQ(misbehaviors, (Vector<ByteString> {
+                                "The agent resolved a preload wait with a response whose body is not all its bytes",
+                                "The agent resolved a preload wait with a response whose body is not all its bytes",
+                                "The agent resolved a preload wait with a response whose body is not all its bytes",
+                                "The agent resolved a preload wait with a response whose body is not all its bytes",
+                            }));
+}
+
+TEST_CASE(a_preload_wait_resolved_with_an_empty_body_resumes_main_fetch_with_it)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    RefPtr<Web::Fetch::Infrastructure::Response> resumed_with;
+    record->wait_for_preload([&](auto response) { resumed_with = move(response); });
+
+    auto empty = Web::Fetch::Infrastructure::Response::create();
+    empty->set_body(Web::Fetch::Infrastructure::ResponseBody::from_bytes(MUST(Core::ImmutableBytes::copy({}))));
+    records.resolve_preload_wait(FetchId { 1 }, empty);
+
+    EXPECT_EQ(resumed_with.ptr(), empty.ptr());
+}
+
 TEST_CASE(a_handover_while_main_fetch_waits_for_a_preload_dies)
 {
     FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
     auto record = start_fetch(records, 1);
-    record->main_fetch_waits_for_preload();
+    record->wait_for_preload(ignore_preload_response);
 
     EXPECT_DEATH("Handing a response over while main fetch waits for a preload", record->main_fetch_hands_over(delivery()));
 }

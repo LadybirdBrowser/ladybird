@@ -40,10 +40,11 @@ class WholeBodyTransport;
 }
 
 // NB: The fetch engine can't include LibGC, so these are declared here. A whole-body transport keeps the callbacks
-//     that fetch gives it, which hold the cells they use in roots.
+//     that fetch gives it, and an engine record the one that resumes main fetch's wait for a preload, which hold the
+//     cells they use in roots.
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchBodyDeliveryGate);
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchByteChannel);
-GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchEngineRecord);
+GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(Web::Fetch::Engine::FetchEngineRecord);
 GC_UNTRACED_CAPTURE(Web::Fetch::Engine::FetchLoad);
 GC_UNTRACED_CAPTURE_WITH_ROOTED_CALLBACKS(Web::Fetch::Engine::WholeBodyTransport);
 GC_UNTRACED_CAPTURE(Gfx::Typeface);

@@ -436,21 +436,13 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         controller->set_preload_wait_handle(preload_wait_handle);
         auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), GC::captures(fetch_params, controller, preload_wait_handle), [](auto& fetch_params, auto& controller, auto& preload_wait_handle, NonnullRefPtr<Infrastructure::Response> response) {
             preload_wait_handle->disarm();
-            fetch_params->set_preloaded_response_candidate(response);
 
-            // NB: main fetch may already be parked on this preload result.
-            // Resolve that waiter here instead of spinning the event loop.
-            if (auto pending_preloaded_response = controller->pending_preloaded_response()) {
-                controller->set_pending_preloaded_response(nullptr);
-                // AD-HOC: A fetch stopped, aborted or terminated while main fetch waits ends there, as it has nothing
-                //         left to deliver, so the preload resolves nothing then.
-                if (fetch_params->engine_record()->main_fetch_has_ended())
-                    return;
-                fetch_params->engine_record()->main_fetch_stops_waiting_for_preload();
-                if (auto* registry = controller->registry().ptr())
-                    registry->root_fetch(*controller->started_fetch_id(), controller);
-                pending_preloaded_response->resolve(response);
+            // NB: Once the fetch has started, its engine runs main fetch, which waits for the response there.
+            if (auto fetch_id = controller->started_fetch_id(); fetch_id.has_value()) {
+                controller->started_fetch_executor().post(Engine::Command::PreloadResponseResolved { *fetch_id, move(response) });
+                return;
             }
+            fetch_params->set_preloaded_response_candidate(response);
         });
 
         // 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
@@ -675,35 +667,27 @@ static NonnullRefPtr<PendingResponse> get_response(Infrastructure::FetchParams c
     if (!fetch_params.preloaded_response_candidate().has<Empty>()) {
         // 1. Wait until fetchParams's preloaded response candidate is not "pending".
         if (fetch_params.preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>()) {
-            // NB: The spec says to wait here. Spinning the main-thread event
-            // loop strands the queued preload callback behind nested work,
-            // so we park a PendingResponse and let that callback resolve it.
-
-            // NB: Reuse the parked response if this branch is re-entered
-            // before the preload callback runs.
-            auto controller = fetch_params.controller();
-            if (auto pending_preloaded_response = controller->pending_preloaded_response())
-                return *pending_preloaded_response;
+            auto pending_preloaded_response = PendingResponse::create(fetch_params);
+            auto& engine_record = *fetch_params.engine_record();
 
             // NB: Nothing can end the wait without the preload entry's callback, and a fetch stopped, aborted or
             //     terminated does not wait, so main fetch hands nothing over.
+            auto controller = fetch_params.controller();
             auto preload_wait_handle = controller->preload_wait_handle().strong_ref();
-            if (!preload_wait_handle || fetch_params.engine_record()->is_stopped()) {
-                fetch_params.engine_record()->main_fetch_cannot_hand_over();
-                return PendingResponse::create(fetch_params);
+            if (!preload_wait_handle || engine_record.is_stopped()) {
+                engine_record.main_fetch_cannot_hand_over();
+                return pending_preloaded_response;
             }
 
-            auto pending_preloaded_response = PendingResponse::create(fetch_params);
-            controller->set_pending_preloaded_response(pending_preloaded_response);
-
-            // NB: While main fetch waits, the fetch is not rooted. The handle in the preload entry's callback ends the
-            //     fetch if the callback goes without resolving the wait.
+            // NB: The handle in the preload entry's callback ends the fetch if the callback goes without resolving the
+            //     wait.
             auto fetch_id = controller->started_fetch_id();
             VERIFY(fetch_id.has_value());
-            fetch_params.engine_record()->main_fetch_waits_for_preload();
             preload_wait_handle->arm(*fetch_id, controller->started_fetch_executor());
-            if (auto* registry = controller->registry().ptr())
-                registry->release_fetch(*fetch_id);
+            engine_record.wait_for_preload([fetch_params = NonnullRefPtr { fetch_params }, pending_preloaded_response](NonnullRefPtr<Infrastructure::Response> response) {
+                fetch_params->set_preloaded_response_candidate(response);
+                pending_preloaded_response->resolve(move(response));
+            });
             return pending_preloaded_response;
         }
 
@@ -889,6 +873,8 @@ RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams
     // 11. If recursive is false, then run the remaining steps in parallel.
     auto in_parallel_steps = GC::create_function<void(NonnullRefPtr<Engine::FetchEngineRecord>)>(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, request, response), [](NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, NonnullRefPtr<Infrastructure::Request>& request, RefPtr<Infrastructure::Response>& response, NonnullRefPtr<Engine::FetchEngineRecord> engine_record) {
         fetch_params->set_engine_record(move(engine_record));
+        if (fetch_params->preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>())
+            fetch_params->engine_record()->expect_preload_resolution();
 
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:

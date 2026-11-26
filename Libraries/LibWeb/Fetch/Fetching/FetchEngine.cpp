@@ -42,7 +42,7 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
                 [&](Engine::FetchEngineRecords::RedirectAnswerDropped) { drop_deferred_main_fetch_steps(resolve.fetch_id); },
                 [](Engine::FetchEngineRecords::RedirectAnswerMisbehaved) { });
         },
-        [](Engine::Command::PreloadResponseResolved const&) { VERIFY_NOT_REACHED(); },
+        [this](Engine::Command::PreloadResponseResolved& resolved) { m_records.resolve_preload_wait(resolved.fetch_id, move(resolved.response)); },
         [this](Engine::Command::PreloadWaitAbandoned const& abandoned) { m_records.abandon_preload_wait(abandoned.fetch_id); },
         [this](Engine::Command::TransportControl const& control) { m_records.control_network_transport(control); },
         [this](Engine::Command::NavigationBodyAdopted const& adopted) { m_records.add_network_transport(*adopted.handle, *adopted.delivery_gate); },

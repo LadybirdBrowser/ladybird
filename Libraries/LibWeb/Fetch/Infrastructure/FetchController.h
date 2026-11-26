@@ -27,12 +27,6 @@
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
-namespace Web::Fetch::Fetching {
-
-class PendingResponse;
-
-}
-
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-controller
@@ -116,8 +110,6 @@ public:
     void set_keepalive(bool is_keepalive) { m_is_keepalive = is_keepalive; }
 
     [[nodiscard]] bool response_arrived() const { return m_control_block->response_arrived(); }
-    [[nodiscard]] RefPtr<Fetching::PendingResponse> const& pending_preloaded_response() const { return m_pending_preloaded_response; }
-    void set_pending_preloaded_response(RefPtr<Fetching::PendingResponse>);
     // The handle in the callback of the preload entry whose response the fetch's preloaded response candidate waits for,
     // while that callback lives.
     [[nodiscard]] WeakPtr<Fetching::PreloadWaitHandle> const& preload_wait_handle() const { return m_preload_wait_handle; }
@@ -208,9 +200,6 @@ private:
     bool m_is_keepalive { false };
     bool m_preload_reports_timing { false };
 
-    // NB: Assumes one waiting consumer for a pending preloaded response.
-    // Widen this if preload handoff ever supports multiple consumers.
-    RefPtr<Fetching::PendingResponse> m_pending_preloaded_response;
     WeakPtr<Fetching::PreloadWaitHandle> m_preload_wait_handle;
 
     struct StartedFetch {

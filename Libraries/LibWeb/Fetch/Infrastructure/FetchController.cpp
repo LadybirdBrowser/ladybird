@@ -10,7 +10,6 @@
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
-#include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -78,11 +77,6 @@ void FetchController::set_algorithms(Badge<FetchParams>, GC::Ref<FetchAlgorithms
     VERIFY(!m_algorithms);
     m_algorithms = algorithms;
     m_control_block->set_body_intent({}, algorithms->body_intent());
-}
-
-void FetchController::set_pending_preloaded_response(RefPtr<Fetching::PendingResponse> pending_preloaded_response)
-{
-    m_pending_preloaded_response = move(pending_preloaded_response);
 }
 
 void FetchController::retarget(TaskDestination task_destination, Engine::BodyIntent body_intent)

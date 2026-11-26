@@ -151,7 +151,7 @@ void FetchEngineRecord::main_fetch_hands_over(Event::ResponseDelivery delivery)
     if (m_main_fetch.has<MainFetchEnded>())
         return;
     VERIFY(m_main_fetch.has<MainFetchRunning>());
-    m_main_fetch = MainFetchEnded {};
+    set_main_fetch_ended();
     m_event_sink->handle_event(move(delivery));
     end_fetch_unless_anything_is_left();
 }
@@ -179,18 +179,43 @@ void FetchEngineRecord::defer(Function<void()> work)
         records->defer(move(work));
 }
 
-void FetchEngineRecord::main_fetch_waits_for_preload()
+void FetchEngineRecord::expect_preload_resolution()
+{
+    ASSERT(is_on_owner_thread());
+    if (m_preload_wait_resolution.has<NoPreloadWait>())
+        m_preload_wait_resolution = PreloadWaitUnresolved {};
+}
+
+void FetchEngineRecord::wait_for_preload(Function<void(NonnullRefPtr<Infrastructure::Response>)> resume)
 {
     ASSERT(is_on_owner_thread());
     VERIFY(m_main_fetch.has<MainFetchRunning>());
-    m_main_fetch = MainFetchWaitsForPreload {};
+    expect_preload_resolution();
+    if (auto* resolved_early = m_preload_wait_resolution.get_pointer<PreloadWaitResolvedEarly>()) {
+        auto response = move(resolved_early->response);
+        m_preload_wait_resolution = PreloadWaitResolved {};
+        resume(move(response));
+        return;
+    }
+    m_main_fetch = MainFetchWaitsForPreload { move(resume) };
 }
 
-void FetchEngineRecord::main_fetch_stops_waiting_for_preload()
+bool FetchEngineRecord::resolve_preload_wait(NonnullRefPtr<Infrastructure::Response> response)
 {
     ASSERT(is_on_owner_thread());
-    VERIFY(m_main_fetch.has<MainFetchWaitsForPreload>());
+    if (!m_preload_wait_resolution.has<PreloadWaitUnresolved>())
+        return false;
+
+    auto* waiting = m_main_fetch.get_pointer<MainFetchWaitsForPreload>();
+    if (!waiting) {
+        m_preload_wait_resolution = PreloadWaitResolvedEarly { move(response) };
+        return true;
+    }
+    m_preload_wait_resolution = PreloadWaitResolved {};
+    auto resume = move(waiting->resume);
     m_main_fetch = MainFetchRunning {};
+    resume(move(response));
+    return true;
 }
 
 bool FetchEngineRecord::abandon_preload_wait()
@@ -210,9 +235,16 @@ void FetchEngineRecord::did_end_load()
     end_fetch_unless_anything_is_left();
 }
 
-void FetchEngineRecord::end_main_fetch()
+void FetchEngineRecord::set_main_fetch_ended()
 {
     m_main_fetch = MainFetchEnded {};
+    if (m_preload_wait_resolution.has<PreloadWaitResolvedEarly>())
+        m_preload_wait_resolution = PreloadWaitResolved {};
+}
+
+void FetchEngineRecord::end_main_fetch()
+{
+    set_main_fetch_ended();
     end_fetch_unless_anything_is_left();
 }
 
@@ -360,6 +392,36 @@ void FetchEngineRecords::abandon_preload_wait(FetchId fetch_id)
         return;
     if (!record->abandon_preload_wait())
         m_agent->misbehaved("The agent abandoned a preload wait of a fetch that waits for no preload"sv);
+}
+
+void FetchEngineRecords::resolve_preload_wait(FetchId fetch_id, NonnullRefPtr<Infrastructure::Response> response)
+{
+    ASSERT(is_on_owner_thread());
+    if (fetch_id > m_last_started_fetch_id) {
+        m_agent->misbehaved("The agent resolved a preload wait of a fetch it has not started"sv);
+        return;
+    }
+
+    auto found_record = m_records.get(fetch_id);
+    if (!found_record.has_value())
+        return;
+    if (!response->is_network_error()) {
+        auto body = response->unsafe_response()->body();
+        if (!body.has_value() || !body->holds_all_its_bytes()) {
+            m_agent->misbehaved("The agent resolved a preload wait with a response whose body is not all its bytes"sv);
+            return;
+        }
+    }
+
+    NonnullRefPtr record = **found_record;
+    if (record->main_fetch_has_ended())
+        return;
+    if (!record->has_preload_candidate()) {
+        m_agent->misbehaved("The agent resolved a preload wait of a fetch whose main fetch waits for no preload"sv);
+        return;
+    }
+    if (!record->resolve_preload_wait(move(response)))
+        m_agent->misbehaved("The agent resolved a preload wait twice"sv);
 }
 
 void FetchEngineRecords::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)
