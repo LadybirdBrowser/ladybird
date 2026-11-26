@@ -363,7 +363,9 @@ fn install(
         .embedded_cells()
         .map(|cell| {
             // SAFETY: The snapshot kept every cell it captured alive, and the code embeds only those.
-            unsafe { Gc::from_non_null(NonNull::new(cell.0 as *mut CellHeader).expect("embedded cells are not null")) }
+            unsafe {
+                Gc::from_non_null(NonNull::new(cell.address() as *mut CellHeader).expect("embedded cells are not null"))
+            }
         })
         .collect();
     let id = vm.jit.next_code_id();

@@ -14,6 +14,7 @@ use crate::CompileFailure;
 use crate::artifact::ArtifactWriter;
 use crate::artifact::Frame;
 use crate::asm::Gpr;
+use crate::asm::relocation::EmbeddedCells;
 use crate::code::Repr;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
@@ -26,6 +27,7 @@ use crate::ir::VirtualObjectKind;
 use crate::regalloc::Allocation;
 use crate::regalloc::FPR_BASE;
 use crate::regalloc::Location;
+use crate::snapshot::CellId;
 
 /// In place of the record of a frame state: it has none.
 const NO_RECORD: u32 = u32::MAX;
@@ -113,17 +115,19 @@ struct Locations<'a> {
     stack_slot_offset: &'a dyn Fn(u32) -> i32,
     /// Registers that are in the saves area at the site, with the frame pointer offsets of their words there.
     saves: &'a [(Gpr, i32)],
+    embedded: &'a EmbeddedCells<'a>,
 }
 
 impl Locations<'_> {
-    /// The slot and the location of `value`, the next value.
-    fn next(&mut self, value: NodeId) -> (u32, ValueLocation) {
+    /// The slot and the location of `value`, the next value. A constant that is a cell the code does not embed fails
+    /// the compile.
+    fn next(&mut self, value: NodeId) -> Result<(u32, ValueLocation), CompileFailure> {
         let (slot, location) = *self.exit_values.next().expect("every frame state value has a location");
         if let Some(index) = self.objects.iter().position(|object| *object == value) {
-            return (
+            return Ok((
                 slot,
                 ValueLocation::VirtualObject(u32::try_from(index).expect("objects fit in u32")),
-            );
+            ));
         }
         let repr = self
             .graph
@@ -146,14 +150,7 @@ impl Locations<'_> {
             Location::Frame(slot) => ValueLocation::Frame(slot),
             Location::Constant(bits, _) => match crate::ir::value::virtual_arguments_kind(bits) {
                 Some(mapped) if repr == Repr::Tagged => ValueLocation::ArgumentsObject { mapped },
-                _ => {
-                    let boxed_repr = if repr == Repr::Pointer {
-                        Repr::Pointer
-                    } else {
-                        Repr::Tagged
-                    };
-                    ValueLocation::Constant(crate::ir::value::boxed_constant(bits, repr), boxed_repr)
-                }
+                _ => self.constant_location(crate::ir::value::boxed_constant(bits, repr), repr)?,
             },
         };
         // NB: Float64 values are in floating point registers, which are not saved.
@@ -161,9 +158,25 @@ impl Locations<'_> {
             && repr != Repr::Float64
             && let Some((_, offset)) = self.saves.iter().find(|(saved, _)| saved.0 == register)
         {
-            return (slot, ValueLocation::Stack(*offset, repr));
+            return Ok((slot, ValueLocation::Stack(*offset, repr)));
         }
-        (slot, location)
+        Ok((slot, location))
+    }
+
+    /// Where the tables find the boxed constant `bits` of a value of `repr`: by its index if it is a cell, which its
+    /// repr says (a pointer that is not null, or a value whose tag says so).
+    fn constant_location(&self, bits: u64, repr: Repr) -> Result<ValueLocation, CompileFailure> {
+        let encoding = self.embedded.encoding();
+        let (cell, tag) = match repr {
+            Repr::Pointer if bits != 0 => (CellId::from_address(bits), 0),
+            Repr::Pointer => return Ok(ValueLocation::Constant(0)),
+            _ => match encoding.cell_of_value(bits) {
+                Some(cell) => (cell, encoding.tag_of_value(bits)),
+                None => return Ok(ValueLocation::Constant(bits)),
+            },
+        };
+        let cell = self.embedded.index_of(cell).ok_or(CompileFailure::CodeGeneration)?;
+        Ok(ValueLocation::Cell { cell, tag })
     }
 }
 
@@ -181,6 +194,7 @@ pub(crate) struct SiteSource<'a> {
     pub saves: &'a [(Gpr, i32)],
     /// Where the site keeps the lists it makes while it is written.
     pub work: &'a Zone,
+    pub embedded: &'a EmbeddedCells<'a>,
 }
 
 impl SiteSource<'_> {
@@ -195,18 +209,21 @@ impl SiteSource<'_> {
         let frame = scratch.frame_record(graph, frame_state, artifact)?;
         let objects = graph.virtual_objects(frame_state, self.work);
         if !objects.is_empty() && !artifact.frame_has_objects(frame) {
-            let objects = objects.iter().map(|object| {
+            let mut descriptors = ZoneVec::new_in(self.work);
+            for object in &objects {
                 let Op::VirtualObject { kind, allocation } = graph.node(*object).op else {
                     unreachable!("virtual objects are VirtualObject nodes");
                 };
                 let kind = match kind {
-                    VirtualObjectKind::Object { shape } => VirtualObjectDescriptorKind::Object { shape },
+                    VirtualObjectKind::Object { shape } => VirtualObjectDescriptorKind::Object {
+                        shape: self.embedded.index_of(shape).ok_or(CompileFailure::CodeGeneration)?,
+                    },
                     VirtualObjectKind::Closure { sample_slot } => VirtualObjectDescriptorKind::Closure { sample_slot },
                 };
                 let property_count = u32::try_from(graph.node(*object).inputs.len()).expect("inputs fit in u32");
-                (kind, allocation.0, property_count)
-            });
-            artifact.set_frame_objects(frame, objects)?;
+                descriptors.push((kind, allocation.0, property_count));
+            }
+            artifact.set_frame_objects(frame, descriptors.into_iter())?;
         }
         let mut locations = self.locations(&objects);
         let start = artifact.location_count();
@@ -215,7 +232,7 @@ impl SiteSource<'_> {
             let state = graph.frame_state(id);
             scratch.values.clear();
             for (_, value) in &state.values {
-                let (slot, location) = locations.next(*value);
+                let (slot, location) = locations.next(*value)?;
                 let word = artifact.location(location)?;
                 if scratch.values.len() == SiteScratch::MAX_FRAME_VALUES {
                     return Err(CompileFailure::TooLarge);
@@ -232,7 +249,7 @@ impl SiteSource<'_> {
         // NB: The properties of the virtual objects follow the frames' values.
         for object in &objects {
             for property in &graph.node(*object).inputs {
-                let (_, location) = locations.next(*property);
+                let (_, location) = locations.next(*property)?;
                 let word = artifact.location(location)?;
                 artifact.add_location(word)?;
             }
@@ -252,7 +269,10 @@ impl SiteSource<'_> {
 
     /// Makes `values` the slots of the values of the compiled function's frame at the site and where the values are,
     /// in slot order.
-    pub(crate) fn root_frame_values(&self, values: &mut ZoneVec<'_, (u32, ValueLocation)>) {
+    pub(crate) fn root_frame_values(
+        &self,
+        values: &mut ZoneVec<'_, (u32, ValueLocation)>,
+    ) -> Result<(), CompileFailure> {
         let frame_state = self
             .graph
             .node(self.node)
@@ -265,10 +285,13 @@ impl SiteSource<'_> {
         while let Some(id) = next {
             let state = self.graph.frame_state(id);
             values.clear();
-            values.extend(state.values.iter().map(|(_, value)| locations.next(*value)));
+            for (_, value) in &state.values {
+                values.push(locations.next(*value)?);
+            }
             next = state.parent;
         }
         values.sort_unstable_by_key(|(slot, _)| *slot);
+        Ok(())
     }
 
     fn locations<'a>(&'a self, objects: &'a [NodeId]) -> Locations<'a> {
@@ -280,6 +303,7 @@ impl SiteSource<'_> {
             exit_values: self.allocation.node(self.node).exit_values.iter(),
             stack_slot_offset: self.stack_slot_offset,
             saves: self.saves,
+            embedded: self.embedded,
         }
     }
 }

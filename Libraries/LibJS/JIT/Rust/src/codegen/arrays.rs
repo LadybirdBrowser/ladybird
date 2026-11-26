@@ -110,8 +110,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
 
         // NB: %Object.prototype% is an immutable prototype exotic object,
         //     so the chain ends there.
-        self.branch_unless_plain_prototype(array, self.runtime.array_prototype.0, prototype, fail);
-        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype.0, prototype, fail);
+        self.branch_unless_plain_prototype(array, self.runtime.array_prototype, prototype, fail);
+        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype, prototype, fail);
     }
 
     /// A branch on `BranchCondition::PlainArrayPrototypeChain`: to `target`
@@ -139,8 +139,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         );
         // NB: %Object.prototype% is an immutable prototype exotic object,
         //     so the chain ends there.
-        self.branch_unless_plain_prototype(object, self.runtime.array_prototype.0, prototype, fail);
-        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype.0, prototype, fail);
+        self.branch_unless_plain_prototype(object, self.runtime.array_prototype, prototype, fail);
+        self.branch_unless_plain_prototype(prototype, self.runtime.object_prototype, prototype, fail);
         if !invert {
             self.masm.jump(target);
         }
@@ -230,7 +230,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Puts the prototype of `object` in `dst`, or branches to `fail`
     /// unless it is `expected` and has no indexed properties. `dst` may be
     /// `object`.
-    pub(super) fn branch_unless_plain_prototype(&mut self, object: Gpr, expected: u64, dst: Gpr, fail: Label) {
+    pub(super) fn branch_unless_plain_prototype(&mut self, object: Gpr, expected: CellId, dst: Gpr, fail: Label) {
         let scratch = self.pinned.scratch;
         let offsets = self.runtime.offsets;
         let layout = self.runtime.layout;
@@ -238,10 +238,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.branch32_memory_cell(
             Condition::NotEqual,
             &Address::new(scratch, layout.shape_prototype as i32),
-            CellId(expected).compressed(),
+            expected.compressed(),
             fail,
         );
-        self.move_cell(dst, CellId(expected));
+        self.move_cell(dst, expected);
         self.masm.load32(
             scratch,
             &Address::new(dst, layout.object_indexed_array_like_size as i32),

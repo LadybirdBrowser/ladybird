@@ -15,8 +15,66 @@
 //! (see `PortableMacroAssembler::forbid_untyped_cells()`), so that a cell passed as plain bits by mistake cannot go
 //! stale when the cell moves.
 
+use ak::{Zone, ZoneVec};
+
+use super::AsmError;
+
+/// The address of a GC cell on the main thread, used as an opaque identity. It is never dereferenced by the compiler.
+///
+/// Its bits are private: code may hold a cell only through the operations of the macro assembler that take it as a
+/// cell, which record where the code holds it, so that the code can be patched when a collection moves the cell (see
+/// `asm::relocation`). Reading the bits is `unsafe` for that reason.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct CellId(u64);
+
+impl CellId {
+    pub const NULL: CellId = CellId(0);
+
+    /// The cell at `address`, or null for 0.
+    pub const fn from_address(address: u64) -> CellId {
+        CellId(address)
+    }
+
+    pub fn is_null(self) -> bool {
+        self.0 == 0
+    }
+
+    /// The address of the cell.
+    ///
+    /// # Safety
+    ///
+    /// The bits must not end up in compiled code or in its tables other than through the operations that record
+    /// where they are (`asm::relocation`). Bits held anywhere else go stale when a collection moves the cell, and the
+    /// code then uses memory the cell left.
+    pub unsafe fn address(self) -> u64 {
+        self.0
+    }
+
+    /// The address, for tests, whose fake heaps never move.
+    #[cfg(test)]
+    pub fn test_address(self) -> u64 {
+        self.0
+    }
+
+    /// The cell's compressed pointer, which a field that holds the cell compares equal to without decoding.
+    pub fn compressed(self) -> CompressedCell {
+        CompressedCell::from_bits((self.0 >> COMPRESSED_POINTER_SHIFT) as u32)
+    }
+}
+
+impl core::fmt::LowerHex for CellId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+/// A cell compiled code embeds, by its index among them (see `Artifact::embedded_cells()`). Tables hold it in place of
+/// the address of the cell, so that they stay right when a collection moves the cell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EmbeddedCell(pub u32);
+
 /// How compiled code holds a cell at the offset of a relocation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum RelocationKind {
     /// An entry of the constant pool that is the address of the cell.
@@ -62,27 +120,57 @@ pub struct Relocation {
 /// A 64-bit constant that is a cell the code embeds, which comes from the constant pool so that the runtime can patch it
 /// when the cell moves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum CellConstant {
-    /// The address of the cell.
-    Address(u64),
-    /// A value that is the cell: its tag bits, and the offset of the cell into the heap region.
-    Value(u64),
+pub struct CellConstant {
+    kind: RelocationKind,
+    bits: u64,
 }
 
 impl CellConstant {
-    /// The bits of the constant.
-    pub fn bits(self) -> u64 {
-        match self {
-            CellConstant::Address(bits) | CellConstant::Value(bits) => bits,
+    /// The address of `cell`.
+    pub fn address(cell: CellId) -> CellConstant {
+        CellConstant {
+            kind: RelocationKind::PoolAddress,
+            // SAFETY: The constant is emitted only through the operations that record where it is.
+            bits: unsafe { cell.address() },
         }
+    }
+
+    /// A value that is a cell: its tag bits, and the offset of the cell into the heap region.
+    pub fn value(bits: u64) -> CellConstant {
+        CellConstant {
+            kind: RelocationKind::PoolValue,
+            bits,
+        }
+    }
+
+    /// The bits of the constant, which only the macro assemblers emit, recording where.
+    pub(in crate::asm) fn bits(self) -> u64 {
+        self.bits
     }
 
     /// The kind of the relocation of the pool entry that holds the constant.
     pub fn kind(self) -> RelocationKind {
-        match self {
-            CellConstant::Address(_) => RelocationKind::PoolAddress,
-            CellConstant::Value(_) => RelocationKind::PoolValue,
-        }
+        self.kind
+    }
+}
+
+/// The compressed pointer of a cell (see `COMPRESSED_POINTER_SHIFT`), or null. Its bits are private for the same
+/// reason as those of `CellId`: only the operations that take it as a cell emit it, recording where.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct CompressedCell(u32);
+
+impl CompressedCell {
+    pub const fn from_bits(bits: u32) -> CompressedCell {
+        CompressedCell(bits)
+    }
+
+    pub fn is_null(self) -> bool {
+        self.0 == 0
+    }
+
+    /// The bits of the compressed pointer, which only the macro assemblers emit, recording where.
+    pub(in crate::asm) fn bits(self) -> u32 {
+        self.0
     }
 }
 
@@ -103,6 +191,24 @@ pub struct CellEncoding {
 }
 
 impl CellEncoding {
+    /// The value that is `cell`, with the tag bits `tag`, as code and tables hold tagged constants.
+    pub fn value_of(&self, cell: CellId, tag: u64) -> u64 {
+        // SAFETY: The value is a tagged constant, which code holds only through the operations that take it as a cell
+        //         once its tag says it is one, and tables only as an embedded cell (see `EmbeddedCells`).
+        tag | (unsafe { cell.address() } - self.heap_region_base)
+    }
+
+    /// The cell that the value `value` is, if its tag says it is one.
+    pub fn cell_of_value(&self, value: u64) -> Option<CellId> {
+        self.is_cell_value(value)
+            .then(|| CellId::from_address(self.address_of_value(value)))
+    }
+
+    /// The tag bits of the value `value`, without the offset of its cell.
+    pub fn tag_of_value(&self, value: u64) -> u64 {
+        value & !self.value_offset_mask
+    }
+
     /// Whether the 64-bit `imm` is one of `cells` (sorted addresses), as its address or as a value.
     pub fn is_one_of(&self, cells: &[u64], imm: u64) -> bool {
         (imm != 0 && cells.binary_search(&imm).is_ok())
@@ -133,6 +239,103 @@ impl CellEncoding {
     /// The compressed pointer of the cell at `address`.
     pub fn compressed(address: u64) -> u32 {
         (address >> COMPRESSED_POINTER_SHIFT) as u32
+    }
+}
+
+/// The cells compiled code embeds, in the order of `Artifact::embedded_cells()`, whose indices name them in its
+/// relocations and tables: the tables of the code hold the index of a cell, never its address, so that only the code
+/// needs patching when a collection moves the cell.
+pub struct EmbeddedCells<'w> {
+    cells: &'w [CellId],
+    encoding: CellEncoding,
+    /// The addresses of the cells, sorted, with their indices.
+    by_address: ZoneVec<'w, (u64, u32)>,
+}
+
+impl<'w> EmbeddedCells<'w> {
+    pub fn new_in(cells: &'w [CellId], encoding: CellEncoding, work: &'w Zone) -> Self {
+        // SAFETY: The addresses stay in this list, which finds the cells of the places the macro assembler recorded.
+        let mut by_address = ZoneVec::from_iter_in(
+            (0u32..)
+                .zip(cells)
+                .map(|(index, cell)| (unsafe { cell.address() }, index)),
+            work,
+        );
+        by_address.sort_unstable();
+        Self {
+            cells,
+            encoding,
+            by_address,
+        }
+    }
+
+    pub fn encoding(&self) -> CellEncoding {
+        self.encoding
+    }
+
+    pub fn cells(&self) -> &'w [CellId] {
+        self.cells
+    }
+
+    /// The index of `cell`, if the code embeds it.
+    pub fn index_of(&self, cell: CellId) -> Option<EmbeddedCell> {
+        // SAFETY: The address is only looked up.
+        let address = unsafe { cell.address() };
+        self.by_address
+            .binary_search_by_key(&address, |(address, _)| *address)
+            .ok()
+            .map(|index| EmbeddedCell(self.by_address[index].1))
+    }
+
+    pub fn cell(&self, index: EmbeddedCell) -> CellId {
+        self.cells[index.0 as usize]
+    }
+
+    /// The sorted addresses of the cells, which the macro assemblers check plain bits against.
+    pub(in crate::asm) fn addresses(&self) -> impl Iterator<Item = u64> + '_ {
+        self.by_address.iter().map(|(address, _)| *address)
+    }
+
+    /// The relocations of `code` at `places`, the places of cells the macro assembler recorded as it emitted them.
+    /// A cell the code does not embed would not be relocated, so the compile fails then.
+    pub fn relocations<'z>(
+        &self,
+        code: &[u8],
+        places: &[(u32, RelocationKind)],
+        work: &'z Zone,
+    ) -> Result<ZoneVec<'z, Relocation>, AsmError> {
+        let mut by_compressed = ZoneVec::from_iter_in(
+            self.by_address
+                .iter()
+                .map(|(address, index)| (CellEncoding::compressed(*address), *index)),
+            work,
+        );
+        by_compressed.sort_unstable();
+        let mut relocations = ZoneVec::new_in(work);
+        for (offset, kind) in places {
+            let bytes = &code[*offset as usize..];
+            let found = match kind {
+                RelocationKind::X86CompressedImmediate | RelocationKind::Aarch64CompressedMove => {
+                    let compressed = compressed_at(*kind, bytes);
+                    by_compressed
+                        .binary_search_by_key(&compressed, |(compressed, _)| *compressed)
+                        .map(|index| by_compressed[index].1)
+                }
+                RelocationKind::PoolAddress | RelocationKind::PoolValue => {
+                    let word = u64::from_le_bytes(bytes[..8].try_into().expect("8 bytes"));
+                    let address = self.encoding.address_in_pool(*kind, word);
+                    self.by_address
+                        .binary_search_by_key(&address, |(address, _)| *address)
+                        .map(|index| self.by_address[index].1)
+                }
+            };
+            relocations.push(Relocation {
+                offset: *offset,
+                kind: *kind,
+                cell: found.map_err(|_| AsmError::UnknownCell)?,
+            });
+        }
+        Ok(relocations)
     }
 }
 

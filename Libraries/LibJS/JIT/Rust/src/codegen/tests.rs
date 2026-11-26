@@ -131,6 +131,8 @@ struct TestState {
     layouts: Vec<FrameLayout>,
     /// The `Executable` cell of each snapshot executable.
     cells: Vec<u64>,
+    /// The mask of the offsets of the heap region, which the values of cells hold.
+    heap_region_offset_mask: u64,
     /// Every frame of every exit taken.
     exit_frames: Vec<Vec<ExitFrame>>,
     /// The tables of the code, which have `layout`.
@@ -511,11 +513,13 @@ enum Leaving {
 }
 
 fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *const u64, leaving: Leaving) {
-    let (tables, tables_layout) = {
+    let (tables, tables_layout, heap_region_offset_mask) = {
         let state = test_state(vm).borrow();
-        (state.tables.clone(), state.layout)
+        (state.tables.clone(), state.layout, state.heap_region_offset_mask)
     };
-    let site = Artifact::new(&tables, &tables_layout).site(exit_index);
+    let artifact = Artifact::new(&tables, &tables_layout);
+    let embedded_cells: Vec<CellId> = artifact.embedded_cells().collect();
+    let site = artifact.site(exit_index);
     assert_eq!(site.kind() == SiteKind::Leave, leaving == Leaving::Yes);
     let frame_pointer_index = <crate::asm::MacroAssembler as PortableMacroAssembler>::FRAME_POINTER.0 as usize;
     let gpr_dump_count = register_dump_counts::<crate::asm::MacroAssembler>().0 as usize;
@@ -549,7 +553,14 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
                             ValueLocation::Stack(offset, repr) => {
                                 value::boxed_constant(*((frame_pointer as i64 + i64::from(offset)) as *const u64), repr)
                             }
-                            ValueLocation::Constant(bits, _) => bits,
+                            ValueLocation::Constant(bits) => bits,
+                            ValueLocation::Cell { cell, tag } => {
+                                let address = embedded_cells[cell.0 as usize].test_address();
+                                match tag {
+                                    0 => address,
+                                    tag => tag | (address & heap_region_offset_mask),
+                                }
+                            }
                             // NB: Exit stubs pass the compiled function's frame.
                             ValueLocation::Frame(slot) => *frame.add(FRAME_HEADER_WORDS + slot as usize),
                             ValueLocation::ArgumentsObject { mapped } => fake_arguments_object(mapped),
@@ -663,7 +674,7 @@ fn runtime() -> RuntimeInfo {
             ..RuntimeLayout::default()
         },
         // NB: The functions of the tests run in the realm of the compiled code.
-        realm: CellId(crate::builder::tests::inlining::REALM),
+        realm: CellId::from_address(crate::builder::tests::inlining::REALM),
         ..RuntimeInfo::default()
     }
 }
@@ -962,8 +973,9 @@ impl Machine {
             state.cells = snapshot
                 .executables
                 .iter()
-                .map(|executable| executable.cell.0)
+                .map(|executable| executable.cell.test_address())
                 .collect();
+            state.heap_region_offset_mask = snapshot.runtime.heap_region_offset_mask;
             state.tables = compiled.words.to_vec();
             state.layout = compiled.layout;
             state.exits_taken.clear();
@@ -2714,7 +2726,7 @@ mod property_access {
         }
 
         fn id(&self) -> CellId {
-            CellId(self.address())
+            CellId::from_address(self.address())
         }
     }
 
@@ -2965,7 +2977,7 @@ mod property_access {
                     ]
                 });
                 let mut entry = own(GetPropertyInPrototypeChain, self.array_shape.address(), 0);
-                entry.prototype = Some(CellId(self.array_prototype.address()));
+                entry.prototype = Some(CellId::from_address(self.array_prototype.address()));
                 entry.prototype_chain_validity = Some(self.validity.id());
                 entry.prototype_property = Some(self.push.id());
                 entry.prototype_property_intrinsic = Some(Intrinsic::ArrayPrototypePush);
@@ -2974,8 +2986,8 @@ mod property_access {
                     snapshot.executables[0].property_caches = add_caches(snapshot, &[cache(vec![entry])]);
                     let runtime = &mut snapshot.runtime;
                     runtime.array_push = grow as *const () as u64;
-                    runtime.array_prototype = CellId(self.array_prototype.address());
-                    runtime.object_prototype = CellId(self.object_prototype.address());
+                    runtime.array_prototype = CellId::from_address(self.array_prototype.address());
+                    runtime.object_prototype = CellId::from_address(self.object_prototype.address());
                     runtime.layout = RuntimeLayout {
                         object_indexed_elements: 24,
                         object_indexed_storage_kind: 32,
@@ -3152,8 +3164,8 @@ fn aarch64_property_access_disassembles() {
     let mut snapshot = crate::builder::tests::snapshot_for(&program, test_layout());
     snapshot.runtime = runtime();
     let mut prototype_entry = own(GetPropertyInPrototypeChain, 0x1_2345_6780, 3);
-    prototype_entry.prototype = Some(CellId(0x2_0000_1000));
-    prototype_entry.prototype_chain_validity = Some(CellId(0x2_0000_2000));
+    prototype_entry.prototype = Some(CellId::from_address(0x2_0000_1000));
+    prototype_entry.prototype_chain_validity = Some(CellId::from_address(0x2_0000_2000));
     prototype_entry.shape_dictionary_generation = 9;
     prototype_entry.shape_is_dictionary = true;
     snapshot.executables[0].property_caches = add_caches(
@@ -3244,7 +3256,7 @@ mod inlining {
     ) -> (JitResult, Machine, CompiledCode) {
         let function_object = fake_function_words(FUNCTION_WORDS);
         let mut function = function(true, false);
-        function.function = CellId(function_object.as_ptr() as u64);
+        function.function = CellId::from_address(function_object.as_ptr() as u64);
         let mut snapshot = snapshot_with_callee(caller, callee, function);
         snapshot.runtime = runtime();
         let arith = snapshot.add(&[NUMBERS_AND_STRINGS_FEEDBACK]);
@@ -3253,7 +3265,7 @@ mod inlining {
             // NB: The words of a function its frames start with are constants in code.
             executable.function_fields = Some(FunctionFrameFields {
                 script_or_module: FUNCTION_WORDS[2],
-                environment: FUNCTION_WORDS[0],
+                environment: CellId::from_address(FUNCTION_WORDS[0]),
             });
         }
         configure(&mut snapshot);
@@ -3727,22 +3739,22 @@ mod direct_calls {
                 function: InlinedFunctionSnapshot {
                     super_base: None,
                     has_own_new_target: true,
-                    function: CellId(self.function.as_ptr() as u64),
+                    function: CellId::from_address(self.function.as_ptr() as u64),
                     formal_parameter_count: 3,
                     strict,
                     uses_this,
-                    global_this: CellId(GLOBAL_THIS),
-                    realm: CellId(REALM),
-                    shared_data: crate::snapshot::CellId(0x5d00),
+                    global_this: CellId::from_address(GLOBAL_THIS),
+                    realm: CellId::from_address(REALM),
+                    shared_data: crate::snapshot::CellId::from_address(0x5d00),
                 },
-                executable: CellId(self.executable.as_ptr() as u64),
+                executable: CellId::from_address(self.executable.as_ptr() as u64),
                 entry: self.entry_table[CALLEE_SLOT..].as_ptr() as u64,
                 registers_and_locals_count: 7,
                 registers_and_locals_and_constants_count: 9,
                 // NB: The fake function's words (see `offsets()`).
                 function_fields: FunctionFrameFields {
                     script_or_module: self.function[2],
-                    environment: self.function[0],
+                    environment: CellId::from_address(self.function[0]),
                 },
                 environment: None,
                 closures: false,
@@ -3837,7 +3849,7 @@ mod direct_calls {
                 compiled
                     .artifact()
                     .embedded_cells()
-                    .any(|embedded| embedded == CellId(cell)),
+                    .any(|embedded| embedded == CellId::from_address(cell)),
                 "{cell:#x}"
             );
         }
@@ -4000,7 +4012,7 @@ mod direct_calls {
                     binding_values_offset: 48,
                     binds_this: true,
                     this_value_offset: 72,
-                    cells: snapshot.add(&[CellId(0xcafe)]),
+                    cells: snapshot.add(&[CellId::from_address(0xcafe)]),
                 };
                 let target = DirectCallTarget {
                     environment: Some(0),
@@ -4030,7 +4042,7 @@ mod direct_calls {
                     compiled
                         .artifact()
                         .embedded_cells()
-                        .any(|embedded| embedded == CellId(0xcafe))
+                        .any(|embedded| embedded == CellId::from_address(0xcafe))
                 );
                 let mut machine = Machine::new(
                     caller_layout(),
@@ -4235,7 +4247,7 @@ mod direct_calls {
             let (snapshot, compiled) = compile_program_with(&caller(), caller_layout(), &[], |snapshot| {
                 dynamic_runtime(&mut snapshot.runtime, &callee);
                 snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                    target: Some(CellId(call_function_cell())),
+                    target: Some(CellId::from_address(call_function_cell())),
                     flags: if through_call { 0 } else { 1 },
                     target_intrinsic: through_call.then_some(crate::snapshot::Intrinsic::FunctionPrototypeCall),
                     ..CallFeedbackSnapshot::default()
@@ -4392,7 +4404,7 @@ mod direct_calls {
                         prepare_call_environment as *const () as u64;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                        target: Some(CellId(call_function_cell())),
+                        target: Some(CellId::from_address(call_function_cell())),
                         flags: 1,
                         ..CallFeedbackSnapshot::default()
                     }]);
@@ -4515,7 +4527,7 @@ mod direct_calls {
                     allocation.local_cell_size_offset = 24;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                        target: Some(CellId(call_function_cell())),
+                        target: Some(CellId::from_address(call_function_cell())),
                         flags: 1,
                         ..CallFeedbackSnapshot::default()
                     }]);
@@ -4689,7 +4701,7 @@ mod direct_calls {
                     layout.native_function_table_entry_function = 0;
                     install_call_stub(&mut snapshot.runtime);
                     snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
-                        target: Some(CellId(call_function_cell())),
+                        target: Some(CellId::from_address(call_function_cell())),
                         flags: if through_call { 0 } else { 1 },
                         target_intrinsic: through_call.then_some(crate::snapshot::Intrinsic::FunctionPrototypeCall),
                         ..CallFeedbackSnapshot::default()
@@ -4760,15 +4772,15 @@ fn aarch64_direct_calls_disassemble() {
         function: InlinedFunctionSnapshot {
             super_base: None,
             has_own_new_target: true,
-            function: CellId(0x5000),
+            function: CellId::from_address(0x5000),
             formal_parameter_count: 2,
             strict: false,
             uses_this: true,
-            global_this: CellId(0x6000),
-            realm: CellId(0x8000),
-            shared_data: crate::snapshot::CellId(0x5d00),
+            global_this: CellId::from_address(0x6000),
+            realm: CellId::from_address(0x8000),
+            shared_data: crate::snapshot::CellId::from_address(0x5d00),
         },
-        executable: CellId(0x7000),
+        executable: CellId::from_address(0x7000),
         entry: 0x7100,
         registers_and_locals_count: 7,
         registers_and_locals_and_constants_count: 9,

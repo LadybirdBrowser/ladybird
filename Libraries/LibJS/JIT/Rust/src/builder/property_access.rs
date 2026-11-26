@@ -83,6 +83,14 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         }
     }
 
+    /// Embeds the environment in `fields`, which the frames of calls of
+    /// the function start with, for code that stores it as a constant.
+    pub(super) fn embed_frame_fields(&mut self, fields: crate::snapshot::FunctionFrameFields) {
+        if !fields.environment.is_null() {
+            self.embed(fields.environment);
+        }
+    }
+
     /// Emits a node that may exit with the current instruction's eager frame
     /// state. The value of a check is the input it refines (see
     /// `Op::refined_input()`).

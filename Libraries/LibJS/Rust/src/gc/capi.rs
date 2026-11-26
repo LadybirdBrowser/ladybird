@@ -125,6 +125,7 @@ unsafe extern "C" {
     pub fn gc_heap_uproot_cell(heap: *mut GCHeap, cell: *mut c_void);
     pub safe fn gc_heap_stack_bounds(heap: &GCHeap, base: &mut usize, top: &mut usize);
     pub fn gc_heap_enqueue_post_gc_task(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
+    pub fn gc_heap_enqueue_post_move_task(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
     pub fn gc_heap_register_sweep_callback(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
     pub safe fn gc_heap_did_allocate_external_memory(heap: &GCHeap, size: usize);
     pub safe fn gc_heap_did_free_external_memory(heap: &GCHeap, size: usize);

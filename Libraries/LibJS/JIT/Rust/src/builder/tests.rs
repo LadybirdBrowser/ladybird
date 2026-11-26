@@ -40,7 +40,7 @@ pub(crate) fn snapshot_for(program: &Program, layout: FrameLayout) -> Snapshot {
     let mut snapshot = Snapshot::new();
     add_program(&mut snapshot, program, layout);
     // NB: The functions of the tests run in the realm of the compiled code.
-    snapshot.runtime.realm = CellId(inlining::REALM);
+    snapshot.runtime.realm = CellId::from_address(inlining::REALM);
     snapshot
 }
 
@@ -898,7 +898,7 @@ pub(crate) mod property_access {
             shape_is_stable: false,
             writes_data_property: entry_type == PropertyCacheEntryType::ChangeOwnProperty,
             new_shape: None,
-            shape: Some(CellId(shape)),
+            shape: Some(CellId::from_address(shape)),
             prototype: None,
             prototype_chain_validity: None,
             prototype_chain_valid: false,
@@ -1110,8 +1110,8 @@ pub(crate) mod property_access {
     fn prototype_chain_loads_check_the_chain_and_load_from_the_holder() {
         let program = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
         let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
-        entry.prototype = Some(CellId(0x7000));
-        entry.prototype_chain_validity = Some(CellId(0x8000));
+        entry.prototype = Some(CellId::from_address(0x7000));
+        entry.prototype_chain_validity = Some(CellId::from_address(0x8000));
         entry.shape_dictionary_generation = 3;
         entry.shape_is_dictionary = true;
         assert_dump(
@@ -1142,8 +1142,8 @@ pub(crate) mod property_access {
         let program = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
         let entry = |shape: u64, validated: bool| {
             let target = NativeCallTarget {
-                function: CellId(0x9000),
-                realm: CellId(inlining::REALM),
+                function: CellId::from_address(0x9000),
+                realm: CellId::from_address(inlining::REALM),
                 entry: core::num::NonZeroU64::new(0xb000),
                 direct_getter: validated.then_some(DirectGetterFields {
                     wrapper_implementation: 8,
@@ -1202,8 +1202,8 @@ pub(crate) mod property_access {
         let cached = |shape: u64, validated: bool| {
             let mut entry = entry(shape, validated);
             entry.entry_type = PropertyCacheEntryType::GetPropertyInPrototypeChain;
-            entry.prototype = Some(CellId(0x7000));
-            entry.prototype_chain_validity = Some(CellId(0x8000));
+            entry.prototype = Some(CellId::from_address(0x7000));
+            entry.prototype_chain_validity = Some(CellId::from_address(0x8000));
             if let Some(accessor) = entry.accessor_function.as_mut() {
                 accessor.cached_value_offset = Some(2);
             }
@@ -1222,11 +1222,11 @@ pub(crate) mod property_access {
         use crate::snapshot::AccessorFunctionSnapshot;
         let program = assemble(|_| vec![get_by_id(r(5), a(0), 0), Instruction::Return { value: r(5) }]);
         let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
-        entry.prototype = Some(CellId(0x7000));
-        entry.prototype_chain_validity = Some(CellId(0x8000));
+        entry.prototype = Some(CellId::from_address(0x7000));
+        entry.prototype_chain_validity = Some(CellId::from_address(0x8000));
         entry.holds_accessor = true;
         entry.accessor_function = Some(AccessorFunctionSnapshot {
-            function: CellId(0x9000),
+            function: CellId::from_address(0x9000),
             intrinsic: None,
             inline_executable: None,
             cached_value_offset: Some(2),
@@ -1256,8 +1256,8 @@ pub(crate) mod property_access {
             ]
         });
         let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
-        entry.prototype = Some(CellId(0x7000));
-        entry.prototype_chain_validity = Some(CellId(0x8000));
+        entry.prototype = Some(CellId::from_address(0x7000));
+        entry.prototype_chain_validity = Some(CellId::from_address(0x8000));
         entry.prototype_chain_valid = true;
         let mut snapshot = snapshot_for(&program, test_layout());
         snapshot.executables[0].property_caches = add_caches(&mut snapshot, &[cache(vec![entry])]);
@@ -1274,7 +1274,9 @@ pub(crate) mod property_access {
         assert_eq!(text.matches("AssumeValid").count(), 1, "{text}");
         assert_eq!(
             graph.dependencies,
-            vec![crate::code::Dependency::WatchpointSetValid(CellId(0x8000))]
+            vec![crate::code::Dependency::WatchpointSetValid(CellId::from_address(
+                0x8000
+            ))]
         );
     }
 
@@ -1327,9 +1329,9 @@ pub(crate) mod property_access {
             ]
         });
         let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
-        entry.prototype = Some(CellId(0x7000));
-        entry.prototype_chain_validity = Some(CellId(0x8000));
-        entry.prototype_property = Some(CellId(0x9000));
+        entry.prototype = Some(CellId::from_address(0x7000));
+        entry.prototype_chain_validity = Some(CellId::from_address(0x8000));
+        entry.prototype_property = Some(CellId::from_address(0x9000));
         assert_dump(
             &dump_with_caches(&program, vec![cache(vec![entry])], Vec::new()),
             "
@@ -1463,7 +1465,7 @@ pub(crate) mod property_access {
 
     fn keyed(entry_type: PropertyCacheEntryType, offset: u32) -> PropertyCacheEntrySnapshot {
         PropertyCacheEntrySnapshot {
-            key: Some(CellId(0x4000)),
+            key: Some(CellId::from_address(0x4000)),
             key_value: KEY,
             ..own(entry_type, 0x100, offset)
         }
@@ -1732,13 +1734,13 @@ pub(crate) mod inlining {
         InlinedFunctionSnapshot {
             super_base: None,
             has_own_new_target: true,
-            function: CellId(CALLEE_FUNCTION),
+            function: CellId::from_address(CALLEE_FUNCTION),
             formal_parameter_count: 1,
             strict,
             uses_this,
-            global_this: CellId(GLOBAL_THIS),
-            realm: CellId(REALM),
-            shared_data: crate::snapshot::CellId(0x5d00),
+            global_this: CellId::from_address(GLOBAL_THIS),
+            realm: CellId::from_address(REALM),
+            shared_data: crate::snapshot::CellId::from_address(0x5d00),
         }
     }
 
@@ -1751,7 +1753,7 @@ pub(crate) mod inlining {
     ) -> Snapshot {
         let mut snapshot = snapshot_for(caller, test_layout());
         snapshot.runtime.heap_region_offset_mask = (1 << 48) - 1;
-        snapshot.executables[0].cell = CellId(0x100);
+        snapshot.executables[0].cell = CellId::from_address(0x100);
         snapshot.executables[0].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
             target: Some(function.function),
             inline_executable: Some(1),
@@ -1759,10 +1761,10 @@ pub(crate) mod inlining {
         }]);
         add_program(&mut snapshot, callee, test_layout());
         let callee_snapshot = &mut snapshot.executables[1];
-        callee_snapshot.cell = CellId(0x200);
+        callee_snapshot.cell = CellId::from_address(0x200);
         callee_snapshot.function = Some(function);
         callee_snapshot.supports_legacy_arguments = !function.strict;
-        callee_snapshot.environment = Some(CellId(ENVIRONMENT));
+        callee_snapshot.environment = Some(CellId::from_address(ENVIRONMENT));
         snapshot.options.inlining = InliningLimits {
             always_inlined_instructions: 10,
             max_construct_instructions: 50,
@@ -1810,7 +1812,7 @@ pub(crate) mod inlining {
             .map(|(index, getter)| PropertyCacheEntrySnapshot {
                 accessor_function: Some(AccessorFunctionSnapshot {
                     cached_value_offset: None,
-                    function: CellId(*getter),
+                    function: CellId::from_address(*getter),
                     intrinsic: None,
                     inline_executable: Some(1),
                     native: None,
@@ -1872,7 +1874,7 @@ pub(crate) mod inlining {
                 .map(|index| PropertyCacheEntrySnapshot {
                     accessor_function: Some(AccessorFunctionSnapshot {
                         cached_value_offset: None,
-                        function: CellId(CALLEE_FUNCTION + index * 0x100),
+                        function: CellId::from_address(CALLEE_FUNCTION + index * 0x100),
                         intrinsic: None,
                         inline_executable: Some(1),
                         native: None,
@@ -2248,14 +2250,14 @@ pub(crate) mod inlining {
                 snapshot.add_executable(copy);
             }
             let calls = snapshot.add(&[CallFeedbackSnapshot {
-                target: Some(CellId(CALLEE_FUNCTION + (index as u64 % 3) * 0x100)),
+                target: Some(CellId::from_address(CALLEE_FUNCTION + (index as u64 % 3) * 0x100)),
                 inline_executable: Some((index % 3 + 1) as u32),
                 ..CallFeedbackSnapshot::default()
             }]);
             let executable = &mut snapshot.executables[index];
             let function = executable.function.as_mut().unwrap();
-            function.function = CellId(CALLEE_FUNCTION + (index as u64 - 1) * 0x100);
-            executable.environment = Some(CellId(ENVIRONMENT + (index as u64 - 1) * 0x100));
+            function.function = CellId::from_address(CALLEE_FUNCTION + (index as u64 - 1) * 0x100);
+            executable.environment = Some(CellId::from_address(ENVIRONMENT + (index as u64 - 1) * 0x100));
             executable.feedback.call = calls;
         }
         let text = dump(&optimized_graph(&snapshot), &test_layout());
@@ -2305,7 +2307,7 @@ pub(crate) mod inlining {
         snapshot.options.inlining.max_depth = 10;
         let call = snapshot[snapshot.executables[0].feedback.call][0];
         let mut g = snapshot.executables[1];
-        g.cell = CellId(0x300);
+        g.cell = CellId::from_address(0x300);
         g.feedback.call = snapshot.add(&[call]);
         snapshot.executables[1].feedback.call = snapshot.add(&[CallFeedbackSnapshot {
             inline_executable: Some(2),
@@ -2414,9 +2416,9 @@ pub(crate) mod inlining {
         let identity = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
         let mut snapshot = snapshot_with_callee(&caller, &identity, function(true, false));
         let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
-        entry.prototype = Some(CellId(0x7000));
-        entry.prototype_chain_validity = Some(CellId(0x7100));
-        entry.prototype_property = Some(CellId(CALLEE_FUNCTION));
+        entry.prototype = Some(CellId::from_address(0x7000));
+        entry.prototype_chain_validity = Some(CellId::from_address(0x7100));
+        entry.prototype_property = Some(CellId::from_address(CALLEE_FUNCTION));
         snapshot.executables[0].property_caches = add_caches(&mut snapshot, &[cache(vec![entry])]);
         let text = dump(&optimized_graph(&snapshot), &test_layout());
         // The method's load is checked; the call of it is not.
@@ -2438,7 +2440,7 @@ pub(crate) mod inlining {
         let identity = assemble(|_| vec![Instruction::Enter, Instruction::Return { value: a(0) }]);
         let forwarded = |forwarding| ForwardedCallSnapshot {
             forwarding,
-            target: CellId(CALLEE_FUNCTION),
+            target: CellId::from_address(CALLEE_FUNCTION),
             target_intrinsic: None,
             argument_count: 1,
             inline_executable: Some(1),
@@ -2458,13 +2460,13 @@ pub(crate) mod inlining {
         });
         let mut snapshot = snapshot_with_callee(&caller, &identity, function(true, false));
         let mut entry = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x100, 1);
-        entry.prototype = Some(CellId(0x7000));
-        entry.prototype_chain_validity = Some(CellId(0x7100));
-        entry.prototype_property = Some(CellId(0x9000));
+        entry.prototype = Some(CellId::from_address(0x7000));
+        entry.prototype_chain_validity = Some(CellId::from_address(0x7100));
+        entry.prototype_property = Some(CellId::from_address(0x9000));
         entry.prototype_property_intrinsic = Some(Intrinsic::FunctionPrototypeCall);
         snapshot.executables[0].property_caches = add_caches(&mut snapshot, &[cache(vec![entry])]);
         let calls = snapshot.executables[0].feedback.call;
-        snapshot[calls][0].target = Some(CellId(0x9000));
+        snapshot[calls][0].target = Some(CellId::from_address(0x9000));
         let calls = snapshot.executables[0].feedback.call;
         snapshot[calls][0].inline_executable = None;
         let calls = snapshot.executables[0].feedback.call;
@@ -2484,7 +2486,7 @@ pub(crate) mod inlining {
         });
         let mut snapshot = snapshot_with_callee(&caller, &identity, function(true, false));
         let calls = snapshot.executables[0].feedback.call;
-        snapshot[calls][0].target = Some(CellId(0x9100));
+        snapshot[calls][0].target = Some(CellId::from_address(0x9100));
         let calls = snapshot.executables[0].feedback.call;
         snapshot[calls][0].inline_executable = None;
         let calls = snapshot.executables[0].feedback.call;
@@ -2494,7 +2496,7 @@ pub(crate) mod inlining {
         let text = dump(&graph, &test_layout());
         assert!(text.contains("CheckValue 0xfff9000000009100"), "{text}");
         assert!(text.contains("Return (#7)"), "{text}");
-        assert!(graph.embedded_cells.contains(&CellId(0x9100)));
+        assert!(graph.embedded_cells.contains(&CellId::from_address(0x9100)));
 
         // Five bound arguments from the middle of the table: the callee gets the last.
         let fifth_argument = Operand::from_raw(test_layout().arguments_base() + 4);
@@ -2502,7 +2504,7 @@ pub(crate) mod inlining {
         let mut snapshot = snapshot_with_callee(&caller, &fifth, function(true, false));
         snapshot.executables[1].layout.number_of_arguments = 5;
         let calls = snapshot.executables[0].feedback.call;
-        snapshot[calls][0].target = Some(CellId(0x9100));
+        snapshot[calls][0].target = Some(CellId::from_address(0x9100));
         let calls = snapshot.executables[0].feedback.call;
         snapshot[calls][0].inline_executable = None;
         let mut five = forwarded(Forwarding::Bound);
@@ -2527,7 +2529,7 @@ pub(crate) mod inlining {
     fn calls_that_are_not_inlined_call_direct_targets_directly() {
         let target = DirectCallTarget {
             function: function(false, true),
-            executable: CellId(0x7000),
+            executable: CellId::from_address(0x7000),
             entry: 0x7100,
             registers_and_locals_count: 10,
             registers_and_locals_and_constants_count: 12,
@@ -2559,7 +2561,7 @@ pub(crate) mod inlining {
         // NB: The call's value is its result.
         assert!(!text.contains("LoadSlot r5"), "{text}");
         for cell in [CALLEE_FUNCTION, 0x7000, REALM, GLOBAL_THIS] {
-            assert!(graph.embedded_cells.contains(&CellId(cell)), "{cell:#x}");
+            assert!(graph.embedded_cells.contains(&CellId::from_address(cell)), "{cell:#x}");
         }
 
         // Calls with more operands than a direct call takes as inputs in
@@ -2632,9 +2634,9 @@ mod arguments {
             ]
         });
         let mut apply = own(PropertyCacheEntryType::GetPropertyInPrototypeChain, 0x200, 1);
-        apply.prototype = Some(CellId(0x7000));
-        apply.prototype_chain_validity = Some(CellId(0x7100));
-        apply.prototype_property = Some(CellId(0x7200));
+        apply.prototype = Some(CellId::from_address(0x7000));
+        apply.prototype_chain_validity = Some(CellId::from_address(0x7100));
+        apply.prototype_property = Some(CellId::from_address(0x7200));
         apply.prototype_property_intrinsic = Some(Intrinsic::FunctionPrototypeApply);
         let text = build(&program, |snapshot| {
             snapshot.executables[0].property_caches = add_caches(
@@ -2850,8 +2852,8 @@ fn captured_object_bindings_are_guarded_before_becoming_constants() {
         ]
     });
     let mut snapshot = snapshot_for(&program, test_layout());
-    let object = crate::snapshot::CellId(0x1234);
-    let bits = value::tagged(value::OBJECT_TAG) | object.0;
+    let object = crate::snapshot::CellId::from_address(0x1234);
+    let bits = value::tagged(value::OBJECT_TAG) | object.test_address();
     snapshot.executables[0].captured_bindings = snapshot.add(&[(
         coordinate,
         crate::snapshot::GlobalValueSnapshot {
@@ -2905,8 +2907,8 @@ fn captured_typed_arrays_use_guarded_fixed_lengths() {
     snapshot.executables[0].feedback.keyed = snapshot.add(&[KeyedFeedbackSnapshot {
         bits: 1 | (1 << (9 + 3)),
     }]);
-    let object = crate::snapshot::CellId(0x1234);
-    let bits = value::tagged(value::OBJECT_TAG) | object.0;
+    let object = crate::snapshot::CellId::from_address(0x1234);
+    let bits = value::tagged(value::OBJECT_TAG) | object.test_address();
     snapshot.executables[0].captured_bindings = snapshot.add(&[(
         coordinate,
         GlobalValueSnapshot {
@@ -3011,8 +3013,8 @@ mod globals {
             let mut snapshot = snapshot_for(&program, test_layout());
             snapshot.runtime.heap_region_offset_mask = (1 << 48) - 1;
             snapshot.executables[0].globals = Some(GlobalsSnapshot {
-                object: CellId(0x1000),
-                declarative_environment: CellId(0x2000),
+                object: CellId::from_address(0x1000),
+                declarative_environment: CellId::from_address(0x2000),
                 environment_serial: 1,
                 caches: snapshot.add(&[cache]),
             });
@@ -3032,7 +3034,7 @@ mod globals {
 
         // A property of the global object stays while the object keeps its shape.
         let property = GlobalCacheSnapshot::Property {
-            shape: CellId(0x3000),
+            shape: CellId::from_address(0x3000),
             dictionary_generation: None,
             offset: 0,
             writes_data_property: true,

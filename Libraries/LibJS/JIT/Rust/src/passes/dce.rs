@@ -120,7 +120,9 @@ mod tests {
         let boxed = graph.add(Op::BoxInt32, &[constant], Some(Repr::Tagged), 0);
         let object = graph.add(
             Op::VirtualObject {
-                kind: crate::ir::VirtualObjectKind::Object { shape: CellId(1) },
+                kind: crate::ir::VirtualObjectKind::Object {
+                    shape: CellId::from_address(1),
+                },
                 allocation: NodeId(0),
             },
             &[boxed],

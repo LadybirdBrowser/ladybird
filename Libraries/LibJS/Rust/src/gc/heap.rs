@@ -739,6 +739,17 @@ impl Heap {
         unsafe { capi::gc_heap_enqueue_post_gc_task(self.raw.as_ptr(), callback, context) };
     }
 
+    /// Like enqueue_post_gc_task(), for a task that updates what still holds the old addresses of cells that the
+    /// collection moved: it runs before every other post-GC task, which may use what it updates.
+    ///
+    /// # Safety
+    ///
+    /// `context` must stay valid until the callback has run.
+    pub unsafe fn enqueue_post_move_task(&self, callback: capi::GCCallback, context: *mut c_void) {
+        // SAFETY: The heap is live, and the caller keeps the context alive until the task runs.
+        unsafe { capi::gc_heap_enqueue_post_move_task(self.raw.as_ptr(), callback, context) };
+    }
+
     /// Counts memory a cell allocated outside the heap towards the next collection, which this may start.
     pub fn did_allocate_external_memory(&self, size: usize) {
         capi::gc_heap_did_allocate_external_memory(self.handle(), size);

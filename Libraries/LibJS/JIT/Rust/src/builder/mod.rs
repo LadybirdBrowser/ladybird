@@ -1335,7 +1335,7 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
                 // NB: Only checks that always exit see constants that hold no cell.
                 let pattern = self.runtime.shifted_is_cell_pattern;
                 if bits & pattern == pattern {
-                    self.embed(CellId(address));
+                    self.embed(CellId::from_address(address));
                 }
                 self.typed_constant(address, Repr::Pointer)
             }

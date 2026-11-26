@@ -153,7 +153,7 @@ impl GraphBuilder<'_, '_> {
             return Ok(false);
         }
         let shape = self.runtime.array_allocation.shape;
-        if shape.0 != 0 {
+        if !shape.is_null() {
             self.embed(shape);
         }
         let count = u32::try_from(values.len()).expect("array literals have fewer than 2^32 elements");
@@ -272,8 +272,8 @@ mod tests {
     use crate::bytecode::test_support::*;
     use crate::snapshot::CellId;
 
-    const LITERAL_SHAPE: CellId = CellId(0x1000);
-    const EMPTY_SHAPE: CellId = CellId(0x2000);
+    const LITERAL_SHAPE: CellId = CellId::from_address(0x1000);
+    const EMPTY_SHAPE: CellId = CellId::from_address(0x2000);
 
     /// `return { first: a0, second: 10 }` from object shape cache 0, then
     /// `{}` without a cache.
@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn lexical_environments_with_a_template_are_allocated_in_place() {
-        const SHAPE: CellId = CellId(0x3000);
+        const SHAPE: CellId = CellId::from_address(0x3000);
         let program = assemble(|_| {
             vec![
                 Instruction::Enter,

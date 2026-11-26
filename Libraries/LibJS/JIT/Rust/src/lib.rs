@@ -170,10 +170,10 @@ pub fn compile(snapshot: &Snapshot, scratch: &mut Scratch, compiled: &mut Compil
     )
 }
 
-/// The cells the code embeds, which keep their addresses for as long as it lives: those the graph lists, those of its
-/// constants and of the values its checks compare against, and those of the constants of the compiled executable, which
-/// the code writes into the frames it initializes. Values that hold cells end up in the code and in its tables as they
-/// are, so the cells of all of them stay where they are.
+/// The cells the code embeds, which it keeps alive: those the graph lists, those of its constants and of the values its
+/// checks compare against, and those of the constants of the compiled executable, which the code writes into the frames
+/// it initializes. A collection may move them, so every place that holds one must be patched then: the code (see
+/// `relocations()`), the 64-bit values of its tables, and the shapes of the objects it never created.
 fn embedded_cells<'w>(graph: &ir::Graph<'_>, snapshot: &Snapshot, work: &'w Zone) -> ak::ZoneVec<'w, snapshot::CellId> {
     let runtime = &snapshot.runtime;
     let pattern = runtime.shifted_is_cell_pattern;
@@ -202,7 +202,7 @@ fn embedded_cells<'w>(graph: &ir::Graph<'_>, snapshot: &Snapshot, work: &'w Zone
     let mut listed = ak::ZoneVec::from_slice_in(&graph.embedded_cells, work);
     listed.sort_unstable();
     let mut cells = ak::ZoneVec::from_slice_in(&graph.embedded_cells, work);
-    for cell in value_cells.into_iter().map(snapshot::CellId) {
+    for cell in value_cells.into_iter().map(snapshot::CellId::from_address) {
         if listed.binary_search(&cell).is_err() {
             cells.push(cell);
         }
@@ -296,7 +296,12 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         );
     }
     let mut artifact = ArtifactWriter::new_in(work);
-    let embedded_cells = embedded_cells(&graph, snapshot, work);
+    let embedded_cells: &[snapshot::CellId] = work.alloc_slice_copy(&embedded_cells(&graph, snapshot, work));
+    let embedded = work.alloc(relocation::EmbeddedCells::new_in(
+        embedded_cells,
+        codegen::cell_encoding(&snapshot.runtime),
+        work,
+    ));
     let mut generated = codegen::generate::<M>(
         &graph,
         snapshot,
@@ -304,17 +309,13 @@ fn run_stages<M: asm::PortableMacroAssembler>(
         &mut artifact,
         &allocation,
         &mut compiled.code,
-        &embedded_cells,
+        embedded,
         work,
     )?;
     generated.osr_entries.sort_unstable();
-    let relocations = codegen::relocations(
-        &compiled.code,
-        &generated.cell_places,
-        generated.cell_encoding,
-        &embedded_cells,
-        work,
-    )?;
+    let relocations = embedded
+        .relocations(&compiled.code, &generated.cell_places, work)
+        .map_err(codegen::assembly_failure)?;
     let layout = artifact.finish(
         &Tail {
             osr_entries: &generated.osr_entries,
@@ -322,7 +323,7 @@ fn run_stages<M: asm::PortableMacroAssembler>(
             osr_outer_loop_back_edges: &graph.osr_outer_loop_back_edges,
             uncaught_handlers: &graph.uncaught_handlers,
             invalidation_patches: &generated.invalidation_patches,
-            embedded_cells: &embedded_cells,
+            embedded_cells,
             relocations: &relocations,
             dependencies: &graph.dependencies,
         },

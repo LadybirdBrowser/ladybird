@@ -1599,6 +1599,9 @@ void Heap::give_back_local_free_lists()
 
 void Heap::run_post_gc_tasks()
 {
+    auto post_move_tasks = move(m_post_move_tasks);
+    for (auto& task : post_move_tasks)
+        task();
     auto tasks = move(m_post_gc_tasks);
     for (auto& task : tasks)
         task();
@@ -1778,6 +1781,11 @@ AK::JsonObject Heap::census()
 void Heap::enqueue_post_gc_task(AK::Function<void()> task)
 {
     m_post_gc_tasks.append(move(task));
+}
+
+void Heap::enqueue_post_move_task(AK::Function<void()> task)
+{
+    m_post_move_tasks.append(move(task));
 }
 
 void Heap::register_sweep_callback(AK::Function<void()> callback)

@@ -140,7 +140,7 @@ impl WatchpointSet {
         }
         crate::jit::dependencies::invalidate_dependents(
             vm,
-            Dependency::WatchpointSetValid(CellId(core::ptr::from_ref(self) as u64)),
+            Dependency::WatchpointSetValid(CellId::from_address(core::ptr::from_ref(self) as u64)),
         );
     }
 }

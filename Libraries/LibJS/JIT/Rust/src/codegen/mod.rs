@@ -111,10 +111,9 @@ use crate::regalloc::Location;
 use crate::regalloc::Move;
 use crate::regalloc::RegisterMask;
 use crate::regalloc::RegisterSet;
-use crate::relocation;
 use crate::relocation::CellConstant;
 use crate::relocation::CellEncoding;
-use crate::relocation::Relocation;
+use crate::relocation::EmbeddedCells;
 use crate::relocation::RelocationKind;
 use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::CellId;
@@ -127,7 +126,7 @@ use ak::Zone;
 use ak::ZoneMap;
 use ak::ZoneSet;
 use ak::ZoneVec;
-use call::Holds;
+use call::Field;
 use sites::SiteScratch;
 use sites::SiteSource;
 
@@ -348,9 +347,9 @@ struct Codegen<'a, 'c, M: PortableMacroAssembler> {
     decoded_instructions: ZoneMap<'a, (u32, u32), DecodedInstruction<'a>>,
     /// The runtime info of the snapshot.
     runtime: &'a RuntimeInfo,
-    /// How cells are encoded, and the cells the code embeds, as sorted addresses (see `crate::relocation`).
+    /// How cells are encoded, and the cells the code embeds (see `crate::relocation`).
     cell_encoding: CellEncoding,
-    cell_addresses: &'a [u64],
+    embedded: &'a EmbeddedCells<'a>,
     stress: StressOptions,
     pinned: PinnedRegisters,
     frame: MachineFrame,
@@ -497,22 +496,14 @@ pub fn generate<'a, M: PortableMacroAssembler>(
     artifact: &mut ArtifactWriter<'_>,
     allocation: &'a Allocation<'a>,
     code: &mut Column<u8>,
-    embedded_cells: &[CellId],
+    embedded: &'a EmbeddedCells<'a>,
     work: &'a Zone,
 ) -> Result<GeneratedCode<'a>, CompileFailure> {
     let (_, pinned) = target_registers::<M>();
     let (gpr_dump_count, fpr_dump_count) = register_dump_counts::<M>();
     let mut masm = M::new(code, work);
-    let runtime = &snapshot.runtime;
-    let cell_encoding = CellEncoding {
-        heap_region_base: runtime.heap_region_base,
-        value_offset_mask: runtime.heap_region_offset_mask,
-        value_is_cell_pattern: runtime.shifted_is_cell_pattern,
-    };
-    let cell_addresses = work.alloc_slice_from_iter(embedded_cells.iter().map(|cell| cell.0));
-    cell_addresses.sort_unstable();
-    let cell_addresses: &[u64] = cell_addresses;
-    masm.forbid_untyped_cells(cell_encoding, cell_addresses);
+    let cell_encoding = embedded.encoding();
+    masm.forbid_untyped_cells(embedded);
     let block_labels = work.alloc_slice_from_iter(graph.blocks.iter().map(|_| masm.new_label()));
     let landing_blocks = landing_blocks(graph, allocation, work);
     let exit_stub = masm.new_label();
@@ -531,7 +522,7 @@ pub fn generate<'a, M: PortableMacroAssembler>(
         decoded_instructions: ZoneMap::new_in(work),
         runtime: &snapshot.runtime,
         cell_encoding,
-        cell_addresses,
+        embedded,
         stress: snapshot.options.stress,
         pinned,
         frame: M::frame(GprSet::EMPTY, FprSet::EMPTY, 0),
@@ -626,58 +617,23 @@ pub fn generate<'a, M: PortableMacroAssembler>(
     })
 }
 
-/// Where `code`, complete, holds the cells it embeds (see `crate::relocation`), from the places `cell_places` that
-/// the macro assembler listed. A cell the code does not embed would not be relocated, so the compile fails.
-pub fn relocations<'w>(
-    code: &[u8],
-    cell_places: &[(u32, RelocationKind)],
-    encoding: CellEncoding,
-    embedded_cells: &[CellId],
-    work: &'w Zone,
-) -> Result<ZoneVec<'w, Relocation>, CompileFailure> {
-    let mut by_address = ZoneVec::from_iter_in((0u32..).zip(embedded_cells).map(|(index, cell)| (cell.0, index)), work);
-    by_address.sort_unstable();
-    let mut by_compressed = ZoneVec::from_iter_in(
-        by_address
-            .iter()
-            .map(|(address, index)| (CellEncoding::compressed(*address), *index)),
-        work,
-    );
-    by_compressed.sort_unstable();
-    let mut relocations = ZoneVec::new_in(work);
-    for (offset, kind) in cell_places {
-        let bytes = &code[*offset as usize..];
-        let found = match kind {
-            RelocationKind::X86CompressedImmediate | RelocationKind::Aarch64CompressedMove => {
-                let compressed = relocation::compressed_at(*kind, bytes);
-                by_compressed
-                    .binary_search_by_key(&compressed, |(compressed, _)| *compressed)
-                    .map(|index| by_compressed[index].1)
-            }
-            RelocationKind::PoolAddress | RelocationKind::PoolValue => {
-                let word = u64::from_le_bytes(bytes[..8].try_into().expect("8 bytes"));
-                let address = encoding.address_in_pool(*kind, word);
-                by_address
-                    .binary_search_by_key(&address, |(address, _)| *address)
-                    .map(|index| by_address[index].1)
-            }
-        };
-        relocations.push(Relocation {
-            offset: *offset,
-            kind: *kind,
-            cell: found.map_err(|_| CompileFailure::CodeGeneration)?,
-        });
+/// How cells of `runtime` are encoded (see `crate::relocation`).
+pub fn cell_encoding(runtime: &RuntimeInfo) -> CellEncoding {
+    CellEncoding {
+        heap_region_base: runtime.heap_region_base,
+        value_offset_mask: runtime.heap_region_offset_mask,
+        value_is_cell_pattern: runtime.shifted_is_cell_pattern,
     }
-    Ok(relocations)
 }
 
 /// Why a compile fails when the assembler could not finish the code.
-fn assembly_failure(error: crate::asm::AsmError) -> CompileFailure {
+pub(crate) fn assembly_failure(error: crate::asm::AsmError) -> CompileFailure {
     match error {
         crate::asm::AsmError::TooLarge => CompileFailure::TooLarge,
         crate::asm::AsmError::UnboundLabel
         | crate::asm::AsmError::BranchOutOfRange
-        | crate::asm::AsmError::UntypedCell => CompileFailure::CodeGeneration,
+        | crate::asm::AsmError::UntypedCell
+        | crate::asm::AsmError::UnknownCell => CompileFailure::CodeGeneration,
     }
 }
 
@@ -1069,6 +1025,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
             stack_slot_offset: &|slot| self.frame_pointer_offset(slot),
             saves: &saves,
             work: self.work,
+            embedded: self.embedded,
         })
     }
 
@@ -1135,13 +1092,13 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
 
     /// `dst = cell`, the address of a cell the code embeds (see `crate::relocation`).
     fn move_cell(&mut self, dst: Gpr, cell: CellId) {
-        self.masm.move_cell(dst, CellConstant::Address(cell.0));
+        self.masm.move_cell(dst, CellConstant::address(cell));
     }
 
     /// `dst = value`, which holds a cell the code embeds if its tag says so (see `crate::relocation`).
     fn move_value(&mut self, dst: Gpr, value: u64) {
         if self.cell_encoding.is_cell_value(value) {
-            self.masm.move_cell(dst, CellConstant::Value(value));
+            self.masm.move_cell(dst, CellConstant::value(value));
         } else {
             self.masm.move_imm64(dst, value);
         }
@@ -1151,8 +1108,11 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
     /// that is the address of one of them. A pointer elsewhere, such as into a cell that never moves, is plain bits.
     fn constant_cell(&self, bits: u64, repr: Repr) -> Option<CellConstant> {
         match repr {
-            Repr::Tagged if self.cell_encoding.is_cell_value(bits) => Some(CellConstant::Value(bits)),
-            Repr::Pointer if self.cell_addresses.binary_search(&bits).is_ok() => Some(CellConstant::Address(bits)),
+            Repr::Tagged if self.cell_encoding.is_cell_value(bits) => Some(CellConstant::value(bits)),
+            Repr::Pointer => {
+                let cell = CellId::from_address(bits);
+                self.embedded.index_of(cell).map(|_| CellConstant::address(cell))
+            }
             _ => None,
         }
     }
@@ -1176,7 +1136,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
     /// Stores `value`, like `move_value()`.
     fn store_value(&mut self, address: &Address, value: u64) {
         if self.cell_encoding.is_cell_value(value) {
-            self.masm.store_cell64(address, CellConstant::Value(value));
+            self.masm.store_cell64(address, CellConstant::value(value));
         } else {
             self.masm.store_imm64(address, value);
         }
@@ -1186,7 +1146,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
     fn branch64_value(&mut self, condition: Condition, lhs: Gpr, value: u64, target: Label) {
         if self.cell_encoding.is_cell_value(value) {
             self.masm
-                .branch64_cell(condition, lhs, CellConstant::Value(value), target);
+                .branch64_cell(condition, lhs, CellConstant::value(value), target);
         } else {
             self.masm.branch64_imm(condition, lhs, value as i64, target);
         }
@@ -1738,20 +1698,17 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
                     (
                         offsets.execution_context_yield_continuation,
                         4,
-                        u64::from(continuation),
-                        Holds::Bits,
+                        Field::Bits(u64::from(continuation)),
                     ),
                     (
                         offsets.execution_context_yield_is_await,
                         1,
-                        u64::from(*kind == SuspendKind::Await),
-                        Holds::Bits,
+                        Field::Bits(u64::from(*kind == SuspendKind::Await)),
                     ),
                     (
                         offsets.execution_context_yield_value_is_iterator_result,
                         1,
-                        u64::from(*kind == SuspendKind::YieldIteratorResult),
-                        Holds::Bits,
+                        Field::Bits(u64::from(*kind == SuspendKind::YieldIteratorResult)),
                     ),
                 ];
                 self.emit_constant_fields(self.pinned.frame, self.pinned.scratch, &mut fields)?;
@@ -1885,7 +1842,7 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
                     InputValue::Register(rhs) => self.masm.compare64_set(condition, output, lhs, rhs),
                     InputValue::Constant(bits) if self.cell_encoding.is_cell_value(bits) => {
                         let scratch = self.pinned.scratch;
-                        self.masm.move_cell(scratch, CellConstant::Value(bits));
+                        self.masm.move_cell(scratch, CellConstant::value(bits));
                         self.masm.compare64_set(condition, output, lhs, scratch);
                     }
                     InputValue::Constant(bits) => self.masm.compare64_imm_set(condition, output, lhs, bits as i64),
@@ -2692,22 +2649,20 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
             self.masm.branch64(Condition::Below, cursor, self.pinned.scratch, again);
         } else {
             for index in first..layout.registers_and_locals_count {
-                fields.push((slots + 8 * index, 8, value::EMPTY, Holds::Value));
+                fields.push((slots + 8 * index, 8, Field::Value(value::EMPTY)));
             }
         }
         for (index, constant) in (0..).zip(&self.snapshot[self.snapshot.executables[0].constants]) {
             fields.push((
                 slots + 8 * (layout.constants_base() + index),
                 8,
-                *constant,
-                Holds::Value,
+                Field::Value(*constant),
             ));
         }
         fields.push((
             self.runtime.offsets.execution_context_frame_initialized,
             1,
-            1,
-            Holds::Bits,
+            Field::Bits(1),
         ));
         self.emit_constant_fields_with_vector(self.pinned.frame, value, &mut fields, Some(vector), &[])?;
         self.spare_fields = fields;
@@ -3595,8 +3550,8 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
         };
         let mut values = self.spare_frame_values.take();
         self.with_site_source(leave_frame.node, SiteKind::Leave, |site| {
-            site.root_frame_values(&mut values);
-        });
+            site.root_frame_values(&mut values)
+        })?;
         let writable = |location: &ValueLocation| {
             !matches!(
                 location,
@@ -3654,7 +3609,15 @@ impl<'a, M: PortableMacroAssembler> Codegen<'a, '_, M> {
         let number = M::ARGUMENT_FPRS[0];
         for (slot, location) in &*values {
             match *location {
-                ValueLocation::Constant(bits, repr) => self.move_constant(value, bits, repr),
+                ValueLocation::Constant(bits) => self.masm.move_imm64(value, bits),
+                ValueLocation::Cell { cell, tag } => {
+                    let cell = self.embedded.cell(cell);
+                    let constant = match tag {
+                        0 => CellConstant::address(cell),
+                        tag => CellConstant::value(self.cell_encoding.value_of(cell, tag)),
+                    };
+                    self.masm.move_cell(value, constant);
+                }
                 ValueLocation::Register(register, Repr::Float64) => {
                     let address =
                         self.local_address(self.locals.dump + 8 * (self.gpr_dump_count + u32::from(register)));

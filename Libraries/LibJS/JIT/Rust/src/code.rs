@@ -14,7 +14,7 @@ use ak::Column;
 use crate::artifact::Artifact;
 use crate::artifact::Layout;
 use crate::artifact::MAX_WORDS;
-use crate::snapshot::CellId;
+use crate::snapshot::{CellId, SampleSlot};
 
 /// Compiled machine code for one executable, not yet installed. The code and its tables are in memory that comes
 /// straight from the system, and that serves the next compile into this, so they are no blocks of the heap.
@@ -374,18 +374,20 @@ pub enum SiteKind {
     Call,
 }
 
+pub use crate::asm::relocation::EmbeddedCell;
+
 /// What kind of object the runtime creates for one that compiled code never allocated (see
 /// `artifact::ObjectView`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VirtualObjectDescriptorKind {
     /// A plain object of `shape`, with the values of its properties in
     /// offset order.
-    Object { shape: CellId },
+    Object { shape: EmbeddedCell },
     /// A closure like the sample of a closure template in `sample_slot` (see
     /// `ClosureTemplateSnapshot::sample_slot`), with the lexical and private
     /// environments at the two locations, which are `Repr::Pointer`, the
     /// latter null for none.
-    Closure { sample_slot: CellId },
+    Closure { sample_slot: SampleSlot },
 }
 
 /// Set in the return pc (`ExecutionContext::caller_return_pc`) of the frame of
@@ -423,10 +425,12 @@ pub enum ValueLocation {
     /// A slot of the compiled function's frame (an operand) that holds the value wherever compiled code runs, which
     /// is tagged: one of its arguments or its `this` value register that nothing writes.
     Frame(u32),
-    /// A constant: NaN-boxed if `Repr::Tagged`, or if `Repr::Pointer`, for the environments of a closure the code
-    /// never created (see `VirtualObjectDescriptorKind::Closure`), the address of a cell the code embeds, or null. The
-    /// repr is what tells the runtime which constants are cells it moves.
-    Constant(u64, Repr),
+    /// A NaN-boxed constant that is not a cell, or null for the environments of a closure the code never created (see
+    /// `VirtualObjectDescriptorKind::Closure`).
+    Constant(u64),
+    /// A constant that is a cell the code embeds: its address if `tag` is 0, which only the environments of a closure
+    /// the code never created are, or else the value with the tag bits `tag`.
+    Cell { cell: EmbeddedCell, tag: u64 },
     /// The frame's arguments object, which the compiled code never created:
     /// the runtime creates it from the frame's arguments like
     /// `CreateArguments` does, mapped or unmapped, once per exit.

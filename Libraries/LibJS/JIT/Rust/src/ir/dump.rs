@@ -100,8 +100,8 @@ fn repr_name(repr: Repr) -> &'static str {
 
 fn write_shapes(f: &mut fmt::Formatter<'_>, shapes: &[ShapeCheck]) -> fmt::Result {
     write_joined(f, shapes, |f, shape| match shape.dictionary_generation {
-        Some(generation) => write!(f, "{:#x}@{generation}", shape.shape.0),
-        None => write!(f, "{:#x}", shape.shape.0),
+        Some(generation) => write!(f, "{:#x}@{generation}", shape.shape),
+        None => write!(f, "{:#x}", shape.shape),
     })
 }
 
@@ -313,7 +313,7 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
             let direct = if target.direct_getter.is_some() { " direct" } else { "" };
             inputs.after(
                 f,
-                format_args!("CallNativeAccessor @{pc} {part:?} {:#x}{direct}", target.function.0),
+                format_args!("CallNativeAccessor @{pc} {part:?} {:#x}{direct}", target.function),
             )
         }
         Op::AllocateObject {
@@ -323,8 +323,7 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
         } => {
             write!(
                 f,
-                "AllocateObject {:#x} with {property_count} properties, room for {reserve}",
-                shape.0
+                "AllocateObject {shape:#x} with {property_count} properties, room for {reserve}"
             )
         }
         Op::InitializeNamed { offset } => inputs.after(f, format_args!("InitializeNamed +{offset}")),
@@ -332,7 +331,7 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
         Op::VirtualObject {
             kind: VirtualObjectKind::Object { shape },
             ..
-        } => inputs.after(f, format_args!("VirtualObject {:#x}", shape.0)),
+        } => inputs.after(f, format_args!("VirtualObject {shape:#x}")),
         Op::VirtualObject {
             kind: VirtualObjectKind::Closure { sample_slot },
             ..
@@ -351,7 +350,7 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
         Op::InitializeElement { index } => inputs.after(f, format_args!("InitializeElement [{index}]")),
         Op::CheckObject => inputs.after(f, format_args!("CheckObject")),
         Op::CheckValue { expected, .. } => inputs.after(f, format_args!("CheckValue {expected:#x}")),
-        Op::CheckClosure { shared_data } => inputs.after(f, format_args!("CheckClosure {:#x}", shared_data.0)),
+        Op::CheckClosure { shared_data } => inputs.after(f, format_args!("CheckClosure {shared_data:#x}")),
         Op::LoadFunctionEnvironment { private: true } => {
             inputs.after(f, format_args!("LoadFunctionEnvironment private"))
         }
@@ -367,23 +366,23 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
             write_shapes(f, shapes)?;
             inputs.after(f, format_args!("]"))
         }
-        Op::CheckPrototypeChainValid { validity } => write!(f, "CheckPrototypeChainValid {:#x}", validity.0),
+        Op::CheckPrototypeChainValid { validity } => write!(f, "CheckPrototypeChainValid {validity:#x}"),
         Op::AssumeValid => f.write_str("AssumeValid"),
         Op::CheckInterrupt => f.write_str("CheckInterrupt"),
         Op::AssumeLegacyArgumentsUnread => f.write_str("AssumeLegacyArgumentsUnread"),
         Op::HasInPrototypeChain => inputs.after(f, format_args!("HasInPrototypeChain")),
         Op::LoadGlobalBinding { environment, index } => {
-            write!(f, "LoadGlobalBinding {:#x}[{index}]", environment.0)
+            write!(f, "LoadGlobalBinding {environment:#x}[{index}]")
         }
         Op::StoreGlobalBinding { environment, index } => {
-            inputs.after(f, format_args!("StoreGlobalBinding {:#x}[{index}]", environment.0))
+            inputs.after(f, format_args!("StoreGlobalBinding {environment:#x}[{index}]"))
         }
         Op::LoadAccessorFunction { offset, part } => {
             inputs.after(f, format_args!("LoadAccessorFunction +{offset} {part:?}"))
         }
         Op::CheckAccessorFunction { offset, part, function } => inputs.after(
             f,
-            format_args!("CheckAccessorFunction +{offset} {part:?} {:#x}", function.0),
+            format_args!("CheckAccessorFunction +{offset} {part:?} {function:#x}"),
         ),
         Op::LoadNamed { offset, holds_data } => {
             inputs.after(f, format_args!("LoadNamed +{offset}"))?;
@@ -393,7 +392,7 @@ fn write_op(f: &mut fmt::Formatter<'_>, layout: &FrameLayout, op: &Op, inputs: &
             inputs.after(f, format_args!("StoreNamed +{offset}"))?;
             f.write_str(if *holds_data { " data" } else { "" })
         }
-        Op::AddNamed { offset, shape, .. } => inputs.after(f, format_args!("AddNamed +{offset} to {:#x}", shape.0)),
+        Op::AddNamed { offset, shape, .. } => inputs.after(f, format_args!("AddNamed +{offset} to {shape:#x}")),
         Op::ShapeSwitch { shapes, targets } => {
             inputs.after(f, format_args!("ShapeSwitch"))?;
             f.write_str(" [")?;
