@@ -59,7 +59,6 @@
 #include <LibWeb/Fetch/Infrastructure/PortBlocking.h>
 #include <LibWeb/Fetch/Infrastructure/PreflightCache.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
-#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -636,6 +635,38 @@ static ContentSecurityPolicy::ViolationReporter engine_violation_reporter(Engine
     return [&engine_record, request](NonnullRefPtr<ContentSecurityPolicy::Policy const> policy) {
         engine_record.report_violation(ContentSecurityPolicy::violation_of_request(request, move(policy)));
     };
+}
+
+// https://w3c.github.io/FileAPI/#slice-blob
+// NB: The bytes the slice of a blob with these bytes would refer to, given start and end.
+static ReadonlyBytes slice_blob_bytes(ReadonlyBytes bytes, i64 start, i64 end)
+{
+    // NB: Start and end are never null here, and only the slice's bytes are used, so steps 2.a, 3.a, 4, 6.b and 6.c do
+    //     not apply.
+
+    // 1. Let originalSize be blob’s size.
+    auto original_size = static_cast<i64>(bytes.size());
+
+    // 2. The start parameter, if non-null, is a value for the start point of a slice blob call, and must be treated
+    //    as a byte-order position, with the zeroth position representing the first byte. User agents must normalize
+    //    start according to the following:
+    //    b. If start is negative, let relativeStart be max((originalSize + start), 0).
+    //    c. Otherwise, let relativeStart be min(start, originalSize).
+    auto relative_start = start < 0 ? max(original_size + start, 0) : min(start, original_size);
+
+    // 3. The end parameter, if non-null. is a value for the end point of a slice blob call. User agents must
+    //    normalize end according to the following:
+    //    b. If end is negative, let relativeEnd be max((originalSize + end), 0).
+    //    c. Otherwise, let relativeEnd be min(end, originalSize).
+    auto relative_end = end < 0 ? max(original_size + end, 0) : min(end, original_size);
+
+    // 5. Let span be max((relativeEnd - relativeStart), 0).
+    auto span = max(relative_end - relative_start, 0);
+
+    // 6. Return a new Blob object S with the following characteristics:
+    //    a. S refers to span consecutive bytes from blob’s associated byte sequence, beginning with the byte at
+    //       byte-order position relativeStart.
+    return bytes.slice(static_cast<size_t>(relative_start), static_cast<size_t>(span));
 }
 
 static bool is_request_from_an_svg_image(Infrastructure::Request const& request)
@@ -1712,30 +1743,31 @@ NonnullRefPtr<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::Fe
         auto const* blob_object = maybe_blob_object.value().get_pointer<FileAPI::SerializedBlobURLEntry::Blob>();
         if (!blob_object)
             return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
-        auto const blob = FileAPI::Blob::create(blob_object->data, Utf16String::from_utf8(blob_object->type));
+
+        // NB: The response's body is a copy of the bytes it takes from the blob URL entry's object, which the process that
+        //     made the blob can still write.
+        auto blob_bytes = blob_object->data.bytes();
 
         // 9. Let response be a new response.
         auto response = Infrastructure::Response::create();
 
         // 10. Let fullLength be blob’s size.
-        auto full_length = blob->size();
+        auto full_length = static_cast<u64>(blob_bytes.size());
 
         // 11. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
         auto serialized_full_length = String::number(full_length);
 
         // 12. Let type be blob’s type.
-        auto const& type = blob->type();
+        auto type = Utf16String::from_utf8(blob_object->type);
 
         // 13. If request’s header list does not contain `Range`:
         if (!request->header_list()->contains("Range"sv)) {
             // 1. Let bodyWithType be the result of safely extracting blob.
-            auto body_with_type = safely_extract_body(realm, blob->raw_bytes());
-
             // 2. Set response’s status message to `OK`.
             response->set_status_message("OK"sv);
 
             // 3. Set response’s body to bodyWithType’s body.
-            response->set_body(Infrastructure::ResponseBody::from_fetch_body(body_with_type.body->fetch_body()));
+            response->set_body(Infrastructure::byte_sequence_as_response_body(blob_bytes));
 
             // 4. Set response’s header list to « (`Content-Length`, serializedFullLength), (`Content-Type`, type) ».
             auto content_length_header = HTTP::Header::isomorphic_encode("Content-Length"sv, serialized_full_length);
@@ -1784,16 +1816,14 @@ NonnullRefPtr<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::Fe
             }
 
             // 8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
-            auto sliced_blob = blob->slice_blob(*range_start, *range_end + 1, type);
+            auto sliced_blob_bytes = slice_blob_bytes(blob_bytes, static_cast<i64>(*range_start), static_cast<i64>(*range_end + 1));
 
             // 9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
-            auto sliced_body_with_type = safely_extract_body(realm, sliced_blob->raw_bytes());
-
             // 10. Set response’s body to slicedBodyWithType’s body.
-            response->set_body(Infrastructure::ResponseBody::from_fetch_body(sliced_body_with_type.body->fetch_body()));
+            response->set_body(Infrastructure::byte_sequence_as_response_body(sliced_blob_bytes));
 
             // 11. Let serializedSlicedLength be slicedBlob’s size, serialized and isomorphic encoded.
-            auto serialized_sliced_length = String::number(sliced_blob->size());
+            auto serialized_sliced_length = String::number(sliced_blob_bytes.size());
 
             // 12. Let contentRange be the result of invoking build a content range given rangeStart, rangeEnd, and fullLength.
             auto content_range = HTTP::build_content_range(*range_start, *range_end, full_length);
