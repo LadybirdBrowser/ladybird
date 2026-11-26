@@ -6,7 +6,9 @@
 
 //! UI Events, https://w3c.github.io/uievents/
 
+pub(crate) mod event_modifier;
 pub(crate) mod input_event;
 pub(crate) mod keyboard_event;
 pub(crate) mod mouse_event;
 pub(crate) mod pointer_event;
+pub(crate) mod ui_event;

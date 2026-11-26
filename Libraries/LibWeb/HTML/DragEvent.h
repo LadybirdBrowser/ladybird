@@ -1,49 +1,21 @@
 /*
  * Copyright (c) 2024, Maciej <sppmacd@pm.me>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <LibWeb/DOM/Event.h>
-#include <LibWeb/HTML/DataTransfer.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
-#include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
-
-namespace Web::Bindings {
-
-struct DragEventInit;
-
-}
 
 namespace Web::HTML {
 
-struct DragEventInit : UIEvents::MouseEventOptions {
-    GC::Ptr<DataTransfer> data_transfer;
-};
-
-// https://html.spec.whatwg.org/multipage/dnd.html#the-dragevent-interface
-class DragEvent : public UIEvents::MouseEvent {
-    WEB_WRAPPABLE(DragEvent, UIEvents::MouseEvent);
-    GC_DECLARE_ALLOCATOR(DragEvent);
-
-public:
-    [[nodiscard]] static GC::Ref<DragEvent> create(Utf16FlyString const& event_name, DragEventInit const& event_init = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0, HighResolutionTime::DOMHighResTimeStamp = 0);
-    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<DragEvent>> create_for_constructor(Utf16FlyString const&, Bindings::DragEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual ~DragEvent() override;
-
-    GC::Ptr<DataTransfer> data_transfer() { return m_data_transfer; }
-    static constexpr size_t data_transfer_offset() { return offsetof(DragEvent, m_data_transfer); }
-
-private:
-    DragEvent(Utf16FlyString const& event_name, DragEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    GC::Ptr<DataTransfer> m_data_transfer;
-};
+GC::Ref<DOM::Event> create_drag_event(Utf16FlyString const&, UIEvents::MouseEventOptions const&, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp, DragDataStore const&, Utf16FlyString const& current_drag_operation);
+GC::Ref<DOM::Event> create_drag_event_for_create_event(HighResolutionTime::DOMHighResTimeStamp);
+void finish_drag_event(DOM::Event const&);
+Utf16FlyString drag_event_drop_effect(DOM::Event const&);
+Utf16FlyString drag_event_operation(DOM::Event const&);
 
 }

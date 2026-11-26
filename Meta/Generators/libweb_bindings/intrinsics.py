@@ -9,6 +9,7 @@ from typing import Optional
 from typing import Set
 from typing import TextIO
 
+from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Generators.libweb_bindings.named_and_indexed_properties import create_named_properties_object_function_name
@@ -236,7 +237,9 @@ bool is_exposed(InterfaceName, JS::Realm const&);
     )
 
 
-def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: InterfaceSets) -> None:
+def write_intrinsic_definitions_implementation(
+    out: TextIO, interface_sets: InterfaceSets, context: GenerationContext
+) -> None:
     out.write(
         """#include <LibGC/DeferGC.h>
 #include <LibJS/HostClassBuilder.h>
@@ -331,7 +334,7 @@ bool is_exposed(InterfaceName name, JS::Realm const& realm)
             write_interface_creation(out, interface)
             write_iterator_prototype_creation(out, interface)
 
-    write_ensure_web_prototype_implementation(out, interface_sets.intrinsics)
+    write_ensure_web_prototype_implementation(out, interface_sets.intrinsics, context)
 
     out.write(
         """}

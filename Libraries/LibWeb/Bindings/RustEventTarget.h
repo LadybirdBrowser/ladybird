@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/UIEvents/MouseEvent.h>
 
 namespace Web::Bindings {
 
@@ -43,6 +44,18 @@ private:
     EventListenerListChanged m_event_listener_list_changed { nullptr };
 };
 
+class RustEventOwner {
+public:
+    void set(InterfaceName, RustInterfaceCell&);
+    RustInterfaceCell* get(InterfaceName) const;
+    GC::Ref<JS::HostObject> create_wrapper(JS::Realm&) const;
+    void visit_edges(GC::Cell::Visitor&);
+
+private:
+    InterfaceName m_interface_name { InterfaceName::Unknown };
+    GC::Ptr<RustInterfaceCell> m_cell;
+};
+
 // The Event that an object of an interface implemented in Rust owns, whose wrappers are the object's.
 class RustEvent final : public DOM::Event {
     WEB_NON_IDL_WRAPPABLE(RustEvent, DOM::Event);
@@ -62,14 +75,29 @@ private:
     virtual bool is_owned_by_rust_interface_object() const override { return true; }
     virtual GC::Ref<JS::HostObject> create_wrapper(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
+    virtual RustInterfaceCell* rust_event_owner(InterfaceName) const override;
 
-    InterfaceName m_owner_interface_name { InterfaceName::Unknown };
-    GC::Ptr<RustInterfaceCell> m_owner;
-
-    friend RustInterfaceCell* rust_event_owner(DOM::Event const&, InterfaceName);
+    RustEventOwner m_owner;
 };
 
-// The object that owns the event, if the event is owned by an object of the interface.
-RustInterfaceCell* rust_event_owner(DOM::Event const&, InterfaceName);
+class RustMouseEvent final : public UIEvents::MouseEvent {
+    WEB_NON_IDL_WRAPPABLE(RustMouseEvent, UIEvents::MouseEvent);
+    GC_DECLARE_ALLOCATOR(RustMouseEvent);
+
+public:
+    static GC::Ref<RustMouseEvent> create(Utf16FlyString const& type, UIEvents::MouseEventOptions const&, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
+
+    void set_owner(InterfaceName, RustInterfaceCell&);
+
+private:
+    RustMouseEvent(Utf16FlyString const& type, UIEvents::MouseEventOptions const&, double page_x, double page_y, double offset_x, double offset_y, HighResolutionTime::DOMHighResTimeStamp);
+
+    virtual bool is_owned_by_rust_interface_object() const override { return true; }
+    virtual GC::Ref<JS::HostObject> create_wrapper(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
+    virtual RustInterfaceCell* rust_event_owner(InterfaceName) const override;
+
+    RustEventOwner m_owner;
+};
 
 }

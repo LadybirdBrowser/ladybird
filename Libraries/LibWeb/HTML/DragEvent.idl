@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/dnd.html#the-dragevent-interface
-[Exposed=Window]
+[Exposed=Window, ImplementedIn=Rust]
 interface DragEvent : MouseEvent {
     constructor(DOMString type, optional DragEventInit eventInitDict = {});
 

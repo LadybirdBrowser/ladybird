@@ -617,7 +617,15 @@ def has_unforgeable_attributes(interface: Interface) -> bool:
     return any("LegacyUnforgeable" in attribute.extended_attributes for attribute in interface.regular_attributes)
 
 
-def write_ensure_web_prototype_implementation(out: TextIO, intrinsics: List[Interface]) -> None:
+def cpp_unforgeable_attribute_interfaces(interface: Interface, context: GenerationContext) -> list[Interface]:
+    return [
+        ancestor for ancestor in reversed(context.inheritance_stack(interface)) if has_unforgeable_attributes(ancestor)
+    ]
+
+
+def write_ensure_web_prototype_implementation(
+    out: TextIO, intrinsics: List[Interface], context: GenerationContext
+) -> None:
     rust_interfaces = [
         interface for interface in intrinsics if is_implemented_in_rust(interface) and not interface.is_namespace
     ]
@@ -691,14 +699,15 @@ void web_bindings_define_unforgeable_attributes(void* realm, JSObject* wrapper, 
     switch (static_cast<InterfaceName>(interface_name)) {
 """
     )
-    out.writelines(
-        f"""    case InterfaceName::{interface.name}:
-        {interface.prototype_class}::define_unforgeable_attributes(js_realm, object);
-        return;
-"""
-        for interface in intrinsics
-        if interface.name in cpp_parent_names and has_unforgeable_attributes(interface)
-    )
+    for interface in intrinsics:
+        if interface.name not in cpp_parent_names:
+            continue
+        ancestors = cpp_unforgeable_attribute_interfaces(interface, context)
+        if ancestors:
+            out.write(f"    case InterfaceName::{interface.name}:\n")
+            for ancestor in ancestors:
+                out.write(f"        {ancestor.prototype_class}::define_unforgeable_attributes(js_realm, object);\n")
+            out.write("        return;\n")
     out.write(
         """    default:
         VERIFY_NOT_REACHED();
@@ -1196,7 +1205,7 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
         sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_byte_string, to_cpp_interface,
         to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
-        to_long_long_clamping, to_long_long_enforcing_range, to_object, to_promise, to_shared_array_buffer, to_typed_array,
+        to_long_long_clamping, to_long_long_enforcing_range, to_object, to_promise, to_shared_array_buffer, to_short, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping, to_unsigned_short,
         to_unsigned_long_enforcing_range,
         to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string, to_window_proxy,
@@ -1336,7 +1345,7 @@ def write_rust_interface(
         cpp_ancestor = context.interfaces.get(cpp_ancestor.parent_name)
     unforgeable_attributes_interface = (
         f"Some({cpp_interface_name_constant(cpp_ancestor)})"
-        if cpp_ancestor is not None and has_unforgeable_attributes(cpp_ancestor)
+        if cpp_ancestor is not None and cpp_unforgeable_attribute_interfaces(cpp_ancestor, context)
         else "None"
     )
     method_documentation = "".join(
@@ -2654,7 +2663,7 @@ pub(crate) mod definitions {
         sequence_to_js, throw_no_union_types_matched, to_array_buffer_view, to_boolean, to_buffer_source,
         to_byte_string, to_cpp_interface, to_cpp_interface_in_union,
         to_dom_string, to_dom_string_treating_null_as_empty, to_double, to_enumeration_value, to_float, to_long,
-        to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_object, to_shared_array_buffer, to_typed_array,
+        to_long_enforcing_range, to_long_long, to_long_long_enforcing_range, to_object, to_shared_array_buffer, to_short, to_typed_array,
         to_unrestricted_double, to_unrestricted_float, to_unsigned_long, to_unsigned_long_clamping, to_unsigned_short,
         to_unsigned_long_enforcing_range,
         to_unsigned_long_long, to_unsigned_long_long_enforcing_range, to_usv_string, to_window_proxy,

@@ -249,7 +249,7 @@ EventResult DragAndDropEventHandler::handle_drag_move(
     //    drag operation to "none" (no drag operation).
     auto drag_event = fire_a_drag_and_drop_event(m_source_node, HTML::EventNames::drag);
     if (drag_event->cancelled())
-        m_current_drag_operation = HTML::DataTransferEffect::none;
+        m_current_drag_operation = "none"_utf16_fly_string;
 
     // 3. If the drag event was not canceled and the user has not ended the drag-and-drop operation, check the state of
     //    the drag-and-drop operation, as follows:
@@ -319,37 +319,19 @@ EventResult DragAndDropEventHandler::handle_drag_move(
                 if (allow_text_drop(*m_current_target_element)) {
                     // Set the current drag operation to either "copy" or "move", as appropriate given the platform
                     // conventions.
-                    m_current_drag_operation = HTML::DataTransferEffect::copy;
+                    m_current_drag_operation = "copy"_utf16_fly_string;
                 }
                 // -> Otherwise
                 else {
                     // Reset the current drag operation to "none".
-                    m_current_drag_operation = HTML::DataTransferEffect::none;
+                    m_current_drag_operation = "none"_utf16_fly_string;
                 }
             }
             // Otherwise (if the dragover event is canceled), set the current drag operation based on the values of the
             // effectAllowed and dropEffect attributes of the DragEvent object's dataTransfer object as they stood after
-            // the event dispatch finished, as per the following table:
+            // the event dispatch finished.
             else {
-                auto const& effect_allowed = drag_event->data_transfer()->effect_allowed();
-                auto const& drop_effect = drag_event->data_transfer()->drop_effect();
-
-                // effectAllowed                                             | dropEffect | Drag operation
-                // ---------------------------------------------------------------------------------------
-                // "uninitialized", "copy", "copyLink", "copyMove", or "all" | "copy"     | "copy"
-                // "uninitialized", "link", "copyLink", "linkMove", or "all" | "link"     | "link"
-                // "uninitialized", "move", "copyMove", "linkMove", or "all" | "move"     | "move"
-                // Any other case                                            |            | "none"
-                using namespace HTML::DataTransferEffect;
-
-                if (effect_allowed.is_one_of(uninitialized, copy, copyLink, copyMove, all) && drop_effect == copy)
-                    m_current_drag_operation = copy;
-                else if (effect_allowed.is_one_of(uninitialized, link, copyLink, linkMove, all) && drop_effect == link)
-                    m_current_drag_operation = link;
-                else if (effect_allowed.is_one_of(uninitialized, move, copyMove, linkMove, all) && drop_effect == move)
-                    m_current_drag_operation = move;
-                else
-                    m_current_drag_operation = none;
+                m_current_drag_operation = HTML::drag_event_operation(*drag_event);
             }
         }
     }
@@ -430,7 +412,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
         // 1. If the current drag operation is "none" (no drag operation), or if the user ended the drag-and-drop
         //    operation by canceling it (e.g. by hitting the Escape key), or if the current target element is null, then
         //    the drag operation failed. Run these substeps:
-        if (m_current_drag_operation == HTML::DataTransferEffect::none || cancelled == Cancelled::Yes || !m_current_target_element) {
+        if (m_current_drag_operation == "none"_utf16_fly_string || cancelled == Cancelled::Yes || !m_current_target_element) {
             // 1. Let dropped be false.
             dropped = false;
 
@@ -443,11 +425,11 @@ EventResult DragAndDropEventHandler::handle_drag_end(
             }
 
             // 3. Set the current drag operation to "none".
-            m_current_drag_operation = HTML::DataTransferEffect::none;
+            m_current_drag_operation = "none"_utf16_fly_string;
         }
         // Otherwise, the drag operation might be a success; run these substeps:
         else {
-            GC::Ptr<HTML::DragEvent> drag_event;
+            GC::Ptr<DOM::Event> drag_event;
 
             // 1. Let dropped be true.
             dropped = true;
@@ -463,7 +445,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
             // 3. If the event is canceled, set the current drag operation to the value of the dropEffect attribute of
             //    the DragEvent object's dataTransfer object as it stood after the event dispatch finished.
             if (drag_event && drag_event->cancelled()) {
-                m_current_drag_operation = drag_event->data_transfer()->drop_effect();
+                m_current_drag_operation = HTML::drag_event_drop_effect(*drag_event);
             }
 
             // Otherwise, the event is not canceled; perform the event's default action, which depends on the exact
@@ -482,7 +464,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
                 // -> Otherwise
                 else {
                     // Reset the current drag operation to "none".
-                    m_current_drag_operation = HTML::DataTransferEffect::none;
+                    m_current_drag_operation = "none"_utf16_fly_string;
                 }
             }
         }
@@ -504,7 +486,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
             // FIXME: The user agent should delete the dragged selection from the relevant text control.
         }
         // -> If dropped is false or if the current drag operation is "none"
-        else if (!dropped || m_current_drag_operation == HTML::DataTransferEffect::none) {
+        else if (!dropped || m_current_drag_operation == "none"_utf16_fly_string) {
             // The drag was canceled. If the platform conventions dictate that this be represented to the user (e.g. by
             // animating the dragged selection going back to the source of the drag-and-drop operation), then do so.
             return EventResult::Cancelled;
@@ -519,7 +501,8 @@ EventResult DragAndDropEventHandler::handle_drag_end(
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#fire-a-dnd-event
-GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
+// drag_event.rs handles the steps that initialize and detach the drag data store.
+GC::Ref<DOM::Event> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     JS::Object const& relevant_global_object,
     GC::Ptr<DOM::EventTarget> target,
     Utf16FlyString const& name,
@@ -537,78 +520,19 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     //       handle this by allowing callers to pass a null `target` node. This allows us to execute all state-change
     //       operations in the fire-a-DND-event AO, and simply skip event dispatching for now if the target is null.
 
-    // 1. Let dataDragStoreWasChanged be false.
-    bool drag_data_store_was_changed = false;
-
     // 2. If no specific related target was provided, set related target to null.
 
     // 3. Let window be the relevant global object of the Document object of the specified target element.
     // NOTE: We defer this until it's needed later, to more easily handle when the target is not an element.
 
-    // 4. If e is dragstart, then set the drag data store mode to the read/write mode and set dataDragStoreWasChanged to true.
-    if (name == HTML::EventNames::dragstart) {
-        m_drag_data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
-        drag_data_store_was_changed = true;
-    }
-
-    // 5. If e is drop, set the drag data store mode to the read-only mode.
-    else if (name == HTML::EventNames::drop) {
-        m_drag_data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
-    }
-
-    // 6. Let dataTransfer be a newly created DataTransfer object associated with the given drag data store.
-    auto data_transfer = HTML::DataTransfer::create(*m_drag_data_store);
-
-    // 7. Set the effectAllowed attribute to the drag data store's drag data store allowed effects state.
-    data_transfer->set_effect_allowed_internal(m_drag_data_store->allowed_effects_state());
-
-    // 8. Set the dropEffect attribute to "none" if e is dragstart, drag, or dragleave; to the value corresponding to the
-    //    current drag operation if e is drop or dragend; and to a value based on the effectAllowed attribute's value and
-    //    the drag-and-drop source, as given by the following table, otherwise (i.e. if e is dragenter or dragover):
-    if (name.is_one_of(HTML::EventNames::dragstart, HTML::EventNames::drag, HTML::EventNames::dragleave)) {
-        data_transfer->set_drop_effect(HTML::DataTransferEffect::none);
-    } else if (name.is_one_of(HTML::EventNames::drop, HTML::EventNames::dragend)) {
-        data_transfer->set_drop_effect(m_current_drag_operation);
-    } else {
-        // effectAllowed                                                                     | dropEffect
-        // ---------------------------------------------------------------------------------------------------------------------------------------
-        // "none"                                                                            | "none"
-        // "copy"                                                                            | "copy"
-        // "copyLink"                                                                        | "copy", or, if appropriate, "link"
-        // "copyMove"                                                                        | "copy", or, if appropriate, "move"
-        // "all"                                                                             | "copy", or, if appropriate, either "link" or "move"
-        // "link"                                                                            | "link"
-        // "linkMove"                                                                        | "link", or, if appropriate, "move"
-        // "move"                                                                            | "move"
-        // "uninitialized" when what is being dragged is a selection from a text control     | "move", or, if appropriate, either "copy" or "link"
-        // "uninitialized" when what is being dragged is a selection                         | "copy", or, if appropriate, either "link" or "move"
-        // "uninitialized" when what is being dragged is an a element with an href attribute | "link", or, if appropriate, either "copy" or "move"
-        // Any other case                                                                    | "copy", or, if appropriate, either "link" or "move"
-        using namespace HTML::DataTransferEffect;
-
-        // clang-format off
-        if (data_transfer->effect_allowed() == none)          data_transfer->set_drop_effect(none);
-        else if (data_transfer->effect_allowed() == copy)     data_transfer->set_drop_effect(copy);
-        else if (data_transfer->effect_allowed() == copyLink) data_transfer->set_drop_effect(copy);
-        else if (data_transfer->effect_allowed() == copyMove) data_transfer->set_drop_effect(copy);
-        else if (data_transfer->effect_allowed() == all)      data_transfer->set_drop_effect(copy);
-        else if (data_transfer->effect_allowed() == link)     data_transfer->set_drop_effect(link);
-        else if (data_transfer->effect_allowed() == linkMove) data_transfer->set_drop_effect(link);
-        else if (data_transfer->effect_allowed() == move)     data_transfer->set_drop_effect(move);
-        // FIXME: Handle "uninitialized" when element drag operations are supported.
-        else data_transfer->set_drop_effect(copy);
-        // clang-format on
-    }
-
     // 9. Let event be the result of creating an event using DragEvent.
     // FIXME: Implement https://dom.spec.whatwg.org/#concept-event-create
-    HTML::DragEventInit event_init {};
+    UIEvents::MouseEventOptions event_init {};
 
     // 10. Initialize event's type attribute to e, its bubbles attribute to true, its view attribute to window, its
     //     relatedTarget attribute to related target, and its dataTransfer attribute to dataTransfer.
     event_init.bubbles = true;
     event_init.related_target = related_target;
-    event_init.data_transfer = data_transfer;
 
     if (target) {
         auto* target_node = as_if<DOM::Node>(target.ptr());
@@ -634,7 +558,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     event_init.button = button;
     event_init.buttons = buttons;
 
-    auto event = HTML::DragEvent::create(name, event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object));
+    auto event = HTML::create_drag_event(name, event_init, page_offset.x().to_double(), page_offset.y().to_double(), offset.x().to_double(), offset.y().to_double(), HighResolutionTime::current_high_resolution_time(relevant_global_object), *m_drag_data_store, m_current_drag_operation);
 
     // The "create an event" AO in step 9 should set these.
     event->set_initialized(true);
@@ -644,16 +568,7 @@ GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     if (target)
         target->dispatch_event(event);
 
-    // 13. Set the drag data store allowed effects state to the current value of dataTransfer's effectAllowed attribute.
-    //     (It can only have changed value if e is dragstart.)
-    m_drag_data_store->set_allowed_effects_state(data_transfer->effect_allowed());
-
-    // 14. If dataDragStoreWasChanged is true, then set the drag data store mode back to the protected mode.
-    if (drag_data_store_was_changed)
-        m_drag_data_store->set_mode(HTML::DragDataStore::Mode::Protected);
-
-    // 15. Break the association between dataTransfer and the drag data store.
-    data_transfer->disassociate_with_drag_data_store();
+    HTML::finish_drag_event(*event);
 
     return event;
 }
@@ -685,7 +600,7 @@ void DragAndDropEventHandler::reset()
     m_source_node = nullptr;
     m_immediate_user_selection = nullptr;
     m_current_target_element = nullptr;
-    m_current_drag_operation = HTML::DataTransferEffect::none;
+    m_current_drag_operation = "none"_utf16_fly_string;
 }
 
 }

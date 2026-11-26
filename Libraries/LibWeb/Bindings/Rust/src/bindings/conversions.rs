@@ -283,6 +283,13 @@ pub(crate) fn to_long(vm: &Vm, value: Value) -> ThrowCompletionOr<i32> {
     value.to_i32(vm)
 }
 
+/// https://webidl.spec.whatwg.org/#js-short
+pub(crate) fn to_short(vm: &Vm, value: Value) -> ThrowCompletionOr<i16> {
+    // 1. Let x be ? ConvertToInt(V, 16, "signed").
+    // 2. Return the IDL short value that represents the same numeric value as x.
+    value.to_i16(vm)
+}
+
 /// A JS value converted to an unsigned short, https://webidl.spec.whatwg.org/#js-unsigned-short
 pub(crate) fn to_unsigned_short(vm: &Vm, value: Value) -> ThrowCompletionOr<u16> {
     // 1. Let x be ? ConvertToInt(V, 16, "unsigned").

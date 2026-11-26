@@ -43,9 +43,6 @@ public:
 
     void set_mode(Mode);
 
-    Utf16FlyString allowed_effects_state() const;
-    void set_allowed_effects_state(Utf16FlyString const&);
-
     RustDragDataStore const* rust_store() const { return m_store; }
 
 private:
