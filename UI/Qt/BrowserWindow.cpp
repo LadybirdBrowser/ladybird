@@ -540,6 +540,21 @@ void BrowserWindow::initialize_application_menu()
     setMenuBar(Application::the().create_application_menu_bar(Application::ForBrowserWindow::Yes));
     menuBar()->setObjectName("LadybirdMenuBar");
 
+#if defined(AK_OS_MACOS)
+    // Like any Mac app's Window menu, this one sits before the Help menu, and AppKit adds its own window commands to it.
+    auto* window_menu = new QMenu("&Window", menuBar());
+    menuBar()->insertMenu(Application::the().help_menu()->menuAction(), window_menu);
+
+    auto* minimize_action = window_menu->addAction("Minimize");
+    minimize_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_M));
+    connect(minimize_action, &QAction::triggered, this, [this] { showMinimized(); });
+
+    auto* zoom_action = window_menu->addAction("Zoom");
+    connect(zoom_action, &QAction::triggered, this, [this] { toggle_window_maximized(); });
+
+    register_windows_menu(*window_menu, *this);
+#endif
+
     create_menu_bar_window_controls();
     update_menu_bar_visibility();
 }

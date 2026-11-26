@@ -32,6 +32,22 @@ void enable_menu_icons([[maybe_unused]] QMenu& menu)
 #endif
 }
 
+void register_windows_menu(QMenu& menu, QWidget& window)
+{
+    // AppKit adds the commands that arrange windows, along with their keyboard shortcuts, to the application's Windows
+    // menu. Qt otherwise registers a hidden menu as that menu, and AppKit never runs the shortcuts of hidden items.
+    // NB: Every browser window has its own menu bar, and the focused window's is the application's.
+    auto register_menu = [menu = QPointer { &menu }, window = QPointer { &window }](QWindow* focus_window) {
+        if (!menu || !window || !focus_window || window->windowHandle() != focus_window)
+            return;
+        // NB: AppKit adds its commands again each time the menu is registered, even when it already is.
+        if (NSMenu* native_menu = menu->toNSMenu(); native_menu && NSApp.windowsMenu != native_menu)
+            NSApp.windowsMenu = native_menu;
+    };
+    QObject::connect(qApp, &QGuiApplication::focusWindowChanged, &menu, register_menu);
+    register_menu(QGuiApplication::focusWindow());
+}
+
 static void hide_native_context_menu_shortcuts(QMenu& menu)
 {
     static constexpr auto property = "LadybirdHideNativeContextMenuShortcuts";

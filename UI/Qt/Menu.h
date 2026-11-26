@@ -45,6 +45,11 @@ void populate_session_history_traversal_menu(QMenu& menu, WebContentView&, int d
 
 QAction* create_application_action(QWidget& parent, Action&, IncludeActionIcon = IncludeActionIcon::Yes);
 
+#if defined(AK_OS_MACOS)
+// Makes the menu AppKit's Windows menu whenever the window is focused, so AppKit adds its window commands to it.
+void register_windows_menu(QMenu&, QWidget& window);
+#endif
+
 class MenuZoomRow final : public QWidgetAction {
 public:
     AK_ALLOC_WITH_KMALLOC;
