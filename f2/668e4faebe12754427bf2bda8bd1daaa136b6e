@@ -1,0 +1,11 @@
+Ladybird resolves a generic font family to the platform’s fonts alone,
+never to a page’s @font-face face that shares the platform family’s
+name. Blink does the same: CSSFontSelector::GetFontData() consults its
+@font-face cache only for a family that isn’t generic, and maps a
+generic one through FamilyNameFromSettings(). So does Gecko, whose
+gfxFontGroup sends a named family through AddPlatformFont(), which
+checks the user font set first, and sends a generic one through
+AddGenericFonts(), which uses only the platform font list. And on a
+page that declares Ahem under every likely platform name for monospace,
+serif, and sans-serif, Chrome 158, Firefox 151, and WebKit 26.5 render
+none of those generics in Ahem (run).
