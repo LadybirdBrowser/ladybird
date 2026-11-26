@@ -8,7 +8,6 @@
 //! DataTransfer, https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface
 
 use core::cell::{self, Cell, RefCell};
-use core::ffi::c_void;
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -16,9 +15,9 @@ use libjs_rust::api::{GcRefCell, Must, Object, Trace, Utf16View, Value, Vm};
 
 use super::data_transfer_item::DataTransferItem;
 use super::data_transfer_item_list::DataTransferItemList;
-use super::drag_data_store::{DragDataStore, LentDragDataStore, Mode};
+use super::drag_data_store::{DragDataStore, Mode};
 use crate::bindings::conversions::{ToJs, frozen_array_to_js, sequence_to_js};
-use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi};
+use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::file_api::file_list::FileList;
@@ -42,7 +41,7 @@ pub(crate) struct DataTransfer {
 impl Wrappable for DataTransfer {}
 
 impl DataTransfer {
-    pub(super) fn create(vm: &Vm, store: Rc<DragDataStore>) -> Ref<Self> {
+    pub(crate) fn create(vm: &Vm, store: Rc<DragDataStore>) -> Ref<Self> {
         let count = store.len();
         let transfer = allocate(vm, |_| Self {
             store: RefCell::new(Some(store)),
@@ -398,9 +397,4 @@ fn normalize_format(format: &Utf16String) -> Utf16View<'_> {
     } else {
         format
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn web_rust_data_transfer_create(vm: &Vm, store: LentDragDataStore<'_>) -> *mut c_void {
-    cell_into_abi(DataTransfer::create(vm, store.to_rc()))
 }

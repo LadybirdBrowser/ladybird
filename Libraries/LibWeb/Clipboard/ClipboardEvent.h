@@ -15,6 +15,6 @@
 
 namespace Web::Clipboard {
 
-GC::Ref<DOM::Event> create_clipboard_event(JS::Realm&, Utf16FlyString const& event_name, DOM::EventInit const&, GC::Ptr<HTML::DataTransfer> clipboard_data);
+GC::Ref<DOM::Event> create_clipboard_event(JS::Realm&, Utf16FlyString const& event_name, DOM::EventInit const&, HTML::DragDataStore const& store);
 
 }

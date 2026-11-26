@@ -33,7 +33,6 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
-#include <LibWeb/HTML/DataTransfer.h>
 #include <LibWeb/HTML/DragDataStore.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -2689,7 +2688,7 @@ static GC::Ptr<DOM::EventTarget> clipboard_event_target(DOM::Document& document)
 }
 
 // https://w3c.github.io/clipboard-apis/#fire-a-clipboard-event
-static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& event_name, GC::Ref<HTML::DataTransfer> data_transfer)
+static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& event_name, HTML::DragDataStore const& store)
 {
     auto target = clipboard_event_target(document);
     if (!target)
@@ -2700,7 +2699,7 @@ static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& 
     event_init.cancelable = true;
     event_init.composed = true;
 
-    auto event = Clipboard::create_clipboard_event(HTML::relevant_realm(document), event_name, event_init, data_transfer);
+    auto event = Clipboard::create_clipboard_event(HTML::relevant_realm(document), event_name, event_init, store);
     return target->dispatch_event(event);
 }
 
@@ -2765,10 +2764,9 @@ bool EventHandler::perform_copy_action(ClipboardActionTrigger trigger)
 
     auto data_store = HTML::DragDataStore::create();
     data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
-    auto data_transfer = HTML::DataTransfer::create(*data_store);
 
     // 2. Fire a clipboard event named copy.
-    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::copy, data_transfer);
+    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::copy, *data_store);
     data_store->set_mode(HTML::DragDataStore::Mode::Protected);
 
     // NB: The event listeners can make the document inactive, for example by removing its iframe.
@@ -2836,10 +2834,9 @@ bool EventHandler::perform_cut_action(ClipboardActionTrigger trigger)
 
     auto data_store = HTML::DragDataStore::create();
     data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
-    auto data_transfer = HTML::DataTransfer::create(*data_store);
 
     // 2. Fire a clipboard event named cut.
-    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::cut, data_transfer);
+    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::cut, *data_store);
     data_store->set_mode(HTML::DragDataStore::Mode::Protected);
 
     // NB: The event listeners can make the document inactive, for example by removing its iframe.
@@ -2981,7 +2978,6 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     TemporaryChange handling_user_paste { s_is_handling_user_key_press_or_paste, true };
 
     data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
-    auto data_transfer = HTML::DataTransfer::create(*data_store);
 
     // NB: Pasting the system clipboard is the user's interaction with the user agent's "Paste" control, so script
     //     running as a result of the paste event may read the data being pasted. A paste of handed-over content lets
@@ -2991,7 +2987,7 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     window->set_system_clipboard_data_being_pasted(system_clipboard_data);
 
     // 2. Fire a clipboard event named paste.
-    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::paste, data_transfer);
+    bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::paste, *data_store);
     window->set_system_clipboard_data_being_pasted(data_being_pasted);
     data_store->set_mode(HTML::DragDataStore::Mode::Protected);
 
