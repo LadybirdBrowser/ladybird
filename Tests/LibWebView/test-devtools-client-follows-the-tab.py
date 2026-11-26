@@ -19,6 +19,7 @@ from pathlib import Path
 
 helpers = runpy.run_path(str(Path(__file__).with_name("test-webdriver-delete-session.py")))
 TIMEOUT_SECONDS = helpers["EVENT_TIMEOUT_SECONDS"]
+LocalHTTPServer = helpers["LocalHTTPServer"]
 
 
 loads_lock = threading.Lock()
@@ -312,7 +313,7 @@ def main():
     parser.add_argument("ladybird_binary")
     ladybird_binary = parser.parse_args().ladybird_binary
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = LocalHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         with tempfile.TemporaryDirectory(prefix="ladybird-devtools-") as directory:

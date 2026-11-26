@@ -40,7 +40,7 @@ class PdfHandler(http.server.BaseHTTPRequestHandler):
 # The CSP of a PDF's response is for the PDF, so it mustn't stop the PDF viewer, which brings its own: The viewer still
 # draws the PDF's first page.
 def run_test(webdriver_binary):
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), PdfHandler)
+    server = helpers["LocalHTTPServer"](("127.0.0.1", 0), PdfHandler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
     with tempfile.TemporaryDirectory() as directory:

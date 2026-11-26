@@ -114,7 +114,7 @@ class BiDiConnection:
         )
 
 
-class ReloadServer(http.server.ThreadingHTTPServer):
+class ReloadServer(webdriver_helpers.LocalHTTPServer):
     daemon_threads = True
 
     def __init__(self):

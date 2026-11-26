@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory() as directory:
             }
         )
     )
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = helpers["LocalHTTPServer"](("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     process, port = helpers["launch_webdriver"](
         sys.argv[1],

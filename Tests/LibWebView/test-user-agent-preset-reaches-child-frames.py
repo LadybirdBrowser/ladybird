@@ -124,7 +124,7 @@ def main():
     ladybird_binary = parser.parse_args().ladybird_binary
 
     global server_port
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = devtools["LocalHTTPServer"](("127.0.0.1", 0), Handler)
     server_port = server.server_port
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
