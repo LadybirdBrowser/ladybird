@@ -1,0 +1,2 @@
+Canvas pixel: 199,100,50,128
+Exported PNG pixel: 199,100,50,128
