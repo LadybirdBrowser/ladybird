@@ -212,8 +212,10 @@ fn append_anchor_scroll_shift_nodes<Arena: PaintableRowsRead, Sink: VisualContex
     own_state
 }
 
-// Positioned descendants skip intermediate overflow clips. Share the new clip when
-// their spatial and clip chains coincide; otherwise append it under their own chain.
+// Positioned descendants skip intermediate overflow clips. Share the new clip when their spatial and
+// clip chains coincide; otherwise append it under their own clip chain.
+// NB: The clip geometry is in the clipping box's own space, which differs from the chain's space when the
+//     chain skips a scroll node (e.g. fixed position descendants of a box in a scrolled document).
 fn append_clip_to_positioned_chain<Sink: VisualContextNodeSink>(
     sink: &mut Sink,
     chain: PositioningContext,
@@ -224,7 +226,7 @@ fn append_clip_to_positioned_chain<Sink: VisualContextNodeSink>(
     let clip = if chain.spatial == normal_before.spatial && chain.clip == normal_before.clip {
         normal_after.clip
     } else {
-        sink.append_clip_node(data, chain.clip, chain.spatial)
+        sink.append_clip_node(data, chain.clip, normal_before.spatial)
     };
     PositioningContext { clip, ..chain }
 }

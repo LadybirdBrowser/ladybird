@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-clips-escaping-absolute-descendants-after-scroll-ref.html" />
+<style>
+  body { margin: 0; position: relative; }
+  .scroller { height: 300px; overflow: hidden; }
+  .spacer { height: 300px; }
+  .clipper { width: 100px; height: 100px; clip-path: inset(0); }
+  .abspos { position: absolute; top: 0; left: 0; width: 300px; height: 300px; background: green; }
+</style>
+<div class="scroller">
+  <div class="spacer"></div>
+  <div class="clipper"><div class="abspos"></div></div>
+  <div class="spacer"></div>
+</div>
+<script>
+  document.querySelector(".scroller").scrollTop = 250;
+</script>
