@@ -111,6 +111,9 @@ pub struct CodeGenerator<'a> {
     /// The block whose code is being generated.
     block: BlockId,
     exception_sites: Vec<u32>,
+    /// The value whose register the last instruction wrote, setting the zero flag for it at its width, and where that
+    /// instruction starts and ends.
+    zero_flag: (Value, Width, usize, usize),
 }
 
 impl<'a> BranchGroups<'a> for CodeGenerator<'a> {
@@ -144,6 +147,7 @@ impl<'a> CodeGenerator<'a> {
             frame_size: size.next_multiple_of(16),
             block: 0,
             exception_sites: Vec::new(),
+            zero_flag: (crate::ir::NONE, Width::W32, usize::MAX, usize::MAX),
         }
     }
 
@@ -156,6 +160,8 @@ impl<'a> CodeGenerator<'a> {
         self.prologue();
         for block in 0..func.blocks.len() as BlockId {
             self.block = block;
+            // NB: Other predecessors get here with flags of their own.
+            self.zero_flag = (crate::ir::NONE, Width::W32, usize::MAX, usize::MAX);
             let label = self.block_labels[block as usize];
             if func.is_loop_header(block) {
                 self.asm.align_code(LOOP_ALIGNMENT);
@@ -615,14 +621,24 @@ impl<'a> CodeGenerator<'a> {
             Op::Jump => self.jump(0),
             Op::Branch => {
                 let register = gpr(record.inputs[0]);
+                let flags_hold = self.zero_flag_holds(node.args[0], Width::W32);
                 self.compare_and_branch_on(Cond::NotEqual, |generator| {
-                    generator.asm.test_rr(Width::W32, register, register);
+                    if !flags_hold {
+                        generator.asm.test_rr(Width::W32, register, register);
+                    }
                 });
             }
             Op::BranchCompare => {
                 let ty = func.node(node.args[0]).ty;
-                self.compare_and_branch_on(condition(IntCondition::from_flags(node.flags)), |generator| {
-                    generator.compare(ty, record.inputs[0], record.inputs[1], node.args[1]);
+                let condition = IntCondition::from_flags(node.flags);
+                // NB: Only the zero flag says the same after the arithmetic as after a comparison with zero.
+                let flags_hold = matches!(condition, IntCondition::Eq | IntCondition::Ne)
+                    && func.node(node.args[1]).constant() == Some(0)
+                    && self.zero_flag_holds(node.args[0], width(ty));
+                self.compare_and_branch_on(self::condition(condition), |generator| {
+                    if !flags_hold {
+                        generator.compare(ty, record.inputs[0], record.inputs[1], node.args[1]);
+                    }
                 });
             }
             Op::BranchFloatCompare => {
@@ -707,6 +723,24 @@ impl<'a> CodeGenerator<'a> {
         let slot = self.allocation.slots[input as usize];
         debug_assert!(slot != NO_SLOT, "v{input} has no slot");
         Address::new(FP, slot)
+    }
+
+    /// Notes that the instruction just emitted from `start` on wrote `value`, setting the zero flag for it at `width`.
+    fn note_zero_flag(&mut self, value: Value, width: Width, start: usize) {
+        self.zero_flag = (value, width, start, self.asm.offset());
+    }
+
+    /// Whether a branch can test whether `value` is zero at `width` with the flags of the instruction that wrote it:
+    /// nothing was emitted after that instruction, and the two would stay within one 32-byte window, as a compare
+    /// and its branch do. The branch can macro-fuse with the instruction, but its padding would go between the two.
+    fn zero_flag_holds(&self, value: Value, width: Width) -> bool {
+        // NB: The longest conditional branch is 6 bytes.
+        let (start, end) = (self.zero_flag.2, self.asm.offset() + 6);
+        self.zero_flag.0 == value
+            && self.zero_flag.1 == width
+            && self.zero_flag.3 == self.asm.offset()
+            && start / 32 == (end - 1) / 32
+            && !end.is_multiple_of(32)
     }
 
     fn compare(&mut self, ty: Type, a: Register, b: Register, b_value: Value) {

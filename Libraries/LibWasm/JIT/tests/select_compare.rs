@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Selects that compare or test their condition's operands themselves. Check them against the interpreter, directly
-//! and through the runtime.
+//! Selects that compare or test their condition's operands themselves, and branches on the flags of the arithmetic
+//! that computed a value. Check them against the interpreter, directly and through the runtime.
 
 #![cfg(any(target_arch = "x86_64", all(target_arch = "aarch64", not(windows))))]
 
@@ -89,6 +89,45 @@ const BODIES: &[(&str, &str)] = &[
         "(local.set $x (i64.lt_s (local.get $a) (local.get $b))) \
         (i64.add (i64.extend_i32_u (local.get $x)) (select (local.get $a) (local.get $b) (local.get $x)))",
     ),
+    // Branches on the flags of a subtraction, an addition with and without its own register, and an `and`.
+    (
+        "count_down",
+        "(local.set $x (i32.add (i32.and (local.get $x) (i32.const 31)) (i32.const 1))) \
+        (loop $loop (local.set $a (i64.add (local.get $a) (local.get $b))) \
+          (br_if $loop (local.tee $x (i32.sub (local.get $x) (i32.const 1))))) (local.get $a)",
+    ),
+    (
+        "add_branch",
+        "(block $out (br_if $out (i64.eqz (local.tee $a (i64.add (local.get $a) (local.get $b))))) \
+        (return (i64.const 1))) (local.get $a)",
+    ),
+    (
+        "add_both_live",
+        "(block $out (br_if $out (i32.eqz (local.tee $y (i32.add (local.get $x) (local.get $y))))) \
+        (return (i64.extend_i32_s (local.get $x)))) (i64.extend_i32_s (local.get $y))",
+    ),
+    (
+        "and_branch",
+        "(block $out (br_if $out (i32.and (local.get $x) (local.get $y))) (return (i64.const 1))) (i64.const 2)",
+    ),
+    (
+        "wider_flags",
+        "(block $out (br_if $out (i32.eqz (i32.wrap_i64 (local.tee $a (i64.add (local.get $a) (local.get $b)))))) \
+        (return (i64.const 1))) (local.get $a)",
+    ),
+    // Code that sets the flags between the arithmetic that computed a value and the branch on it.
+    (
+        "stale_flags",
+        "(local.set $x (i32.and (local.get $x) (local.get $y))) (local.set $y (i32.shl (local.get $y) (i32.const 1))) \
+        (block $out (br_if $out (local.get $x)) (return (i64.extend_i32_s (local.get $y)))) (i64.const 2)",
+    ),
+    // The flags of the arithmetic right before a loop do not hold where its back edge gets to the header.
+    (
+        "loop_entry_flags",
+        "(local.set $y (i32.and (local.get $y) (i32.const 1))) (local.set $x (i32.add (i32.and (local.get $x) (i32.const 7)) (i32.const 1))) \
+        (block $out (loop $loop (br_if $out (local.get $y)) (local.set $a (i64.add (local.get $a) (i64.const 3))) \
+          (br_if $loop (local.tee $x (i32.sub (local.get $x) (i32.const 1)))))) (local.get $a)",
+    ),
 ];
 
 const INPUTS: [i64; 10] = [
@@ -136,7 +175,7 @@ fn script(functions: &[(String, String)]) -> String {
 }
 
 #[test]
-fn selects_run_the_same_compiled() {
+fn selects_and_branches_on_flags_run_the_same_compiled() {
     let panics = harness::panics();
     // SAFETY: Nothing else runs yet.
     unsafe { std::env::set_var("LIBWASM_JIT", "forced,verify-ir") };

@@ -361,6 +361,10 @@ there; a phi in a register with a slot is stored where its block starts.
   the taken target is a loop header the edge needs moves into: the exit jumps (to a stub if it needs
   moves), and the back edge moves inline, so that an iteration takes one jump rather than two.
   `br_table` is a jump table of 32-bit offsets, with stubs for the edges that need moves.
+- **Flags.** A branch on whether a value is zero right after the add, sub, and, or or xor that
+  computed it, with nothing emitted in between, uses the flags that instruction set rather than
+  testing the value again, if the two fit in one 32-byte window: they can macro-fuse, and the
+  branch's padding would go between them.
 - **Traps** jump to one stub per trap code, which puts the code in edi and jumps to
   `RuntimeInfo::trap_exit` with rbp still the trapping frame's fp. Memory accesses rely on guard
   pages: the runtime's fault handler turns faults in compiled code into the same trap exit.
