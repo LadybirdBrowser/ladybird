@@ -10,3 +10,6 @@ empty:
   extend backward: "B"@0 to "A "@2, ""
   move backward: "A "@2 to "A "@2, ""
   Shift+Right: "A "@2 to "B"@0, ""
+image: word backward from "cd"@0: "ab"@0 to "ab"@0, ""
+image-line: word backward from "after"@0: "text"@0 to "text"@0, ""
+image-line: character backward from "after"@0: "text"@4 to "text"@4, ""
