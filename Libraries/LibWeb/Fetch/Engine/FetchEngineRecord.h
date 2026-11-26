@@ -34,6 +34,7 @@ namespace Web::Fetch::Engine {
 
 class FetchEngineRecords;
 class FetchExecutor;
+class KnownHSTSHostProvider;
 class FetchLoad;
 
 // What the fetch engine keeps of a fetch it has started. Every method runs on the engine's loop, and so does the
@@ -103,6 +104,9 @@ public:
     [[nodiscard]] bool main_fetch_has_ended() const { return m_main_fetch.has<MainFetchEnded>(); }
     // Main fetch can no longer hand a response over. Does nothing once main fetch has ended.
     void main_fetch_cannot_hand_over();
+
+    // The provider of the executor the fetch runs on.
+    [[nodiscard]] KnownHSTSHostProvider& known_hsts_host_provider();
 
     // Defers main fetch's work through the engine's executor; work deferred once the engine is gone never runs.
     void defer(Function<void()>);
@@ -204,6 +208,7 @@ public:
 
     // The executor that runs the engine, which outlives the records.
     void attach_to_executor(FetchExecutor&);
+    [[nodiscard]] KnownHSTSHostProvider& known_hsts_host_provider();
     void defer(Function<void()>);
 
     // Reports to the agent a fetch id no higher than that of an earlier start, and returns null for it.

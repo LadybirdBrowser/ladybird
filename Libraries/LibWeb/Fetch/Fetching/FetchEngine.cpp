@@ -9,6 +9,9 @@
 #include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -46,9 +49,23 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
         [](Engine::Command::AdoptNetworkTransport const&) { VERIFY_NOT_REACHED(); });
 }
 
+// Looks a host up through the page of the fetch's controller, on the agent that started the fetch.
+class PageKnownHSTSHostProvider final : public Engine::KnownHSTSHostProvider {
+public:
+    virtual bool is_known_hsts_host(Infrastructure::FetchControllerToken controller_token, String const& host) override
+    {
+        auto controller = HTML::surrounding_agent().fetch_controller_registry.find(controller_token);
+        VERIFY(controller);
+        return ResourceLoader::is_known_hsts_host(controller->page(), host);
+    }
+};
+
 NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<Engine::NetworkActivityObservers const> network_activity_observers)
 {
-    Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
+    Engine::FetchExecutorServices services {
+        .event_loop = Core::EventLoop::current_weak(),
+        .known_hsts_host_provider = make_ref_counted<PageKnownHSTSHostProvider>(),
+    };
     return Engine::InlineFetchExecutor::create(move(services), make<FetchEngine>(move(network_activity_observers), make<Engine::FetchEngineRecords::Agent>()));
 }
 

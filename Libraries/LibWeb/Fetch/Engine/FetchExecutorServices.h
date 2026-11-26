@@ -8,12 +8,14 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <LibCore/EventLoop.h>
+#include <LibWeb/Fetch/Engine/KnownHSTSHostProvider.h>
 
 namespace Web::Fetch::Engine {
 
 struct FetchExecutorServices {
     // Commands are posted to it; one posted after its death is dropped.
     NonnullRefPtr<Core::WeakEventLoopReference> event_loop;
+    NonnullRefPtr<KnownHSTSHostProvider> known_hsts_host_provider;
 };
 
 }

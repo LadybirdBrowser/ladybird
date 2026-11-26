@@ -160,6 +160,14 @@ void FetchEngineRecord::main_fetch_cannot_hand_over()
     end_main_fetch();
 }
 
+KnownHSTSHostProvider& FetchEngineRecord::known_hsts_host_provider()
+{
+    ASSERT(is_on_owner_thread());
+    auto* records = m_records.ptr();
+    VERIFY(records);
+    return records->known_hsts_host_provider();
+}
+
 void FetchEngineRecord::defer(Function<void()> work)
 {
     ASSERT(is_on_owner_thread());
@@ -254,6 +262,13 @@ void FetchEngineRecords::attach_to_executor(FetchExecutor& executor)
 {
     VERIFY(!m_executor);
     m_executor = &executor;
+}
+
+KnownHSTSHostProvider& FetchEngineRecords::known_hsts_host_provider()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_executor);
+    return m_executor->known_hsts_host_provider();
 }
 
 void FetchEngineRecords::defer(Function<void()> work)

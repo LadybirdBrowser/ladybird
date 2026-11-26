@@ -235,7 +235,10 @@ struct FetchHarness {
     {
         auto commands = make_ref_counted<ReachedSteps>();
         auto& agent = Web::HTML::surrounding_agent();
-        Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
+        Web::Fetch::Engine::FetchExecutorServices services {
+            .event_loop = Core::EventLoop::current_weak(),
+            .known_hsts_host_provider = agent.fetch_executor->known_hsts_host_provider(),
+        };
         auto recording_engine = make<CommandRecordingEngine>(commands, NonnullRefPtr { *agent.fetch_executor }, records_gone, handed_over);
         agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(recording_engine));
         return commands;

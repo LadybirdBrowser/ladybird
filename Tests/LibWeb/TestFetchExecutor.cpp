@@ -55,9 +55,15 @@ private:
     FetchEngineRecords m_records { make<FetchEngineRecords::Agent>() };
 };
 
+// The engines these tests run never reach main fetch's upgrade step.
+class UnusedKnownHSTSHostProvider final : public KnownHSTSHostProvider {
+public:
+    virtual bool is_known_hsts_host(Web::Fetch::Infrastructure::FetchControllerToken, String const&) override { VERIFY_NOT_REACHED(); }
+};
+
 FetchExecutorServices services_for_current_thread()
 {
-    return { .event_loop = Core::EventLoop::current_weak() };
+    return { .event_loop = Core::EventLoop::current_weak(), .known_hsts_host_provider = make_ref_counted<UnusedKnownHSTSHostProvider>() };
 }
 
 // Each task the executor posts holds it until the task has run or been dropped.

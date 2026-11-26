@@ -372,7 +372,10 @@ TEST_CASE(each_stop_of_a_started_fetch_reaches_the_engine_for_its_fetch_id)
     FetchHarness harness;
 
     auto reached = make_ref_counted<ReachedSteps>();
-    Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
+    Web::Fetch::Engine::FetchExecutorServices services {
+        .event_loop = Core::EventLoop::current_weak(),
+        .known_hsts_host_provider = Web::HTML::surrounding_agent().fetch_executor->known_hsts_host_provider(),
+    };
     auto fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), make<CommandRecordingEngine>(reached));
 
     auto& registry = Web::HTML::surrounding_agent().fetch_controller_registry;
@@ -897,7 +900,10 @@ public:
         , m_request_server(harness)
     {
         auto& agent = Web::HTML::surrounding_agent();
-        Web::Fetch::Engine::FetchExecutorServices services { .event_loop = Core::EventLoop::current_weak() };
+        Web::Fetch::Engine::FetchExecutorServices services {
+            .event_loop = Core::EventLoop::current_weak(),
+            .known_hsts_host_provider = agent.fetch_executor->known_hsts_host_provider(),
+        };
         auto recording_engine = make<CommandRecordingEngine>(commands, m_posted_commands);
         agent.fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), move(recording_engine));
         m_engine_executor = Web::Fetch::Fetching::create_inline_fetch_executor(agent.network_activity_observers);
