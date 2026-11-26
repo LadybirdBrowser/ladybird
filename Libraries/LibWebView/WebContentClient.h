@@ -63,6 +63,7 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/IndexedDBRegistry.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/WebContentPage.h>
@@ -76,7 +77,8 @@ class ViewImplementation;
 class WEBVIEW_API WebContentClient final
     : public IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint, WebContentClientPageRoutingStub>
     , public WebContentClientEndpoint
-    , public StorageAreaListener {
+    , public StorageAreaListener
+    , public IndexedDBClientOwner {
     C_OBJECT_ABSTRACT(WebContentClient);
 
     friend class WebContentTestClient;
@@ -243,6 +245,11 @@ private:
     virtual void set_storage_item(Web::StorageAPI::StorageAreaId, Utf16String key, Utf16String value, String url) override;
     virtual void remove_storage_item(Web::StorageAPI::StorageAreaId, Utf16String key, String url) override;
     virtual void clear_storage_area(Web::StorageAPI::StorageAreaId, String url) override;
+    virtual Messages::WebContentClient::ConnectToIndexedDbResponse connect_to_indexed_db(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) override;
+    virtual void indexed_db_request(u64 client_id, ByteBuffer request) override;
+    virtual void disconnect_from_indexed_db(u64 client_id) override;
+    virtual Messages::WebContentClient::IndexedDbInspectResponse indexed_db_inspect(u64 client_id, ByteBuffer inspection) override;
+    virtual void indexed_db_events(u64 client_id, ByteBuffer events) override;
 
     // StorageAreaListener: what the registry tells this process about the areas it mirrors.
     virtual void storage_area_changed(Web::StorageAPI::StorageAreaId, Optional<Utf16String> const& key, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, String const& url) override;

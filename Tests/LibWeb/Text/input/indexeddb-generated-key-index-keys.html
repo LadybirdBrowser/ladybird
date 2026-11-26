@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(async done => {
+    // A generated key goes into an index whose key path is the store's, or holds the store's, but no other key path
+    // reaches it, even through an object that the value holds at both.
+    const cases = [
+        ["same path", "a.id", false, () => ({ a: {} })],
+        ["sequence with store path", ["n", "a.id"], false, () => ({ n: 7, a: {} })],
+        ["aliased", "b.id", false, () => { const s = {}; return { a: s, b: s }; }],
+        ["aliased multiEntry", "b.id", true, () => { const s = {}; return { a: s, b: s }; }],
+        ["sequence with aliased", ["n", "b.id"], false, () => { const s = {}; return { n: 7, a: s, b: s }; }],
+        ["aliased parent", "b", false, () => { const s = {}; return { a: s, b: s }; }],
+        ["derived from the key", "a.id.byteLength", false, () => ({ a: {} })],
+        ["derived through an alias", "b.id.byteLength", false, () => { const s = {}; return { a: s, b: s }; }],
+    ];
+    for (const [label, path, multiEntry, make] of cases) {
+        await new Promise(resolve => {
+            const name = "test-generated-key-index-keys-" + Date.now() + Math.random();
+            const open = indexedDB.open(name, 1);
+            open.onupgradeneeded = () => open.result.createObjectStore("s", { keyPath: "a.id", autoIncrement: true }).createIndex("i", path, { multiEntry });
+            open.onerror = () => {
+                println(`${label}: open failed, ${open.error.name}`);
+                resolve();
+            };
+            open.onsuccess = () => {
+                const transaction = open.result.transaction("s", "readwrite");
+                const store = transaction.objectStore("s");
+                store.put(make());
+                store.put(make());
+                const keys = store.index("i").getAllKeys();
+                transaction.oncomplete = transaction.onabort = (event) => {
+                    if (event.type === "complete")
+                        println(`${label}: ${JSON.stringify(keys.result)}`);
+                    else
+                        println(`${label}: aborted, ${transaction.error.name}`);
+                    open.result.close();
+                    const deletion = indexedDB.deleteDatabase(name);
+                    deletion.onsuccess = deletion.onerror = resolve;
+                };
+            };
+        });
+    }
+    done();
+});
+</script>

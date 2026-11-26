@@ -18,24 +18,28 @@ use crate::bindings::conversions::{DOMStringOrDOMStringSequence, ToJs};
 use crate::bindings::interface::{Ref, Wrappable, allocate, with_temporary_execution_context_and_callbacks};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::dom_string_list::DOMStringList;
+use crate::html::structured_serialize::structured_serialize_for_storage;
 use crate::indexed_db::idb_cursor::{AnyIDBCursor, CursorSourceHandle, IDBCursor, IDBCursorDirection};
 use crate::indexed_db::idb_index::IDBIndex;
 use crate::indexed_db::idb_request::{AnyIDBRequest, IDBRequest, IDBRequestSource};
 use crate::indexed_db::idb_transaction::{IDBTransaction, TransactionState};
 use crate::indexed_db::internal::algorithms::{
-    KeyPath, RecordKind, RecordSource, asynchronously_execute_a_request,
-    check_that_a_key_could_be_injected_into_a_value, clear_an_object_store, clone_in_realm,
-    convert_a_key_path_to_a_value, convert_a_key_to_a_value, convert_a_value_to_a_key, convert_a_value_to_a_key_range,
-    count_the_records_in_a_range, create_a_request_to_retrieve_multiple_items,
-    create_a_request_to_retrieve_multiple_items_with_options, create_a_sorted_name_list,
-    delete_records_from_an_object_store, extract_a_key_from_a_value_using_a_key_path, is_valid_key_path,
-    iterate_a_cursor, queue_the_creation_of_an_index, retrieve_a_key_from_an_object_store,
-    retrieve_a_value_from_an_object_store, store_a_record_into_an_object_store,
+    KeyPath, RecordKind, asynchronously_execute_a_remote_request, check_that_a_key_could_be_injected_into_a_value,
+    clone_in_realm, convert_a_key_path_to_a_value, convert_a_value_to_a_key, convert_a_value_to_a_key_range,
+    create_a_request_to_retrieve_multiple_items, create_a_request_to_retrieve_multiple_items_with_options,
+    create_a_sorted_name_list, extract_a_key_from_a_value_using_a_key_path, is_valid_key_path,
+    queue_the_creation_of_an_index,
 };
-use crate::indexed_db::internal::function::{NoCells, create_operation};
 use crate::indexed_db::internal::index::{Index, IndexRef};
 use crate::indexed_db::internal::key::Key;
 use crate::indexed_db::internal::object_store::ObjectStoreRef;
+use crate::indexed_db::remote;
+use crate::indexed_db::remote::name_from;
+use crate::indexed_db::remote_ops::{
+    backend_direction, backend_key, backend_range, count_conversion, cursor_conversion, index_keys_of, key_conversion,
+    store_source, undefined_conversion, value_conversion,
+};
+use libwebcommon_rust::indexed_db::backend::Operation as BackendOperation;
 
 /// The dictionary IDBIndexParameters of IndexedDB/IDBObjectStore.idl.
 pub(crate) struct IDBIndexParameters {
@@ -195,6 +199,14 @@ impl IDBObjectStore {
             .note_object_store_renamed(vm, store.name());
 
         // 9. Set store’s name to name.
+        remote::change_schema(
+            vm,
+            transaction,
+            BackendOperation::RenameObjectStore {
+                name: name_from(&store.name()),
+                new_name: name_from(name),
+            },
+        );
         store.set_name(name.clone());
 
         // 10. Set this’s name to name.
@@ -328,6 +340,17 @@ impl IDBObjectStore {
         // 11. Let index be a new index in store.
         //     Set index’s name to name, key path to keyPath, unique flag to unique, and multiEntry flag to multiEntry.
         let index = Index::create(vm, store, &name, &key_path, unique, multi_entry);
+        remote::change_schema(
+            vm,
+            transaction,
+            BackendOperation::CreateIndex {
+                store: name_from(&store.name()),
+                name: name_from(&name),
+                key_path: remote::backend_key_path(&key_path),
+                unique,
+                multi_entry,
+            },
+        );
 
         // 12. Add index to this's index set.
         {
@@ -432,6 +455,14 @@ impl IDBObjectStore {
             .note_index_deleted(vm, index);
 
         // 8. Destroy index.
+        remote::change_schema(
+            vm,
+            transaction,
+            BackendOperation::DeleteIndex {
+                store: name_from(&store.name()),
+                name: name_from(&name),
+            },
+        );
         store.index_set_remove(vm, &name);
 
         Ok(())
@@ -541,29 +572,29 @@ impl IDBObjectStore {
         }
 
         // 12. Let operation be an algorithm to run store a record into an object store with store, clone, key, and no-overwrite flag.
-        let operation = create_operation(
-            vm,
-            (realm, store, clone, NoCells(key_value), no_overwrite),
-            |vm, &(realm, store, clone, ref key_value, no_overwrite)| {
-                with_temporary_execution_context_and_callbacks(realm, || {
-                    let cx = CallContext::new(vm, realm);
-                    let optional_key =
-                        store_a_record_into_an_object_store(&cx, store, clone, key_value.0.clone(), no_overwrite)?;
-
-                    let Some(optional_key) = optional_key.filter(|key| !key.is_invalid()) else {
-                        return Ok(Value::UNDEFINED);
-                    };
-
-                    Ok(convert_a_key_to_a_value(&cx, &optional_key))
-                })
-            },
-        );
+        // NB: The backend stores the record. The agent serializes the clone, and extracts the keys of the record's index
+        //     records from it, since only the agent can run script.
+        let key_is_generated = key_value.is_none();
+        let operation = with_temporary_execution_context_and_callbacks(realm, || -> WebIdlResult<BackendOperation> {
+            let cx = CallContext::new(vm, realm);
+            // NB: The value is serialized before index_keys_of() injects the generated-key placeholder into the clone.
+            let value = structured_serialize_for_storage(&cx, clone)?;
+            let index_keys = index_keys_of(&cx, store, clone, key_is_generated);
+            Ok(BackendOperation::Put {
+                store: name_from(&store.name()),
+                value,
+                key: key_value.as_ref().map(backend_key),
+                index_keys,
+                no_overwrite,
+            })
+        })?;
 
         // 13. Return the result (an IDBRequest) of running asynchronously execute a request with handle and operation.
-        Ok(asynchronously_execute_a_request(
+        Ok(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(handle),
             operation,
+            key_conversion(vm, realm),
             None,
         ))
     }
@@ -618,15 +649,17 @@ impl IDBObjectStore {
         let range = convert_a_value_to_a_key_range(&realm_cx, query, false)?;
 
         // 6. Let operation be an algorithm to run count the records in a range with store and range.
-        let operation = create_operation(vm, (store, range), |_, &(store, range)| {
-            Ok(count_the_records_in_a_range(RecordSource::ObjectStore(store), &range))
-        });
+        let operation = BackendOperation::Count {
+            source: store_source(store),
+            range: backend_range(&range),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            count_conversion(vm),
             None,
         )))
     }
@@ -657,15 +690,17 @@ impl IDBObjectStore {
         let range = convert_a_value_to_a_key_range(&realm_cx, Some(query), true)?;
 
         // 6. Let operation be an algorithm to run retrieve a value from an object store with the current Realm record, store, and range.
-        let operation = create_operation(vm, (realm, store, range), |vm, &(realm, store, range)| {
-            retrieve_a_value_from_an_object_store(&CallContext::new(vm, realm), store, &range)
-        });
+        let operation = BackendOperation::Get {
+            source: store_source(store),
+            range: backend_range(&range),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            value_conversion(vm, realm, store),
             None,
         )))
     }
@@ -717,17 +752,21 @@ impl IDBObjectStore {
         );
 
         // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
-        let operation = create_operation(vm, (realm, cursor), |vm, &(realm, cursor)| {
-            let cx = CallContext::new(vm, realm);
-            let result = iterate_a_cursor(&cx, cursor, None, None, 1)?;
-            Ok(idb_cursor_result(&cx, result))
-        });
+        let operation = BackendOperation::OpenCursor {
+            cursor: cursor.remote_id(),
+            source: store_source(store),
+            range: backend_range(&range),
+            direction: backend_direction(direction),
+            key_only: cursor.key_only(),
+        };
+        let conversion = cursor_conversion(vm, realm, cursor);
 
         // 8. Let request be the result of running asynchronously execute a request with this and operation.
-        let request = request_of(asynchronously_execute_a_request(
+        let request = request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            conversion,
             None,
         ));
 
@@ -774,15 +813,17 @@ impl IDBObjectStore {
         let range = convert_a_value_to_a_key_range(&realm_cx, Some(query), true)?;
 
         // 7. Let operation be an algorithm to run delete records from an object store with store and range.
-        let operation = create_operation(vm, (store, range), |vm, &(store, range)| {
-            Ok(delete_records_from_an_object_store(vm, store, &range))
-        });
+        let operation = BackendOperation::Delete {
+            store: name_from(&store.name()),
+            range: backend_range(&range),
+        };
 
         // 8. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            undefined_conversion(vm),
             None,
         )))
     }
@@ -818,13 +859,16 @@ impl IDBObjectStore {
         }
 
         // 6. Let operation be an algorithm to run clear an object store with store.
-        let operation = create_operation(vm, store, |vm, &store| Ok(clear_an_object_store(vm, store)));
+        let operation = BackendOperation::Clear {
+            store: name_from(&store.name()),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            undefined_conversion(vm),
             None,
         )))
     }
@@ -857,19 +901,17 @@ impl IDBObjectStore {
         let range = convert_a_value_to_a_key_range(&realm_cx, Some(query), true)?;
 
         // 6. Let operation be an algorithm to run retrieve a key from an object store with store and range.
-        let operation = create_operation(vm, (realm, store, range), |vm, &(realm, store, range)| {
-            Ok(retrieve_a_key_from_an_object_store(
-                &CallContext::new(vm, realm),
-                store,
-                &range,
-            ))
-        });
+        let operation = BackendOperation::GetKey {
+            source: store_source(store),
+            range: backend_range(&range),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            key_conversion(vm, realm),
             None,
         )))
     }
@@ -939,17 +981,21 @@ impl IDBObjectStore {
         );
 
         // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
-        let operation = create_operation(vm, (realm, cursor), |vm, &(realm, cursor)| {
-            let cx = CallContext::new(vm, realm);
-            let result = iterate_a_cursor(&cx, cursor, None, None, 1)?;
-            Ok(idb_cursor_result(&cx, result))
-        });
+        let operation = BackendOperation::OpenCursor {
+            cursor: cursor.remote_id(),
+            source: store_source(store),
+            range: backend_range(&range),
+            direction: backend_direction(direction),
+            key_only: cursor.key_only(),
+        };
+        let conversion = cursor_conversion(vm, realm, cursor);
 
         // 8. Let request be the result of running asynchronously execute a request with this and operation.
-        let request = request_of(asynchronously_execute_a_request(
+        let request = request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::ObjectStore(*this),
             operation,
+            conversion,
             None,
         ));
 

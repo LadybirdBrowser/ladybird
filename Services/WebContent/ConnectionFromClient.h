@@ -24,6 +24,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/IndexedDB/IndexedDBClient.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/Timer.h>
@@ -54,7 +55,8 @@ namespace WebContent {
 
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>
-    , public Web::StorageAPI::StorageAreaMirrorClient {
+    , public Web::StorageAPI::StorageAreaMirrorClient
+    , public Web::IndexedDB::IndexedDBClient {
     C_OBJECT(ConnectionFromClient);
 
     friend class TestConnection;
@@ -193,6 +195,13 @@ private:
     virtual void storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id) override;
     virtual void storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) override;
     virtual void storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) override;
+
+    // Web::IndexedDB::IndexedDBClient: the main thread's link to Hub, which holds the databases.
+    virtual Optional<u64> connect_to_indexed_db(Web::PageId, Web::HTML::EnvironmentId const&) override;
+    virtual void indexed_db_request(u64 client_id, ReadonlyBytes request) override;
+    virtual void disconnect_from_indexed_db(u64 client_id) override;
+    virtual ByteBuffer inspect_indexed_db(u64 client_id, ReadonlyBytes inspection) override;
+    virtual void indexed_db_events(u64 client_id, ByteBuffer events) override;
     virtual void inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) override;
     virtual void inspect_grid_layouts(Web::PageId page_id, Web::UniqueNodeID root_node_id) override;
     virtual void inspect_current_grid(Web::PageId page_id, Web::UniqueNodeID node_id) override;

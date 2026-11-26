@@ -127,11 +127,13 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     , m_enable_test_mode(enable_test_mode)
 {
     Web::StorageAPI::set_storage_area_mirror_client(this);
+    Web::IndexedDB::set_indexed_db_client(this);
 }
 
 ConnectionFromClient::~ConnectionFromClient()
 {
     Web::StorageAPI::set_storage_area_mirror_client(nullptr);
+    Web::IndexedDB::set_indexed_db_client(nullptr);
 }
 
 Web::Compositor::CompositorConnection* ConnectionFromClient::compositor_process_connection() const
@@ -1603,6 +1605,39 @@ void ConnectionFromClient::storage_area_write_refused(Web::StorageAPI::StorageAr
 void ConnectionFromClient::storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values)
 {
     Web::StorageAPI::storage_area_did_reset(area_id, move(keys), move(values));
+}
+
+Optional<u64> ConnectionFromClient::connect_to_indexed_db(Web::PageId page_id, Web::HTML::EnvironmentId const& environment_id)
+{
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::ConnectToIndexedDb>(page_id, environment_id);
+    if (!response) {
+        dbgln("WebContent client disconnected during ConnectToIndexedDb. Exiting peacefully.");
+        Core::Process::terminate_immediately(0);
+    }
+    return response->client_id();
+}
+
+void ConnectionFromClient::indexed_db_request(u64 client_id, ReadonlyBytes request)
+{
+    async_indexed_db_request(client_id, request);
+}
+
+void ConnectionFromClient::disconnect_from_indexed_db(u64 client_id)
+{
+    async_disconnect_from_indexed_db(client_id);
+}
+
+ByteBuffer ConnectionFromClient::inspect_indexed_db(u64 client_id, ReadonlyBytes inspection)
+{
+    auto response = send_sync_but_allow_failure<Messages::WebContentClient::IndexedDbInspect>(client_id, MUST(ByteBuffer::copy(inspection)));
+    if (!response)
+        return {};
+    return response->take_result();
+}
+
+void ConnectionFromClient::indexed_db_events(u64 client_id, ByteBuffer events)
+{
+    Web::IndexedDB::indexed_db_did_receive_events(client_id, events);
 }
 
 void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options_value)

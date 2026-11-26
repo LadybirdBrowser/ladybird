@@ -16,19 +16,22 @@ use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::indexed_db::idb_cursor::{CursorSourceHandle, IDBCursor, IDBCursorDirection};
 use crate::indexed_db::idb_object_store::{
-    IDBGetAllOptions, IDBObjectStore, constraint_error, idb_cursor_result, invalid_state_error, request_of,
-    transaction_inactive_error,
+    IDBGetAllOptions, IDBObjectStore, constraint_error, invalid_state_error, request_of, transaction_inactive_error,
 };
 use crate::indexed_db::idb_request::{IDBRequest, IDBRequestSource};
 use crate::indexed_db::idb_transaction::IDBTransaction;
 use crate::indexed_db::internal::algorithms::{
-    KeyPath, RecordKind, RecordSource, asynchronously_execute_a_request, convert_a_key_path_to_a_value,
-    convert_a_value_to_a_key_range, count_the_records_in_a_range, create_a_request_to_retrieve_multiple_items,
-    create_a_request_to_retrieve_multiple_items_with_options, iterate_a_cursor,
-    retrieve_a_referenced_value_from_an_index, retrieve_a_value_from_an_index,
+    KeyPath, RecordKind, asynchronously_execute_a_remote_request, convert_a_key_path_to_a_value,
+    convert_a_value_to_a_key_range, create_a_request_to_retrieve_multiple_items,
+    create_a_request_to_retrieve_multiple_items_with_options,
 };
-use crate::indexed_db::internal::function::create_operation;
 use crate::indexed_db::internal::index::{Index, IndexRef};
+use crate::indexed_db::remote;
+use crate::indexed_db::remote_ops::{
+    backend_direction, backend_range, count_conversion, cursor_conversion, index_source, key_conversion,
+    value_conversion,
+};
+use libwebcommon_rust::indexed_db::backend::Operation as BackendOperation;
 
 // https://w3c.github.io/IndexedDB/#index-interface
 #[derive(Trace)]
@@ -134,6 +137,15 @@ impl IDBIndex {
             .note_index_renamed(vm, index, index.name());
 
         // 9. Set index’s name to name.
+        remote::change_schema(
+            vm,
+            self.transaction_object(),
+            BackendOperation::RenameIndex {
+                store: remote::name_from(&index.object_store().name()),
+                name: remote::name_from(&index.name()),
+                new_name: remote::name_from(name),
+            },
+        );
         Index::set_name(index, vm, name.clone());
 
         // NOTE: Update the key in the map so it still matches the name
@@ -241,17 +253,21 @@ impl IDBIndex {
         );
 
         // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
-        let operation = create_operation(vm, (realm, cursor), |vm, &(realm, cursor)| {
-            let cx = CallContext::new(vm, realm);
-            let result = iterate_a_cursor(&cx, cursor, None, None, 1)?;
-            Ok(idb_cursor_result(&cx, result))
-        });
+        let operation = BackendOperation::OpenCursor {
+            cursor: cursor.remote_id(),
+            source: index_source(index),
+            range: backend_range(&range),
+            direction: backend_direction(direction),
+            key_only: cursor.key_only(),
+        };
+        let conversion = cursor_conversion(vm, realm, cursor);
 
         // 8. Let request be the result of running asynchronously execute a request with this and operation.
-        let request = request_of(asynchronously_execute_a_request(
+        let request = request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Index(*this),
             operation,
+            conversion,
             None,
         ));
 
@@ -288,15 +304,17 @@ impl IDBIndex {
         let range = convert_a_value_to_a_key_range(&realm_cx, Some(query), true)?;
 
         // 6. Let operation be an algorithm to run retrieve a referenced value from an index with the current Realm record, index, and range.
-        let operation = create_operation(vm, (realm, index, range), |vm, &(realm, index, range)| {
-            retrieve_a_referenced_value_from_an_index(&CallContext::new(vm, realm), index, &range)
-        });
+        let operation = BackendOperation::Get {
+            source: index_source(index),
+            range: backend_range(&range),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Index(*this),
             operation,
+            value_conversion(vm, realm, index.object_store()),
             None,
         )))
     }
@@ -329,19 +347,17 @@ impl IDBIndex {
         let range = convert_a_value_to_a_key_range(&realm_cx, Some(query), true)?;
 
         // 6. Let operation be an algorithm to run retrieve a value from an index with index and range.
-        let operation = create_operation(vm, (realm, index, range), |vm, &(realm, index, range)| {
-            Ok(retrieve_a_value_from_an_index(
-                &CallContext::new(vm, realm),
-                index,
-                &range,
-            ))
-        });
+        let operation = BackendOperation::GetKey {
+            source: index_source(index),
+            range: backend_range(&range),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Index(*this),
             operation,
+            key_conversion(vm, realm),
             None,
         )))
     }
@@ -410,15 +426,17 @@ impl IDBIndex {
         let range = convert_a_value_to_a_key_range(&realm_cx, query, false)?;
 
         // 6. Let operation be an algorithm to run count the records in a range with index and range.
-        let operation = create_operation(vm, (index, range), |_, &(index, range)| {
-            Ok(count_the_records_in_a_range(RecordSource::Index(index), &range))
-        });
+        let operation = BackendOperation::Count {
+            source: index_source(index),
+            range: backend_range(&range),
+        };
 
         // 7. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Index(*this),
             operation,
+            count_conversion(vm),
             None,
         )))
     }
@@ -469,17 +487,21 @@ impl IDBIndex {
         );
 
         // 7. Let operation be an algorithm to run iterate a cursor with the current Realm record and cursor.
-        let operation = create_operation(vm, (realm, cursor), |vm, &(realm, cursor)| {
-            let cx = CallContext::new(vm, realm);
-            let result = iterate_a_cursor(&cx, cursor, None, None, 1)?;
-            Ok(idb_cursor_result(&cx, result))
-        });
+        let operation = BackendOperation::OpenCursor {
+            cursor: cursor.remote_id(),
+            source: index_source(index),
+            range: backend_range(&range),
+            direction: backend_direction(direction),
+            key_only: cursor.key_only(),
+        };
+        let conversion = cursor_conversion(vm, realm, cursor);
 
         // 8. Let request be the result of running asynchronously execute a request with this and operation.
-        let request = request_of(asynchronously_execute_a_request(
+        let request = request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Index(*this),
             operation,
+            conversion,
             None,
         ));
 

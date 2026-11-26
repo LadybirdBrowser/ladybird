@@ -616,6 +616,7 @@ set(SOURCES
     HTML/WorkletGlobalScope.cpp
     HTML/XMLSerializer.cpp
     IndexedDB/IDBFactory.cpp
+    IndexedDB/IndexedDBClient.cpp
     IndexedDB/Inspection.cpp
     IndexedDB/RustIntegration.cpp
     Infra/ByteSequences.cpp

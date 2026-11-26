@@ -1,0 +1,8 @@
+same path: [1,2]
+sequence with store path: [1,2]
+aliased: []
+aliased multiEntry: []
+sequence with aliased: []
+aliased parent: []
+derived from the key: []
+derived through an alias: []

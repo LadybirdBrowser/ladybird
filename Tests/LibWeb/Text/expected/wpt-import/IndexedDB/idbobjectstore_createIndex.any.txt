@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 21 tests
 
-20 Pass
-1 Fail
+21 Pass
 Pass	Returns an IDBIndex and the properties are set correctly
 Pass	Attempt to create an index that requires unique values on an object store already contains duplicates
 Pass	The index is usable right after being made
-Fail	Event ordering for a later deleted index
+Pass	Event ordering for a later deleted index
 Pass	Empty keyPath
 Pass	Event order when unique constraint is triggered
 Pass	Event ordering for ConstraintError on request

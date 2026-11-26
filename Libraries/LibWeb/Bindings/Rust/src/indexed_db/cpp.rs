@@ -15,7 +15,6 @@ use libjs_rust::api::{EmbedderCell, Gc, Object, Realm, Trace, Vm};
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::{CallContext, Exception};
-use crate::indexed_db::internal::database::Database;
 use crate::indexed_db::internal::function::{Function, FunctionCell, call_function};
 use crate::indexed_db::internal::key::{Key, KeyValue};
 use crate::indexed_db::internal::mutation_log::{TransactionChange, TransactionChanges};
@@ -25,10 +24,9 @@ unsafe extern "C" {
     fn web_indexed_db_dom_exception_from_value(value: u64) -> *mut c_void;
     fn web_indexed_db_wrap_dom_exception(realm: *mut c_void, exception: *mut c_void) -> *mut c_void;
     fn web_indexed_db_queue_a_database_task(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
-    fn web_indexed_db_run_in_parallel(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_indexed_db_current_event_loop() -> *mut c_void;
-    fn web_indexed_db_enqueue_check_pending_connection_wait(database: *mut c_void);
     fn web_indexed_db_devtools_client_is_active(realm: *mut c_void) -> bool;
+    fn web_indexed_db_enqueue_close_collected_connections();
     fn web_indexed_db_create_transaction_changes() -> *mut c_void;
     fn web_indexed_db_append_transaction_change(
         changes: *mut c_void,
@@ -110,29 +108,22 @@ pub(crate) fn queue_a_task_on_the_database_access_task_source(_: &Vm, steps: Fun
     unsafe { web_indexed_db_queue_a_database_task(steps.cell_as_ptr(), run_function) };
 }
 
-/// Runs the function from a deferred invocation, as the C++ ran steps "in parallel".
-pub(crate) fn run_in_parallel(_: &Vm, steps: Function) {
-    // SAFETY: The function is live, and the deferred invocation keeps it alive until it runs.
-    unsafe { web_indexed_db_run_in_parallel(steps.cell_as_ptr(), run_function) };
-}
-
 /// https://html.spec.whatwg.org/multipage/webappapis.html#main-thread-event-loop
 pub(crate) fn current_event_loop() -> CppCell {
     // SAFETY: LibWeb returns the live event loop.
     unsafe { CppCell::from_raw(web_indexed_db_current_event_loop()) }
 }
 
-/// Checks the database's pending connection wait after the collection that runs a finalizer, if the database is still
-/// alive then. Must not allocate a cell.
-pub(crate) fn enqueue_post_gc_task(database: crate::indexed_db::internal::database::DatabaseRef) {
-    // SAFETY: The database is live while LibGC finalizes the connection.
-    unsafe { web_indexed_db_enqueue_check_pending_connection_wait(database.as_ptr().cast()) };
+/// Closes the connections that the garbage collector finalized once the collection is over. Must not allocate a cell.
+pub(crate) fn enqueue_close_collected_connections() {
+    // SAFETY: LibWeb only enqueues a task.
+    unsafe { web_indexed_db_enqueue_close_collected_connections() };
 }
 
-/// Runs the check that enqueue_post_gc_task() enqueued.
+/// Runs the task that enqueue_close_collected_connections() enqueued.
 #[unsafe(no_mangle)]
-pub extern "C" fn web_rust_indexed_db_check_pending_connection_wait(vm: &Vm, database: Gc<EmbedderCell<Database>>) {
-    database.check_pending_connection_wait(vm);
+pub extern "C" fn web_rust_indexed_db_close_collected_connections() {
+    crate::indexed_db::remote::close_collected_connections();
 }
 
 pub(crate) fn devtools_client_is_active(realm: Gc<Realm>) -> bool {

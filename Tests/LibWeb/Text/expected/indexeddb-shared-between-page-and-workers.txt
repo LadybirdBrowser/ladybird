@@ -1,0 +1,4 @@
+worker wrote the value
+page sees version 1, stores: store
+page read: hello
+second worker read: hello

@@ -50,7 +50,7 @@ With `--headless`, **UI** has nothing to do, and **Hub** takes over its process.
 
 ### Process: Hub
 
-This process launches and connects all the others, and it is not sandboxed yet. It owns the state that must outlive or be shared between renderers: cookies, web storage, blob URLs, permissions and the fonts of the system. Other processes ask **Hub** for these over IPC. Browsing history, bookmarks and favicons belong to **UI**.
+This process launches and connects all the others, and it is not sandboxed yet. It owns the state that must outlive or be shared between renderers: cookies, web storage, IndexedDB databases, blob URLs, permissions and the fonts of the system. Other processes ask **Hub** for these over IPC. Browsing history, bookmarks and favicons belong to **UI**.
 
 **Hub** also keeps its own record of every tab's navigables and documents, and decides which process hosts each document.
 

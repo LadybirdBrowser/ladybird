@@ -10,13 +10,11 @@
 
 use std::rc::Rc;
 
-use core::cell::Cell;
-
 use ak::Utf16String;
 use libjs_rust::api::{
-    Array, ArrayBuffer, ArrayBufferShared, CanonicalIndexMode, Date, EmbedderCell, EmbedderClass, EmbedderValue, Gc,
-    MarkedVec, Must, Object, PrimitiveString, PropertyKey, Realm, Trace, TypedArrayBase, Value, Vm,
-    canonical_numeric_index_string, is_host_instance_of, length_of_array_like,
+    Array, ArrayBuffer, ArrayBufferShared, CanonicalIndexMode, Date, Gc, MarkedVec, Must, Object, PrimitiveString,
+    PropertyKey, Realm, Trace, TypedArrayBase, Value, Vm, canonical_numeric_index_string, is_host_instance_of,
+    length_of_array_like,
 };
 use libunicode_rust::character_types::{
     code_point_has_identifier_continue_property, code_point_has_identifier_start_property,
@@ -25,7 +23,9 @@ use libunicode_rust::character_types::{
 use crate::bindings::conversions::{ToJs, buffer_source_type_of};
 use crate::bindings::cpp_cell::CppCell;
 use crate::bindings::event_target::{CppEvent, CppEventTarget};
-use crate::bindings::interface::{Interface, Ref, implementation_if, implementation_of};
+use crate::bindings::interface::{
+    Interface, Ref, implementation_if, implementation_of, with_temporary_execution_context_and_callbacks,
+};
 use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::dom::event::EventInit;
 use crate::file_api::blob::{AnyBlob, Blob};
@@ -33,65 +33,30 @@ use crate::file_api::file::File;
 use crate::html::dom_string_list::DOMStringList;
 use crate::html::structured_serialize::{structured_deserialize_for_storage, structured_serialize_for_storage};
 use crate::indexed_db::cpp::DomException;
-use crate::indexed_db::idb_cursor::{AnyIDBCursor, IDBCursorDirection};
+use crate::indexed_db::idb_cursor::IDBCursorDirection;
 use crate::indexed_db::idb_database::{ConnectionState, IDBDatabase, IDBTransactionDurability};
 use crate::indexed_db::idb_key_range::{IDBKeyRange, key_range_from_value};
 use crate::indexed_db::idb_object_store::{IDBGetAllOptions, IDBObjectStore};
-use crate::indexed_db::idb_record::{IDBRecord, IndexRecord, ObjectStoreRecord, StorageSerializationRecord};
+use crate::indexed_db::idb_record::StorageSerializationRecord;
 use crate::indexed_db::idb_request::{AnyIDBRequest, IDBRequest, IDBRequestSource};
 use crate::indexed_db::idb_transaction::{IDBTransaction, IDBTransactionMode, TransactionState};
 use crate::indexed_db::idb_version_change_event::{IDBVersionChangeEvent, IDBVersionChangeEventInit};
-use crate::indexed_db::internal::database::Database;
 use crate::indexed_db::internal::function::{
-    Function, FunctionWith, NoCells, Operation, create_function, create_operation, perform_operation,
+    Conversion, Function, FunctionWith, NoCells, convert_result, create_function, create_function_with,
 };
-use crate::indexed_db::internal::index::{Index, IndexRef};
+use crate::indexed_db::internal::index::IndexRef;
 use crate::indexed_db::internal::key::{Key, KeyType, code_unit_order};
-use crate::indexed_db::internal::object_store::{ObjectStore, ObjectStoreRef};
-use crate::indexed_db::internal::storage::{ConnectionQueueRef, storage};
+use crate::indexed_db::internal::object_store::ObjectStoreRef;
+use crate::indexed_db::remote;
+use crate::indexed_db::remote_ops;
 use crate::storage_api::storage_key::StorageKey;
+use libwebcommon_rust::indexed_db::backend::{Error as BackendError, Operation as BackendOperation, OperationResult};
 
 /// A key path, https://w3c.github.io/IndexedDB/#key-path-construct: a string or a list of strings.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub(crate) enum KeyPath {
     String(Utf16String),
     Sequence(Vec<Utf16String>),
-}
-
-#[derive(Trace)]
-struct TaskCounterState {
-    remaining_tasks: Cell<usize>,
-    after_all: Cell<Option<Function>>,
-}
-
-static TASK_COUNTER_STATE_CLASS: EmbedderClass<TaskCounterState> = EmbedderClass::new("IndexedDBTaskCounterState");
-
-impl EmbedderValue for TaskCounterState {
-    const CLASS: &'static EmbedderClass<Self> = &TASK_COUNTER_STATE_CLASS;
-}
-
-type TaskCounterStateRef = Gc<EmbedderCell<TaskCounterState>>;
-
-impl TaskCounterState {
-    fn create(vm: &Vm) -> TaskCounterStateRef {
-        TASK_COUNTER_STATE_CLASS.allocate(vm, |_| TaskCounterState {
-            remaining_tasks: Cell::new(0),
-            after_all: Cell::new(None),
-        })
-    }
-
-    fn decrement_remaining_tasks(&self, vm: &Vm) {
-        assert!(self.remaining_tasks.get() > 0);
-        self.remaining_tasks.set(self.remaining_tasks.get() - 1);
-        if self.remaining_tasks.get() > 0 {
-            return;
-        }
-
-        queue_a_database_task(
-            vm,
-            self.after_all.get().expect("the steps to run after all tasks are set"),
-        );
-    }
 }
 
 fn strictly_split_key_path(key_path: &Utf16String) -> Vec<Utf16String> {
@@ -104,233 +69,80 @@ fn strictly_split_key_path(key_path: &Utf16String) -> Vec<Utf16String> {
 
 pub(crate) type OpenResult = Result<Ref<IDBDatabase>, DomException>;
 
-fn call_completion<A: 'static>(vm: &Vm, queue: ConnectionQueueRef, completion: FunctionWith<A>, result: A) {
-    completion.call(vm, result);
-    queue.request_list.on_request_processed(vm);
-}
-
 // https://w3c.github.io/IndexedDB/#open-a-database-connection
+// NB: The backend runs the steps that involve the database and its other connections, wherever those live, and its
+//     events drive the rest: see remote.rs.
 pub(crate) fn open_a_database_connection(
     vm: &Vm,
     realm: Gc<Realm>,
-    storage_key: StorageKey,
+    _storage_key: StorageKey,
     name: Utf16String,
     maybe_version: Option<u64>,
     request: AnyIDBRequest,
     on_complete: FunctionWith<OpenResult>,
 ) {
-    // 1. Let queue be the connection queue for storageKey and name.
-    let queue = storage(vm).connection_queue_for_key_and_name(vm, &storage_key, &name);
-
-    // 2. Add request to queue.
-    // 3. Wait until all previous requests in queue have been processed.
-    let steps = create_function(
-        vm,
-        (
-            realm,
-            queue,
-            NoCells(storage_key),
-            name,
-            maybe_version,
-            request,
-            on_complete,
-        ),
-        |vm, &(realm, queue, ref storage_key, ref name, maybe_version, request, on_complete), ()| {
-            // 4. Let db be the database named name in storageKey, or null otherwise.
-            let maybe_db = Database::for_key_and_name(vm, &storage_key.0, name);
-
-            // 5. If version is undefined, let version be 1 if db is null, or db’s version otherwise.
-            let version = maybe_version.unwrap_or_else(|| maybe_db.map_or(1, |db| db.version()));
-
-            // 6. If db is null, let db be a new database with name name, version 0 (zero), and with no object stores.
-            //    If this fails for any reason, return an appropriate error (e.g. a QuotaExceededError, or an "UnknownError" DOMException).
-            let db = maybe_db.unwrap_or_else(|| Database::create_for_key_and_name(vm, &storage_key.0, name));
-
-            // 7. If db’s version is greater than version, return a newly created "VersionError" DOMException and abort these steps.
-            if db.version() > version {
-                call_completion(
-                    vm,
-                    queue,
-                    on_complete,
-                    Err(DomException::create(
-                        "VersionError",
-                        "Database version is greater than the requested version",
-                    )),
-                );
-                return;
-            }
-
-            // 8. Let connection be a new connection to db.
-            let connection = IDBDatabase::create(vm, realm, db);
-
-            // 9. Set connection’s version to version.
-            connection.set_version(version);
-
-            // 10. If db’s version is less than version, then:
-            if db.version() < version {
-                // 1. Let openConnections be the set of all connections, except connection, associated with db.
-                let open_connections = db.associated_connections_except(vm, connection);
-
-                // 2. For each entry of openConnections that does not have its close pending flag set to true,
-                //    queue a database task to fire a version change event named versionchange at entry with db’s version and version.
-                let mut task_counter_state: Option<TaskCounterStateRef> = None;
-                for &entry in open_connections.values().iter() {
-                    if !entry.close_pending() {
-                        let state = *task_counter_state.get_or_insert_with(|| TaskCounterState::create(vm));
-
-                        state.remaining_tasks.set(state.remaining_tasks.get() + 1);
-                        queue_a_database_task(
-                            vm,
-                            create_function(
-                                vm,
-                                (realm, entry, db, version, state),
-                                |vm, &(realm, entry, db, version, state), ()| {
-                                    fire_a_version_change_event(
-                                        vm,
-                                        realm,
-                                        "versionchange",
-                                        entry.event_target(),
-                                        db.version(),
-                                        Some(version),
-                                    );
-                                    state.decrement_remaining_tasks(vm);
-                                },
-                            ),
-                        );
-                    }
-                }
-
-                // 3. Wait for all of the events to be fired.
-                let after_all = create_function(
-                    vm,
-                    (
-                        realm,
-                        queue,
-                        OpenConnections(open_connections.to_vec()),
-                        db,
-                        version,
-                        connection,
-                        request,
-                        on_complete,
-                    ),
-                    |vm, &(realm, queue, ref open_connections, db, version, connection, request, on_complete), ()| {
-                        // 4. If any of the connections in openConnections are still not closed,
-                        //    queue a database task to fire a version change event named blocked at request with db’s version and version.
-                        let any_connection_is_not_closed = open_connections
-                            .0
-                            .iter()
-                            .any(|entry| entry.state() != ConnectionState::Closed);
-                        if any_connection_is_not_closed {
-                            queue_a_database_task(
-                                vm,
-                                create_function(
-                                    vm,
-                                    (realm, request, db, version),
-                                    |vm, &(realm, request, db, version), ()| {
-                                        fire_a_version_change_event(
-                                            vm,
-                                            realm,
-                                            "blocked",
-                                            request.event_target(),
-                                            db.version(),
-                                            Some(version),
-                                        );
-                                    },
-                                ),
-                            );
-                        }
-
-                        // 5. Wait until all connections in openConnections are closed.
-                        db.wait_for_connections_to_close(
-                            vm,
-                            &open_connections.0,
-                            create_function(
-                                vm,
-                                (realm, queue, connection, version, request, on_complete),
-                                |vm, &(realm, queue, connection, version, request, on_complete), ()| {
-                                    // 6. Run upgrade a database using connection, version and request.
-                                    upgrade_a_database(
-                                        vm,
-                                        realm,
-                                        connection,
-                                        version,
-                                        request,
-                                        create_function(
-                                            vm,
-                                            (queue, connection, request, on_complete),
-                                            |vm, &(queue, connection, request, on_complete), ()| {
-                                                // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
-                                                if connection.state() == ConnectionState::Closed {
-                                                    call_completion(
-                                                        vm,
-                                                        queue,
-                                                        on_complete,
-                                                        Err(DomException::create(
-                                                            "AbortError",
-                                                            "Connection was closed",
-                                                        )),
-                                                    );
-                                                    return;
-                                                }
-
-                                                // 8. If request's error is set, run the steps to close a database connection with connection,
-                                                //    return a newly created "AbortError" DOMException and abort these steps.
-                                                if request.has_error() {
-                                                    close_a_database_connection(
-                                                        vm,
-                                                        connection,
-                                                        Some(create_function(
-                                                            vm,
-                                                            (queue, on_complete),
-                                                            |vm, &(queue, on_complete), ()| {
-                                                                call_completion(
-                                                                    vm,
-                                                                    queue,
-                                                                    on_complete,
-                                                                    Err(DomException::create(
-                                                                        "AbortError",
-                                                                        "Upgrade transaction was aborted",
-                                                                    )),
-                                                                );
-                                                            },
-                                                        )),
-                                                        false,
-                                                    );
-                                                    return;
-                                                }
-
-                                                // 11. Return connection.
-                                                call_completion(vm, queue, on_complete, Ok(connection));
-                                            },
-                                        ),
-                                    );
-                                },
-                            ),
-                        );
-                    },
-                );
-
-                if let Some(state) = task_counter_state {
-                    state.after_all.set(Some(after_all));
-                } else {
-                    queue_a_database_task(vm, after_all);
-                }
-
-                // NOTE: Because of the async nature of this function, we return here and call the on_complete function
-                //       with the connection when necessary.
-                return;
-            }
-
-            // 11. Return connection.
-            call_completion(vm, queue, on_complete, Ok(connection));
-        },
-    );
-    queue.request_list.enqueue(vm, request, steps);
+    let Some(client_id) = remote::client_for(vm, realm) else {
+        on_complete.call(
+            vm,
+            Err(DomException::create("UnknownError", "The databases can't be reached")),
+        );
+        return;
+    };
+    remote::open_a_database_connection(vm, realm, client_id, &name, maybe_version, request, on_complete);
 }
 
-/// The connections that an algorithm waits on, which it keeps alive while it waits.
-#[derive(Trace)]
-struct OpenConnections(Vec<Ref<IDBDatabase>>);
+/// What runs when the backend asks an open request for an upgrade: https://w3c.github.io/IndexedDB/#open-a-database-connection
+/// steps 10.6 to 11.
+pub(crate) fn run_upgrade_for_backend(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    connection: Ref<IDBDatabase>,
+    version: u64,
+    transaction_id: u64,
+    request: AnyIDBRequest,
+    on_complete: FunctionWith<OpenResult>,
+) {
+    // 6. Run upgrade a database using connection, version and request.
+    upgrade_a_database(
+        vm,
+        realm,
+        connection,
+        version,
+        transaction_id,
+        request,
+        create_function(
+            vm,
+            (connection, request, on_complete),
+            |vm, &(connection, request, on_complete), ()| {
+                // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
+                if connection.state() == ConnectionState::Closed {
+                    on_complete.call(vm, Err(DomException::create("AbortError", "Connection was closed")));
+                    return;
+                }
+
+                // 8. If request's error is set, run the steps to close a database connection with connection, return a
+                //    newly created "AbortError" DOMException and abort these steps.
+                if request.has_error() {
+                    close_a_database_connection(
+                        vm,
+                        connection,
+                        Some(create_function(vm, on_complete, |vm, &on_complete, ()| {
+                            on_complete.call(
+                                vm,
+                                Err(DomException::create("AbortError", "Upgrade transaction was aborted")),
+                            );
+                        })),
+                        false,
+                    );
+                    return;
+                }
+
+                // 11. Return connection.
+                on_complete.call(vm, Ok(connection));
+            },
+        ),
+    );
+}
 
 // https://w3c.github.io/IndexedDB/#fire-a-version-change-event
 pub(crate) fn fire_a_version_change_event(
@@ -381,6 +193,12 @@ pub(crate) fn convert_a_value_to_a_key(
     // 2. If seen contains input, then return "invalid value".
     if seen.values().iter().any(|value| value.to_raw() == input.to_raw()) {
         return Ok(Key::create_invalid("Already seen key"));
+    }
+
+    // AD-HOC: The backend refuses a key whose arrays nest more deeply than this, as it reads keys from other processes
+    //         without trusting them, so such a key is invalid here rather than taking the process down there.
+    if seen.len() > libwebcommon_rust::indexed_db::key::MAX_DECODED_KEY_DEPTH {
+        return Ok(Key::create_invalid("Key nested too deeply"));
     }
 
     // 3. Jump to the appropriate step below:
@@ -501,6 +319,10 @@ pub(crate) fn close_a_database_connection(
     forced: bool,
 ) {
     // 1. Set connection’s close pending flag to true.
+    // NB: The backend waits for the connection's transactions as well, and only closes it then.
+    if !connection.close_pending() {
+        remote::close(vm, connection);
+    }
     connection.set_close_pending(true);
 
     // 2. If the forced flag is true, then for each transaction created using connection run abort a transaction with transaction and newly created "AbortError" DOMException.
@@ -525,9 +347,6 @@ pub(crate) fn close_a_database_connection(
             |vm, &(connection, forced, on_complete), ()| {
                 connection.set_state(ConnectionState::Closed);
 
-                let database = connection.associated_database();
-                database.dissociate(connection);
-
                 // 4. If the forced flag is true, then fire an event named close at connection.
                 if forced {
                     connection.event_target().dispatch_event(&CppEvent::create(
@@ -542,8 +361,6 @@ pub(crate) fn close_a_database_connection(
                 if let Some(on_complete) = on_complete {
                     queue_a_database_task(vm, on_complete);
                 }
-
-                database.check_pending_connection_wait(vm);
             },
         ),
     );
@@ -555,6 +372,7 @@ pub(crate) fn upgrade_a_database(
     realm: Gc<Realm>,
     connection: Ref<IDBDatabase>,
     version: u64,
+    transaction_id: u64,
     request: AnyIDBRequest,
     on_complete: Function,
 ) {
@@ -571,6 +389,7 @@ pub(crate) fn upgrade_a_database(
         IDBTransactionDurability::Default,
         &object_store_set.values(),
     );
+    IDBTransaction::set_remote_id(vm, transaction, transaction_id);
 
     // 4. Set db’s upgrade transaction to transaction.
     db.set_upgrade_transaction(Some(transaction));
@@ -608,6 +427,21 @@ pub(crate) fn upgrade_a_database(
                 on_complete,
             ),
             |vm, &(realm, request, connection, transaction, old_version, version, on_complete), ()| {
+                // NB: An upgrade that aborted before this task ran, as its document unloaded or the backend closed its
+                //     connection, fires no upgradeneeded event: Its open fails instead. The request and the transaction
+                //     are still bound, as the abort's own task, queued after this one, expects.
+                if transaction.is_finished() {
+                    request.set_transaction(Some(transaction));
+                    transaction.set_associated_request(Some(request));
+                    request.set_done(true);
+                    request.set_error(
+                        vm,
+                        Some(DomException::create("AbortError", "Upgrade transaction was aborted")),
+                    );
+                    connection.wait_for_transactions_to_finish(vm, &[transaction], on_complete);
+                    return;
+                }
+
                 // 1. Set request’s result to connection.
                 set_idb_request_result(vm, realm, request, connection);
 
@@ -674,120 +508,20 @@ pub(crate) type DeleteResult = Result<u64, DomException>;
 pub(crate) fn delete_a_database(
     vm: &Vm,
     realm: Gc<Realm>,
-    storage_key: StorageKey,
+    _storage_key: StorageKey,
     name: Utf16String,
     request: AnyIDBRequest,
     on_complete: FunctionWith<DeleteResult>,
 ) {
-    // 1. Let queue be the connection queue for storageKey and name.
-    let queue = storage(vm).connection_queue_for_key_and_name(vm, &storage_key, &name);
-
-    // 2. Add request to queue.
-    // 3. Wait until all previous requests in queue have been processed.
-    let steps = create_function(
-        vm,
-        (realm, queue, NoCells(storage_key), name, request, on_complete),
-        |vm, &(realm, queue, ref storage_key, ref name, request, on_complete), ()| {
-            // 4. Let db be the database named name in storageKey, if one exists. Otherwise, return 0 (zero).
-            let Some(db) = Database::for_key_and_name(vm, &storage_key.0, name) else {
-                call_completion(vm, queue, on_complete, Ok(0));
-                return;
-            };
-
-            // 5. Let openConnections be the set of all connections associated with db.
-            let open_connections = db.associated_connections(vm);
-
-            // 6. For each entry of openConnections that does not have its close pending flag set to true,
-            //    queue a database task to fire a version change event named versionchange at entry with db’s version and null.
-            let mut task_counter_state: Option<TaskCounterStateRef> = None;
-            for &entry in open_connections.values().iter() {
-                if !entry.close_pending() {
-                    let state = *task_counter_state.get_or_insert_with(|| TaskCounterState::create(vm));
-
-                    state.remaining_tasks.set(state.remaining_tasks.get() + 1);
-                    queue_a_database_task(
-                        vm,
-                        create_function(vm, (realm, entry, db, state), |vm, &(realm, entry, db, state), ()| {
-                            fire_a_version_change_event(
-                                vm,
-                                realm,
-                                "versionchange",
-                                entry.event_target(),
-                                db.version(),
-                                None,
-                            );
-                            state.decrement_remaining_tasks(vm);
-                        }),
-                    );
-                }
-            }
-
-            // 7. Wait for all of the events to be fired.
-            let after_all = create_function(
-                vm,
-                (
-                    realm,
-                    queue,
-                    OpenConnections(open_connections.to_vec()),
-                    db,
-                    NoCells(storage_key.0.clone()),
-                    name.clone(),
-                    request,
-                    on_complete,
-                ),
-                |vm, &(realm, queue, ref open_connections, db, ref storage_key, ref name, request, on_complete), ()| {
-                    // 8. If any of the connections in openConnections are still not closed, queue a database task to fire a
-                    //    version change event named blocked at request with db’s version and null.
-                    let any_connection_is_not_closed = open_connections
-                        .0
-                        .iter()
-                        .any(|entry| entry.state() != ConnectionState::Closed);
-                    if any_connection_is_not_closed {
-                        queue_a_database_task(
-                            vm,
-                            create_function(vm, (realm, request, db), |vm, &(realm, request, db), ()| {
-                                fire_a_version_change_event(
-                                    vm,
-                                    realm,
-                                    "blocked",
-                                    request.event_target(),
-                                    db.version(),
-                                    None,
-                                );
-                            }),
-                        );
-                    }
-
-                    // 9. Wait until all connections in openConnections are closed.
-                    db.wait_for_connections_to_close(
-                        vm,
-                        &open_connections.0,
-                        create_function(
-                            vm,
-                            (queue, db, storage_key.clone(), name.clone(), on_complete),
-                            |vm, &(queue, db, ref storage_key, ref name, on_complete), ()| {
-                                // 10. Let version be db’s version.
-                                let version = db.version();
-
-                                // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. a QuotaExceededError, or an "UnknownError" DOMException).
-                                Database::delete_for_key_and_name(vm, &storage_key.0, name);
-
-                                // 12. Return version.
-                                call_completion(vm, queue, on_complete, Ok(version));
-                            },
-                        ),
-                    );
-                },
-            );
-
-            if let Some(state) = task_counter_state {
-                state.after_all.set(Some(after_all));
-            } else {
-                queue_a_database_task(vm, after_all);
-            }
-        },
-    );
-    queue.request_list.enqueue(vm, request, steps);
+    // NB: The backend runs the steps, and waits for the database's connections wherever those live.
+    let Some(client_id) = remote::client_for(vm, realm) else {
+        on_complete.call(
+            vm,
+            Err(DomException::create("UnknownError", "The databases can't be reached")),
+        );
+        return;
+    };
+    remote::delete_a_database(vm, realm, client_id, &name, request, on_complete);
 }
 
 // https://w3c.github.io/IndexedDB/#abort-an-upgrade-transaction
@@ -853,6 +587,8 @@ pub(crate) fn abort_a_transaction(vm: &Vm, transaction: Ref<IDBTransaction>, err
     // 2. All the changes made to the database by the transaction are reverted.
     //    For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
     //    Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
+    // NB: The backend reverts the changes to the database, and the agent those to its view of the database's shape.
+    remote::abort(vm, transaction);
     transaction.revert_all_mutations(vm);
     transaction.discard_mutation_logs(vm);
 
@@ -1151,52 +887,64 @@ pub(crate) fn commit_a_transaction(vm: &Vm, transaction: Ref<IDBTransaction>) {
                 return;
             }
 
-            // FIXME: 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
+            // 3. Attempt to write any outstanding changes made by transaction to the database, considering transaction’s durability hint.
             // FIXME: 4. If an error occurs while writing the changes to the database, then run abort a transaction with transaction and an appropriate type for the error, for example a QuotaExceededError or an "UnknownError" DOMException, and terminate these steps.
-
-            // 5. Queue a database task to run these steps:
-            queue_a_database_task(
+            // NB: The backend writes the changes, and the steps go on once it has.
+            remote::commit(
                 vm,
+                transaction,
                 create_function(vm, transaction, |vm, &transaction, ()| {
-                    // 1. If transaction is an upgrade transaction, then set transaction’s connection’s associated database’s upgrade transaction to null.
-                    if transaction.is_upgrade_transaction() {
-                        transaction
-                            .connection_object()
-                            .associated_database()
-                            .set_upgrade_transaction(None);
-                    }
+                    // 5. Queue a database task to run these steps:
+                    queue_a_database_task(
+                        vm,
+                        create_function(vm, transaction, |vm, &transaction, ()| {
+                            // NB: An abort that came after the backend committed already finished the transaction and
+                            //     fired its abort event, so it gets no complete event too.
+                            if transaction.state() != TransactionState::Committing {
+                                return;
+                            }
 
-                    // AD-HOC: Discard mutation logs now that changes are permanent.
-                    transaction.notify_devtools_of_committed_changes();
-                    transaction.discard_mutation_logs(vm);
+                            // 1. If transaction is an upgrade transaction, then set transaction’s connection’s associated database’s upgrade transaction to null.
+                            if transaction.is_upgrade_transaction() {
+                                transaction
+                                    .connection_object()
+                                    .associated_database()
+                                    .set_upgrade_transaction(None);
+                            }
 
-                    // 2. Set transaction’s state to finished.
-                    IDBTransaction::set_finished(vm, transaction);
+                            // AD-HOC: Discard mutation logs now that changes are permanent.
+                            transaction.notify_devtools_of_committed_changes();
+                            transaction.discard_mutation_logs(vm);
 
-                    // 3. Fire an event named complete at transaction.
-                    transaction.event_target().dispatch_event(&CppEvent::create(
-                        transaction.realm(),
-                        "complete",
-                        false,
-                        false,
-                        false,
-                    ));
+                            // 2. Set transaction’s state to finished.
+                            IDBTransaction::set_finished(vm, transaction);
 
-                    // 4. If transaction is an upgrade transaction, then let request be the request associated with transaction and set request’s transaction to null.
-                    if transaction.is_upgrade_transaction() {
-                        let request = transaction
-                            .associated_request()
-                            .expect("an upgrade transaction has an open request");
-                        request.set_transaction(None);
+                            // 3. Fire an event named complete at transaction.
+                            transaction.event_target().dispatch_event(&CppEvent::create(
+                                transaction.realm(),
+                                "complete",
+                                false,
+                                false,
+                                false,
+                            ));
 
-                        // Ad-hoc: Clear the two-way binding.
-                        transaction.set_associated_request(None);
-                    }
+                            // 4. If transaction is an upgrade transaction, then let request be the request associated with transaction and set request’s transaction to null.
+                            if transaction.is_upgrade_transaction() {
+                                let request = transaction
+                                    .associated_request()
+                                    .expect("an upgrade transaction has an open request");
+                                request.set_transaction(None);
 
-                    // AD-HOC: Notify pending transaction waits after the complete event fires, so that
-                    //         upgrade completion callbacks are queued after any tasks JS creates during
-                    //         the complete event handler.
-                    transaction.connection_object().check_pending_transaction_waits(vm);
+                                // Ad-hoc: Clear the two-way binding.
+                                transaction.set_associated_request(None);
+                            }
+
+                            // AD-HOC: Notify pending transaction waits after the complete event fires, so that
+                            //         upgrade completion callbacks are queued after any tasks JS creates during
+                            //         the complete event handler.
+                            transaction.connection_object().check_pending_transaction_waits(vm);
+                        }),
+                    );
                 }),
             );
         }),
@@ -1587,10 +1335,13 @@ pub(crate) fn fire_a_success_event(vm: &Vm, request: AnyIDBRequest) {
 }
 
 // https://w3c.github.io/IndexedDB/#asynchronously-execute-a-request
-pub(crate) fn asynchronously_execute_a_request(
+// NB: The backend performs the operation, in the order the agent sent the operations of the transaction, and the
+//     conversion turns what it found into the request's result, in the request's realm.
+pub(crate) fn asynchronously_execute_a_remote_request(
     vm: &Vm,
     source: IDBRequestSource,
-    operation: Operation,
+    operation: BackendOperation,
+    conversion: Conversion,
     request_input: Option<AnyIDBRequest>,
 ) -> AnyIDBRequest {
     // 1. Let transaction be the transaction associated with source.
@@ -1599,15 +1350,6 @@ pub(crate) fn asynchronously_execute_a_request(
         IDBRequestSource::ObjectStore(object_store) => object_store.transaction_object(),
         IDBRequestSource::Index(index) => index.transaction_object(),
         IDBRequestSource::Cursor(cursor) => cursor.transaction_object(),
-    };
-
-    // AD-HOC: Determine the object store being operated on so that we can get the exact mutation log this
-    //         operation will be writing to.
-    let store = match source {
-        IDBRequestSource::Empty => unreachable!("a request with a transaction has a source"),
-        IDBRequestSource::ObjectStore(object_store) => object_store.store(),
-        IDBRequestSource::Index(index) => index.object_store_handle().store(),
-        IDBRequestSource::Cursor(cursor) => cursor.effective_object_store(),
     };
 
     // 2. Assert: transaction’s state is active.
@@ -1623,37 +1365,42 @@ pub(crate) fn asynchronously_execute_a_request(
     request.set_transaction(Some(transaction));
 
     // 4. Add request to the end of transaction’s request list.
+    transaction.request_list().enqueue_remote(vm, request);
+
     // 5. Run these steps in parallel:
     //     1. Wait until request is the first item in transaction’s request list that is not processed.
-    transaction.request_list().enqueue(
+    //     2. Let result be the result of performing operation.
+    // NB: The backend answers the operations of a transaction in order, so when the result arrives, every request
+    //     before this one was processed.
+    remote::perform(
         vm,
-        request,
-        create_function(
+        transaction,
+        operation,
+        create_function_with(
             vm,
-            (transaction, store, operation, request),
-            |vm, &(transaction, store, operation, request), ()| {
+            (transaction, request, conversion),
+            |vm, &(transaction, request, conversion), result: Result<OperationResult, BackendError>| {
                 if request.aborted() {
                     return;
                 }
+                let result = match result {
+                    Ok(result) => convert_result(vm, conversion, result).map_err(DomException::from_exception),
+                    Err(error) => Err(remote::dom_exception_from(&error)),
+                };
 
-                // AD-HOC: Determine where the mutation logs for this operation begin in case we need to revert.
-                let log_position = store.mutation_log_position();
-
-                // 2. Let result be the result of performing operation.
-                let result = perform_operation(vm, operation).map_err(DomException::from_exception);
-
-                // 3. If result is an error and transaction’s state is committing, then run abort a transaction with transaction and result, and terminate these steps.
+                // 3. If result is an error and transaction’s state is committing, then run abort a transaction with
+                //    transaction and result, and terminate these steps.
+                // NB: The events of the requests processed before this one are queued already, and fire first, as
+                //     they would if the backend performed this operation only after they did.
                 if let Err(error) = &result
                     && transaction.state() == TransactionState::Committing
                 {
-                    abort_a_transaction(vm, transaction, Some(error.clone()));
+                    abort_after_queued_events(vm, transaction, error.clone());
                     return;
                 }
 
                 // 4. If result is an error, then revert all changes made by operation.
-                if result.is_err() {
-                    ObjectStore::revert_mutations_from(store, vm, log_position);
-                }
+                // NB: An operation of the backend that fails changes nothing.
 
                 // 5. Set request’s processed flag to true.
                 request.set_processed(true);
@@ -1675,8 +1422,8 @@ pub(crate) fn asynchronously_execute_a_request(
                             // 2. Set request’s done flag to true.
                             request.set_done(true);
 
-                            // 3. If result is an error, then:
                             match result {
+                                // 3. If result is an error, then:
                                 Err(error) => {
                                     // 1. Set request’s result to undefined.
                                     request.set_result(Value::UNDEFINED);
@@ -1700,20 +1447,11 @@ pub(crate) fn asynchronously_execute_a_request(
                                 }
                             }
 
-                            // NB: Check if the commit wait is satisfied after firing the result event, so that the commit completion
-                            //     runs after it. This models the parallel nature of the processing according to the spec, where a
-                            //     request being processed necessitates sending a message from the IDB worker thread/process to the
-                            //     main thread (most likely also triggering this task), meaning that the above events will necessarily
-                            //     be fired before the transaction can be committed.
+                            // NB: The commit wait is checked after the result event, so the commit completes after it.
                             transaction.request_list().check_all_processed(vm);
                         },
                     ),
                 );
-
-                // Allow the next operation in the queue to proceed. This runs after the above task to ensure that if another
-                // request is ready, it will run after the success or failure events are fired. Otherwise, the next request may
-                // throw an error and clobber the result of this request.
-                transaction.request_list().on_request_processed(vm);
             },
         ),
     );
@@ -1790,193 +1528,13 @@ pub(crate) fn inject_a_key_into_a_value_using_a_key_path(
     assert!(status);
 }
 
-// https://w3c.github.io/IndexedDB/#delete-records-from-an-object-store
-pub(crate) fn delete_records_from_an_object_store(vm: &Vm, store: ObjectStoreRef, range: &IDBKeyRange) -> Value {
-    // 1. Remove all records, if any, from store’s list of records with key in range.
-    store.remove_records_in_range(vm, range);
-
-    // 2. For each index which references store, remove every record from index’s list of records whose value is in range, if any such records exist.
-    for index in store.indexes(vm).values().iter().copied() {
-        Index::remove_records_with_value_in_range(index, vm, range);
-    }
-
-    // 3. Return undefined.
-    Value::UNDEFINED
-}
-
-// https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
-// NB: The steps of storing a record into an object store for one index which references store, as step 5 runs them for
-//     each such index.
-fn store_a_record_into_an_index(cx: &CallContext, index: IndexRef, value: Value, key: &Rc<Key>) -> WebIdlResult<()> {
-    let vm = cx.vm();
-
-    // 1. Let index key be the result of extracting a key from a value using a key path with value, index’s key path, and index’s multiEntry flag.
-    let completion_index_key =
-        extract_a_key_from_a_value_using_a_key_path(cx, value, index.key_path(), index.multi_entry());
-
-    // 2. If index key is an exception, or invalid, or failure, take no further actions for index, and continue these steps for the next index.
-    let Ok(failure_index_key) = completion_index_key else {
-        return Ok(());
-    };
-
-    let Ok(index_key) = failure_index_key else {
-        return Ok(());
-    };
-
-    if index_key.is_invalid() {
-        return Ok(());
-    }
-
-    let index_multi_entry = index.multi_entry();
-    let index_key_is_array = index_key.r#type() == KeyType::Array;
-    let index_is_unique = index.unique();
-
-    // 3. If index’s multiEntry flag is false, or if index key is not an array key,
-    //    and if index already contains a record with key equal to index key,
-    //    and index’s unique flag is true,
-    //    then this operation failed with a "ConstraintError" DOMException.
-    //    Abort this algorithm without taking any further steps.
-    if (!index_multi_entry || !index_key_is_array) && index_is_unique && index.has_record_with_key(&index_key) {
-        return Err(Exception::Dom(
-            "ConstraintError",
-            Utf16String::from_utf8("Record already exists in index"),
-        ));
-    }
-
-    // 4. If index’s multiEntry flag is true and index key is an array key,
-    //    and if index already contains a record with key equal to any of the subkeys of index key,
-    //    and index’s unique flag is true,
-    //    then this operation failed with a "ConstraintError" DOMException.
-    //    Abort this algorithm without taking any further steps.
-    if index_multi_entry && index_key_is_array && index_is_unique {
-        for subkey in index_key.subkeys() {
-            if index.has_record_with_key(subkey) {
-                return Err(Exception::Dom(
-                    "ConstraintError",
-                    Utf16String::from_utf8("Record already exists in index"),
-                ));
-            }
-        }
-    }
-
-    // 5. If index’s multiEntry flag is false, or if index key is not an array key
-    //    then store a record in index containing index key as its key and key as its value.
-    //    The record is stored in index’s list of records such that the list is sorted primarily on the records keys,
-    //    and secondarily on the records values, in ascending order.
-    if !index_multi_entry || !index_key_is_array {
-        let index_record = IndexRecord {
-            key: index_key.clone(),
-            value: key.clone(),
-        };
-        Index::store_a_record(index, vm, &index_record);
-    }
-
-    // 6. If index’s multiEntry flag is true and index key is an array key,
-    //    then for each subkey of the subkeys of index key store a record in index containing subkey as its key and key as its value.
-    //    The records are stored in index’s list of records such that the list is sorted primarily on the records keys,
-    //    and secondarily on the records values, in ascending order.
-    if index_multi_entry && index_key_is_array {
-        for subkey in index_key.subkeys() {
-            let index_record = IndexRecord {
-                key: subkey.clone(),
-                value: key.clone(),
-            };
-            Index::store_a_record(index, vm, &index_record);
-        }
-    }
-
-    Ok(())
-}
-
-// https://w3c.github.io/IndexedDB/#store-a-record-into-an-object-store
-pub(crate) fn store_a_record_into_an_object_store(
-    cx: &CallContext,
-    store: ObjectStoreRef,
-    value: Value,
-    mut key: Option<Rc<Key>>,
-    no_overwrite: bool,
-) -> WebIdlResult<Option<Rc<Key>>> {
-    let vm = cx.vm();
-
-    // 1. If store uses a key generator, then:
-    if store.uses_a_key_generator() {
-        match &key {
-            // 1. If key is undefined, then:
-            None => {
-                // 1. Let key be the result of generating a key for store.
-                let maybe_key = store.generate_a_key(vm);
-
-                // 2. If key is failure, then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
-                let generated_key = match maybe_key {
-                    Ok(generated_key) => generated_key,
-                    Err(error) => return Err(Exception::Dom("ConstraintError", Utf16String::from_utf8(error))),
-                };
-
-                #[allow(clippy::cast_precision_loss, reason = "a generated key is at most 2^53")]
-                let generated_key = Key::create_number(generated_key as f64);
-                key = Some(generated_key.clone());
-
-                // 3. If store also uses in-line keys, then run inject a key into a value using a key path with value, key and store’s key path.
-                if store.uses_inline_keys() {
-                    inject_a_key_into_a_value_using_a_key_path(
-                        cx,
-                        value,
-                        &generated_key,
-                        store.key_path().expect("the store uses in-line keys"),
-                    );
-                }
-            }
-
-            // 2. Otherwise, run possibly update the key generator for store with key.
-            Some(key) => {
-                store.possibly_update_the_key_generator(vm, key);
-            }
-        }
-    }
-    let key = key.expect("the key was given or generated");
-
-    // 2. If the no-overwrite flag was given to these steps and is true, and a record already exists in store with its key equal to key,
-    //    then this operation failed with a "ConstraintError" DOMException. Abort this algorithm without taking any further steps.
-    let has_record = store.has_record_with_key(&key);
-    if no_overwrite && has_record {
-        return Err(Exception::Dom(
-            "ConstraintError",
-            Utf16String::from_utf8("Record already exists"),
-        ));
-    }
-
-    // 3. If a record already exists in store with its key equal to key, then remove the record from store using delete records from an object store.
-    if has_record {
-        let key_range = IDBKeyRange::create(vm, Some(key.clone()), Some(key.clone()), false, false);
-        delete_records_from_an_object_store(vm, store, &key_range);
-    }
-
-    // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
-    //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
-    let record = ObjectStoreRecord {
-        key: key.clone(),
-        value: Rc::from(structured_serialize_for_storage(cx, value).must()),
-    };
-    store.store_a_record(vm, record);
-
-    // 5. For each index which references store:
-    for index in store.indexes(vm).values().iter().copied() {
-        // AD-HOC: An index whose creation request has not been processed yet gets the records of store once it is.
-        if index.is_pending_creation() {
-            continue;
-        }
-
-        store_a_record_into_an_index(cx, index, value, &key)?;
-    }
-
-    // 6. Return key.
-    Ok(Some(key))
-}
-
 // AD-HOC: The spec deserializes stored records infallibly, but a record read back from storage can be
 //         corrupt or written by a newer format version, so treat failure as the "error occurs while
 //         reading the value from the underlying storage" case: a "NotReadableError" DOMException.
-fn deserialize_a_stored_record(cx: &CallContext, serialized: &StorageSerializationRecord) -> WebIdlResult<Value> {
+pub(crate) fn deserialize_a_stored_record(
+    cx: &CallContext,
+    serialized: &StorageSerializationRecord,
+) -> WebIdlResult<Value> {
     structured_deserialize_for_storage(cx, serialized).map_err(|_| {
         Exception::Dom(
             "NotReadableError",
@@ -1993,7 +1551,6 @@ fn deserialize_a_stored_record(cx: &CallContext, serialized: &StorageSerializati
 pub(crate) fn queue_the_creation_of_an_index(vm: &Vm, handle: Ref<IDBObjectStore>, index: IndexRef) {
     let realm = handle.realm();
     let transaction = handle.transaction_object();
-    index.set_pending_creation(true);
 
     // NB: The request has no transaction, so that nothing observes it, and the events fired at it if the transaction
     //     aborts first go nowhere.
@@ -2002,55 +1559,122 @@ pub(crate) fn queue_the_creation_of_an_index(vm: &Vm, handle: Ref<IDBObjectStore
         transaction.connection_object().realm(),
         IDBRequestSource::ObjectStore(handle),
     ));
-    transaction.request_list().enqueue(
+    transaction.request_list().enqueue_remote(vm, request);
+
+    // NB: The backend hands over the records the object store has once the requests made before createIndex() are
+    //     done, and the agent computes their index records, which only it can, as script may run to extract them. The
+    //     backend skips the ones of a record that a later request changed meanwhile, which got its index records then.
+    // NB: The requests made after createIndex() wait until the index has its records. So the index records go under the
+    //     names that the backend has when the population starts, even if script renames the index or its object store
+    //     before they come back: The backend renames them only after the population.
+    let names = NoCells((
+        remote::name_from(&index.object_store().name()),
+        remote::name_from(&index.name()),
+    ));
+    remote::perform(
         vm,
-        request,
-        create_function(
+        transaction,
+        BackendOperation::PopulateIndex {
+            store: names.0.0.clone(),
+            index: names.0.1.clone(),
+        },
+        create_function_with(
             vm,
-            (realm, transaction, index, request),
-            |vm, &(realm, transaction, index, request), ()| {
+            (realm, transaction, index, request, names),
+            |vm, (realm, transaction, index, request, names), result: Result<OperationResult, BackendError>| {
+                let (realm, transaction, index, request) = (*realm, *transaction, *index, *request);
                 if request.aborted() {
                     return;
                 }
-
-                index.set_pending_creation(false);
-                let cx = CallContext::new(vm, realm);
-                let store_the_records_into_the_index = || -> WebIdlResult<()> {
-                    for record in index.object_store().records().iter() {
-                        let value = deserialize_a_stored_record(&cx, &record.value)?;
-                        store_a_record_into_an_index(&cx, index, value, &record.key)?;
+                let entries = match result {
+                    Ok(OperationResult::Records(records)) => {
+                        with_temporary_execution_context_and_callbacks(realm, || {
+                            let cx = CallContext::new(vm, realm);
+                            records
+                                .iter()
+                                .map(|record| {
+                                    let value = remote_ops::read_record_value(&cx, index.object_store(), record)?;
+                                    Ok(remote_ops::IndexKeyEntryOf::entry(
+                                        &cx,
+                                        index,
+                                        value,
+                                        &record.primary_key,
+                                    ))
+                                })
+                                .collect::<WebIdlResult<Vec<_>>>()
+                                .map_err(DomException::from_exception)
+                        })
                     }
-                    Ok(())
+                    Ok(_) => Ok(Vec::new()),
+                    Err(error) => Err(remote::dom_exception_from(&error)),
                 };
-                let result = store_the_records_into_the_index();
-
-                request.set_processed(true);
-
-                if let Err(exception) = result {
-                    abort_a_transaction(vm, transaction, Some(DomException::from_exception(exception)));
-                    return;
-                }
-
-                // NB: Finish up like a request whose success event nobody listens to: the transaction commits once its request
-                //     list is empty, if it is inactive by then.
-                queue_a_database_task(
+                let entries = match entries {
+                    Ok(entries) => entries,
+                    Err(error) => {
+                        abort_after_queued_events(vm, transaction, error);
+                        return;
+                    }
+                };
+                remote::perform_now(
                     vm,
-                    create_function(vm, (transaction, request), |vm, &(transaction, request), ()| {
-                        if request.aborted() {
-                            return;
-                        }
+                    transaction,
+                    BackendOperation::AddIndexKeys {
+                        store: names.0.0.clone(),
+                        index: names.0.1.clone(),
+                        entries,
+                    },
+                    create_function_with(
+                        vm,
+                        (transaction, request),
+                        |vm, &(transaction, request), result: Result<OperationResult, BackendError>| {
+                            if request.aborted() {
+                                return;
+                            }
 
-                        transaction.request_list().remove(vm, request);
-                        if transaction.state() == TransactionState::Inactive && transaction.request_list().is_empty() {
-                            commit_a_transaction(vm, transaction);
-                        }
-                        transaction.request_list().check_all_processed(vm);
-                    }),
+                            // If the records violate the index's unique flag, the upgrade transaction is aborted with a
+                            // "ConstraintError" DOMException.
+                            // NB: The request stays unprocessed until the abort, so that a commit() can't go first.
+                            if let Err(error) = result {
+                                abort_after_queued_events(vm, transaction, remote::dom_exception_from(&error));
+                                return;
+                            }
+                            request.set_processed(true);
+
+                            // NB: Finish up like a request whose success event nobody listens to: the transaction
+                            //     commits once its request list is empty, if it is inactive by then.
+                            queue_a_database_task(
+                                vm,
+                                create_function(vm, (transaction, request), |vm, &(transaction, request), ()| {
+                                    if request.aborted() {
+                                        return;
+                                    }
+                                    transaction.request_list().remove(vm, request);
+                                    if transaction.state() == TransactionState::Inactive
+                                        && transaction.request_list().is_empty()
+                                    {
+                                        commit_a_transaction(vm, transaction);
+                                    }
+                                    transaction.request_list().check_all_processed(vm);
+                                }),
+                            );
+                        },
+                    ),
                 );
-
-                transaction.request_list().on_request_processed(vm);
+                remote::release(transaction);
             },
         ),
+    );
+    remote::hold(transaction);
+}
+
+/// Aborts a transaction once the events of the requests that were processed before are fired, as they would be if the
+/// backend performed the failed operation only after those events.
+fn abort_after_queued_events(vm: &Vm, transaction: Ref<IDBTransaction>, error: DomException) {
+    queue_a_database_task(
+        vm,
+        create_function(vm, (transaction, error), |vm, &(transaction, ref error), ()| {
+            abort_a_transaction(vm, transaction, Some(error.clone()));
+        }),
     );
 }
 
@@ -2097,572 +1721,11 @@ pub(crate) enum RecordSource {
     Index(IndexRef),
 }
 
-// https://w3c.github.io/IndexedDB/#count-the-records-in-a-range
-pub(crate) fn count_the_records_in_a_range(source: RecordSource, range: &IDBKeyRange) -> Value {
-    // 1. Let count be the number of records, if any, in source’s list of records with key in range.
-    let count = match source {
-        RecordSource::ObjectStore(object_store) => object_store.count_records_in_range(range),
-        RecordSource::Index(index) => index.count_records_in_range(range),
-    };
-
-    // 2. Return count.
-    #[allow(clippy::cast_precision_loss, reason = "a count of records is less than 2^53")]
-    Value::from_f64(count as f64)
-}
-
-// https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-object-store
-pub(crate) fn retrieve_a_value_from_an_object_store(
-    cx: &CallContext,
-    store: ObjectStoreRef,
-    range: &IDBKeyRange,
-) -> WebIdlResult<Value> {
-    // 1. Let record be the first record in store’s list of records whose key is in range, if any.
-    let record = store.first_in_range(range);
-
-    // 2. If record was not found, return undefined.
-    let Some(record) = record else {
-        return Ok(Value::UNDEFINED);
-    };
-
-    // 3. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
-    let serialized = &record.value;
-
-    // 4. Return ! StructuredDeserialize(serialized, targetRealm).
-    deserialize_a_stored_record(cx, serialized)
-}
-
-#[derive(Clone)]
-enum FoundRecord {
-    ObjectStore(ObjectStoreRecord),
-    Index(IndexRecord),
-}
-
-impl FoundRecord {
-    fn key(&self) -> &Rc<Key> {
-        match self {
-            Self::ObjectStore(record) => &record.key,
-            Self::Index(record) => &record.key,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum RecordInList<'a> {
-    ObjectStore(&'a ObjectStoreRecord),
-    Index(&'a IndexRecord),
-}
-
-impl RecordInList<'_> {
-    fn key(&self) -> &Key {
-        match self {
-            Self::ObjectStore(record) => &record.key,
-            Self::Index(record) => &record.key,
-        }
-    }
-
-    fn index_record(&self) -> &IndexRecord {
-        match self {
-            Self::Index(record) => record,
-            Self::ObjectStore(_) => unreachable!("the source of the cursor is an index"),
-        }
-    }
-
-    fn to_found_record(self) -> FoundRecord {
-        match self {
-            Self::ObjectStore(record) => FoundRecord::ObjectStore(record.clone()),
-            Self::Index(record) => FoundRecord::Index(record.clone()),
-        }
-    }
-}
-
-// https://w3c.github.io/IndexedDB/#iterate-a-cursor
-pub(crate) fn iterate_a_cursor(
-    cx: &CallContext,
-    cursor: AnyIDBCursor,
-    key: Option<Rc<Key>>,
-    primary_key: Option<Rc<Key>>,
-    mut count: u64,
-) -> WebIdlResult<Option<AnyIDBCursor>> {
-    // 1. Let source be cursor’s source.
-    let source = cursor.internal_source();
-
-    // 2. Let direction be cursor’s direction.
-    let direction = cursor.direction_value();
-
-    // 3. Assert: if primaryKey is given, source is an index and direction is "next" or "prev".
-    let direction_is_next_or_prev = direction == IDBCursorDirection::Next || direction == IDBCursorDirection::Prev;
-    if primary_key.is_some() {
-        assert!(matches!(source, RecordSource::Index(_)) && direction_is_next_or_prev);
-    }
-
-    // 4. Let records be the list of records in source.
-    // NB: The records are borrowed from the source below, while they are searched.
-
-    // 5. Let range be cursor’s range.
-    let range = cursor.range();
-
-    // 6. Let position be cursor’s position.
-    let mut position = cursor.position();
-
-    // 7. Let object store position be cursor’s object store position.
-    let mut object_store_position = cursor.object_store_position();
-
-    // 8. If count is not given, let count be 1.
-    // NOTE: This is handled by the default parameter
-
-    let source_is_object_store = matches!(source, RecordSource::ObjectStore(_));
-    let source_is_index = matches!(source, RecordSource::Index(_));
-
-    let next_requirements =
-        |record: RecordInList<'_>, position: &Option<Rc<Key>>, object_store_position: &Option<Rc<Key>>| -> bool {
-            // * If key is defined:
-            if let Some(key) = &key {
-                // * The record’s key is greater than or equal to key.
-                if !Key::greater_than_or_equal(record.key(), key) {
-                    return false;
-                }
-            }
-
-            // * If primaryKey is defined:
-            if let Some(primary_key) = &primary_key {
-                let inner_record = record.index_record();
-                let key = key.as_ref().expect("primaryKey is given with key");
-
-                // * The record’s key is equal to key and the record’s value is greater than or equal to primaryKey
-                if Key::equals(&inner_record.key, key) {
-                    if !Key::greater_than_or_equal(&inner_record.value, primary_key) {
-                        return false;
-                    }
-                }
-                // * The record’s key is greater than key.
-                else if !Key::greater_than(&inner_record.key, key) {
-                    return false;
-                }
-            }
-
-            // * If position is defined and source is an object store:
-            if let Some(position) = position
-                && source_is_object_store
-            {
-                // * The record’s key is greater than position.
-                if !Key::greater_than(record.key(), position) {
-                    return false;
-                }
-            }
-
-            // * If position is defined and source is an index:
-            if let Some(position) = position
-                && source_is_index
-            {
-                let inner_record = record.index_record();
-                let object_store_position = object_store_position
-                    .as_ref()
-                    .expect("a cursor of an index with a position has an object store position");
-
-                // * The record’s key is equal to position and the record’s value is greater than object store position
-                if Key::equals(&inner_record.key, position) {
-                    if !Key::greater_than(&inner_record.value, object_store_position) {
-                        return false;
-                    }
-                }
-                // * The record’s key is greater than position.
-                else if !Key::greater_than(&inner_record.key, position) {
-                    return false;
-                }
-            }
-
-            // * The record’s key is in range.
-            range.is_in_range(record.key())
-        };
-
-    let next_unique_requirements = |record: RecordInList<'_>, position: &Option<Rc<Key>>| -> bool {
-        // * If key is defined:
-        if let Some(key) = &key {
-            // * The record’s key is greater than or equal to key.
-            if !Key::greater_than_or_equal(record.key(), key) {
-                return false;
-            }
-        }
-
-        // * If position is defined:
-        if let Some(position) = position {
-            // * The record’s key is greater than position.
-            if !Key::greater_than(record.key(), position) {
-                return false;
-            }
-        }
-
-        // * The record’s key is in range.
-        range.is_in_range(record.key())
-    };
-
-    let prev_requirements =
-        |record: RecordInList<'_>, position: &Option<Rc<Key>>, object_store_position: &Option<Rc<Key>>| -> bool {
-            // * If key is defined:
-            if let Some(key) = &key {
-                // * The record’s key is less than or equal to key.
-                if !Key::less_than_or_equal(record.key(), key) {
-                    return false;
-                }
-            }
-
-            // * If primaryKey is defined:
-            if let Some(primary_key) = &primary_key {
-                let inner_record = record.index_record();
-                let key = key.as_ref().expect("primaryKey is given with key");
-
-                // * The record’s key is equal to key and the record’s value is less than or equal to primaryKey
-                if Key::equals(&inner_record.key, key) {
-                    if !Key::less_than_or_equal(&inner_record.value, primary_key) {
-                        return false;
-                    }
-                }
-                // * The record’s key is less than key.
-                else if !Key::less_than(&inner_record.key, key) {
-                    return false;
-                }
-            }
-
-            // * If position is defined and source is an object store:
-            if let Some(position) = position
-                && source_is_object_store
-            {
-                // * The record’s key is less than position.
-                if !Key::less_than(record.key(), position) {
-                    return false;
-                }
-            }
-
-            // * If position is defined and source is an index:
-            if let Some(position) = position
-                && source_is_index
-            {
-                let inner_record = record.index_record();
-                let object_store_position = object_store_position
-                    .as_ref()
-                    .expect("a cursor of an index with a position has an object store position");
-
-                // * The record’s key is equal to position and the record’s value is less than object store position
-                if Key::equals(&inner_record.key, position) {
-                    if !Key::less_than(&inner_record.value, object_store_position) {
-                        return false;
-                    }
-                }
-                // * The record’s key is less than position.
-                else if !Key::less_than(&inner_record.key, position) {
-                    return false;
-                }
-            }
-
-            // * The record’s key is in range.
-            range.is_in_range(record.key())
-        };
-
-    let prev_unique_requirements = |record: RecordInList<'_>, position: &Option<Rc<Key>>| -> bool {
-        // * If key is defined:
-        if let Some(key) = &key {
-            // * The record’s key is less than or equal to key.
-            if !Key::less_than_or_equal(record.key(), key) {
-                return false;
-            }
-        }
-
-        // * If position is defined:
-        if let Some(position) = position {
-            // * The record’s key is less than position.
-            if !Key::less_than(record.key(), position) {
-                return false;
-            }
-        }
-
-        // * The record’s key is in range.
-        range.is_in_range(record.key())
-    };
-
-    let records_of_source = |search: &mut dyn FnMut(
-        &mut dyn DoubleEndedIterator<Item = RecordInList<'_>>,
-    ) -> Option<FoundRecord>|
-     -> Option<FoundRecord> {
-        match source {
-            RecordSource::ObjectStore(object_store) => {
-                let records = object_store.records();
-                search(&mut records.iter().map(RecordInList::ObjectStore))
-            }
-            RecordSource::Index(index) => {
-                let records = index.records();
-                search(&mut records.iter().map(RecordInList::Index))
-            }
-        }
-    };
-
-    // 9. While count is greater than 0:
-    let mut found_record: Option<FoundRecord> = None;
-    while count > 0 {
-        // 1. Switch on direction:
-        match direction {
-            IDBCursorDirection::Next => {
-                // Let found record be the first record in records which satisfy all of the following requirements:
-                found_record = records_of_source(&mut |mut records| {
-                    Iterator::find(&mut records, |record| {
-                        next_requirements(*record, &position, &object_store_position)
-                    })
-                    .map(RecordInList::to_found_record)
-                });
-            }
-            IDBCursorDirection::Nextunique => {
-                // Let found record be the first record in records which satisfy all of the following requirements:
-                found_record = records_of_source(&mut |mut records| {
-                    Iterator::find(&mut records, |record| next_unique_requirements(*record, &position))
-                        .map(RecordInList::to_found_record)
-                });
-            }
-            IDBCursorDirection::Prev => {
-                // Let found record be the last record in records which satisfy all of the following requirements:
-                found_record = records_of_source(&mut |records| {
-                    records
-                        .rev()
-                        .find(|record| prev_requirements(*record, &position, &object_store_position))
-                        .map(RecordInList::to_found_record)
-                });
-            }
-            IDBCursorDirection::Prevunique => {
-                // Let temp record be the last record in records which satisfy all of the following requirements:
-                let temp_record = records_of_source(&mut |records| {
-                    records
-                        .rev()
-                        .find(|record| prev_unique_requirements(*record, &position))
-                        .map(RecordInList::to_found_record)
-                });
-
-                // If temp record is defined, let found record be the first record in records whose key is equal to temp record’s key.
-                found_record = None;
-                if let Some(temp_record) = temp_record {
-                    let temp_record_key = temp_record.key().clone();
-
-                    found_record = records_of_source(&mut |mut records| {
-                        Iterator::find(&mut records, |content_record| {
-                            Key::equals(content_record.key(), &temp_record_key)
-                        })
-                        .map(RecordInList::to_found_record)
-                    });
-                }
-            }
-        }
-
-        // 2. If found record is not defined, then:
-        let Some(found) = &found_record else {
-            // 1. Set cursor’s key to undefined.
-            cursor.set_key(None);
-
-            // 2. If source is an index, set cursor’s object store position to undefined.
-            if source_is_index {
-                cursor.set_object_store_position(None);
-            }
-
-            // 3. If cursor’s key only flag is false, set cursor’s value to undefined.
-            if !cursor.key_only() {
-                cursor.set_value(Some(Value::UNDEFINED));
-            }
-
-            // 4. Return null.
-            return Ok(None);
-        };
-
-        // 3. Let position be found record’s key.
-        position = Some(found.key().clone());
-
-        // 4. If source is an index, let object store position be found record’s value.
-        if let FoundRecord::Index(record) = found {
-            object_store_position = Some(record.value.clone());
-        }
-
-        // 5. Decrease count by 1.
-        count -= 1;
-    }
-    let found_record = found_record.expect("a record was found");
-
-    // 10. Set cursor’s position to position.
-    cursor.set_position(position);
-
-    // 11. If source is an index, set cursor’s object store position to object store position.
-    if source_is_index {
-        cursor.set_object_store_position(object_store_position);
-    }
-
-    // 12. Set cursor’s key to found record’s key.
-    cursor.set_key(Some(found_record.key().clone()));
-
-    // 13. If cursor’s key only flag is false, then:
-    if !cursor.key_only() {
-        // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
-        let serialized = match (&found_record, source) {
-            (FoundRecord::ObjectStore(record), _) => record.value.clone(),
-            (FoundRecord::Index(record), RecordSource::Index(index)) => index.referenced_value(record),
-            (FoundRecord::Index(_), RecordSource::ObjectStore(_)) => {
-                unreachable!("a record of an index is found in an index")
-            }
-        };
-
-        // 2. Set cursor’s value to ! StructuredDeserialize(serialized, targetRealm)
-        cursor.set_value(Some(deserialize_a_stored_record(cx, &serialized)?));
-    }
-
-    // 14. Set cursor’s got value flag to true.
-    cursor.set_got_value(true);
-
-    // 15. Return cursor.
-    Ok(Some(cursor))
-}
-
-// https://w3c.github.io/IndexedDB/#clear-an-object-store
-pub(crate) fn clear_an_object_store(vm: &Vm, store: ObjectStoreRef) -> Value {
-    // 1. Remove all records from store.
-    store.clear_records(vm);
-
-    // 2. In all indexes which reference store, remove all records.
-    for index in store.indexes(vm).values().iter().copied() {
-        Index::clear_records(index, vm);
-    }
-
-    // 3. Return undefined.
-    Value::UNDEFINED
-}
-
-// https://w3c.github.io/IndexedDB/#retrieve-a-key-from-an-object-store
-pub(crate) fn retrieve_a_key_from_an_object_store(
-    cx: &CallContext,
-    store: ObjectStoreRef,
-    range: &IDBKeyRange,
-) -> Value {
-    // 1. Let record be the first record in store’s list of records whose key is in range, if any.
-    let record = store.first_in_range(range);
-
-    // 2. If record was not found, return undefined.
-    let Some(record) = record else {
-        return Value::UNDEFINED;
-    };
-
-    // 3. Return the result of converting a key to a value with record’s key.
-    convert_a_key_to_a_value(cx, &record.key)
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RecordKind {
     Key,
     Value,
     Record,
-}
-
-// https://w3c.github.io/IndexedDB/#retrieve-multiple-items-from-an-object-store
-pub(crate) fn retrieve_multiple_items_from_an_object_store(
-    cx: &CallContext,
-    store: ObjectStoreRef,
-    range: &IDBKeyRange,
-    kind: RecordKind,
-    direction: IDBCursorDirection,
-    mut count: Option<u32>,
-) -> WebIdlResult<Gc<Array>> {
-    let vm = cx.vm();
-
-    // 1. If count is not given or is 0 (zero), let count be infinity.
-    if count == Some(0) {
-        count = None;
-    }
-
-    // 2. Let records be an empty list of records.
-    let mut records = Vec::new();
-
-    // 3. If direction is "next" or "nextunique", set records to the first count of store’s list of records whose key is in range.
-    if direction == IDBCursorDirection::Next || direction == IDBCursorDirection::Nextunique {
-        records.extend(store.first_n_in_range(range, count));
-    }
-
-    // 4. If direction is "prev" or "prevunique", set records to the last count of store’s list of records whose key is in range.
-    if direction == IDBCursorDirection::Prev || direction == IDBCursorDirection::Prevunique {
-        records.extend(store.last_n_in_range(range, count));
-    }
-
-    // 5. Let list be an empty list.
-    let list = Array::create(vm, cx.realm(), records.len() as u64, None).must();
-
-    // 6. For each record of records, switching on kind:
-    for (i, record) in records.iter().enumerate() {
-        let property_key = PropertyKey::from_number(i as u64);
-        match kind {
-            RecordKind::Key => {
-                // 1. Let key be the result of converting a key to a value with record’s key.
-                let key = convert_a_key_to_a_value(cx, &record.key);
-
-                // 2. Append key to list.
-                list.create_data_property_or_throw(vm, &property_key, key).must();
-            }
-            RecordKind::Value => {
-                // 1. Let serialized be record’s value.
-                let serialized = &record.value;
-
-                // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
-                let entry = deserialize_a_stored_record(cx, serialized)?;
-
-                // 3. Append value to list.
-                list.create_data_property_or_throw(vm, &property_key, entry).must();
-            }
-            RecordKind::Record => {
-                // 1. Let key be the record’s key.
-                let key = record.key.clone();
-
-                // 2. Let serialized be record’s value.
-                let serialized = &record.value;
-
-                // 3. Let value be ! StructuredDeserialize(serialized, targetRealm).
-                let value = deserialize_a_stored_record(cx, serialized)?;
-
-                // 4. Let recordSnapshot be a new record snapshot with its key set to key, value set to value, and primary key set to key.
-                let record_snapshot = IDBRecord::create(vm, key.clone(), value, key);
-
-                // 5. Append recordSnapshot to list.
-                list.create_data_property_or_throw(vm, &property_key, record_snapshot.to_js(cx)?)
-                    .must();
-            }
-        }
-    }
-
-    // 7. Return list.
-    Ok(list)
-}
-
-// https://w3c.github.io/IndexedDB/#retrieve-a-referenced-value-from-an-index
-pub(crate) fn retrieve_a_referenced_value_from_an_index(
-    cx: &CallContext,
-    index: IndexRef,
-    range: &IDBKeyRange,
-) -> WebIdlResult<Value> {
-    // 1. Let record be the first record in index’s list of records whose key is in range, if any.
-    let record = index.first_in_range(range);
-
-    // 2. If record was not found, return undefined.
-    let Some(record) = record else {
-        return Ok(Value::UNDEFINED);
-    };
-
-    // 3. Let serialized be record’s referenced value.
-    let serialized = index.referenced_value(&record);
-
-    // 4. Return ! StructuredDeserialize(serialized, targetRealm).
-    deserialize_a_stored_record(cx, &serialized)
-}
-
-// https://w3c.github.io/IndexedDB/#retrieve-a-value-from-an-index
-pub(crate) fn retrieve_a_value_from_an_index(cx: &CallContext, index: IndexRef, range: &IDBKeyRange) -> Value {
-    // 1. Let record be the first record in index’s list of records whose key is in range, if any.
-    let record = index.first_in_range(range);
-
-    // 2. If record was not found, return undefined.
-    let Some(record) = record else {
-        return Value::UNDEFINED;
-    };
-
-    // 3. Return the result of converting a key to a value with record’s value.
-    convert_a_key_to_a_value(cx, &record.value)
 }
 
 // https://w3c.github.io/IndexedDB/#queue-a-database-task
@@ -2675,35 +1738,27 @@ pub(crate) fn queue_a_database_task(vm: &Vm, steps: Function) {
 pub(crate) fn cleanup_indexed_database_transactions(vm: &Vm, event_loop: &CppCell) -> bool {
     let mut has_matching_event_loop = false;
 
-    Database::for_each_database(vm, |database| {
-        for connection in database.associated_connections(vm).values().iter() {
-            for transaction in connection.transactions(vm).values().iter() {
-                let transaction = *transaction;
+    // NB: The agent's transactions are the ones its client holds; the backend holds the databases.
+    remote::for_each_transaction(vm, |transaction| {
+        // 2. For each transaction transaction with cleanup event loop matching the current event loop:
+        if transaction.cleanup_event_loop() == Some(event_loop.as_ptr()) {
+            has_matching_event_loop = true;
 
-                // 2. For each transaction transaction with cleanup event loop matching the current event loop:
-                if transaction.cleanup_event_loop() == Some(event_loop.as_ptr()) {
-                    has_matching_event_loop = true;
+            // 1. Set transaction’s state to inactive.
+            assert!(transaction.state() == TransactionState::Active);
+            transaction.set_state(TransactionState::Inactive);
 
-                    // 1. Set transaction’s state to inactive.
-                    assert!(transaction.state() == TransactionState::Active);
-                    transaction.set_state(TransactionState::Inactive);
+            // https://w3c.github.io/IndexedDB/#transaction-commit
+            // The implementation must attempt to commit an inactive transaction when all requests placed
+            // against the transaction have completed and their returned results handled, no new requests have
+            // been placed against the transaction, and the transaction has not been aborted
 
-                    // https://w3c.github.io/IndexedDB/#transaction-commit
-                    // The implementation must attempt to commit an inactive transaction when all requests placed
-                    // against the transaction have completed and their returned results handled, no new requests have
-                    // been placed against the transaction, and the transaction has not been aborted
-
-                    // FIXME: We skip committing if the transaction is waiting for prior writes.
-                    //        Update the steps here text if this becomes explicit in the spec:
-                    //         https://github.com/w3c/IndexedDB/issues/489#issuecomment-3994928473
-                    if !transaction.request_list().execution_is_blocked() && transaction.request_list().is_empty() {
-                        commit_a_transaction(vm, transaction);
-                    }
-
-                    // 2. Clear transaction’s cleanup event loop.
-                    transaction.set_cleanup_event_loop(vm, None);
-                }
+            if transaction.request_list().is_empty() {
+                commit_a_transaction(vm, transaction);
             }
+
+            // 2. Clear transaction’s cleanup event loop.
+            transaction.set_cleanup_event_loop(vm, None);
         }
     });
 
@@ -2739,166 +1794,6 @@ pub(crate) fn is_a_potentially_valid_key_range(cx: &CallContext, value: Value) -
     false
 }
 
-// https://w3c.github.io/IndexedDB/#retrieve-multiple-items-from-an-index
-pub(crate) fn retrieve_multiple_items_from_an_index(
-    target_cx: &CallContext,
-    index: IndexRef,
-    range: &IDBKeyRange,
-    kind: RecordKind,
-    direction: IDBCursorDirection,
-    mut count: Option<u32>,
-) -> WebIdlResult<Gc<Array>> {
-    let vm = target_cx.vm();
-
-    // 1. If count is not given or is 0 (zero), let count be infinity.
-    if count == Some(0) {
-        count = None;
-    }
-
-    // 2. Let records be an empty list of records.
-    let mut records: Vec<IndexRecord> = Vec::new();
-
-    // 3. Switching on direction:
-    match direction {
-        // "next"
-        IDBCursorDirection::Next => {
-            // 1. Set records to the first count of index’s list of records whose key is in range.
-            records.extend(index.first_n_in_range(range, count));
-        }
-        // "nextunique"
-        IDBCursorDirection::Nextunique => {
-            // 1. Let rangeRecords be a list containing the index’s list of records whose key is in range.
-            let range_records = index.first_n_in_range(range, None);
-
-            // 2. Let rangeRecordsLength be rangeRecords’s size.
-            let range_records_length = range_records.len();
-
-            // 3. Let i be 0.
-            let mut i = 0;
-
-            // x. Append |rangeRecords[0]| to records.
-            // FIXME: https://github.com/w3c/IndexedDB/issues/480
-            if range_records_length > 0 {
-                records.push(range_records[0].clone());
-            }
-
-            // 4. While i is less than rangeRecordsLength, then:
-            while i + 1 < range_records_length {
-                // 1. Increase i by 1.
-                i += 1;
-
-                // 2. if record’s size is equal to count, then break.
-                if count.is_some_and(|count| records.len() == count as usize) {
-                    break;
-                }
-
-                // 3. If the result of comparing two keys using the keys from |rangeRecords[i]| and |rangeRecords[i-1]| is equal, then continue.
-                if Key::equals(&range_records[i].key, &range_records[i - 1].key) {
-                    continue;
-                }
-
-                // 4. Else append |rangeRecords[i]| to records.
-                records.push(range_records[i].clone());
-            }
-        }
-        // "prev"
-        IDBCursorDirection::Prev => {
-            // 1. Set records to the last count of index’s list of records whose key is in range.
-            records.extend(index.last_n_in_range(range, count));
-        }
-        // "prevunique"
-        IDBCursorDirection::Prevunique => {
-            // 1. Let rangeRecords be a list containing the index’s list of records whose key is in range.
-            let range_records = index.first_n_in_range(range, None);
-
-            // 2. Let rangeRecordsLength be rangeRecords’s size.
-            let range_records_length = range_records.len();
-
-            // 3. Let i be 0.
-            let mut i = 0;
-
-            // x. Append |rangeRecords[0]| to records.
-            // FIXME: https://github.com/w3c/IndexedDB/issues/480
-            if range_records_length > 0 {
-                records.push(range_records[0].clone());
-            }
-
-            // 4. While i is less than rangeRecordsLength, then:
-            while i + 1 < range_records_length {
-                // 1. Increase i by 1.
-                i += 1;
-
-                // 2. if record’s size is equal to count, then break.
-                if count.is_some_and(|count| records.len() == count as usize) {
-                    break;
-                }
-
-                // 3. If the result of comparing two keys using the keys from |rangeRecords[i]| and |rangeRecords[i-1]| is equal, then continue.
-                if Key::equals(&range_records[i].key, &range_records[i - 1].key) {
-                    continue;
-                }
-
-                // 4. Else prepend |rangeRecords[i]| to records.
-                records.insert(0, range_records[i].clone());
-            }
-        }
-    }
-
-    // 4. Let list be an empty list.
-    let list = Array::create(vm, target_cx.realm(), records.len() as u64, None).must();
-
-    // 5. For each record of records, switching on kind:
-    for (i, record) in records.iter().enumerate() {
-        let property_key = PropertyKey::from_number(i as u64);
-        match kind {
-            // "key"
-            RecordKind::Key => {
-                // 1. Let key be the result of converting a key to a value with record’s value.
-                let key = convert_a_key_to_a_value(target_cx, &record.value);
-
-                // 2. Append key to list.
-                list.create_data_property_or_throw(vm, &property_key, key).must();
-            }
-            // "value"
-            RecordKind::Value => {
-                // 1. Let serialized be record’s referenced value.
-                let serialized = index.referenced_value(record);
-
-                // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
-                let value = deserialize_a_stored_record(target_cx, &serialized)?;
-
-                // 3. Append value to list.
-                list.create_data_property_or_throw(vm, &property_key, value).must();
-            }
-
-            // "record"
-            RecordKind::Record => {
-                // 1. Let index key be the record’s key.
-                let index_key = record.key.clone();
-
-                // 2. Let key be the record’s value.
-                let key = record.value.clone();
-
-                // 3. Let serialized be record’s referenced value.
-                let serialized = index.referenced_value(record);
-
-                // 4. Let value be ! StructuredDeserialize(serialized, targetRealm).
-                let value = deserialize_a_stored_record(target_cx, &serialized)?;
-
-                // 5. Let recordSnapshot be a new record snapshot with its key set to index key, value set to value, and primary key set to key.
-                let record_snapshot = IDBRecord::create(vm, index_key, value, key);
-
-                // 6. Append recordSnapshot to list.
-                list.create_data_property_or_throw(vm, &property_key, record_snapshot.to_js(target_cx)?)
-                    .must();
-            }
-        }
-    }
-
-    // 6. Return list.
-    Ok(list)
-}
-
 fn source_of_source_handle(source_handle: IDBRequestSource) -> (RecordSource, Ref<IDBTransaction>) {
     // 1. Let source be an index or an object store from sourceHandle.
     //    If sourceHandle is an index handle, then source is the index handle’s associated index.
@@ -2916,49 +1811,31 @@ fn source_of_source_handle(source_handle: IDBRequestSource) -> (RecordSource, Re
     }
 }
 
-fn retrieve_multiple_items_operation(
+/// The operation that retrieves multiple items from an object store or an index, and the conversion of what it found.
+fn retrieve_multiple_items_remote_operation(
     vm: &Vm,
     realm: Gc<Realm>,
     source: RecordSource,
-    range: Ref<IDBKeyRange>,
+    range: &IDBKeyRange,
     kind: RecordKind,
     direction: IDBCursorDirection,
     count: Option<u32>,
-) -> Operation {
-    match source {
-        // 11. If source is an index, set operation to retrieve multiple items from an index with targetRealm, source, range, kind, direction, and count if given.
-        RecordSource::Index(index) => create_operation(
-            vm,
-            (realm, index, range, NoCells(kind), NoCells(direction), count),
-            |vm, &(realm, index, range, ref kind, ref direction, count)| {
-                let cx = CallContext::new(vm, realm);
-                Ok(Value::from_object(retrieve_multiple_items_from_an_index(
-                    &cx,
-                    index,
-                    &range,
-                    kind.0,
-                    direction.0,
-                    count,
-                )?))
-            },
-        ),
-        // 12. Else set operation to retrieve multiple items from an object store with targetRealm, source, range, kind, direction, and count if given.
-        RecordSource::ObjectStore(object_store) => create_operation(
-            vm,
-            (realm, object_store, range, NoCells(kind), NoCells(direction), count),
-            |vm, &(realm, object_store, range, ref kind, ref direction, count)| {
-                let cx = CallContext::new(vm, realm);
-                Ok(Value::from_object(retrieve_multiple_items_from_an_object_store(
-                    &cx,
-                    object_store,
-                    &range,
-                    kind.0,
-                    direction.0,
-                    count,
-                )?))
-            },
-        ),
-    }
+) -> (BackendOperation, Conversion) {
+    let (store, from_index, backend_source) = match source {
+        RecordSource::ObjectStore(store) => (store, false, remote_ops::store_source(store)),
+        RecordSource::Index(index) => (index.object_store(), true, remote_ops::index_source(index)),
+    };
+    let operation = BackendOperation::GetAll {
+        source: backend_source,
+        range: remote_ops::backend_range(range),
+        count,
+        direction: remote_ops::backend_direction(direction),
+        retrieve: remote_ops::backend_retrieve(kind),
+    };
+    (
+        operation,
+        remote_ops::records_conversion(vm, realm, store, kind, from_index),
+    )
 }
 
 // https://w3c.github.io/IndexedDB/#create-a-request-to-retrieve-multiple-items
@@ -3043,10 +1920,21 @@ pub(crate) fn create_a_request_to_retrieve_multiple_items(
     }
 
     // 10. Let operation be an algorithm to run.
-    let operation = retrieve_multiple_items_operation(vm, cx.realm(), source, range, kind, direction, count);
+    // 11. If source is an index, set operation to retrieve multiple items from an index with targetRealm, source,
+    //     range, kind, direction, and count if given.
+    // 12. Else set operation to retrieve multiple items from an object store with targetRealm, source, range, kind,
+    //     direction, and count if given.
+    let (operation, conversion) =
+        retrieve_multiple_items_remote_operation(vm, cx.realm(), source, &range, kind, direction, count);
 
     // 13. Return the result (an IDBRequest) of running asynchronously execute a request with sourceHandle and operation.
-    Ok(asynchronously_execute_a_request(vm, source_handle, operation, None))
+    Ok(asynchronously_execute_a_remote_request(
+        vm,
+        source_handle,
+        operation,
+        conversion,
+        None,
+    ))
 }
 
 // https://w3c.github.io/IndexedDB/#create-a-request-to-retrieve-multiple-items
@@ -3091,11 +1979,24 @@ pub(crate) fn create_a_request_to_retrieve_multiple_items_with_options(
     let range = convert_a_value_to_a_key_range(cx, Some(options.query), false)?;
 
     // 10. Let operation be an algorithm to run.
-    let operation =
-        retrieve_multiple_items_operation(vm, cx.realm(), source, range, kind, options.direction, options.count);
+    let (operation, conversion) = retrieve_multiple_items_remote_operation(
+        vm,
+        cx.realm(),
+        source,
+        &range,
+        kind,
+        options.direction,
+        options.count,
+    );
 
     // 13. Return the result (an IDBRequest) of running asynchronously execute a request with sourceHandle and operation.
-    Ok(asynchronously_execute_a_request(vm, source_handle, operation, None))
+    Ok(asynchronously_execute_a_remote_request(
+        vm,
+        source_handle,
+        operation,
+        conversion,
+        None,
+    ))
 }
 
 pub(crate) fn convert_a_key_path_to_a_value(cx: &CallContext, key_path: &KeyPath) -> Value {

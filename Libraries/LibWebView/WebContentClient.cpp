@@ -232,6 +232,7 @@ WebContentClient::~WebContentClient()
     cancel_navigation_transactions();
     remove_blob_url_entries();
     StorageAreaRegistry::the().remove_listener(*this);
+    IndexedDBRegistry::the().remove_owner(*this);
     WorkerAgentManager::the().remove_web_content_owner(*this);
     GamepadManager::the().client_disconnected(*this);
     clients().remove(this);
@@ -914,6 +915,39 @@ void WebContentClient::remove_storage_item(Web::StorageAPI::StorageAreaId area_i
 void WebContentClient::clear_storage_area(Web::StorageAPI::StorageAreaId area_id, String url)
 {
     StorageAreaRegistry::the().clear(*this, area_id, url);
+}
+
+Messages::WebContentClient::ConnectToIndexedDbResponse WebContentClient::connect_to_indexed_db(Web::PageId page_id, Web::HTML::EnvironmentId environment_id)
+{
+    if (auto* page = this->page(page_id))
+        return page->connect_to_indexed_db(environment_id);
+    return OptionalNone {};
+}
+
+void WebContentClient::indexed_db_request(u64 client_id, ByteBuffer request)
+{
+    if (!IndexedDBRegistry::the().handle_request(*this, client_id, request.bytes()))
+        did_misbehave("indexed_db_request"sv, "the request is for another process's client, or doesn't decode"sv);
+}
+
+void WebContentClient::disconnect_from_indexed_db(u64 client_id)
+{
+    IndexedDBRegistry::the().disconnect(*this, client_id);
+}
+
+Messages::WebContentClient::IndexedDbInspectResponse WebContentClient::indexed_db_inspect(u64 client_id, ByteBuffer inspection)
+{
+    auto result = IndexedDBRegistry::the().inspect(*this, client_id, inspection.bytes());
+    if (!result.has_value()) {
+        did_misbehave("indexed_db_inspect"sv, "the question is for another process's client, or doesn't decode"sv);
+        return ByteBuffer {};
+    }
+    return result.release_value();
+}
+
+void WebContentClient::indexed_db_events(u64 client_id, ByteBuffer events)
+{
+    async_indexed_db_events(client_id, events.bytes());
 }
 
 static void split_items(Vector<StorageItem> const& items, Vector<Utf16String>& keys, Vector<Utf16String>& values)

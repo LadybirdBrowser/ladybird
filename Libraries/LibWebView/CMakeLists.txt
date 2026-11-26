@@ -77,6 +77,7 @@ set(SOURCES
     SessionHistoryTraversalQueue.cpp
     Settings.cpp
     SiteCompatibility.cpp
+    IndexedDBRegistry.cpp
     StorageAreaRegistry.cpp
     StorageJar.cpp
     SystemProbeClient.cpp

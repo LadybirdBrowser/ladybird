@@ -27,6 +27,7 @@
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/GamepadManager.h>
+#include <LibWebView/IndexedDBRegistry.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NavigationLoader.h>
 #include <LibWebView/NotificationManager.h>
@@ -1431,6 +1432,15 @@ void WebContentPage::clear_storage_for_testing(Web::StorageAPI::StorageEndpointT
     auto* storage_jar = this->storage_jar(storage_endpoint);
     if (canonical_key.has_value() && storage_jar)
         storage_jar->clear_storage_key(storage_endpoint, *canonical_key);
+}
+
+// The client binds to the storage key this process derives for the environment, never to one the page names.
+Optional<u64> WebContentPage::connect_to_indexed_db(Web::HTML::EnvironmentId const& environment_id)
+{
+    auto canonical_key = canonical_storage_key(environment_id);
+    if (!canonical_key.has_value())
+        return {};
+    return IndexedDBRegistry::the().connect(client().session(), *canonical_key, client());
 }
 
 Messages::WebContentClient::ConnectToStorageAreaResponse WebContentPage::connect_to_storage_area(Web::StorageAPI::StorageEndpointType storage_endpoint, Web::HTML::EnvironmentId environment_id)

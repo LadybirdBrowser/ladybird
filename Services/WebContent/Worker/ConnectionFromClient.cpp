@@ -205,6 +205,7 @@ void ConnectionFromClient::did_lose_peer_during_sync_request()
 void ConnectionFromClient::set_up_agent_services()
 {
     m_page_host->ensure_compositor_host();
+    Web::IndexedDB::set_indexed_db_client(this);
 
     MediaClient::Client::set_transport_factory([this] {
         return request_media_server_transport();
@@ -308,7 +309,33 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
     });
 }
 
-ConnectionFromClient::~ConnectionFromClient() = default;
+ConnectionFromClient::~ConnectionFromClient()
+{
+    Web::IndexedDB::set_indexed_db_client(nullptr);
+}
+
+void ConnectionFromClient::indexed_db_events(u64 client_id, ByteBuffer events)
+{
+    Web::IndexedDB::indexed_db_did_receive_events(client_id, events);
+}
+
+Optional<u64> ConnectionFromClient::connect_to_indexed_db(Web::PageId, Web::HTML::EnvironmentId const& environment_id)
+{
+    auto response = send_sync_but_allow_failure<Messages::WebWorkerClient::ConnectToIndexedDb>(environment_id);
+    if (!response)
+        return {};
+    return response->client_id();
+}
+
+void ConnectionFromClient::indexed_db_request(u64 client_id, ReadonlyBytes request)
+{
+    async_indexed_db_request(client_id, request);
+}
+
+void ConnectionFromClient::disconnect_from_indexed_db(u64 client_id)
+{
+    async_disconnect_from_indexed_db(client_id);
+}
 
 Web::Page& ConnectionFromClient::page()
 {

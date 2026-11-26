@@ -215,6 +215,10 @@ endpoint WebContentClient routed by Web::PageId page_id
     set_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String key, Utf16String value, String url) =|
     remove_storage_item(Web::StorageAPI::StorageAreaId area_id, Utf16String key, String url) =|
     clear_storage_area(Web::StorageAPI::StorageAreaId area_id, String url) =|
+    [NotRouted] connect_to_indexed_db(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) => (Optional<u64> client_id)
+    indexed_db_request(u64 client_id, ByteBuffer request) =|
+    disconnect_from_indexed_db(u64 client_id) =|
+    indexed_db_inspect(u64 client_id, ByteBuffer inspection) => (ByteBuffer result)
     did_update_indexed_database(Web::PageId page_id, String update) =|
     did_post_broadcast_channel_message(Web::PageId page_id, Web::HTML::PostedBroadcastChannelMessage message) =|
 

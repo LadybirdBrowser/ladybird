@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    // A page and its workers share their origin's databases: What one worker writes, the page and a later worker
+    // read, even after the worker that wrote it has gone away.
+    const dbName = "test-shared-between-page-and-workers-" + Date.now() + Math.random();
+
+    function startWorker(source) {
+        return new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+    }
+
+    const writer = startWorker(`
+        onmessage = event => {
+            const open = indexedDB.open(event.data, 1);
+            open.onupgradeneeded = () => open.result.createObjectStore("store");
+            open.onsuccess = () => {
+                const transaction = open.result.transaction("store", "readwrite");
+                transaction.objectStore("store").put("hello", "key");
+                transaction.oncomplete = () => {
+                    open.result.close();
+                    postMessage("written");
+                };
+            };
+        };
+    `);
+
+    writer.onmessage = () => {
+        println("worker wrote the value");
+        writer.terminate();
+
+        const open = indexedDB.open(dbName);
+        open.onsuccess = () => {
+            const db = open.result;
+            println(`page sees version ${db.version}, stores: ${Array.from(db.objectStoreNames).join(",")}`);
+            const get = db.transaction("store").objectStore("store").get("key");
+            get.onsuccess = () => {
+                println(`page read: ${get.result}`);
+                db.close();
+
+                const reader = startWorker(`
+                    onmessage = event => {
+                        const open = indexedDB.open(event.data);
+                        open.onsuccess = () => {
+                            const get = open.result.transaction("store").objectStore("store").get("key");
+                            get.onsuccess = () => {
+                                open.result.close();
+                                postMessage(get.result);
+                            };
+                        };
+                    };
+                `);
+                reader.onmessage = event => {
+                    println(`second worker read: ${event.data}`);
+                    reader.terminate();
+                    indexedDB.deleteDatabase(dbName).onsuccess = () => done();
+                };
+                reader.postMessage(dbName);
+            };
+        };
+    };
+    writer.postMessage(dbName);
+});
+</script>

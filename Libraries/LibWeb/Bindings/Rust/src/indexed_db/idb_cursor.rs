@@ -18,22 +18,28 @@ use libjs_rust::api::{Gc, GcRefCell, Realm, ThrowCompletionOr, Trace, Value, Vm}
 use crate::bindings::conversions::ToJs;
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate, with_temporary_execution_context_and_callbacks};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::structured_serialize::structured_serialize_for_storage;
 use crate::indexed_db::idb_cursor_with_value::IDBCursorWithValue;
 use crate::indexed_db::idb_index::IDBIndex;
 use crate::indexed_db::idb_key_range::IDBKeyRange;
 use crate::indexed_db::idb_object_store::{
-    IDBObjectStore, data_error, idb_cursor_result, invalid_state_error, request_of, transaction_inactive_error,
+    IDBObjectStore, data_error, invalid_state_error, request_of, transaction_inactive_error,
 };
 use crate::indexed_db::idb_request::{AnyIDBRequest, IDBRequest, IDBRequestSource};
 use crate::indexed_db::idb_transaction::IDBTransaction;
 use crate::indexed_db::internal::algorithms::{
-    RecordSource, asynchronously_execute_a_request, clone_in_realm, convert_a_key_to_a_value, convert_a_value_to_a_key,
-    delete_records_from_an_object_store, extract_a_key_from_a_value_using_a_key_path, iterate_a_cursor,
-    store_a_record_into_an_object_store,
+    RecordSource, asynchronously_execute_a_remote_request, clone_in_realm, convert_a_key_to_a_value,
+    convert_a_value_to_a_key, extract_a_key_from_a_value_using_a_key_path,
 };
-use crate::indexed_db::internal::function::{NoCells, create_operation};
 use crate::indexed_db::internal::key::Key;
 use crate::indexed_db::internal::object_store::ObjectStoreRef;
+use crate::indexed_db::remote;
+use crate::indexed_db::remote::name_from;
+use crate::indexed_db::remote_ops::{
+    backend_key, cursor_conversion, index_keys_of, key_conversion, undefined_conversion,
+};
+use libwebcommon_rust::indexed_db::backend::Operation as BackendOperation;
+use libwebcommon_rust::indexed_db::key_range::KeyRange;
 
 /// The enumeration IDBCursorDirection of IndexedDB/IDBCursor.idl.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -115,6 +121,10 @@ pub(crate) struct IDBCursor {
 
     // NB: The cursor as the interface it was created as, for the members of IDBCursor to return and pass on.
     this: Cell<Option<AnyIDBCursor>>,
+
+    // The number the backend knows the cursor by, which iterates it.
+    #[gc(untraced)]
+    remote_id: Cell<u64>,
 }
 
 impl Wrappable for IDBCursor {}
@@ -151,6 +161,7 @@ impl IDBCursor {
                 value: Value::UNDEFINED,
             }),
             this: Cell::new(None),
+            remote_id: Cell::new(0),
         }
     }
 
@@ -184,7 +195,12 @@ impl IDBCursor {
             AnyIDBCursor::IDBCursorWithValue(allocate(vm, |_| IDBCursorWithValue::new(cursor)))
         };
         cursor.this.set(Some(cursor));
+        cursor.remote_id.set(remote::next_id(vm));
         cursor
+    }
+
+    pub(crate) fn remote_id(&self) -> u64 {
+        self.remote_id.get()
     }
 
     fn this(&self) -> AnyIDBCursor {
@@ -196,14 +212,6 @@ impl IDBCursor {
             CursorSourceHandle::ObjectStore(object_store) => object_store.realm(),
             CursorSourceHandle::Index(index) => index.realm(),
         }
-    }
-
-    pub(crate) fn direction_value(&self) -> IDBCursorDirection {
-        self.direction
-    }
-
-    pub(crate) fn range(&self) -> Ref<IDBKeyRange> {
-        self.range
     }
 
     pub(crate) fn position(&self) -> Option<Rc<Key>> {
@@ -418,21 +426,20 @@ impl IDBCursor {
         request.set_done(false);
 
         // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and key (if given).
-        let operation = create_operation(
-            vm,
-            (self.this(), realm, NoCells(key_value)),
-            |vm, &(this, realm, ref key_value)| {
-                let cx = CallContext::new(vm, realm);
-                let result = iterate_a_cursor(&cx, this, key_value.0.clone(), None, 1)?;
-                Ok(idb_cursor_result(&cx, result))
-            },
-        );
+        let operation = BackendOperation::IterateCursor {
+            cursor: self.remote_id(),
+            key: key_value.as_ref().map(backend_key),
+            primary_key: None,
+            count: 1,
+        };
+        let conversion = cursor_conversion(vm, realm, self.this());
 
         // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
-        asynchronously_execute_a_request(
+        asynchronously_execute_a_remote_request(
             vm,
             self.source_handle.into(),
             operation,
+            conversion,
             Some(AnyIDBRequest::IDBRequest(request)),
         );
 
@@ -492,17 +499,20 @@ impl IDBCursor {
         request.set_done(false);
 
         // 10. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, and count.
-        let operation = create_operation(vm, (self.this(), realm, count), |vm, &(this, realm, count)| {
-            let cx = CallContext::new(vm, realm);
-            let result = iterate_a_cursor(&cx, this, None, None, u64::from(count))?;
-            Ok(idb_cursor_result(&cx, result))
-        });
+        let operation = BackendOperation::IterateCursor {
+            cursor: self.remote_id(),
+            key: None,
+            primary_key: None,
+            count,
+        };
+        let conversion = cursor_conversion(vm, realm, self.this());
 
         // 11. Run asynchronously execute a request with this’s source handle, operation, and request.
-        asynchronously_execute_a_request(
+        asynchronously_execute_a_remote_request(
             vm,
             self.source_handle.into(),
             operation,
+            conversion,
             Some(AnyIDBRequest::IDBRequest(request)),
         );
 
@@ -624,21 +634,20 @@ impl IDBCursor {
         request.set_done(false);
 
         // 21. Let operation be an algorithm to run iterate a cursor with the current Realm record, this, key, and primaryKey.
-        let operation = create_operation(
-            vm,
-            (self.this(), realm, NoCells((key, primary_key))),
-            |vm, &(this, realm, ref keys)| {
-                let cx = CallContext::new(vm, realm);
-                let result = iterate_a_cursor(&cx, this, Some(keys.0.0.clone()), Some(keys.0.1.clone()), 1)?;
-                Ok(idb_cursor_result(&cx, result))
-            },
-        );
+        let operation = BackendOperation::IterateCursor {
+            cursor: self.remote_id(),
+            key: Some(backend_key(&key)),
+            primary_key: Some(backend_key(&primary_key)),
+            count: 1,
+        };
+        let conversion = cursor_conversion(vm, realm, self.this());
 
         // 22. Run asynchronously execute a request with this’s source handle, operation, and request.
-        asynchronously_execute_a_request(
+        asynchronously_execute_a_remote_request(
             vm,
             self.source_handle.into(),
             operation,
+            conversion,
             Some(AnyIDBRequest::IDBRequest(request)),
         );
 
@@ -735,33 +744,32 @@ impl IDBCursor {
         }
 
         // 10. Let operation be an algorithm to run store a record into an object store with this’s effective object store, clone, this’s effective key, and false.
-        let operation = create_operation(vm, (self.this(), realm, clone), |vm, &(this, realm, clone)| {
-            with_temporary_execution_context_and_callbacks(realm, || {
-                let cx = CallContext::new(vm, realm);
-                let optional_key = store_a_record_into_an_object_store(
-                    &cx,
-                    this.effective_object_store(),
-                    clone,
-                    Some(
-                        this.effective_key()
-                            .expect("a cursor with a value has an effective key"),
-                    ),
-                    false,
-                )?;
-
-                let Some(optional_key) = optional_key.filter(|key| !key.is_invalid()) else {
-                    return Ok(Value::UNDEFINED);
-                };
-
-                Ok(convert_a_key_to_a_value(&cx, &optional_key))
+        // NB: The backend stores the record, with the keys of its index records that the agent extracts from it.
+        let store = self.effective_object_store();
+        let operation = with_temporary_execution_context_and_callbacks(realm, || -> WebIdlResult<BackendOperation> {
+            let cx = CallContext::new(vm, realm);
+            let value = structured_serialize_for_storage(&cx, clone)?;
+            let index_keys = index_keys_of(&cx, store, clone, false);
+            Ok(BackendOperation::Put {
+                store: name_from(&store.name()),
+                value,
+                key: Some(backend_key(
+                    &self
+                        .effective_key()
+                        .expect("a cursor with a value has an effective key"),
+                )),
+                index_keys,
+                no_overwrite: false,
             })
-        });
+        })?;
+        let conversion = key_conversion(vm, realm);
 
         // 11. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Cursor(self.this()),
             operation,
+            conversion,
             None,
         )))
     }
@@ -804,23 +812,21 @@ impl IDBCursor {
         }
 
         // 7. Let operation be an algorithm to run delete records from an object store with this’s effective object store and this’s effective key.
-        let operation = create_operation(vm, self.this(), |vm, &this| {
-            let effective_key = this
-                .effective_key()
-                .expect("a cursor with a value has an effective key");
-            let range = IDBKeyRange::create(vm, Some(effective_key.clone()), Some(effective_key), false, false);
-            Ok(delete_records_from_an_object_store(
-                vm,
-                this.effective_object_store(),
-                &range,
-            ))
-        });
+        let effective_key = self
+            .effective_key()
+            .expect("a cursor with a value has an effective key");
+        let operation = BackendOperation::Delete {
+            store: name_from(&self.effective_object_store().name()),
+            range: KeyRange::only(backend_key(&effective_key)),
+        };
+        let conversion = undefined_conversion(vm);
 
         // 8. Return the result (an IDBRequest) of running asynchronously execute a request with this and operation.
-        Ok(request_of(asynchronously_execute_a_request(
+        Ok(request_of(asynchronously_execute_a_remote_request(
             vm,
             IDBRequestSource::Cursor(self.this()),
             operation,
+            conversion,
             None,
         )))
     }

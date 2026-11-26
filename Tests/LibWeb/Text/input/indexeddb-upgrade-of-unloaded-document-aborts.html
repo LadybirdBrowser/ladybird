@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    // An open request whose document unloads before its upgrade can start doesn't upgrade the database: Nothing is
+    // left to run the document's upgradeneeded listener, so the upgrade would otherwise commit without it.
+    const dbName = "test-upgrade-of-unloaded-document-" + Date.now() + Math.random();
+
+    const setup = indexedDB.open(dbName, 1);
+    setup.onupgradeneeded = () => setup.result.createObjectStore("first");
+    setup.onsuccess = () => {
+        // This connection stays open, so the iframe's open waits for it.
+        const db = setup.result;
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const request = iframe.contentWindow.indexedDB.open(dbName, 2);
+        request.onupgradeneeded = () => request.result.createObjectStore("second");
+        request.onblocked = () => {
+            println("iframe's open blocked");
+            iframe.remove();
+            setTimeout(() => {
+                db.close();
+                setTimeout(() => {
+                    const check = indexedDB.open(dbName);
+                    check.onsuccess = () => {
+                        const names = Array.from(check.result.objectStoreNames).join(",");
+                        println(`version ${check.result.version}, stores: ${names}`);
+                        check.result.close();
+                        indexedDB.deleteDatabase(dbName).onsuccess = () => done();
+                    };
+                }, 100);
+            }, 0);
+        };
+    };
+});
+</script>
