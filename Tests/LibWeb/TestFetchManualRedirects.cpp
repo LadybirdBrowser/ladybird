@@ -370,6 +370,8 @@ TEST_CASE(a_redirect_abandoned_after_its_request_finished_has_its_lease_released
     VERIFY(token.has_value());
     request_server.send_headers(redirect_id, 302, { location("http://["sv) });
     request_server.send_finished(redirect_id);
+    // The client hears that the request finished before the redirect is abandoned.
+    request_server.deliver_sent_messages();
     run_until_completions(harness, completions, 1);
     request_server.wait_for_message("release lease 0"sv);
     harness.run_until_step(commands, "end of fetch 1"sv);
