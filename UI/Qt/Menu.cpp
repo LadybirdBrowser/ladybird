@@ -464,12 +464,29 @@ QMenu* create_application_menu(QWidget& parent, Menu& menu)
     return application_menu;
 }
 
+// NB: Qt deletes the native items of a menu's actions when they are removed from it, but not when the menu is
+//     destroyed. So the actions are removed from the menu and its submenus first.
+static void remove_actions(QMenu& menu)
+{
+    for (auto* action : menu.actions()) {
+        menu.removeAction(action);
+        if (auto* submenu = action->menu())
+            remove_actions(*submenu);
+    }
+}
+
+void delete_menu_later(QMenu& menu)
+{
+    remove_actions(menu);
+    menu.deleteLater();
+}
+
 QMenu& replace_context_menu(QPointer<QMenu>& shown_menu, QWidget& parent, Menu& menu)
 {
     // NB: A menu is kept until another is shown in its place, as Cocoa delivers a native menu's choice through queued
     //     events after the menu closes.
     if (shown_menu)
-        shown_menu->deleteLater();
+        delete_menu_later(*shown_menu);
     shown_menu = create_application_menu(parent, menu);
     return *shown_menu;
 }
@@ -490,7 +507,7 @@ void repopulate_application_menu(QMenu& menu, Menu& source)
     // NB: A submenu's action belongs to the submenu, so clearing the menu only removes it.
     for (auto* action : menu.actions()) {
         if (auto* submenu = action->menu())
-            submenu->deleteLater();
+            delete_menu_later(*submenu);
     }
     menu.clear();
     add_items_to_menu(menu, source);

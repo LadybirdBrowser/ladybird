@@ -22,6 +22,7 @@ class QEvent;
 class QGraphicsEffect;
 class QGraphicsOpacityEffect;
 class QLabel;
+class QMenu;
 class QMouseEvent;
 class QResizeEvent;
 class QToolButton;
@@ -146,6 +147,7 @@ private:
     bool m_shows_site_settings_button { false };
     bool m_shows_editing_icon { false };
     QPointer<QWidget> m_site_settings_popover;
+    QPointer<QMenu> m_context_menu;
     QVariantAnimation* m_site_settings_knob_animation { nullptr };
     qreal m_site_settings_knob_travel { 0 };
     QToolButton* m_trailing_action_button { nullptr };
