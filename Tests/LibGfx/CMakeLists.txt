@@ -35,3 +35,8 @@ endif()
 target_sources(TestLibGfx PRIVATE ${TEST_SOURCES})
 target_link_libraries(TestLibGfx PRIVATE LibGfx LibImageDecoders LibIPC LibThreading harfbuzz)
 set_property(SOURCE TestSharedFontProvider.cpp APPEND PROPERTY COMPILE_DEFINITIONS LADYBIRD_SOURCE_DIR="${LADYBIRD_SOURCE_DIR}")
+
+# The fallback test installs its own process-wide Fontconfig configuration.
+if (HAS_FONTCONFIG)
+    ladybird_test(TestFontconfigFallback.cpp LibGfx LIBS LibGfx Fontconfig::Fontconfig)
+endif()
