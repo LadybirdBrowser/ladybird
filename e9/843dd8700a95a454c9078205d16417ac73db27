@@ -1,0 +1,15 @@
+Ladybird’s table fixup now generates an anonymous inline-table only when
+the parent of the misparented cells is an inline box (display: inline),
+and a block-level table otherwise, such as inside an inline-block.
+Chrome 158, Firefox 151 and WebKit 26.5 give a 300px cell on two lines
+in all eight cases of the new test, run with engine-compare, including
+an inline flow-root, an inline-block with inline content before the
+cell, and a span inside a 300px block.
+
+Blink’s LayoutTable::CreateAnonymousWithParent() uses kInlineTable only
+when the parent IsLayoutInline(), and in WebKit, RenderTreeBuilder::
+Table::createAnonymousTableWithStyle() uses InlineTable only when the
+parent’s display is InlineFlow. Gecko’s nsCSSFrameConstructor turns its
+MozTable pseudo into MozInlineTable only for a parent whose display
+IsInlineFlow(), or a ruby base or text. This paragraph comes from
+reading their sources, not running them.
