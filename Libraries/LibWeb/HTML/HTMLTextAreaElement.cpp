@@ -112,6 +112,7 @@ void HTMLTextAreaElement::reset_algorithm()
     // The reset algorithm for textarea elements is to set the user validity to false, the dirty value flag back to false,
     m_user_validity = false;
     m_dirty_value = false;
+    set_value_was_last_changed_by_user_edit(false);
     m_value_before_first_user_edit.clear();
     // and the raw value to its child text content.
     set_raw_value(child_text_content());
@@ -161,6 +162,7 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subt
     auto& textarea_copy = as<HTMLTextAreaElement>(copy);
     textarea_copy.m_raw_value = m_raw_value;
     textarea_copy.m_dirty_value = m_dirty_value;
+    textarea_copy.set_value_was_last_changed_by_user_edit(value_was_last_changed_by_user_edit());
 
     return {};
 }
@@ -205,6 +207,7 @@ void HTMLTextAreaElement::set_value(Utf16View value)
     // 1. Let oldAPIValue be this element's API value.
     // 2. Set this element's raw value to the new value.
     // 3. Set this element's dirty value flag to true.
+    set_value_was_last_changed_by_user_edit(false);
     if (!replace_value(value))
         return;
 
@@ -286,6 +289,32 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_max_length(WebIDL::Long value
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
     set_attribute_value(HTML::AttributeNames::maxlength, Utf16String::from_utf8(TRY(convert_non_negative_integer_to_string(value))));
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements:-the-minlength-attribute
+bool HTMLTextAreaElement::suffering_from_being_too_short() const
+{
+    // Constraint validation: If an element has a minimum allowed value length, its dirty value flag is true, its value
+    // was last changed by a user edit (as opposed to a change made by a script), its value is not the empty string, and
+    // the length of the element's API value is less than the element's minimum allowed value length, then the element
+    // is suffering from being too short.
+    auto minimum_length = min_length();
+    if (minimum_length < 0 || !m_dirty_value || !value_was_last_changed_by_user_edit())
+        return false;
+    auto value = api_value();
+    return !value.is_empty() && value.length_in_code_units() < static_cast<size_t>(minimum_length);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#limiting-user-input-length:-the-maxlength-attribute
+bool HTMLTextAreaElement::suffering_from_being_too_long() const
+{
+    // Constraint validation: If an element has a maximum allowed value length, its dirty value flag is true, its value
+    // was last changed by a user edit (as opposed to a change made by a script), and the length of the element's API
+    // value is greater than the element's maximum allowed value length, then the element is suffering from being too
+    // long.
+    auto maximum_length = max_length();
+    return maximum_length >= 0 && m_dirty_value && value_was_last_changed_by_user_edit()
+        && api_value().length_in_code_units() > static_cast<size_t>(maximum_length);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-minlength
@@ -529,6 +558,8 @@ void HTMLTextAreaElement::did_edit_text_node(Utf16FlyString const& input_type, O
 
     // A textarea element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the raw value.
     m_dirty_value = true;
+    if (api_value() != previous_value)
+        set_value_was_last_changed_by_user_edit(true);
 
     // AD-HOC: Editing the value may change which validity pseudo-classes match.
     CSS::Invalidation::invalidate_style_after_validity_change(*this);

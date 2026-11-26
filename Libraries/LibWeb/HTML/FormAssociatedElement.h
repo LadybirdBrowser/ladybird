@@ -329,6 +329,11 @@ protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed();
 
+    // NB: The minlength and maxlength constraints apply only to a value that a user edit changed last, as opposed to a
+    //     change made by a script.
+    bool value_was_last_changed_by_user_edit() const { return m_value_was_last_changed_by_user_edit; }
+    void set_value_was_last_changed_by_user_edit(bool);
+
 private:
     virtual GC::Ref<JS::Cell> as_cell() override;
 
@@ -339,6 +344,8 @@ private:
     void scroll_cursor_into_view();
     void reveal_cursor_after_edit();
     void selection_was_changed(SelectionSource);
+
+    bool m_value_was_last_changed_by_user_edit { false };
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection
     WebIDL::UnsignedLong m_selection_start { 0 };

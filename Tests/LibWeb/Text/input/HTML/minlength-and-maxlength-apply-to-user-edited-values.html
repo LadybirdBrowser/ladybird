@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #text:invalid {
+        color: rgb(255, 0, 0);
+    }
+</style>
+<form id="form">
+    <input id="text" minlength="8" maxlength="12">
+    <input id="password" type="password" minlength="8">
+    <input id="number" type="number" minlength="8">
+    <textarea id="textarea" minlength="8" maxlength="12"></textarea>
+    <input id="restored" minlength="8">
+    <input id="original" minlength="8">
+    <textarea id="original-textarea" minlength="8"></textarea>
+</form>
+<script>
+    function show(label, element) {
+        println(`${label}: tooShort=${element.validity.tooShort} tooLong=${element.validity.tooLong} valid=${element.checkValidity()}`);
+    }
+
+    test(() => {
+        const form = document.getElementById("form");
+        for (const id of ["text", "password", "textarea"]) {
+            const element = document.getElementById(id);
+
+            element.value = "abcd";
+            show(`${id}, too short, set by a script`, element);
+
+            element.value = "";
+            element.focus();
+            internals.sendText(element, "abcd");
+            show(`${id}, too short, typed`, element);
+
+            element.select();
+            internals.sendKey(element, "Backspace");
+            show(`${id}, emptied by an edit`, element);
+
+            if (element.maxLength > 0) {
+                element.value = "abcdefghijklmnop";
+                show(`${id}, too long, set by a script`, element);
+
+                element.focus();
+                element.setSelectionRange(16, 16);
+                internals.sendKey(element, "Backspace");
+                show(`${id}, too long, after a deletion`, element);
+
+                element.setRangeText("", 13, 15);
+                show(`${id}, too long, after setRangeText()`, element);
+            }
+
+            element.value = "";
+            internals.sendText(element, "abcd");
+        }
+
+        const text = document.getElementById("text");
+        text.value = "";
+        text.focus();
+        internals.sendText(text, "abcd");
+        try {
+            text.setRangeText("x", 3, 1);
+        } catch (error) {
+            show(`text, after setRangeText() threw ${error.name}`, text);
+        }
+        println(`text, too short, color: ${getComputedStyle(text).color}`);
+        text.value = text.value;
+        show("text, after the same value is set by a script", text);
+        println(`text, after the same value is set by a script, color: ${getComputedStyle(text).color}`);
+
+        const platformControl = internals.MOD_CTRL | internals.MOD_SUPER;
+        text.value = "";
+        internals.sendText(text, "ab");
+        internals.sendText(text, " ");
+        internals.sendText(text, "cd");
+        internals.sendKey(text, "Z", platformControl);
+        show(`text, typed then undone to ${JSON.stringify(text.value)}`, text);
+        internals.sendKey(text, "Z", platformControl | internals.MOD_SHIFT);
+        show(`text, redone to ${JSON.stringify(text.value)}`, text);
+
+        text.value = "";
+        internals.sendText(text, "abcdefgh");
+        text.select();
+        internals.sendText(text, "x");
+        internals.sendKey(text, "Z", platformControl);
+        show(`text, a replacement undone to ${JSON.stringify(text.value)}`, text);
+        println(`text, a replacement undone, color: ${getComputedStyle(text).color}`);
+
+        text.value = "abcdefghijkl";
+        text.focus();
+        text.setSelectionRange(12, 12);
+        internals.sendText(text, "x");
+        text.maxLength = 11;
+        show("text, typing blocked at maxlength, then maxlength lowered", text);
+        text.maxLength = 12;
+
+        text.value = "";
+        internals.sendText(text, "abcd");
+
+        const number = document.getElementById("number");
+        number.focus();
+        internals.sendText(number, "12");
+        show("number, two digits typed", number);
+
+        let submitted = false;
+        form.addEventListener("submit", event => {
+            submitted = true;
+            event.preventDefault();
+        });
+        form.requestSubmit();
+        println(`submit fired with too-short values: ${submitted}`);
+
+        form.reset();
+        show("text, after a form reset", document.getElementById("text"));
+        show("textarea, after a form reset", document.getElementById("textarea"));
+
+        for (const id of ["text", "textarea"]) {
+            const element = document.getElementById(id);
+            element.defaultValue = "abcd";
+            element.focus();
+            element.select();
+            internals.sendText(element, "ab");
+            form.reset();
+            element.setRangeText("", 0, 0);
+            show(`${id}, a short default value after a reset and a no-op setRangeText()`, element);
+        }
+
+        const restored = document.getElementById("restored");
+        restored.focus();
+        internals.sendText(restored, "abcdefghij");
+        restored.type = "hidden";
+        restored.value = "abcd";
+        restored.type = "text";
+        restored.setRangeText("", 0, 0);
+        show("restored, a short value set while hidden, after a no-op setRangeText()", restored);
+
+        restored.value = "";
+        restored.focus();
+        internals.sendText(restored, "abcdefghij");
+        internals.clearElement(restored);
+        restored.setAttribute("value", "abcd");
+        restored.setRangeText("", 0, 0);
+        show("restored, a short value attribute after a clear, after a no-op setRangeText()", restored);
+
+        for (const id of ["original", "original-textarea"]) {
+            const original = document.getElementById(id);
+            original.focus();
+            internals.sendText(original, "abcd");
+            const clone = original.cloneNode(true);
+            show(`${id}, a clone of a typed short value`, clone);
+            original.value = "";
+        }
+    });
+</script>

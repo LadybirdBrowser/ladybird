@@ -848,6 +848,17 @@ void FormAssociatedElement::RareData::visit_edges(JS::Cell::Visitor& visitor)
         [](auto&) { });
 }
 
+void FormAssociatedTextControlElement::set_value_was_last_changed_by_user_edit(bool value)
+{
+    if (m_value_was_last_changed_by_user_edit == value)
+        return;
+    m_value_was_last_changed_by_user_edit = value;
+
+    // NB: The minlength and maxlength constraints only apply to a value that a user edit changed last, so this can
+    //     change which validity pseudo-classes match, even when the value itself stays the same.
+    CSS::Invalidation::invalidate_style_after_validity_change(text_control_to_html_element());
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 void FormAssociatedTextControlElement::relevant_value_was_changed()
 {
@@ -1119,6 +1130,11 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
     // 6. If end is greater than the length of the relevant value of the text control, then set it to the length of the relevant value of the text control.
     if (end > relevant_value_length)
         end = relevant_value_length;
+
+    // NB: Edits, undo, and redo replace text through here too, so only a call from script is a script's change. And
+    //     a replacement that leaves the value as it was doesn't change who changed it last.
+    if (the_relevant_value.substring_view(start, end - start) != replacement)
+        set_value_was_last_changed_by_user_edit(selection_source != SelectionSource::DOM);
 
     // 7. Let selection start be the current value of the selectionStart attribute.
     auto selection_start = this->selection_start();
