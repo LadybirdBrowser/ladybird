@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-filter-zero-subregion-at-the-graph-cap-ref.html">
+<!-- A flood and 11 unnamed blends take the filter's graph to just under its cap. A primitive with a zero-width
+     subregion then reads none of that, and makes the filter's output transparent. -->
+<svg width="0" height="0" style="position:absolute">
+    <filter id="near-cap" color-interpolation-filters="sRGB"></filter>
+</svg>
+<div style="width: 50px; height: 50px; background: red; filter: url(#near-cap)"></div>
+<script>
+    const namespace = "http://www.w3.org/2000/svg";
+    const filter = document.getElementById("near-cap");
+    const flood = document.createElementNS(namespace, "feFlood");
+    flood.setAttribute("flood-color", "red");
+    filter.appendChild(flood);
+    for (let i = 0; i < 11; i++)
+        filter.appendChild(document.createElementNS(namespace, "feBlend"));
+    const empty = document.createElementNS(namespace, "feBlend");
+    empty.setAttribute("width", "0");
+    filter.appendChild(empty);
+</script>
