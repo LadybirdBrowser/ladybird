@@ -480,7 +480,14 @@ void BookmarksBar::rebuild()
     m_has_been_built = true;
     HashTable<String> current_ids;
 
-    clear();
+    // NB: QToolBar::clear() only removes the actions, so the actions and folder menus the bar made are deleted here.
+    for (auto* action : actions()) {
+        removeAction(action);
+        if (auto* menu = action->menu(); menu && menu->parent() == this)
+            delete_menu_later(*menu);
+        else if (action->parent() == this)
+            action->deleteLater();
+    }
 
     auto set_button_properties = [&](QToolButton* button, QString const& title) {
         auto width = set_up_bookmark_button(*button, title);
