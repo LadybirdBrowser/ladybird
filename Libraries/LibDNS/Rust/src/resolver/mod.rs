@@ -32,6 +32,8 @@ pub type SystemRequestId = u64;
 
 const QUERY_RETRY_INTERVAL: Duration = Duration::from_secs(1);
 const QUERY_MAX_ATTEMPTS: usize = 5;
+/// How long a connection that was replaced for answering nothing still takes late answers.
+const REPLACED_CONNECTION_DRAIN_TIME: Duration = Duration::from_secs(5);
 const MAX_CACHE_ENTRIES: usize = 4096;
 // How long connecting to the server may take, including looking up its name and any TLS handshake.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -164,6 +166,10 @@ struct Link {
     connection: Connection,
     // Whether the connection got as far as connecting, so that failing tells nothing about the address.
     connected: bool,
+    // When the connection last received anything.
+    last_received: Option<Instant>,
+    // Set once the connection is replaced: It sends nothing more, and takes late answers until then.
+    draining_until: Option<Instant>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -190,6 +196,8 @@ struct InFlightQuery {
     retry_at: Option<Instant>,
     // Sent while the connection was still coming up. The retry schedule starts once it is up.
     awaiting_connection: bool,
+    // The connection the question last went out on.
+    sent_on: Option<ConnectionId>,
 }
 
 struct PendingLookup {
@@ -354,7 +362,11 @@ impl Resolver {
 
     /// When `on_tick()` next has something to do.
     pub fn next_deadline(&self) -> Option<Instant> {
-        let links = self.links.iter().filter_map(|link| link.connection.deadline());
+        let links = self
+            .links
+            .iter()
+            .flat_map(|link| [link.connection.deadline(), link.draining_until])
+            .flatten();
         let retries = self.in_flight.values().filter_map(|query| query.retry_at);
         let system = self
             .system_resolutions
@@ -1109,6 +1121,7 @@ impl Resolver {
                 waiters: vec![waiter],
                 retry_at: None,
                 awaiting_connection: false,
+                sent_on: None,
             },
         );
         self.in_flight_by_id.insert(id, key.clone());
@@ -1167,8 +1180,10 @@ impl Resolver {
         let link = &mut self.links[index];
         link.connection.send(bytes)?;
         let ready = link.connection.is_ready();
+        let link_id = link.id;
 
         let query = self.in_flight.get_mut(key).expect("in-flight query");
+        query.sent_on = Some(link_id);
         query.awaiting_connection = !ready;
         query.retry_at = ready.then_some(now + QUERY_RETRY_INTERVAL);
         self.flush_link(index);
@@ -1223,7 +1238,11 @@ impl Resolver {
     }
 
     fn ensure_link(&mut self, role: LinkRole, now: Instant) -> Result<usize, Error> {
-        if let Some(index) = self.links.iter().position(|link| link.role == role) {
+        if let Some(index) = self
+            .links
+            .iter()
+            .position(|link| link.role == role && link.draining_until.is_none())
+        {
             return Ok(index);
         }
 
@@ -1254,6 +1273,8 @@ impl Resolver {
             kind,
             connection: Connection::new(transport_kind, now, CONNECT_TIMEOUT),
             connected: false,
+            last_received: None,
+            draining_until: None,
         });
 
         if self.server_addresses.is_empty()
@@ -1356,6 +1377,7 @@ impl Resolver {
             return;
         };
         self.links[index].connection.on_received(bytes);
+        self.links[index].last_received = Some(now);
         self.process_link(index, now);
     }
 
@@ -1382,9 +1404,11 @@ impl Resolver {
             .filter(|(_, query)| query.retry_at.is_some_and(|at| at <= now))
             .map(|(key, _)| key.clone())
             .collect();
+        self.replace_silent_udp_link(&due, now);
         for key in due {
             self.retry_query(&key, now);
         }
+        self.close_drained_links(now);
 
         let due: Vec<String> = self
             .system_resolutions
@@ -1405,6 +1429,50 @@ impl Resolver {
         for key in due {
             self.give_up_on_system_resolution(&key, now);
         }
+    }
+
+    // A connected UDP socket keeps the source address it got when it connected. Once the network changes (from Wi-Fi to
+    // a phone's tether, e.g.) while that address stays on its interface, sending still works, but no answer comes back
+    // to that address. So a query due for a retry on a connection that has received nothing since the query went out
+    // goes out again on a new connection, which takes the address that the network has now. The old connection still
+    // takes answers for a while, since a slow server may yet answer what went out on it.
+    fn replace_silent_udp_link(&mut self, due: &[String], now: Instant) {
+        let Some(index) = self.links.iter().position(|link| {
+            link.role == LinkRole::Primary
+                && link.kind == ConnectKind::Udp
+                && link.connected
+                && link.draining_until.is_none()
+        }) else {
+            return;
+        };
+        let Link { id, last_received, .. } = self.links[index];
+        // NB: Only a query that went out on this connection says anything about it.
+        let has_gone_unanswered = due.iter().any(|key| {
+            self.in_flight.get(key).is_some_and(|query| {
+                let Some(sent_at) = query.retry_at.map(|at| at - QUERY_RETRY_INTERVAL) else {
+                    return false;
+                };
+                query.sent_on == Some(id) && last_received.is_none_or(|received| received < sent_at)
+            })
+        });
+        if has_gone_unanswered {
+            self.links[index].draining_until = Some(now + REPLACED_CONNECTION_DRAIN_TIME);
+        }
+    }
+
+    // Closes the replaced connections whose time is up, and all of them once no question is waiting for an answer.
+    fn close_drained_links(&mut self, now: Instant) {
+        let nothing_in_flight = self.in_flight.is_empty();
+        let actions = &mut self.actions;
+        self.links.retain(|link| {
+            let drained = link
+                .draining_until
+                .is_some_and(|until| nothing_in_flight || until <= now);
+            if drained {
+                actions.push_back(Action::Close { connection: link.id });
+            }
+            !drained
+        });
     }
 
     fn flush_link(&mut self, index: usize) {
@@ -1439,6 +1507,10 @@ impl Resolver {
 
         let link = self.links.remove(index);
         self.actions.push_back(Action::Close { connection: link.id });
+        // NB: A replaced connection has no questions of its own waiting to go out on it.
+        if link.draining_until.is_some() {
+            return;
+        }
 
         // The server may be reachable at another of its addresses, such as over IPv4 when IPv6 does not work here.
         // Once all of them have failed, look the server's name up again, as its addresses may have changed.
