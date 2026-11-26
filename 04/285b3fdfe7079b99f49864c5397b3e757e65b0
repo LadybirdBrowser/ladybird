@@ -1,0 +1,7 @@
+When Ladybird copies a selection as plain text, a <br> now breaks the
+text only if it’s laid out. Chrome 158, Firefox 151 and WebKit 26.5,
+run through their real copy and paste, agree: Each pasted “One line”
+across a “display: none” <br>, and “One”, a newline and “line”
+across a “visibility: hidden” one. Across a “user-select: none”
+<br>, they differ (Chrome pasted “Oneline”, Firefox “One line”,
+WebKit a line break), so that case stays as it was.
