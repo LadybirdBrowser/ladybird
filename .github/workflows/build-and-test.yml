@@ -49,6 +49,37 @@ jobs:
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
+      - name: Diagnose reverse DNS lookups
+        if: ${{ inputs.os_name == 'macOS' }}
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -x
+          cat /etc/hosts
+          cat /etc/resolv.conf || true
+          scutil --dns || true
+          hostname
+          python3 --version
+          python3 - <<'EOF'
+          import http.server, socket, time
+
+          def timed(label, function):
+              start = time.monotonic()
+              try:
+                  result = function()
+              except Exception as error:
+                  result = f"{type(error).__name__}: {error}"
+              print(f"{time.monotonic() - start:7.2f}s  {label}: {result!r}", flush=True)
+
+          for host in ("127.0.0.1", "::1", "localhost", socket.gethostname()):
+              timed(f"getfqdn({host})", lambda: socket.getfqdn(host))
+              timed(f"gethostbyaddr({host})", lambda: socket.gethostbyaddr(host))
+          timed("getfqdn(127.0.0.1) again", lambda: socket.getfqdn("127.0.0.1"))
+          timed("ThreadingHTTPServer(127.0.0.1:0)", lambda: http.server.ThreadingHTTPServer(("127.0.0.1", 0), http.server.BaseHTTPRequestHandler).server_name)
+          EOF
+          time dscacheutil -q host -a ip_address 127.0.0.1 || true
+          time dig -x 127.0.0.1 +tries=1 +time=5 || true
+
       - name: Prepare vcpkg source asset staging
         id: vcpkg-assets
         if: >-
