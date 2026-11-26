@@ -105,6 +105,7 @@ private:
     VkPhysicalDeviceVulkan13Features m_vulkan13_features {};
     VkPhysicalDeviceVideoMaintenance1FeaturesKHR m_video_maintenance1_features {};
     VkPhysicalDeviceVideoMaintenance2FeaturesKHR m_video_maintenance2_features {};
+    VkPhysicalDeviceVideoDecodeVP9FeaturesKHR m_video_decode_vp9_features {};
 
     PFN_vkGetPhysicalDeviceVideoCapabilitiesKHR m_get_physical_device_video_capabilities { nullptr };
     PFN_vkGetMemoryFdKHR m_get_memory_fd { nullptr };
