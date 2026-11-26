@@ -58,6 +58,10 @@ void FetchEngineRecord::stop()
 {
     ASSERT(is_on_owner_thread());
     m_stopped = true;
+    // AD-HOC: A stop, abort or termination ends main fetch's wait for a preloaded response, which Fetch's wait ignores.
+    //         The fetch then ends without a handover.
+    if (m_main_fetch.has<MainFetchWaitsForPreload>())
+        end_main_fetch();
     if (m_redirect_continuation.has_value())
         abandon_redirect();
     stop_body_transport();

@@ -69,8 +69,8 @@ public:
     void set_cors_preflight_body_transport(FetchBodyDeliveryGate::Transport&);
     void stop_cors_preflight_body_transport();
 
-    // For a stop, abort or termination of the fetch: abandons the redirect continuation that is open, and any opened
-    // later, and stops the fetch's body transport.
+    // For a stop, abort or termination of the fetch: ends main fetch's wait for a preload, abandons the redirect
+    // continuation that is open, and any opened later, and stops the fetch's body transport.
     void stop();
 
     void add_network_transport(NetworkTransportHandle&, FetchBodyDeliveryGate&);
@@ -111,7 +111,11 @@ public:
     // Defers main fetch's work through the engine's executor; work deferred once the engine is gone never runs.
     void defer(Function<void()>);
 
-    // Main fetch waits for a preload's response, until the agent resolves the wait or abandons it.
+    // Whether a stop, abort or termination of the fetch has reached the engine.
+    [[nodiscard]] bool is_stopped() const { return m_stopped; }
+
+    // Main fetch waits for a preload's response, until the agent resolves the wait or abandons it, or the fetch is
+    // stopped, aborted or terminated.
     void main_fetch_waits_for_preload();
     void main_fetch_stops_waiting_for_preload();
     // Ends main fetch's wait for a preload's response, after which main fetch can no longer hand a response over. Returns
@@ -152,7 +156,6 @@ private:
     };
     Optional<RedirectContinuation> m_redirect_continuation;
 
-    // Whether a stop, abort or termination of the fetch has reached the engine.
     bool m_stopped { false };
 
     struct MainFetchRunning { };
