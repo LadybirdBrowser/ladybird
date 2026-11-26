@@ -378,17 +378,88 @@ fn udp_connection_whose_send_fails_is_replaced() {
     let second = harness.connects[1].connection;
     assert_ne!(second, first);
     harness.connected(second);
+    let writes = harness.take_writes();
+    assert_eq!(writes.len(), 1);
+    assert_eq!(writes[0].0, second);
+    let response = respond(&writes[0].1, |_| {});
+    harness.receive(second, &response);
+    assert!(harness.result(later).is_ok());
 
     // And the question that was in flight goes out again on it at its next retry.
     harness.advance(QUERY_RETRY_INTERVAL);
     let writes = harness.take_writes();
-    assert!(writes.iter().all(|(connection, _)| *connection == second));
-    for (connection, query) in writes {
-        let response = respond(&query, |_| {});
-        harness.receive(connection, &response);
-    }
+    assert_eq!(writes.len(), 1);
+    assert_eq!(writes[0].0, second);
+    let response = respond(&writes[0].1, |_| {});
+    harness.receive(second, &response);
     assert!(harness.result(lookup).is_ok());
-    assert!(harness.result(later).is_ok());
+}
+
+#[test]
+fn udp_connection_that_answers_nothing_is_replaced_before_a_retry() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let first = harness.connects[0].connection;
+    harness.connected(first);
+    assert_eq!(harness.take_writes().len(), 1);
+
+    // Sending works, but nothing comes back, as when the network changed under a socket that keeps its old address.
+    harness.advance(QUERY_RETRY_INTERVAL);
+    assert_eq!(harness.connects.len(), 2);
+    let second = harness.connects[1].connection;
+    harness.connected(second);
+    let writes = harness.take_writes();
+    assert_eq!(writes.len(), 1);
+    assert_eq!(writes[0].0, second);
+    let response = respond(&writes[0].1, |_| {});
+    harness.receive(second, &response);
+    assert!(harness.result(lookup).is_ok());
+
+    // The old connection closes once no question is waiting for an answer.
+    assert!(harness.closes.is_empty());
+    harness.advance(QUERY_RETRY_INTERVAL);
+    assert_eq!(harness.closes, vec![first]);
+}
+
+#[test]
+fn replaced_udp_connection_still_takes_a_late_answer() {
+    let mut harness = Harness::udp();
+    let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let first = harness.connects[0].connection;
+    harness.connected(first);
+    let (_, query) = harness.take_writes().remove(0);
+
+    // A slow server answers on the first connection after the retry already went out on a second one.
+    harness.advance(QUERY_RETRY_INTERVAL);
+    assert_eq!(harness.connects.len(), 2);
+    let response = respond(&query, |_| {});
+    harness.receive(first, &response);
+    assert!(harness.result(lookup).is_ok());
+}
+
+#[test]
+fn udp_connection_that_answers_is_kept_when_a_query_is_retried() {
+    let mut harness = Harness::udp();
+    let answered = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
+    let unanswered = harness.lookup_with("ladybird.org", &[ResourceType::A], LookupOptions::default());
+    let connection = harness.connects[0].connection;
+    harness.connected(connection);
+    let writes = harness.take_writes();
+    assert_eq!(writes.len(), 2);
+    let response = respond(&writes[0].1, |_| {});
+    harness.receive(connection, &response);
+    assert!(harness.result(answered).is_ok());
+
+    // The connection answered after the other query went out, so that query was just lost, and goes out again on it.
+    harness.advance(QUERY_RETRY_INTERVAL);
+    assert!(harness.closes.is_empty());
+    assert_eq!(harness.connects.len(), 1);
+    let writes = harness.take_writes();
+    assert_eq!(writes.len(), 1);
+    assert_eq!(writes[0].0, connection);
+    let response = respond(&writes[0].1, |_| {});
+    harness.receive(connection, &response);
+    assert!(harness.result(unanswered).is_ok());
 }
 
 #[test]
@@ -412,8 +483,11 @@ fn unanswered_queries_are_retried_then_time_out() {
     let lookup = harness.lookup_with("example.com", &[ResourceType::A], LookupOptions::default());
     harness.connected(harness.connects[0].connection);
     assert_eq!(harness.take_writes().len(), 1);
-    for _ in 1..QUERY_MAX_ATTEMPTS {
+    // Each retry goes out on a new connection, since the last one answered nothing.
+    for attempt in 1..QUERY_MAX_ATTEMPTS {
         harness.advance(QUERY_RETRY_INTERVAL);
+        assert_eq!(harness.connects.len(), attempt + 1);
+        harness.connected(harness.connects[attempt].connection);
         assert_eq!(harness.take_writes().len(), 1);
     }
     assert!(harness.done.is_empty());
