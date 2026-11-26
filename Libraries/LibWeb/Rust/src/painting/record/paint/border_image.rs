@@ -432,6 +432,17 @@ fn component_items(value: &StyleValueData) -> Vec<&StyleValueData> {
     vec![value]
 }
 
+// The values of a property that sets the top, right, bottom and left sides from one to four values, in that order.
+fn four_side_items(value: &StyleValueData) -> [&StyleValueData; 4] {
+    match component_items(value).as_slice() {
+        [all] => [*all; 4],
+        [vertical, horizontal] => [*vertical, *horizontal, *vertical, *horizontal],
+        [top, horizontal, bottom] => [*top, *horizontal, *bottom, *horizontal],
+        [top, right, bottom, left, ..] => [*top, *right, *bottom, *left],
+        [] => unreachable!("a four-sided value has at least one value"),
+    }
+}
+
 // https://drafts.csswg.org/css-backgrounds-3/#border-image-slice
 fn resolve_slice_px(value: &StyleValueData, reference_length: CssPixels, number_scale: f64) -> CssPixels {
     // Computed values larger than the size of the image are interpreted as 100%.
@@ -571,11 +582,11 @@ pub(crate) fn nine_piece_image_outsets(
     present_edges: u8,
 ) -> [CssPixels; 4] {
     let outset_value = style_queries::handle_value(values.outset).expect("computed image outset lost its style value");
-    let outset_items = component_items(outset_value);
+    let outset_items = four_side_items(outset_value);
     let side_is_present = sides_present(present_edges);
     std::array::from_fn(|side| {
         if side_is_present[side] {
-            resolve_outset_px(outset_items[side % outset_items.len()], border_widths[side])
+            resolve_outset_px(outset_items[side], border_widths[side])
         } else {
             CssPixels::default()
         }
@@ -603,7 +614,7 @@ pub(crate) fn nine_piece_image_area(
 
 fn resolve_border_image_geometry(
     slice_values: [&StyleValueData; 4],
-    width_items: Vec<&StyleValueData>,
+    width_items: [&StyleValueData; 4],
     source_size: CssPixelSize,
     border_image_rect: CssPixelRect,
     border_width: [CssPixels; 4],
@@ -633,7 +644,7 @@ fn resolve_border_image_geometry(
             border_image_rect.width
         };
         resolve_width_px(
-            width_items[side % width_items.len()],
+            width_items[side],
             border_width[side],
             reference_length,
             source_slices[side],
@@ -816,7 +827,7 @@ pub(crate) fn paint_nine_piece_image<O: Observer>(
     };
     let geometry = resolve_border_image_geometry(
         slice_values,
-        component_items(width_value),
+        four_side_items(width_value),
         source_size,
         border_image_rect,
         css_border_widths,
