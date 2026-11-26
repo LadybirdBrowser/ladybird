@@ -989,6 +989,46 @@ enum LayersToComposite {
     ShownByWindowServer,
 }
 
+pub(super) enum CompositionStep<'a> {
+    EnterBandOfCompositedEffect(BandIndex),
+    LeaveInnermostBandEntered,
+    Layer(&'a LayerCompositingInFrame),
+}
+
+/// Walks `layers` from the bottom up, entering the bands of composited effects around each layer that the layer before
+/// was not in, once it left those that this one is not in, and leaves every band entered at the end.
+pub(super) fn walk_composition<'a>(
+    stack: &LayerStack,
+    layers: impl IntoIterator<Item = &'a LayerCompositingInFrame>,
+    mut step: impl FnMut(CompositionStep<'a>),
+) {
+    let mut entered_composited_bands: Vec<BandIndex> = Vec::new();
+    let mut composited_bands_around_layer: Vec<BandIndex> = Vec::new();
+    for compositing in layers {
+        composited_bands_around_layer.clear();
+        composited_bands_around_layer
+            .extend(stack.composited_bands_around_layer_innermost_first(compositing.layer_index));
+        composited_bands_around_layer.reverse();
+        let count_of_bands_still_entered = entered_composited_bands
+            .iter()
+            .zip(&composited_bands_around_layer)
+            .take_while(|(entered, around_layer)| entered == around_layer)
+            .count();
+        while entered_composited_bands.len() > count_of_bands_still_entered {
+            entered_composited_bands.pop();
+            step(CompositionStep::LeaveInnermostBandEntered);
+        }
+        for &band_index in &composited_bands_around_layer[count_of_bands_still_entered..] {
+            entered_composited_bands.push(band_index);
+            step(CompositionStep::EnterBandOfCompositedEffect(band_index));
+        }
+        step(CompositionStep::Layer(compositing));
+    }
+    for _ in entered_composited_bands {
+        step(CompositionStep::LeaveInnermostBandEntered);
+    }
+}
+
 fn compositing_of_layer(
     stack: &LayerStack,
     layer_index: LayerIndex,
@@ -1995,43 +2035,35 @@ impl ContextPresenting {
             return;
         }
         debug_assert!(self.raster_transform() == FloatMatrix4x4::identity());
+        let layers = compositing_of_layers
+            .iter()
+            .skip(1)
+            .filter(|compositing| compositing.shown_by_window_server == composites_layers_the_window_server_shows)
+            .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity));
         composite_inside_effects_of_frame(env, surface, frame, |compositing_session| {
-            let mut entered_composited_bands: Vec<BandIndex> = Vec::new();
-            let mut composited_bands_around_layer: Vec<BandIndex> = Vec::new();
-            for compositing in compositing_of_layers
-                .iter()
-                .skip(1)
-                .filter(|compositing| compositing.shown_by_window_server == composites_layers_the_window_server_shows)
-                .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity))
-            {
-                let layer_index = compositing.layer_index;
+            walk_composition(stack, layers, |step| {
+                let compositing = match step {
+                    CompositionStep::EnterBandOfCompositedEffect(band_index) => {
+                        let effect = stack.nodes[stack.bands[band_index.0].placement_node_index.0]
+                            .composited_effect
+                            .expect("a composited band is of a composited node");
+                        compositing_session.enter_effect(effect);
+                        return;
+                    }
+                    CompositionStep::LeaveInnermostBandEntered => {
+                        compositing_session.leave_effect();
+                        return;
+                    }
+                    CompositionStep::Layer(compositing) => compositing,
+                };
                 let layer = compositing.layer_in(stack);
                 let damage_grown_by_filter_reads = inflated(
                     damage_rect,
                     composited_filter_read_reach_by_layer
-                        .get(layer_index.0)
+                        .get(compositing.layer_index.0)
                         .copied()
                         .unwrap_or(0),
                 );
-                composited_bands_around_layer.clear();
-                composited_bands_around_layer.extend(stack.composited_bands_around_layer_innermost_first(layer_index));
-                composited_bands_around_layer.reverse();
-                let count_of_bands_still_entered = entered_composited_bands
-                    .iter()
-                    .zip(&composited_bands_around_layer)
-                    .take_while(|(entered, around_layer)| entered == around_layer)
-                    .count();
-                while entered_composited_bands.len() > count_of_bands_still_entered {
-                    compositing_session.leave_effect();
-                    entered_composited_bands.pop();
-                }
-                for &band_index in &composited_bands_around_layer[count_of_bands_still_entered..] {
-                    let effect = stack.nodes[stack.bands[band_index.0].placement_node_index.0]
-                        .composited_effect
-                        .expect("a composited band is of a composited node");
-                    compositing_session.enter_effect(effect);
-                    entered_composited_bands.push(band_index);
-                }
                 if let LayerContent::Media { record_span } | LayerContent::OwnSurface { record_span } = &layer.content {
                     if !compositing
                         .rect_in_frame(layer.reach, damage_grown_by_filter_reads)
@@ -2039,7 +2071,7 @@ impl ContextPresenting {
                     {
                         compositing_session.replay_records(*record_span);
                     }
-                    continue;
+                    return;
                 }
                 let clips_of_layer = CompositeClipsOfRaster {
                     rect: compositing.composite_clip,
@@ -2081,10 +2113,7 @@ impl ContextPresenting {
                         TileDraw::FillOfJoinedOneColorTiles { .. } => {}
                     }
                 }
-            }
-            for _ in entered_composited_bands {
-                compositing_session.leave_effect();
-            }
+            });
         });
     }
 }
