@@ -170,10 +170,12 @@ static constexpr unsigned read_only_open_flags = [] {
 #define IF_DEFINED_memfd_create(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mkdir(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mkdirat(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_mlock(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mmap(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mmap2(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mprotect(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_mremap(if_defined, if_not_defined) if_defined
+#define IF_DEFINED_munlock(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_munmap(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_nanosleep(if_defined, if_not_defined) if_defined
 #define IF_DEFINED_newfstatat(if_defined, if_not_defined) if_defined
@@ -891,6 +893,9 @@ static char const* syscall_name(long syscall_number)
 #ifdef __NR_mknodat
         CASE_SYSCALL_NAME(mknodat);
 #endif
+#ifdef __NR_mlock
+        CASE_SYSCALL_NAME(mlock);
+#endif
 #ifdef __NR_mmap
         CASE_SYSCALL_NAME(mmap);
 #endif
@@ -905,6 +910,9 @@ static char const* syscall_name(long syscall_number)
 #endif
 #ifdef __NR_mremap
         CASE_SYSCALL_NAME(mremap);
+#endif
+#ifdef __NR_munlock
+        CASE_SYSCALL_NAME(munlock);
 #endif
 #ifdef __NR_munmap
         CASE_SYSCALL_NAME(munmap);
@@ -2793,6 +2801,10 @@ void SeccompPolicy::allow_gpu_device_operations()
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_kcmp, 0, 1));
     append(SECCOMP_ERRNO(ENOSYS));
 #endif
+
+    // A GPU driver can lock some of its memory into RAM. The memory lock limit bounds how much it can lock.
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mlock);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, munlock);
 }
 
 void SeccompPolicy::allow_process_metadata()

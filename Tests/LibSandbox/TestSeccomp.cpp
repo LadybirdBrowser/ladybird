@@ -408,6 +408,23 @@ TEST_CASE(filesystem_write_policy_refuses_timestamp_changes_outside_landlock)
     VERIFY(unlink(path) == 0);
 }
 
+TEST_CASE(gpu_policy_allows_locking_memory)
+{
+    auto status = run_with_policy(
+        [](auto& policy) { policy.allow_gpu_device_operations(); },
+        [] {
+            alignas(4096) static char page[4096];
+            // The memory lock limit can be 0, which refuses the lock with an ordinary error rather than the sandbox's.
+            if (mlock(page, sizeof(page)) == 0)
+                VERIFY(munlock(page, sizeof(page)) == 0);
+            else
+                VERIFY(errno == ENOMEM || errno == EPERM || errno == EAGAIN);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
 TEST_CASE(gpu_policy_refuses_path_permission_changes_without_crashing)
 {
     char path[] = "/tmp/ladybird-chmod-XXXXXX";
