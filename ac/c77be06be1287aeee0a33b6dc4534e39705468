@@ -1,0 +1,6 @@
+Ladybird resolves the transform of a non-transformable element, such
+as a non-replaced inline, against a 0x0 box. Chrome 158 does the same:
+Blink’s ComputedStyleUtils::ReferenceBoxForTransform() returns an empty
+rect for anything that’s neither a LayoutBox nor an SVG child. WebKit
+26.5 gives the same result when run. Firefox 151 resolves it against
+the inline box, in Gecko’s nsComputedDOMStyle::GetTransformValue().
