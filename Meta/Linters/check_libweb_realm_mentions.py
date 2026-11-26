@@ -62,7 +62,7 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Fetch": (
         22,
-        65,
+        51,
         "Fetch bodies, headers, requests, responses, response views, and controllers still materialize JS values/streams; "
         "a fetch controller keeps the realm that started its fetch, in which its agent runs the rest of a response's "
         "handover; BodyStreamPullSource creates body streams and materializes their pulls and errors on the consumer side, "
