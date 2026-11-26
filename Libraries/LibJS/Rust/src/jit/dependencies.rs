@@ -38,10 +38,18 @@ struct DependentCode {
     id: u64,
 }
 
+/// The installed code that depends on a dependency, with the cell the dependency names, if any.
+struct DependentEntry {
+    /// The cell of the dependency, whose slot a collection that moves the cell rewrites. The table is keyed by the
+    /// address of the cell, so it takes the new address once the collection is over (see `Dependents::rekey()`).
+    cell: Option<Gc<CellHeader>>,
+    code: Vec<DependentCode>,
+}
+
 /// The installed code that depends on each dependency. Entries for code that is gone are stale and skipped.
 #[derive(Default)]
 pub struct Dependents {
-    code: RefCell<HashMap<Dependency, Vec<DependentCode>>>,
+    code: RefCell<HashMap<Dependency, DependentEntry>>,
     /// The slots of the named properties of global objects that may have been assigned, as bit sets by the object,
     /// which only VMs that compile note (see `Dependency::GlobalPropertyUnassigned`). The table is keyed by the
     /// identity of the objects, which moves do not change, and a collection that moves an object rewrites its key.
@@ -84,10 +92,18 @@ impl Dependents {
                 | Dependency::GlobalPropertyUnassigned { .. }
                 | Dependency::NoHtmlDdaObjects => {}
             }
-            code.entry(*dependency).or_default().push(DependentCode {
-                executable: weak_executable.clone(),
-                id,
-            });
+            code.entry(*dependency)
+                .or_insert_with(|| DependentEntry {
+                    // SAFETY: Code that is being installed depends only on live cells, which its compile job keeps
+                    //         alive.
+                    cell: cell_of(dependency).map(|cell| unsafe { gc_of(cell) }),
+                    code: Vec::new(),
+                })
+                .code
+                .push(DependentCode {
+                    executable: weak_executable.clone(),
+                    id,
+                });
         }
     }
 
@@ -98,24 +114,28 @@ impl Dependents {
     ///     their realms are alive (see `JitCode::embedded_cells`). Such code is dropped earlier in this callback, so
     ///     its entries go with it, before another cell can take the cell's address.
     pub fn remove_dead_entries(&self, vm: &Vm, sweep: &Sweep<'_>) {
-        self.code.borrow_mut().retain(|dependency, dependents| {
-            dependents.retain(|dependent| {
+        let mut code = self.code.borrow_mut();
+        code.retain(|_, entry| {
+            entry.code.retain(|dependent| {
                 dependent
                     .executable
                     .get()
                     .and_then(|executable| executable.jit_code(vm))
                     .is_some_and(|code| code.id() == dependent.id)
             });
-            if dependents.is_empty() {
-                return false;
-            }
-            !cell_of(dependency).is_some_and(|cell| {
-                // SAFETY: Code that is still attached embeds the cells it depends on, which stay where they are while
-                //         it lives, and a dead cell is intact until the sweep that follows this callback.
-                let cell = unsafe { Gc::from_non_null(NonNull::new_unchecked(cell.0 as *mut CellHeader)) };
-                sweep.is_dead(cell)
-            })
+            !entry.code.is_empty() && !entry.cell.is_some_and(|cell| sweep.is_dead(cell))
         });
+        if sweep.moves_cells() && !code.is_empty() {
+            for entry in code.values() {
+                if let Some(cell) = &entry.cell {
+                    // SAFETY: Only registering code and invalidating it change the table, which nothing does until
+                    //         the collection is over, when rekey() takes the new addresses.
+                    unsafe { sweep.record_slot(cell) };
+                }
+            }
+            vm.jit.relocate_code_once_collection_is_over(vm);
+        }
+        drop(code);
         let mut assigned_global_object_slots = self.assigned_global_object_slots.borrow_mut();
         assigned_global_object_slots.retain(|object, _| !sweep.is_dead(*object));
         if sweep.moves_cells() {
@@ -126,6 +146,59 @@ impl Dependents {
             }
         }
     }
+}
+
+impl Dependents {
+    /// Keys the entries by the addresses their cells have now, once a collection that moved cells is over.
+    pub fn rekey(&self) {
+        let mut code = self.code.borrow_mut();
+        let moved = |dependency: &Dependency, entry: &DependentEntry| {
+            entry.cell.map(|cell| CellId::from_address(cell.as_ptr() as u64)) != cell_of(dependency)
+        };
+        if !code.iter().any(|(dependency, entry)| moved(dependency, entry)) {
+            return;
+        }
+        *code = code
+            .drain()
+            .map(|(dependency, entry)| {
+                let dependency = match entry.cell {
+                    Some(cell) => with_cell(dependency, CellId::from_address(cell.as_ptr() as u64)),
+                    None => dependency,
+                };
+                (dependency, entry)
+            })
+            .collect();
+    }
+}
+
+/// `dependency`, naming `cell` in place of the cell it names.
+fn with_cell(dependency: Dependency, cell: CellId) -> Dependency {
+    match dependency {
+        Dependency::WatchpointSetValid(_) => Dependency::WatchpointSetValid(cell),
+        Dependency::StableShape(_) => Dependency::StableShape(cell),
+        Dependency::GlobalDeclarations { serial, .. } => Dependency::GlobalDeclarations {
+            environment: cell,
+            serial,
+        },
+        Dependency::GlobalBindingUnassigned { index, .. } => Dependency::GlobalBindingUnassigned {
+            environment: cell,
+            index,
+        },
+        Dependency::GlobalPropertyUnassigned { offset, .. } => {
+            Dependency::GlobalPropertyUnassigned { object: cell, offset }
+        }
+        Dependency::NoHtmlDdaObjects => Dependency::NoHtmlDdaObjects,
+    }
+}
+
+/// The cell `cell` names.
+///
+/// # Safety
+///
+/// `cell` must be the address of a live cell.
+unsafe fn gc_of(cell: CellId) -> Gc<CellHeader> {
+    // SAFETY: The caller vouches for the cell.
+    unsafe { Gc::from_non_null(NonNull::new_unchecked(cell.address() as *mut CellHeader)) }
 }
 
 /// Whether slot `offset` of the global object `object` may have been assigned (see
@@ -163,7 +236,7 @@ pub fn note_global_object_slot_assignments(vm: &Vm, object: &Object, offsets: Ra
         invalidate_dependents(
             vm,
             Dependency::GlobalPropertyUnassigned {
-                object: CellId(core::ptr::from_ref(object) as u64),
+                object: CellId::from_address(core::ptr::from_ref(object) as u64),
                 offset,
             },
         );
@@ -184,7 +257,7 @@ fn cell_of(dependency: &Dependency) -> Option<CellId> {
 /// The global declarative environment a dependency names.
 fn declarative_environment(environment: CellId) -> &'static DeclarativeEnvironment {
     // SAFETY: Only code that is being installed asks, and its compile job keeps the cells it depends on alive.
-    unsafe { &*(environment.0 as *const DeclarativeEnvironment) }
+    unsafe { &*(environment.address() as *const DeclarativeEnvironment) }
 }
 
 /// Whether `dependency` still holds.
@@ -192,7 +265,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
     match dependency {
         Dependency::WatchpointSetValid(validity) => {
             // SAFETY: As in declarative_environment().
-            unsafe { &*(validity.0 as *const WatchpointSet) }.is_valid()
+            unsafe { &*(validity.address() as *const WatchpointSet) }.is_valid()
         }
         Dependency::GlobalDeclarations { environment, serial } => {
             declarative_environment(*environment).environment_serial_number() == *serial
@@ -202,7 +275,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
         }
         Dependency::GlobalPropertyUnassigned { object, offset } => {
             // SAFETY: As in declarative_environment().
-            !global_object_slot_may_have_been_assigned(vm, unsafe { &*(object.0 as *const Object) }, *offset)
+            !global_object_slot_may_have_been_assigned(vm, unsafe { &*(object.address() as *const Object) }, *offset)
         }
         Dependency::NoHtmlDdaObjects => !vm.jit.htmldda_objects_exist(),
         Dependency::StableShape(shape) => shape_of(*shape).is_stable(),
@@ -212,7 +285,7 @@ pub fn holds(vm: &Vm, dependency: &Dependency) -> bool {
 /// The shape a dependency names.
 fn shape_of(shape: CellId) -> &'static Shape {
     // SAFETY: As in declarative_environment().
-    unsafe { &*(shape.0 as *const Shape) }
+    unsafe { &*(shape.address() as *const Shape) }
 }
 
 /// Notes that an object with the `[[IsHTMLDDA]]` internal slot exists, which invalidates the code that depends on
@@ -255,7 +328,7 @@ pub fn invalidate_dependents(vm: &Vm, dependency: Dependency) {
     let Some(dependents) = dependents else {
         return;
     };
-    for DependentCode { executable, id } in dependents {
+    for DependentCode { executable, id } in dependents.code {
         let Some(executable) = executable.get() else {
             continue;
         };
