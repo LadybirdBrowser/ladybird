@@ -1,0 +1,10 @@
+Screen.prototype inherits from EventTarget.prototype: true
+screen instanceof EventTarget: true
+typeof screen.addEventListener: function
+screen.dispatchEvent() returns: true
+change listener runs: 1
+event.target and event.currentTarget are screen: true
+onchange handler runs: 1
+availLeft: typeof screen.availLeft: number, value: 0, own accessor of Screen.prototype: true
+availTop: typeof screen.availTop: number, value: 0, own accessor of Screen.prototype: true
+Screen.prototype own properties: availWidth, availHeight, width, height, colorDepth, pixelDepth, availLeft, availTop, orientation, isExtended, onchange, constructor

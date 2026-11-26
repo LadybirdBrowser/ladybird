@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        println(`Screen.prototype inherits from EventTarget.prototype: ${Object.getPrototypeOf(Screen.prototype) === EventTarget.prototype}`);
+        println(`screen instanceof EventTarget: ${screen instanceof EventTarget}`);
+        println(`typeof screen.addEventListener: ${typeof screen.addEventListener}`);
+
+        let listenerRuns = 0;
+        let handlerRuns = 0;
+        let targetIsScreen = false;
+        screen.addEventListener("change", event => {
+            ++listenerRuns;
+            targetIsScreen = event.target === screen && event.currentTarget === screen;
+        });
+        screen.onchange = () => ++handlerRuns;
+        println(`screen.dispatchEvent() returns: ${screen.dispatchEvent(new Event("change"))}`);
+        println(`change listener runs: ${listenerRuns}`);
+        println(`event.target and event.currentTarget are screen: ${targetIsScreen}`);
+        println(`onchange handler runs: ${handlerRuns}`);
+
+        for (const name of ["availLeft", "availTop"]) {
+            const descriptor = Object.getOwnPropertyDescriptor(Screen.prototype, name);
+            println(`${name}: typeof screen.${name}: ${typeof screen[name]}, value: ${screen[name]}, own accessor of Screen.prototype: ${typeof descriptor?.get === "function" && descriptor.set === undefined}`);
+        }
+
+        println(`Screen.prototype own properties: ${Object.getOwnPropertyNames(Screen.prototype).join(", ")}`);
+    });
+</script>

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 400 tests
 
-343 Pass
-57 Fail
+341 Pass
+59 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -86,10 +86,10 @@ Pass	MediaQueryListEvent must be primary interface of new MediaQueryListEvent("c
 Pass	Stringification of new MediaQueryListEvent("change")
 Pass	MediaQueryListEvent interface: new MediaQueryListEvent("change") must inherit property "media" with the proper type
 Pass	MediaQueryListEvent interface: new MediaQueryListEvent("change") must inherit property "matches" with the proper type
-Pass	Screen interface: existence and properties of interface object
+Fail	Screen interface: existence and properties of interface object
 Pass	Screen interface object length
 Pass	Screen interface object name
-Pass	Screen interface: existence and properties of interface prototype object
+Fail	Screen interface: existence and properties of interface prototype object
 Pass	Screen interface: existence and properties of interface prototype object's "constructor" property
 Pass	Screen interface: existence and properties of interface prototype object's @@unscopables property
 Pass	Screen interface: attribute availWidth
