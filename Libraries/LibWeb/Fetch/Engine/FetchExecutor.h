@@ -36,6 +36,8 @@ public:
     // Drops every command and deferred work that has not started running; one that has started completes.
     void shutdown();
 
+    [[nodiscard]] KnownHSTSHostProvider& known_hsts_host_provider() const;
+
 protected:
     FetchExecutor(FetchExecutorServices, NonnullOwnPtr<EngineCommandSink>);
 

@@ -557,7 +557,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         begin_rendering_pending_operation(controller.ptr(), client_window->associated_document(), RenderingPendingReason::ResourceFetchesInFlight);
 
     // 15. Run main fetch given fetchParams.
-    (void)main_fetch(realm, fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request));
+    (void)main_fetch(realm, fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), agent.fetch_executor->known_hsts_host_provider());
 
     // 16. Return fetchParams’s controller.
     return controller;
@@ -641,7 +641,7 @@ static bool is_request_from_an_svg_image(Infrastructure::Request const& request)
 // https://fetch.spec.whatwg.org/#concept-main-fetch
 // NB: This is step 10 of main fetch. The WebSocket opening handshake does not go through main fetch yet, so it runs this
 //     step on its own.
-void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Page& page, Infrastructure::Request& request)
+void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Infrastructure::Request& request, Function<bool(String const&)> const& is_known_hsts_host)
 {
     // 10. Set request’s current URL’s scheme to "https" if all of the following conditions are true:
     if (
@@ -652,7 +652,7 @@ void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Page& page, Inf
         // - Matching request’s current URL’s host per Known HSTS Host Domain Name Matching results in either a
         //   superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an
         //   asserted includeSubDomains directive) [HSTS]
-        && ResourceLoader::is_known_hsts_host(page, request.current_url().host()->get<String>())
+        && is_known_hsts_host(request.current_url().host()->get<String>())
         // FIXME: or DNS resolution for the request finds a matching HTTPS RR per section 9.5 of [SVCB].
     ) {
         request.current_url().set_scheme("https"sv);
@@ -803,7 +803,7 @@ static NonnullRefPtr<PendingResponse> get_response(Infrastructure::FetchParams c
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Recursive recursive)
+RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Engine::KnownHSTSHostProvider& known_hsts_host_provider, Recursive recursive)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -866,7 +866,9 @@ RefPtr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParams
     }
 
     // 10. Set request’s current URL’s scheme to "https" if all of the following conditions are true:
-    upgrade_request_to_https_for_known_hsts_host_if_appropriate(Bindings::principal_host_defined_page(realm), *request);
+    upgrade_request_to_https_for_known_hsts_host_if_appropriate(*request, [&](String const& host) {
+        return known_hsts_host_provider.is_known_hsts_host(fetch_params.controller_token(), host);
+    });
 
     if (recursive == Recursive::Yes) {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
@@ -2281,10 +2283,14 @@ RefPtr<PendingResponse> http_redirect_fetch(JS::Realm& realm, Infrastructure::Fe
     }
 
     // 22. Return the result of running main fetch given fetchParams and recursive.
-    // NB: The navigation processes a manual redirect's next hop on the agent, which reports violations itself.
-    if (request->redirect_mode() == Infrastructure::Request::RedirectMode::Manual)
-        return main_fetch(realm, fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), recursive);
-    return main_fetch(realm, fetch_params, engine_violation_reporter(*fetch_params.engine_record(), request), recursive);
+    // NB: The navigation processes a manual redirect's next hop on the agent, which reports violations and looks up
+    //     hosts itself.
+    if (request->redirect_mode() == Infrastructure::Request::RedirectMode::Manual) {
+        auto& known_hsts_host_provider = fetch_controller_of(fetch_params)->started_fetch_executor().known_hsts_host_provider();
+        return main_fetch(realm, fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), known_hsts_host_provider, recursive);
+    }
+    auto& engine_record = *fetch_params.engine_record();
+    return main_fetch(realm, fetch_params, engine_violation_reporter(engine_record, request), engine_record.known_hsts_host_provider(), recursive);
 }
 
 enum class AuthenticationHandled {

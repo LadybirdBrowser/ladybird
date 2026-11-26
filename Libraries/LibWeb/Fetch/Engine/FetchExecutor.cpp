@@ -87,6 +87,11 @@ void FetchExecutor::drop_pending_work()
     }
 }
 
+KnownHSTSHostProvider& FetchExecutor::known_hsts_host_provider() const
+{
+    return m_services.known_hsts_host_provider;
+}
+
 void FetchExecutor::shutdown()
 {
     m_shut_down.store(true, AK::MemoryOrder::memory_order_release);
