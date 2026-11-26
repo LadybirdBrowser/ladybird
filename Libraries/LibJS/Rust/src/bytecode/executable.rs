@@ -1124,13 +1124,21 @@ impl Default for KeyedPropertyLookupCache {
 // https://tc39.es/ecma262/#sec-gettemplateobject
 // Template objects are cached at the call site.
 #[repr(C)]
-#[derive(Trace)]
 pub struct TemplateObjectCache {
     header: CellHeader,
     cached_template_object: Cell<Option<Gc<Array>>>,
 }
 
 define_cell!(TemplateObjectCache, Other);
+
+// SAFETY: Visits the template object, the only cell a cache reaches.
+unsafe impl Trace for TemplateObjectCache {
+    fn trace(&self, visitor: &mut Visitor) {
+        // NB: The template object is visited as a slot, so that a collection that moves it rewrites it here.
+        // SAFETY: The slot is in the cache's own cell, which only the interpreter writes, and never in a collection.
+        unsafe { visitor.visit_owned_option(&*self.cached_template_object.as_ptr()) };
+    }
+}
 
 impl TemplateObjectCache {
     pub fn create(vm: &Vm) -> Gc<TemplateObjectCache> {
