@@ -316,14 +316,8 @@ impl ExternalMemorySize for Object {
 // cells an object reaches.
 unsafe impl Trace for Object {
     fn trace(&self, visitor: &mut Visitor) {
-        // NB: The VM keeps the intrinsic accessors and unimplemented properties of objects by their address, and
-        //     compiled code depends on the slots of global objects by theirs, so such objects stay where they are.
-        if self.flags.get()
-            & (object_flag::HAS_INTRINSIC_ACCESSORS
-                | object_flag::HAS_UNIMPLEMENTED_PROPERTIES
-                | object_flag::IS_GLOBAL_OBJECT)
-            != 0
-        {
+        // NB: Compiled code depends on the slots of global objects by their address, so they stay where they are.
+        if self.has_flag(object_flag::IS_GLOBAL_OBJECT) {
             visitor.pin(self.as_gc());
         }
         self.shape.trace(visitor);
@@ -483,7 +477,7 @@ fn find_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKey)
     }
 
     let mut intrinsic_accessors = vm.intrinsic_accessors().borrow_mut();
-    let intrinsics = intrinsic_accessors.get_mut(&(core::ptr::from_ref(object) as usize))?;
+    let intrinsics = intrinsic_accessors.get_mut(&Gc::from_ref(object))?;
     intrinsics.remove(property_key.as_string())
 }
 
@@ -497,11 +491,7 @@ fn attributes_for(value: Value, mut attributes: PropertyAttributes) -> PropertyA
 }
 
 fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKey) {
-    if let Some(intrinsics) = vm
-        .intrinsic_accessors()
-        .borrow_mut()
-        .get_mut(&(core::ptr::from_ref(object) as usize))
-    {
+    if let Some(intrinsics) = vm.intrinsic_accessors().borrow_mut().get_mut(&Gc::from_ref(object)) {
         intrinsics.remove(property_key.as_string());
     }
 }
@@ -3275,7 +3265,7 @@ impl Object {
         self.set_has_intrinsic_accessors();
         vm.intrinsic_accessors()
             .borrow_mut()
-            .entry(core::ptr::from_ref(self) as usize)
+            .entry(Gc::from_ref(self))
             .or_default()
             .insert(property_key.as_string().clone(), accessor);
     }
@@ -3393,7 +3383,7 @@ impl Object {
         self.set_flag(object_flag::HAS_UNIMPLEMENTED_PROPERTIES);
         vm.unimplemented_properties()
             .borrow_mut()
-            .entry(core::ptr::from_ref(self) as usize)
+            .entry(Gc::from_ref(self))
             .or_default()
             .insert(property_name);
     }
@@ -3404,7 +3394,7 @@ impl Object {
         }
         vm.unimplemented_properties()
             .borrow()
-            .get(&(core::ptr::from_ref(self) as usize))
+            .get(&Gc::from_ref(self))
             .is_some_and(|properties| properties.contains(property_key.as_string()))
     }
 
