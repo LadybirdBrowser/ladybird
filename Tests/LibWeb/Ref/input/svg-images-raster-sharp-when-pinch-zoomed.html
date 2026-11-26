@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-images-raster-sharp-when-pinch-zoomed-ref.html">
+<style>
+    body {
+        margin: 0;
+        background: white;
+    }
+    img {
+        display: block;
+        width: 32px;
+        height: 32px;
+    }
+    div {
+        width: 32px;
+        height: 32px;
+        background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><path fill='black' d='M0 0h1v8h-1zM2 0h1v8h-1zM4 0h1v8h-1zM6 0h1v8h-1z'/></svg>");
+        background-size: 8px 8px;
+    }
+</style>
+<img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path fill='black' d='M0 0h1v32h-1zM2 0h1v32h-1zM4 0h1v32h-1zM6 0h1v32h-1zM8 0h1v32h-1zM10 0h1v32h-1zM12 0h1v32h-1zM14 0h1v32h-1zM16 0h1v32h-1zM18 0h1v32h-1zM20 0h1v32h-1zM22 0h1v32h-1zM24 0h1v32h-1zM26 0h1v32h-1zM28 0h1v32h-1zM30 0h1v32h-1z'/></svg>">
+<div></div>
+<script>
+    // At a zoom of 4, frames raster the page at 4 times its device pixels. The SVG image and the repeated SVG tiles
+    // are rastered at that scale too, so that their stripes stay sharp.
+    const animationFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.addEventListener("load", async () => {
+        await animationFrame();
+        await animationFrame();
+        internals.pinchThroughUIProcess(0, 0, 3.0);
+        while (window.visualViewport.scale !== 4)
+            await animationFrame();
+        await animationFrame();
+        await animationFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>

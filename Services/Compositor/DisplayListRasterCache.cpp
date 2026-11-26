@@ -112,11 +112,12 @@ struct DisplayListRasterCache::VectorImageRasters {
     }
 
     struct Raster {
-        Gfx::IntRect rect_in_recorded_space;
+        int raster_scale { 1 };
+        Gfx::IntRect rect_in_raster_pixels;
         sk_sp<SkImage> image;
         MonotonicTime last_used { MonotonicTime::now() };
 
-        size_t byte_size() const { return static_cast<size_t>(rect_in_recorded_space.width()) * rect_in_recorded_space.height() * 4; }
+        size_t byte_size() const { return static_cast<size_t>(rect_in_raster_pixels.width()) * rect_in_raster_pixels.height() * 4; }
     };
 
     size_t total_byte_size() const
@@ -343,7 +344,7 @@ void DisplayListRasterCache::add_repeated_tile_raster(u64 tile_key, Gfx::IntSize
     m_repeated_tile_rasters.set(tile_key, move(raster));
 }
 
-sk_sp<SkImage> DisplayListRasterCache::vector_image_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect visible_rect_in_recorded_space, Gfx::IntRect& raster_rect_in_recorded_space)
+sk_sp<SkImage> DisplayListRasterCache::vector_image_raster(DisplayListResourceId id, int raster_scale, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect visible_rect_in_raster_pixels, Gfx::IntRect& raster_rect_in_raster_pixels)
 {
     auto cached_rasters = m_vector_image_rasters.find(id.value());
     if (cached_rasters == m_vector_image_rasters.end())
@@ -354,7 +355,7 @@ sk_sp<SkImage> DisplayListRasterCache::vector_image_raster(DisplayListResourceId
         return nullptr;
 
     for (size_t i = 0; i < rasters.rasters.size(); ++i) {
-        if (!rasters.rasters[i].rect_in_recorded_space.contains(visible_rect_in_recorded_space))
+        if (rasters.rasters[i].raster_scale != raster_scale || !rasters.rasters[i].rect_in_raster_pixels.contains(visible_rect_in_raster_pixels))
             continue;
         if (i != 0) {
             auto raster = move(rasters.rasters[i]);
@@ -362,18 +363,21 @@ sk_sp<SkImage> DisplayListRasterCache::vector_image_raster(DisplayListResourceId
             rasters.rasters.prepend(move(raster));
         }
         rasters.rasters.first().last_used = MonotonicTime::now();
-        raster_rect_in_recorded_space = rasters.rasters.first().rect_in_recorded_space;
+        raster_rect_in_raster_pixels = rasters.rasters.first().rect_in_raster_pixels;
         return rasters.rasters.first().image;
     }
     return {};
 }
 
-bool DisplayListRasterCache::has_rasterized_vector_image(DisplayListResourceId id) const
+bool DisplayListRasterCache::has_rasterized_vector_image(DisplayListResourceId id, int raster_scale) const
 {
-    return m_vector_image_rasters.contains(id.value());
+    auto cached_rasters = m_vector_image_rasters.find(id.value());
+    if (cached_rasters == m_vector_image_rasters.end())
+        return false;
+    return cached_rasters->value->rasters.contains([&](auto const& raster) { return raster.raster_scale == raster_scale; });
 }
 
-bool DisplayListRasterCache::reserve_vector_image_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_recorded_space)
+bool DisplayListRasterCache::reserve_vector_image_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_raster_pixels)
 {
     auto& rasters = *m_vector_image_rasters.ensure(id.value(), [&] {
         return make<VectorImageRasters>(skia_backend_context);
@@ -390,7 +394,7 @@ bool DisplayListRasterCache::reserve_vector_image_raster(DisplayListResourceId i
     // the overflow instead of thrashing the whole cache. Additions are rare by design, so the total is simply
     // recomputed here instead of being tracked incrementally.
     constexpr size_t max_vector_image_raster_cache_bytes = 512 * MiB;
-    auto raster_bytes = static_cast<size_t>(rect_in_recorded_space.width()) * rect_in_recorded_space.height() * 4;
+    auto raster_bytes = static_cast<size_t>(rect_in_raster_pixels.width()) * rect_in_raster_pixels.height() * 4;
     auto total_bytes = raster_bytes + m_vector_image_raster_cache_reserved_bytes;
     for (auto const& it : m_vector_image_rasters)
         total_bytes += it.value->total_byte_size();
@@ -413,9 +417,9 @@ bool DisplayListRasterCache::reserve_vector_image_raster(DisplayListResourceId i
     return true;
 }
 
-sk_sp<SkImage> DisplayListRasterCache::finish_vector_image_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_recorded_space, sk_sp<SkImage> image)
+sk_sp<SkImage> DisplayListRasterCache::finish_vector_image_raster(DisplayListResourceId id, int raster_scale, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect rect_in_raster_pixels, sk_sp<SkImage> image)
 {
-    auto raster_bytes = static_cast<size_t>(rect_in_recorded_space.width()) * rect_in_recorded_space.height() * 4;
+    auto raster_bytes = static_cast<size_t>(rect_in_raster_pixels.width()) * rect_in_raster_pixels.height() * 4;
     m_vector_image_raster_cache_reserved_bytes -= raster_bytes;
     if (!image)
         return {};
@@ -429,7 +433,7 @@ sk_sp<SkImage> DisplayListRasterCache::finish_vector_image_raster(DisplayListRes
     }
     if (rasters.rasters.size() == VectorImageRasters::max_rasters)
         rasters.rasters.take_last();
-    rasters.rasters.prepend({ rect_in_recorded_space, image });
+    rasters.rasters.prepend({ raster_scale, rect_in_raster_pixels, image });
     return image;
 }
 

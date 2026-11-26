@@ -99,6 +99,9 @@ pub struct IsolatedGroup {
 pub struct TileRaster {
     pub key: u64,
     pub size: IntSize,
+    /// How many raster pixels the tile has for each pixel of `size`: a power of two, at which the raster has a pixel
+    /// for each pixel of the canvas that shows it.
+    pub raster_scale: i32,
     pub cacheable: bool,
 }
 
@@ -110,6 +113,9 @@ pub struct VectorImagePlacement {
     pub vector_image_id: u64,
     pub rect: FloatRect,
     pub recorded_size: IntSize,
+    /// How many raster pixels a raster of the records has for each pixel of `recorded_size`: a power of two, at which
+    /// the raster has a pixel for each pixel of the canvas that shows it.
+    pub raster_scale: i32,
 }
 
 /// How the painter takes the records of an SVG image.

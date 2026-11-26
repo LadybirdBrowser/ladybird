@@ -283,12 +283,71 @@ fn presented_scrollbar_with_colors(
     }
 }
 
-fn tile_raster_cache_key(tile_records: &[u8], tile_size: IntSize) -> u64 {
+fn tile_raster_cache_key(tile_records: &[u8], tile_size: IntSize, raster_scale: i32) -> u64 {
     let mut hasher = crate::fast_hash::fast_hasher();
     hasher.write(tile_records);
     hasher.write_i32(tile_size.width);
     hasher.write_i32(tile_size.height);
+    hasher.write_i32(raster_scale);
     hasher.finish()
+}
+
+/// The largest raster scale of content that is rastered once and shown scaled: that of frames that zoom the page most.
+const LARGEST_RASTER_SCALE: i32 = 8;
+
+/// The power of two, from 1 to `LARGEST_RASTER_SCALE`, at which a raster of content recorded at `recorded_size` and
+/// drawn at `shown_width` x `shown_height` under `canvas_matrix` has a pixel for each pixel of the canvas. Content that
+/// the canvas rotates, skews, mirrors or projects is rastered at 1.
+fn raster_scale_to_show(
+    canvas_matrix: &FloatMatrix4x4,
+    shown_width: f32,
+    shown_height: f32,
+    recorded_size: IntSize,
+) -> i32 {
+    let m = &canvas_matrix.elements;
+    if !canvas_matrix.is_2d_affine()
+        || m[0][1] != 0.0
+        || m[1][0] != 0.0
+        || !(m[0][0] > 0.0 && m[1][1] > 0.0)
+        || recorded_size.is_empty()
+    {
+        return 1;
+    }
+    let device_width = m[0][0] * shown_width;
+    let device_height = m[1][1] * shown_height;
+    // NB: The recorded size is rounded to whole pixels, so a raster one pixel smaller than the canvas shows it is not
+    //     magnified.
+    let raster_covers = |scale: i32| {
+        (recorded_size.width as f32 + 1.0) * scale as f32 >= device_width
+            && (recorded_size.height as f32 + 1.0) * scale as f32 >= device_height
+    };
+    let mut scale = 1;
+    while scale < LARGEST_RASTER_SCALE && !raster_covers(scale) {
+        scale *= 2;
+    }
+    scale
+}
+
+/// The raster scale of a repeated tile, which is rastered whole: that which shows it sharp, lowered until the raster
+/// fits in one surface of at most 16 MiB.
+fn raster_scale_of_repeated_tile(
+    canvas_matrix: &FloatMatrix4x4,
+    shown_width: f32,
+    shown_height: f32,
+    tile_size: IntSize,
+) -> i32 {
+    const LARGEST_DIMENSION: i64 = 16384;
+    const LARGEST_BYTE_SIZE: i64 = 16 * 1024 * 1024;
+    let fits = |scale: i32| {
+        let width = i64::from(tile_size.width) * i64::from(scale);
+        let height = i64::from(tile_size.height) * i64::from(scale);
+        width <= LARGEST_DIMENSION && height <= LARGEST_DIMENSION && width * height * 4 <= LARGEST_BYTE_SIZE
+    };
+    let mut scale = raster_scale_to_show(canvas_matrix, shown_width, shown_height, tile_size);
+    while scale > 1 && !fits(scale) {
+        scale /= 2;
+    }
+    scale
 }
 
 fn rasterize_tile_if_pattern<'t, Painter: ReplayPainter + ?Sized>(
@@ -310,9 +369,11 @@ fn rasterize_tile_if_pattern<'t, Painter: ReplayPainter + ?Sized>(
     if tile_size.is_empty() {
         return;
     }
+    // NB: The paint style maps the pattern's raster by its tile size.
     let tile = TileRaster {
         key: 0,
         size: tile_size,
+        raster_scale: 1,
         cacheable: false,
     };
     if painter.begin_tile_raster(&tile) {
@@ -481,9 +542,16 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
                 return;
             }
             let tile_records = span_bytes(payload, command.tile);
+            let raster_scale = raster_scale_of_repeated_tile(
+                &painter.canvas_matrix(),
+                command.dst_rect.width,
+                command.dst_rect.height,
+                command.tile_size,
+            );
             let tile = TileRaster {
-                key: tile_raster_cache_key(tile_records, command.tile_size),
+                key: tile_raster_cache_key(tile_records, command.tile_size, raster_scale),
                 size: command.tile_size,
+                raster_scale,
                 cacheable: true,
             };
             if painter.begin_tile_raster(&tile) {
@@ -517,6 +585,12 @@ fn play_record_resolving_frame_state<'t, Painter: ReplayPainter + ?Sized>(
                 vector_image_id: command.vector_image_id.0,
                 rect: command.rect,
                 recorded_size: command.recorded_size,
+                raster_scale: raster_scale_to_show(
+                    &painter.canvas_matrix(),
+                    command.rect.width,
+                    command.rect.height,
+                    command.recorded_size,
+                ),
             };
             if painter.begin_vector_image(&placement, command.requires_direct_replay) == VectorImageReplay::Skipped {
                 return;
@@ -3565,5 +3639,71 @@ mod tests {
         assert!(moves_by_whole_pixels_only(&translation_matrix(3.0, -4.0, 0.0)));
         assert!(!moves_by_whole_pixels_only(&translation_matrix(0.5, 0.0, 0.0)));
         assert!(!moves_by_whole_pixels_only(&scale_matrix(2.0, 2.0, 1.0)));
+    }
+
+    fn size(width: i32, height: i32) -> IntSize {
+        IntSize { width, height }
+    }
+
+    #[test]
+    fn a_raster_at_the_scale_of_the_canvas_is_not_magnified() {
+        let at = |scale: f32| translation_matrix(10.0, 20.0, 0.0).multiplied(scale_matrix(scale, scale, 1.0));
+        // A recorded size rounded from the size the image is drawn at stays at 1.
+        assert_eq!(raster_scale_to_show(&at(1.0), 100.4, 50.0, size(100, 50)), 1);
+        assert_eq!(raster_scale_to_show(&at(1.0), 100.0, 50.0, size(100, 50)), 1);
+        assert_eq!(raster_scale_to_show(&at(0.5), 100.0, 50.0, size(100, 50)), 1);
+        assert_eq!(raster_scale_to_show(&at(2.0), 100.4, 50.0, size(100, 50)), 2);
+        assert_eq!(raster_scale_to_show(&at(3.0), 100.0, 50.0, size(100, 50)), 4);
+        assert_eq!(raster_scale_to_show(&at(4.0), 100.0, 50.0, size(100, 50)), 4);
+        assert_eq!(raster_scale_to_show(&at(8.0), 100.4, 50.0, size(100, 50)), 8);
+        assert_eq!(raster_scale_to_show(&at(32.0), 100.0, 50.0, size(100, 50)), 8);
+        // The axis that the canvas magnifies most decides.
+        assert_eq!(
+            raster_scale_to_show(&scale_matrix(1.0, 4.0, 1.0), 100.0, 50.0, size(100, 50)),
+            4
+        );
+        // Content recorded at the scale of a transform above it is drawn at that scale already.
+        assert_eq!(raster_scale_to_show(&at(2.0), 50.0, 25.0, size(100, 50)), 1);
+        assert_eq!(raster_scale_to_show(&at(4.0), 50.0, 25.0, size(100, 50)), 2);
+    }
+
+    #[test]
+    fn a_raster_that_the_canvas_does_not_only_scale_and_move_stays_at_its_recorded_size() {
+        let rotated = scale_matrix(4.0, 4.0, 1.0).multiplied(libgfx_rust::rotation_matrix(
+            [0.0, 0.0, 1.0],
+            std::f32::consts::FRAC_PI_4,
+        ));
+        assert_eq!(raster_scale_to_show(&rotated, 100.0, 50.0, size(100, 50)), 1);
+        assert_eq!(
+            raster_scale_to_show(&scale_matrix(-4.0, 4.0, 1.0), 100.0, 50.0, size(100, 50)),
+            1
+        );
+        assert_eq!(
+            raster_scale_to_show(
+                &perspective_matrix(100.0).multiplied(scale_matrix(4.0, 4.0, 1.0)),
+                100.0,
+                50.0,
+                size(100, 50)
+            ),
+            1
+        );
+        assert_eq!(
+            raster_scale_to_show(&scale_matrix(4.0, 4.0, 1.0), 100.0, 50.0, size(0, 50)),
+            1
+        );
+    }
+
+    #[test]
+    fn a_repeated_tile_is_rastered_at_a_lower_scale_where_it_would_not_fit_in_one_surface() {
+        let at_8 = scale_matrix(8.0, 8.0, 1.0);
+        assert_eq!(raster_scale_of_repeated_tile(&at_8, 16.0, 16.0, size(16, 16)), 8);
+        // 1024 x 512 is 32 MiB at 4 and 8 MiB at 2. 4096 x 1024 is 64 MiB at 2 and 16 MiB at 1.
+        assert_eq!(raster_scale_of_repeated_tile(&at_8, 1024.0, 512.0, size(1024, 512)), 2);
+        assert_eq!(
+            raster_scale_of_repeated_tile(&at_8, 4096.0, 1024.0, size(4096, 1024)),
+            1
+        );
+        // A tile wider than one surface stays at 1.
+        assert_eq!(raster_scale_of_repeated_tile(&at_8, 20000.0, 1.0, size(20000, 1)), 1);
     }
 }
