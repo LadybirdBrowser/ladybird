@@ -65,7 +65,7 @@ image.src = "data:image/png;base64," + data;
 
 
 def main():
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = helpers["LocalHTTPServer"](("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     with tempfile.TemporaryDirectory() as directory:
         # The pixels are colors the display list carries, which take no GPU to draw.

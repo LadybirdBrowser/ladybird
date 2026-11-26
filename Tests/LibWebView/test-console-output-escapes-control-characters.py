@@ -11,11 +11,16 @@
 import argparse
 import http.server
 import queue
+import runpy
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+
+from pathlib import Path
+
+helpers = runpy.run_path(str(Path(__file__).with_name("test-webdriver-delete-session.py")))
 
 TIMEOUT_SECONDS = 60
 DONE = "console-escapes-done"
@@ -126,7 +131,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("ladybird_binary")
     ladybird_binary = parser.parse_args().ladybird_binary
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = helpers["LocalHTTPServer"](("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}/page"
     try:

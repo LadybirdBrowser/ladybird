@@ -20,7 +20,7 @@ TITLE = "network-events"
 BODY = b"DevTools network event body"
 
 
-class Server(http.server.ThreadingHTTPServer):
+class Server(devtools["LocalHTTPServer"]):
     daemon_threads = True
 
     def __init__(self):

@@ -96,7 +96,7 @@ def run_test(default):
                 }
             )
         )
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        server = helpers["LocalHTTPServer"](("127.0.0.1", 0), Handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         # The pixels are colors the display list carries, which take no GPU to draw. The GPU of a CI machine can refuse
         # every submission of the Compositor, which would leave the screenshots showing earlier colors.

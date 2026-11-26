@@ -25,7 +25,7 @@ webdriver_helpers = runpy.run_path(
 )
 
 
-class TestPageServer(http.server.ThreadingHTTPServer):
+class TestPageServer(webdriver_helpers["LocalHTTPServer"]):
     def __init__(self):
         super().__init__(("127.0.0.1", 0), TestPageHandler)
         self.recovery_requests = {}

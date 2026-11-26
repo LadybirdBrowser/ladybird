@@ -7,9 +7,11 @@
 import argparse
 import concurrent.futures
 import http.client
+import http.server
 import json
 import os
 import socket
+import socketserver
 import subprocess
 import sys
 import threading
@@ -17,6 +19,14 @@ import time
 
 EVENT_TIMEOUT_SECONDS = 30
 WEBDRIVER_REQUEST_TIMEOUT_SECONDS = 60
+
+
+class LocalHTTPServer(http.server.ThreadingHTTPServer):
+    # HTTPServer names itself after a reverse DNS lookup of its address, which takes 35 seconds on the macOS runners.
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        host, self.server_port = self.server_address[:2]
+        self.server_name = str(host)
 
 
 def unused_port():

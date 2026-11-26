@@ -26,7 +26,7 @@ WEBDRIVER_REQUEST_TIMEOUT_SECONDS = 60
 WEB_ELEMENT_IDENTIFIER = "element-6066-11e4-a52e-4f735466cecf"
 
 
-class TestPageServer(http.server.ThreadingHTTPServer):
+class TestPageServer(webdriver_helpers.LocalHTTPServer):
     def __init__(self, server_address, request_handler_class):
         super().__init__(server_address, request_handler_class)
         self.blocked_frame_b_requested = threading.Event()

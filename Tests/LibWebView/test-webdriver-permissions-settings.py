@@ -357,7 +357,7 @@ def run_test(webdriver_binary):
         def log_message(self, format, *args):
             pass
 
-    with http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+    with helpers["LocalHTTPServer"](("127.0.0.1", 0), Handler) as server:
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
             check_policies(webdriver_binary, f"http://127.0.0.1:{server.server_port}/")

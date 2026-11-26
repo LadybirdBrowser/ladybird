@@ -49,7 +49,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("ladybird_binary")
     binary = parser.parse_args().ladybird_binary
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = devtools["LocalHTTPServer"](("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}/page"
     try:

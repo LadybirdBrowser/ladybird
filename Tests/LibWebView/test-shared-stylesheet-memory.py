@@ -39,7 +39,7 @@ STYLE_SHEET = "\n".join(
 ).encode()
 
 
-class TestPageServer(http.server.ThreadingHTTPServer):
+class TestPageServer(helpers["LocalHTTPServer"]):
     request_queue_size = socket.SOMAXCONN
 
 

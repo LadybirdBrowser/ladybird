@@ -74,7 +74,7 @@ def main():
     parser.add_argument("ladybird_binary")
     ladybird_binary = parser.parse_args().ladybird_binary
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server = devtools["LocalHTTPServer"](("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         with tempfile.TemporaryDirectory() as directory:
