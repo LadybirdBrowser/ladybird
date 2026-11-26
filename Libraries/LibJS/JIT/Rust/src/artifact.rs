@@ -37,6 +37,8 @@ use crate::code::ResumeMode;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
 use crate::code::VirtualObjectDescriptorKind;
+use crate::relocation::Relocation;
+use crate::relocation::RelocationKind;
 use crate::snapshot::CellId;
 
 /// A table of compiled code. Their order here is their order in the array.
@@ -70,6 +72,8 @@ enum Section {
     UncaughtHandlers,
     /// A record per invalidation patch.
     Patches,
+    /// A record per relocation, by code offset.
+    Relocations,
     /// The cells the code embeds, as two words each. Only the install reads this section and the next.
     EmbeddedCells,
     /// A record per dependency.
@@ -79,7 +83,7 @@ enum Section {
 const SECTION_COUNT: usize = Section::Dependencies as usize + 1;
 
 /// The sections the runtime reads after it installed the code are the first ones.
-const LAST_KEPT_SECTION: Section = Section::Patches;
+const LAST_KEPT_SECTION: Section = Section::Relocations;
 
 /// In place of an index, a slot or a count: there is none.
 const NONE: u32 = u32::MAX;
@@ -143,7 +147,9 @@ const OBJECT_PROPERTY_COUNT: usize = 5;
 const OBJECT_KIND_OBJECT: u32 = 0;
 const OBJECT_KIND_CLOSURE: u32 = 1;
 
-const WIDE_WORDS: usize = 2;
+/// A 64-bit value, low half first, and the repr of its location (see `ValueLocation::Constant`).
+const WIDE_WORDS: usize = 3;
+const WIDE_REPR: usize = 2;
 
 const PATCH_WORDS: usize = 4;
 const PATCH_OFFSET: usize = 0;
@@ -154,6 +160,8 @@ const PATCH_BYTES: usize = 2;
 pub const MAX_PATCH_LENGTH: usize = 8;
 
 const CELL_WORDS: usize = 2;
+
+const RELOCATION_WORDS: usize = 3;
 
 const DEPENDENCY_WORDS: usize = 5;
 
@@ -224,6 +232,10 @@ fn from_halves<W: Word>(words: &[W]) -> u64 {
     u64::from(words[0].word()) | u64::from(words[1].word()) << 32
 }
 
+fn wide_repr<W: Word>(record: &[W]) -> Repr {
+    Repr::ALL[record[WIDE_REPR].word() as usize]
+}
+
 fn count_of(len: usize) -> u32 {
     u32::try_from(len).expect("the tables of compiled code have fewer than 4 Gi words")
 }
@@ -251,6 +263,8 @@ pub struct Tail<'a> {
     /// See `Artifact::invalidation_patches()`.
     pub invalidation_patches: &'a [(u32, JumpPatch)],
     pub embedded_cells: &'a [CellId],
+    /// See `Artifact::relocations()`.
+    pub relocations: &'a [Relocation],
     pub dependencies: &'a [Dependency],
 }
 
@@ -519,7 +533,7 @@ impl<'a> ArtifactWriter<'a> {
                 (LOCATION_STACK, repr, shifted.cast_unsigned() >> LOCATION_PAYLOAD_SHIFT)
             }
             ValueLocation::Frame(slot) => (LOCATION_FRAME, Repr::Tagged, slot),
-            ValueLocation::Constant(bits) => (LOCATION_CONSTANT, Repr::Tagged, self.wide_value(bits)?),
+            ValueLocation::Constant(bits, repr) => (LOCATION_CONSTANT, Repr::Tagged, self.wide_value(bits, repr)?),
             ValueLocation::ArgumentsObject { mapped } => (LOCATION_ARGUMENTS_OBJECT, Repr::Tagged, u32::from(mapped)),
             ValueLocation::VirtualObject(index) => (LOCATION_VIRTUAL_OBJECT, Repr::Tagged, index),
         };
@@ -530,9 +544,10 @@ impl<'a> ArtifactWriter<'a> {
     }
 
     /// The index of `value` in the table of 64-bit values.
-    fn wide_value(&mut self, value: u64) -> Result<u32, CompileFailure> {
+    fn wide_value(&mut self, value: u64, repr: Repr) -> Result<u32, CompileFailure> {
         let start = self.wide.words.len();
-        self.wide.words.try_extend_from_slice(&halves(value))?;
+        let [low, high] = halves(value);
+        self.wide.words.try_extend_from_slice(&[low, high, repr as u32])?;
         Ok(self.wide.share(start) / count_of(WIDE_WORDS))
     }
 
@@ -647,6 +662,16 @@ impl<'a> ArtifactWriter<'a> {
         }
         end(Section::Patches, words);
 
+        let start = words.len();
+        for relocation in tail.relocations {
+            words.try_extend_from_slice(&[relocation.offset, relocation.kind as u32, relocation.cell])?;
+        }
+        words[start..]
+            .as_chunks_mut::<RELOCATION_WORDS>()
+            .0
+            .sort_unstable_by_key(|record| record[0]);
+        end(Section::Relocations, words);
+
         for cell in tail.embedded_cells {
             words.try_extend_from_slice(&halves(cell.0))?;
         }
@@ -724,7 +749,10 @@ impl<'a, W: Word> Artifact<'a, W> {
                 repr,
             ),
             LOCATION_FRAME => ValueLocation::Frame(payload),
-            LOCATION_CONSTANT => ValueLocation::Constant(from_halves(self.record(Section::Wide, payload, WIDE_WORDS))),
+            LOCATION_CONSTANT => {
+                let record = self.record(Section::Wide, payload, WIDE_WORDS);
+                ValueLocation::Constant(from_halves(&record[..WIDE_REPR]), wide_repr(record))
+            }
             LOCATION_ARGUMENTS_OBJECT => ValueLocation::ArgumentsObject { mapped: payload != 0 },
             LOCATION_VIRTUAL_OBJECT => ValueLocation::VirtualObject(payload),
             kind => unreachable!("{kind} is no kind of location"),
@@ -792,6 +820,25 @@ impl<'a, W: Word> Artifact<'a, W> {
         })
     }
 
+    /// The 64-bit values that locations refer to, as two words each, low half first, and their reprs, which say which
+    /// of them are cells: values whose tags say so, and addresses. The runtime rewrites the cells among them when a
+    /// collection moves them.
+    pub fn wide_values(self) -> impl ExactSizeIterator<Item = (&'a [W], Repr)> {
+        self.records(Section::Wide, WIDE_WORDS)
+            .map(|record| (&record[..WIDE_REPR], wide_repr(record)))
+    }
+
+    /// Where the code holds the cells it embeds, by code offset. A relocation names a cell by its index in
+    /// `embedded_cells()`.
+    pub fn relocations(self) -> impl ExactSizeIterator<Item = Relocation> {
+        self.records(Section::Relocations, RELOCATION_WORDS)
+            .map(|record| Relocation {
+                offset: record[0].word(),
+                kind: RelocationKind::from_word(record[1].word()),
+                cell: record[2].word(),
+            })
+    }
+
     /// Cells the code depends on (compares against or uses). The runtime keeps them alive for as long as the code
     /// may run. Only tables that have every section have them.
     pub fn embedded_cells(self) -> impl ExactSizeIterator<Item = CellId> {
@@ -837,6 +884,17 @@ pub struct Patch {
 }
 
 impl Patch {
+    /// The patch that writes `bytes`, at most `MAX_PATCH_LENGTH` of them, at `offset`.
+    pub fn new(offset: u32, bytes: &[u8]) -> Patch {
+        let mut padded = [0; MAX_PATCH_LENGTH];
+        padded[..bytes.len()].copy_from_slice(bytes);
+        Patch {
+            offset,
+            length: bytes.len(),
+            bytes: padded,
+        }
+    }
+
     pub fn bytes(&self) -> &[u8] {
         &self.bytes[..self.length]
     }

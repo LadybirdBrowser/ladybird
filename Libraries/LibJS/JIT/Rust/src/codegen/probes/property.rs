@@ -22,6 +22,7 @@ use crate::asm::Gpr;
 use crate::asm::Label;
 use crate::asm::PortableMacroAssembler;
 use crate::asm::Scale;
+use crate::asm::relocation::CellConstant;
 use crate::ir::NodeId;
 use crate::ir::value;
 use crate::regalloc::Location;
@@ -390,7 +391,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.masm.jump(fail);
         for (_, prototype, label) in prototypes.into_iter().flatten() {
             self.masm.bind(label);
-            self.masm.move_imm64(object, prototype.0);
+            self.move_cell(object, prototype);
             self.masm.jump(have_object);
         }
         self.masm.bind(is_object);

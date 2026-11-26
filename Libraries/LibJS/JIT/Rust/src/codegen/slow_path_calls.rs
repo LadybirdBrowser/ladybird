@@ -394,15 +394,20 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 // NB: The arguments object the code never created is only
                 //     created if the slow path leaves the code (see
                 //     `Codegen::leave_arguments`).
-                if let Location::Constant(bits) = location
+                if let Location::Constant(bits, _) = location
                     && repr == Repr::Tagged
                     && value::virtual_arguments_kind(bits).is_some()
                 {
                     continue;
                 }
                 let address = self.slot_address(slot)?;
-                if let Location::Constant(bits) = location {
-                    self.masm.store_imm64(&address, value::boxed_constant(bits, repr));
+                if let Location::Constant(bits, _) = location {
+                    let boxed_repr = if repr == Repr::Pointer {
+                        Repr::Pointer
+                    } else {
+                        Repr::Tagged
+                    };
+                    self.store_constant(&address, value::boxed_constant(bits, repr), boxed_repr);
                     continue;
                 }
                 self.emit_frame_value(scratch, location, repr, saved, clobbered);
@@ -430,7 +435,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 self.masm.load64(dst, &spill);
                 self.emit_box(dst, dst, repr);
             }
-            Location::Constant(bits) => self.masm.move_imm64(dst, value::boxed_constant(bits, repr)),
+            Location::Constant(bits, _) => {
+                let boxed_repr = if repr == Repr::Pointer {
+                    Repr::Pointer
+                } else {
+                    Repr::Tagged
+                };
+                self.move_constant(dst, value::boxed_constant(bits, repr), boxed_repr);
+            }
             Location::Frame(slot) => self.emit_load_frame_home(dst, slot),
         }
     }

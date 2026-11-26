@@ -390,6 +390,7 @@ mod tests {
             allocator: 0x5000,
             cell_size: 88,
             words: snapshot.add(&[0; 9]),
+            slots: crate::snapshot::List::default(),
             binding_count: 2,
             inline_binding_values: true,
             binding_values_offset: 48,

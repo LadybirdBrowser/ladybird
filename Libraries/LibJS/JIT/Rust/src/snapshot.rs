@@ -34,11 +34,28 @@ use crate::code::ExitKind;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CellId(pub u64);
 
-/// How far a cell's address is shifted right to compress it: cells store
-/// pointers to other cells as the low 32 bits of the shifted address (their
-/// offset into the 32 GiB heap region, which is aligned to its size, in units
-/// of the 8-byte cell alignment), and 0 for null.
-pub const COMPRESSED_POINTER_SHIFT: u8 = 3;
+pub use crate::asm::relocation::COMPRESSED_POINTER_SHIFT;
+
+/// What a slot of a cell image holds, as tracing the cell found it. Bytes of the image outside its slots are plain
+/// bits, whatever their value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CellSlotHolds {
+    /// A value, which is a cell if its tag says so.
+    Value,
+    /// The address of a cell, or 0.
+    Cell,
+    /// The compressed pointer of a cell, or 0.
+    CompressedCell,
+    /// A pointer into the cell itself, which a copy of the image must not keep.
+    SelfPointer,
+}
+
+/// A slot of a cell image, `offset` bytes into the cell (see `CellSlotHolds`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CellSlot {
+    pub offset: u32,
+    pub holds: CellSlotHolds,
+}
 
 impl CellId {
     /// The cell's compressed pointer, which a field that holds the cell
@@ -294,8 +311,9 @@ pub struct ClosureTemplateSnapshot {
     /// data of the sample, which code that copies the words embeds.
     pub shape: CellId,
     pub shared_data: CellId,
-    /// Its bytes (see `FunctionAllocationInfo`).
+    /// Its bytes (see `FunctionAllocationInfo`), and the slots in them.
     pub words: List<u64>,
+    pub slots: List<CellSlot>,
     /// The index in `Snapshot::executables` of the closures' executable, if
     /// calls of them can be inlined.
     pub inline_executable: Option<u32>,
@@ -638,6 +656,7 @@ pub struct LexicalEnvironmentTemplateSnapshot {
     pub allocator: u64,
     pub cell_size: u32,
     pub words: List<u64>,
+    pub slots: List<CellSlot>,
     pub binding_count: u32,
     pub inline_binding_values: bool,
     pub binding_values_offset: u32,
@@ -659,6 +678,7 @@ pub struct EnvironmentTemplateSnapshot {
     pub allocator: u64,
     pub cell_size: u32,
     pub words: List<u64>,
+    pub slots: List<CellSlot>,
     /// Whether the environment has room for binding values in its cell.
     pub inline_binding_values: bool,
     pub binding_values_offset: u32,
@@ -1461,8 +1481,9 @@ pub struct ObjectAllocationInfo {
     pub local_cursor_offset: u32,
     pub local_end_offset: u32,
     pub local_cell_size_offset: u32,
-    /// The bytes every new plain object starts with, as u64 words.
+    /// The bytes every new plain object starts with, as u64 words, and the slots in them.
     pub template: List<u64>,
+    pub template_slots: List<CellSlot>,
     pub shape_offset: u32,
     pub named_properties_offset: u32,
     /// Where the inline named storage of the objects of other classes starts.
@@ -1511,8 +1532,9 @@ pub struct RopeAllocationInfo {
     /// The `GC::CellAllocator` of rope strings.
     pub allocator: u64,
     pub cell_size: u32,
-    /// The bytes every new rope string starts with, as u64 words.
+    /// The bytes every new rope string starts with, as u64 words, and the slots in them.
     pub template: List<u64>,
+    pub template_slots: List<CellSlot>,
     pub lhs_offset: u32,
     pub rhs_offset: u32,
     pub length_offset: u32,
@@ -1551,6 +1573,7 @@ pub struct ArrayAllocationInfo {
     pub allocator: u64,
     pub cell_size: u32,
     pub template: List<u64>,
+    pub template_slots: List<CellSlot>,
     pub shape: CellId,
     /// By ascending capacity.
     pub storage_size_classes: List<StorageSizeClass>,
@@ -1869,6 +1892,7 @@ rows! {
     offsets: u32,
     words: u64,
     cells: CellId,
+    cell_slots: CellSlot,
     exception_handlers: ExceptionHandler,
     exit_sites: (u32, ExitKind),
     builtin_exit_sites: (CellId, u32, ExitKind),
@@ -2074,6 +2098,21 @@ pub struct TypeofStrings {
     pub boolean: u64,
     pub bigint: u64,
     pub function: u64,
+}
+
+impl TypeofStrings {
+    pub fn all(&self) -> [u64; 8] {
+        [
+            self.number,
+            self.undefined,
+            self.object,
+            self.string,
+            self.symbol,
+            self.boolean,
+            self.bigint,
+            self.function,
+        ]
+    }
 }
 
 /// What the inline code of compiled nodes needs to know about the runtime's

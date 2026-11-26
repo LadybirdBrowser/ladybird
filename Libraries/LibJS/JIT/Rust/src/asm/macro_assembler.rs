@@ -18,6 +18,9 @@ use super::Gpr;
 use super::GprSet;
 use super::Label;
 use super::NegativeZero;
+use super::relocation::CellConstant;
+use super::relocation::CellEncoding;
+use super::relocation::RelocationKind;
 use ak::Column;
 use ak::Zone;
 
@@ -45,6 +48,19 @@ impl MachineFrame {
     pub fn local(&self, stack_pointer: Gpr, offset: u32) -> Address {
         assert!(offset < self.locals_size, "local offset out of range");
         Address::new(stack_pointer, offset as i32)
+    }
+}
+
+/// Where code that may embed no cells holds cells (see `PortableMacroAssembler::finish()`): it notes whether there are
+/// any, so that the code fails to compile then.
+#[derive(Debug, Default)]
+pub struct NoCells {
+    pub held: bool,
+}
+
+impl Extend<(u32, RelocationKind)> for NoCells {
+    fn extend<I: IntoIterator<Item = (u32, RelocationKind)>>(&mut self, cells: I) {
+        self.held |= cells.into_iter().next().is_some();
     }
 }
 
@@ -126,9 +142,15 @@ pub trait PortableMacroAssembler: Sized {
     /// The bytes of a jump from offset `from` to offset `to` of the same
     /// code, which replace the no-ops `patchable_nop()` emitted at `from`.
     fn jump_patch(from: usize, to: usize) -> JumpPatch;
-    /// Completes the code in the column of `new()`, and returns the offset where the instructions end and the data
-    /// they load (a constant pool) begins. Fails if a referenced label is unbound or a branch does not reach.
-    fn finish(self) -> Result<usize, AsmError>;
+    /// Completes the code in the column of `new()`, adds to `cells` where the code holds the cells of the operations
+    /// that take one (see `crate::relocation`), and how, and returns the offset where the instructions end and the
+    /// data they load (a constant pool) begins. Fails if a referenced label is unbound, a branch does not reach, or the
+    /// code holds a cell as plain bits (see `forbid_untyped_cells()`).
+    fn finish(self, cells: &mut impl Extend<(u32, RelocationKind)>) -> Result<usize, AsmError>;
+    /// Has `finish()` fail if a 64-bit immediate of an operation that takes plain bits is one of `cells` (sorted
+    /// addresses), as an address or as a value: the runtime would not patch it when the cell moves. Such an immediate
+    /// is almost always a cell passed as plain bits by mistake, and failing the compile is safe in either case.
+    fn forbid_untyped_cells(&mut self, encoding: CellEncoding, cells: &[u64]);
 
     /// A guaranteed trap for code that must never run.
     fn unreachable(&mut self);
@@ -138,6 +160,8 @@ pub trait PortableMacroAssembler: Sized {
     /// Copies the low 32 bits and zero-extends.
     fn move32(&mut self, dst: Gpr, src: Gpr);
     fn move_imm64(&mut self, dst: Gpr, imm: u64);
+    /// Moves `cell`, which the code holds where `finish()` lists it.
+    fn move_cell(&mut self, dst: Gpr, cell: CellConstant);
     /// Zero-extends.
     fn move_imm32(&mut self, dst: Gpr, imm: u32);
     fn sign_extend32_to_64(&mut self, dst: Gpr, src: Gpr);
@@ -158,6 +182,10 @@ pub trait PortableMacroAssembler: Sized {
     fn store_imm16(&mut self, address: &Address, imm: u16);
     fn store_imm32(&mut self, address: &Address, imm: u32);
     fn store_imm64(&mut self, address: &Address, imm: u64);
+    /// Stores `compressed`, the compressed pointer of a cell, which the code holds where `finish()` lists it.
+    fn store_cell32(&mut self, address: &Address, compressed: u32);
+    /// Stores `cell`, which the code holds where `finish()` lists it.
+    fn store_cell64(&mut self, address: &Address, cell: CellConstant);
     /// Loads the 16 bytes of `imm` (little-endian) into all of `dst`, from
     /// the constant pool.
     fn load_imm128(&mut self, dst: Fpr, imm: u128);
@@ -236,8 +264,16 @@ pub trait PortableMacroAssembler: Sized {
     /// at `limit` (unsigned).
     fn branch_if_stack_pointer_below(&mut self, limit: &Address, target: Label);
     fn branch64_imm(&mut self, condition: Condition, lhs: Gpr, imm: i64, target: Label);
+    /// Compares `lhs` with `cell`, which the code holds where `finish()` lists it.
+    fn branch64_cell(&mut self, condition: Condition, lhs: Gpr, cell: CellConstant, target: Label);
     /// Compares the 32-bit value at `address` with `imm`.
     fn branch32_memory_imm(&mut self, condition: Condition, address: &Address, imm: i32, target: Label);
+    /// Compares the 32-bit value at `address` with `compressed`, the compressed pointer of a cell, which the code holds
+    /// where `finish()` lists it.
+    fn branch32_memory_cell(&mut self, condition: Condition, address: &Address, compressed: u32, target: Label);
+    /// Compares `lhs` with `compressed`, the compressed pointer of a cell, which the code holds where `finish()` lists
+    /// it.
+    fn branch32_cell(&mut self, condition: Condition, lhs: Gpr, compressed: u32, target: Label);
     /// Compares the 16-bit value at `address`, zero-extended, with `imm`.
     fn branch16_memory_imm(&mut self, condition: Condition, address: &Address, imm: u16, target: Label);
     /// Compares the 64-bit value at `address` with `rhs`.

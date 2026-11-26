@@ -41,6 +41,7 @@ ALLOWED = {
     "Libraries/LibIPC/Rust/src/transport.rs:IS_SHARED_IO_THREAD": "per-thread marker of the shared IO thread of this copy of the crate, which only that copy's code reads",
     "Libraries/LibJS/Flap/src/low_ir/lowering.rs:LABELS": "per-thread scratch buffer; a second copy costs memory, never an answer",
     "Libraries/LibJS/JIT/Rust/src/asm/x86_64/sse.rs:FEATURES": "immutable CPU/OS feature cache; each copy computes the same supported instructions",
+    "Libraries/LibJS/JIT/Rust/src/codegen/tests.rs:CALL_FUNCTION": "the fake Function.prototype.call of JIT unit tests, in the cargo test binary that has no runtime",
     "Libraries/LibJS/JIT/Rust/src/codegen/tests.rs:REGION": "the fake heap region of JIT unit tests, in the cargo test binary that has no runtime",
     "Libraries/LibJS/JIT/Rust/src/lib.rs:BLOCKS": "per-thread count of the allocator of JIT unit tests, in the cargo test binary that has no runtime",
     "Libraries/LibJS/JIT/Rust/src/lib.rs:COUNTING": "per-thread switch of the allocator of JIT unit tests, in the cargo test binary that has no runtime",

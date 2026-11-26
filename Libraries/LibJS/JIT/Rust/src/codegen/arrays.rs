@@ -33,7 +33,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             let address = Address::new(M::STACK_POINTER, (index * 8) as i32);
             match self.input_value(node, index + 3) {
                 InputValue::Register(value) => self.masm.store64(&address, value),
-                InputValue::Constant(value) => self.masm.store_imm64(&address, value),
+                InputValue::Constant(value) => self.store_value(&address, value),
             }
         }
         self.masm.move64(M::ARGUMENT_GPRS[0], self.pinned.vm);
@@ -173,10 +173,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             fail,
         );
         self.emit_load_compressed_cell(shape, &Address::new(object, offsets.object_shape as i32));
-        self.masm.branch32_memory_imm(
+        self.masm.branch32_memory_cell(
             Condition::NotEqual,
             &Address::new(shape, layout.shape_prototype as i32),
-            self.runtime.array_prototype.compressed() as i32,
+            self.runtime.array_prototype.compressed(),
             fail,
         );
         self.masm
@@ -235,13 +235,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         let offsets = self.runtime.offsets;
         let layout = self.runtime.layout;
         self.emit_load_compressed_cell(scratch, &Address::new(object, offsets.object_shape as i32));
-        self.masm.branch32_memory_imm(
+        self.masm.branch32_memory_cell(
             Condition::NotEqual,
             &Address::new(scratch, layout.shape_prototype as i32),
-            CellId(expected).compressed() as i32,
+            CellId(expected).compressed(),
             fail,
         );
-        self.masm.move_imm64(dst, expected);
+        self.move_cell(dst, CellId(expected));
         self.masm.load32(
             scratch,
             &Address::new(dst, layout.object_indexed_array_like_size as i32),

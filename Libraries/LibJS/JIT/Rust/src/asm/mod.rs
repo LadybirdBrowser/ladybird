@@ -13,12 +13,14 @@
 pub mod aarch64;
 pub mod buffer;
 mod macro_assembler;
+pub mod relocation;
 pub mod x86_64;
 
 pub use buffer::AsmError;
 pub use buffer::Label;
 pub use macro_assembler::JumpPatch;
 pub use macro_assembler::MachineFrame;
+pub use macro_assembler::NoCells;
 pub use macro_assembler::PortableMacroAssembler;
 
 // NB: The macro assembler of a target, at any lifetime, stands for the target (see `PortableMacroAssembler::In`).

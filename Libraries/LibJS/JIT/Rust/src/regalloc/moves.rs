@@ -25,7 +25,7 @@ pub fn resolve_parallel_moves(pending: &mut ZoneVec<'_, Move>, temp: Location, r
         }
     }
     pending.truncate(kept);
-    debug_assert!(pending.iter().all(|m| !matches!(m.to, Location::Constant(_))));
+    debug_assert!(pending.iter().all(|m| !matches!(m.to, Location::Constant(..))));
     debug_assert!(pending.iter().all(|m| m.from != temp && m.to != temp));
     while !pending.is_empty() {
         let ready = pending
@@ -53,13 +53,14 @@ pub fn resolve_parallel_moves(pending: &mut ZoneVec<'_, Move>, temp: Location, r
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::code::Repr;
     use std::collections::HashMap;
 
     fn simulate(initial: &[(Location, u32)], moves: &[Move]) -> HashMap<Location, u32> {
         let mut state = initial.iter().copied().collect::<HashMap<_, _>>();
         for m in moves {
             let value = match m.from {
-                Location::Constant(bits) => u32::try_from(bits).unwrap(),
+                Location::Constant(bits, _) => u32::try_from(bits).unwrap(),
                 from => state[&from],
             };
             state.insert(m.to, value);
@@ -81,7 +82,7 @@ mod tests {
         let locations = moves
             .iter()
             .flat_map(|m| [m.from, m.to])
-            .filter(|location| !matches!(location, Location::Constant(_)))
+            .filter(|location| !matches!(location, Location::Constant(..)))
             .collect::<Vec<_>>();
         let initial = locations
             .iter()
@@ -94,7 +95,7 @@ mod tests {
         let after = simulate(&initial, &resolve(moves, temp));
         for m in moves {
             let expected = match m.from {
-                Location::Constant(bits) => u32::try_from(bits).unwrap(),
+                Location::Constant(bits, _) => u32::try_from(bits).unwrap(),
                 from => before[&from],
             };
             assert_eq!(after[&m.to], expected, "{m:?}");
@@ -115,7 +116,7 @@ mod tests {
             m(Register(1), Stack(2)),
             m(Stack(2), Register(0)),
             m(Register(1), Stack(5)),
-            m(Constant(7), Register(4)),
+            m(Constant(7, Repr::Tagged), Register(4)),
         ]);
         // Two independent cycles.
         check(&[

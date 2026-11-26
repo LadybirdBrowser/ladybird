@@ -476,6 +476,26 @@ mod macro_assembler {
     }
 
     #[test]
+    fn cell_places_of_a_group_that_runs_again_are_those_of_its_last_run() {
+        // NB: The outer group starts close enough to the end of a window to run again after padding, with the cell
+        //     compare in it, which notes where the code holds the cell as it emits it.
+        let compressed = crate::asm::relocation::CellId::from_address(0x2_0000_1000).compressed();
+        let (mut code, work) = (crate::asm::test_code(), crate::asm::test_work());
+        let mut masm = MacroAssembler::new(&mut code, &work);
+        let label = masm.new_label();
+        masm.assembler.nops(26);
+        masm.branch_group(|m| m.branch32_cell(Condition::Equal, RAX, compressed, label));
+        masm.bind(label);
+        let mut places = Vec::new();
+        PortableMacroAssembler::finish(masm, &mut places).unwrap();
+        assert_eq!(
+            places,
+            [(34, crate::asm::relocation::RelocationKind::X86CompressedImmediate)]
+        );
+        assert_eq!(code[34..38], 0x4000_0200u32.to_le_bytes());
+    }
+
+    #[test]
     fn operations_are_legalized() {
         assert_encodings!(MacroAssembler, disassembler::x86_64, {
             "add rax, rbx" => |m| m.add64(RAX, RBX, RAX);

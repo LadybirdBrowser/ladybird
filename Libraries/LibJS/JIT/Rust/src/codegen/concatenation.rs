@@ -20,6 +20,7 @@ use super::Codegen;
 use super::allocation::AllocationCall;
 use super::allocation::stored_fields_fit;
 use super::allocation::template_fields;
+use crate::CompileFailure;
 use crate::asm::Address;
 use crate::asm::Condition;
 use crate::asm::Gpr;
@@ -33,7 +34,11 @@ use crate::snapshot::RopeAllocationInfo;
 impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// `ConcatenateStrings`: the concatenation of two strings, or the empty
     /// value, as the key of a property access if `key`. Needs three temps.
-    pub(in crate::codegen) fn emit_concatenate_strings(&mut self, node: NodeId, key: bool) {
+    pub(in crate::codegen) fn emit_concatenate_strings(
+        &mut self,
+        node: NodeId,
+        key: bool,
+    ) -> Result<(), CompileFailure> {
         let (lhs, rhs, output) = (self.input(node, 0), self.input(node, 1), self.output(node));
         let temps = [self.temp(node, 0), self.temp(node, 1), self.temp(node, 2)];
         let (slow, done) = (self.masm.new_label(), self.masm.new_label());
@@ -46,7 +51,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             } else {
                 slow
             };
-            self.emit_concatenation_of_strings(node, [lhs, rhs], temps, key, no_free_cell, slow, done);
+            self.emit_concatenation_of_strings(node, [lhs, rhs], temps, key, no_free_cell, slow, done)?;
         }
         self.masm.bind(slow);
         self.masm.move_imm64(output, value::EMPTY);
@@ -54,6 +59,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         if let Some(resume) = resume {
             self.masm.bind(resume);
         }
+        Ok(())
     }
 
     /// `IntegerToString`: the VM's string of an int32, as
@@ -146,7 +152,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         no_free_cell: Label,
         slow: Label,
         done: Label,
-    ) {
+    ) -> Result<(), CompileFailure> {
         let scratch = self.pinned.scratch;
         let output = self.output(node);
         let rope = self.runtime.rope_allocation;
@@ -190,9 +196,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
         self.emit_count_allocation(rope.cell_size, rope.cell_size, other, false);
 
         let mut fields = self.spare_fields.take();
-        template_fields(&self.snapshot[rope.template], &rope_stored_fields(&rope), &mut fields);
-        self.emit_constant_fields(cell, other, &mut fields)
-            .expect("rope string fields are near the cell");
+        template_fields(
+            &self.snapshot[rope.template],
+            &self.snapshot[rope.template_slots],
+            &rope_stored_fields(&rope),
+            &mut fields,
+        )?;
+        self.emit_constant_fields(cell, other, &mut fields)?;
         self.spare_fields = fields;
         self.masm.store32(&string_length(cell), length);
         // NB: The halves are compressed from their string values, whose tag
@@ -204,6 +214,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
 
         self.masm.bind(short);
         self.emit_short_string_concatenation(node, [lhs, rhs], [cell, other, length], slow, done);
+        Ok(())
     }
 
     /// The string that the concatenation of the strings `lhs` and `rhs` made

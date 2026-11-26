@@ -254,6 +254,10 @@ impl<'a> Assembler<'a> {
         &self.buffer
     }
 
+    pub fn buffer_mut(&mut self) -> &mut CodeBuffer<'a> {
+        &mut self.buffer
+    }
+
     pub fn new_label(&mut self) -> Label {
         self.buffer.new_label()
     }
@@ -680,6 +684,20 @@ impl<'a> Assembler<'a> {
         self.alu_imm(op, width, Rm::Mem(*address), imm);
     }
 
+    /// `op rm, imm32`, with a 32-bit immediate even where an 8-bit one would do, which ends the instruction.
+    fn alu_imm32(&mut self, op: AluOp, width: Width, rm: Rm, imm: i32) {
+        self.emit_instruction(
+            Prefix::None,
+            width == Width::W64,
+            &[0x81],
+            op as u8,
+            rm,
+            ByteRegisters::No,
+            4,
+        );
+        self.buffer.emit_u32(imm as u32);
+    }
+
     fn alu_imm(&mut self, op: AluOp, width: Width, rm: Rm, imm: i32) {
         let w = width == Width::W64;
         if let Ok(imm8) = i8::try_from(imm) {
@@ -747,6 +765,16 @@ impl<'a> Assembler<'a> {
     /// `cmp [address], imm`.
     pub fn cmp_mi(&mut self, width: Width, address: &Address, imm: i32) {
         self.alu_mi(AluOp::Cmp, width, address, imm);
+    }
+
+    /// `cmp [address], imm32`, whose 32-bit immediate is the last 4 bytes of the instruction.
+    pub fn cmp_mi32(&mut self, width: Width, address: &Address, imm: i32) {
+        self.alu_imm32(AluOp::Cmp, width, Rm::Mem(*address), imm);
+    }
+
+    /// `cmp lhs, imm32`, whose 32-bit immediate is the last 4 bytes of the instruction.
+    pub fn cmp_ri32(&mut self, width: Width, lhs: Gpr, imm: i32) {
+        self.alu_imm32(AluOp::Cmp, width, Rm::Reg(lhs.0), imm);
     }
 
     /// `cmp word ptr [address], imm8` (sign-extended to 16 bits). An imm8

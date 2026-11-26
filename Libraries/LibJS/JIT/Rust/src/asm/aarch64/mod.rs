@@ -362,6 +362,10 @@ impl<'a> Assembler<'a> {
         &self.buffer
     }
 
+    pub fn buffer_mut(&mut self) -> &mut CodeBuffer<'a> {
+        &mut self.buffer
+    }
+
     pub fn new_label(&mut self) -> Label {
         self.buffer.new_label()
     }
@@ -513,6 +517,16 @@ impl<'a> Assembler<'a> {
     /// `movk rd, #imm16, lsl #shift`: replaces one halfword.
     pub fn movk(&mut self, width: Width, rd_: Gpr, imm16: u16, shift: u8) {
         self.move_wide(0x7280_0000, width, rd_, imm16, shift);
+    }
+
+    /// `movz rd, #lo; movk rd, #hi, lsl #16` for the 32 bits of `imm`, in one piece without a veneer pool between
+    /// them, so that code which patches the pair finds both. Returns the offset of the `movz`.
+    pub fn mov_imm32_pair(&mut self, rd_: Gpr, imm: u32) -> usize {
+        self.reserve(8);
+        let offset = self.offset();
+        self.movz(Width::W32, rd_, imm as u16, 0);
+        self.movk(Width::W32, rd_, (imm >> 16) as u16, 16);
+        offset
     }
 
     fn move_wide(&mut self, opcode: u32, width: Width, rd_: Gpr, imm16: u16, shift: u8) {

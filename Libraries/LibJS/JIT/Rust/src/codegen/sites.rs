@@ -144,9 +144,16 @@ impl Locations<'_> {
             Location::Register(register) => ValueLocation::Register(register % FPR_BASE, repr),
             Location::Stack(slot) => ValueLocation::Stack((self.stack_slot_offset)(slot), repr),
             Location::Frame(slot) => ValueLocation::Frame(slot),
-            Location::Constant(bits) => match crate::ir::value::virtual_arguments_kind(bits) {
+            Location::Constant(bits, _) => match crate::ir::value::virtual_arguments_kind(bits) {
                 Some(mapped) if repr == Repr::Tagged => ValueLocation::ArgumentsObject { mapped },
-                _ => ValueLocation::Constant(crate::ir::value::boxed_constant(bits, repr)),
+                _ => {
+                    let boxed_repr = if repr == Repr::Pointer {
+                        Repr::Pointer
+                    } else {
+                        Repr::Tagged
+                    };
+                    ValueLocation::Constant(crate::ir::value::boxed_constant(bits, repr), boxed_repr)
+                }
             },
         };
         // NB: Float64 values are in floating point registers, which are not saved.
