@@ -603,6 +603,14 @@ impl BackingStores {
         Some(publication)
     }
 
+    /// The surface of the store that `acquire_render_target` takes next.
+    pub fn surface_of_next_render_target(&self) -> Option<Rc<PaintingSurface>> {
+        self.stores
+            .iter()
+            .find(|store| store.can_be_rendered_into())
+            .map(|store| store.surface.clone())
+    }
+
     pub fn acquire_render_target(&mut self) -> Option<(i32, Rc<PaintingSurface>)> {
         assert!(
             self.rendering_store_index.is_none(),
