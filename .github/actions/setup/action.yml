@@ -117,6 +117,22 @@ runs:
         fi
         clang-cl --version
 
+    - name: 'Put rustup on the PATH'
+      if: ${{ inputs.os == 'macOS' }}
+      shell: bash
+      run: |
+        if command -v rustup > /dev/null 2>&1 ; then
+          exit 0
+        fi
+
+        # The self-hosted macOS runners have rustup installed in the cargo home, but not on their PATH.
+        CARGO_BIN="${CARGO_HOME:-${HOME}/.cargo}/bin"
+        if [ ! -x "${CARGO_BIN}/rustup" ]; then
+          echo "rustup is neither on the PATH nor in ${CARGO_BIN}; install it on this runner" >&2
+          exit 1
+        fi
+        echo "${CARGO_BIN}" >> "${GITHUB_PATH}"
+
     - name: 'Warm up the Rust toolchain'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Windows' }}
       shell: bash
