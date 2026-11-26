@@ -442,6 +442,10 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             // Resolve that waiter here instead of spinning the event loop.
             if (auto pending_preloaded_response = controller->pending_preloaded_response()) {
                 controller->set_pending_preloaded_response(nullptr);
+                // AD-HOC: A fetch stopped, aborted or terminated while main fetch waits ends there, as it has nothing
+                //         left to deliver, so the preload resolves nothing then.
+                if (fetch_params->engine_record()->main_fetch_has_ended())
+                    return;
                 fetch_params->engine_record()->main_fetch_stops_waiting_for_preload();
                 if (auto* registry = controller->registry().ptr())
                     registry->root_fetch(*controller->started_fetch_id(), controller);
@@ -681,9 +685,10 @@ static NonnullRefPtr<PendingResponse> get_response(Infrastructure::FetchParams c
             if (auto pending_preloaded_response = controller->pending_preloaded_response())
                 return *pending_preloaded_response;
 
-            // NB: Nothing can end the wait without the preload entry's callback, so main fetch hands nothing over.
+            // NB: Nothing can end the wait without the preload entry's callback, and a fetch stopped, aborted or
+            //     terminated does not wait, so main fetch hands nothing over.
             auto preload_wait_handle = controller->preload_wait_handle().strong_ref();
-            if (!preload_wait_handle) {
+            if (!preload_wait_handle || fetch_params.engine_record()->is_stopped()) {
                 fetch_params.engine_record()->main_fetch_cannot_hand_over();
                 return PendingResponse::create(fetch_params);
             }
