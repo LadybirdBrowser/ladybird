@@ -1,0 +1,5 @@
+iframe in view: true
+selection in the iframe: "document text"
+selection in the outer document: ""
+after find next from past the outer match: "needle" in the iframe, "" outside
+after find next from a selection in the iframe: in #three
