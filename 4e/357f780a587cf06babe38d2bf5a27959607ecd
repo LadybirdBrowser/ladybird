@@ -1,0 +1,11 @@
+A textPath in Ladybird now follows the referenced path mapped through
+that path element’s own transform, and not through the transforms of
+its ancestors. Blink does the same in LayoutSVGTextPath::LayoutPath(),
+which transforms the path data by the element’s CalculateTransform();
+WebKit in RenderSVGTextPath::layoutPath(), with the shape renderer’s
+computeRendererTransform(); and Gecko in SVGTextFrame::GetTextPath(),
+with the geometry element’s LocalTransform(). In Chrome 158 and
+Firefox 151, the reftest and its reference render identically. And in
+Chrome 158, Firefox 151, and WebKit 26.5, text on a translated path
+gets the bounding box of text on the same path with the translation
+baked into its coordinates.
