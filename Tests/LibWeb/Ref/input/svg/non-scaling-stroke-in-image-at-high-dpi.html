@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script>
+    if (window.internals)
+        internals.setDevicePixelRatio(2);
+</script>
+<link rel="match" href="../../expected/svg/non-scaling-stroke-in-image-at-high-dpi-ref.html" />
+<style>
+    body { margin: 0; }
+    img, div { position: absolute; left: 20px; top: 20px; width: 100px; height: 100px; }
+    div { left: 140px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 10 10'%3E%3Cpath d='M0 5H10' stroke='green' stroke-width='20' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E"); }
+</style>
+<!-- A non-scaling stroke in an SVG image, drawn as replaced content or as a background, is as wide in the image's own CSS pixels at any device pixel ratio. -->
+<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 10 10'%3E%3Cpath d='M0 5H10' stroke='green' stroke-width='20' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E" />
+<div></div>

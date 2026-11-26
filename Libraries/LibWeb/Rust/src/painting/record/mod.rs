@@ -273,7 +273,22 @@ impl<O: Observer> PaintRecorder<'_, O> {
         compositing_and_blending_operator: libgfx_rust::CompositingAndBlendingOperator,
     ) {
         use libgfx_rust::CompositingAndBlendingOperator;
-        let geometry = vector_images::vector_image_render_geometry(dest_rect, accumulated_scale, has_active_view_box);
+        // NB: The destination is in device pixels, and the accumulated scale doesn't include the device pixel ratio.
+        let device_scale = self.inputs.device_pixels_per_css_pixel as f32;
+        let geometry = vector_images::vector_image_render_geometry(
+            libgfx_rust::FloatRect::new(
+                0.0,
+                0.0,
+                dest_rect.width / device_scale,
+                dest_rect.height / device_scale,
+            ),
+            libgfx_rust::FloatSize {
+                width: accumulated_scale.width * device_scale,
+                height: accumulated_scale.height * device_scale,
+            },
+            has_active_view_box,
+            device_scale,
+        );
         let display_list_id = self.vector_image_placeholder(vector_images::VectorImageRenderRequest::new(
             source,
             geometry.css_width,

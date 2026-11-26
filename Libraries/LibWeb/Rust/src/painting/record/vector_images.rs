@@ -129,10 +129,13 @@ fn raster_dimension(local_size: f32, scale: f32) -> i32 {
     ((local_size * positive_scale_or_one(scale)).round() as i32).clamp(1, MAXIMUM_RASTER_DIMENSION)
 }
 
+/// The geometry to render a vector image with, for a destination in CSS pixels and the scale from those to the
+/// raster's pixels, which includes the device pixel ratio.
 pub(crate) fn vector_image_render_geometry(
     dest_rect: FloatRect,
     accumulated_scale: FloatSize,
     has_active_view_box: bool,
+    device_pixels_per_css_pixel: f32,
 ) -> VectorImageRenderGeometry {
     if has_active_view_box {
         // The image is rendered at one scale in both axes, since a viewport of other proportions than those of its
@@ -143,10 +146,14 @@ pub(crate) fn vector_image_render_geometry(
             width: raster_dimension(dest_rect.width, scale),
             height: raster_dimension(dest_rect.height, scale),
         };
+        // NB: The image lays out at the raster's size, so that its content lands on the raster's pixel grid exactly,
+        //     but in CSS pixels of the device pixel ratio, so that what it measures in CSS pixels, like a non-scaling
+        //     stroke, keeps its size at any device pixel ratio.
+        let device_scale = positive_scale_or_one(device_pixels_per_css_pixel);
         return VectorImageRenderGeometry {
-            css_width: CssPixels::from_integer(i64::from(raster_size.width)),
-            css_height: CssPixels::from_integer(i64::from(raster_size.height)),
-            raster_scale: 1.0,
+            css_width: CssPixels::nearest_value_for_f32(raster_size.width as f32 / device_scale),
+            css_height: CssPixels::nearest_value_for_f32(raster_size.height as f32 / device_scale),
+            raster_scale: device_scale,
             list_size: raster_size,
         };
     }
@@ -180,6 +187,7 @@ mod tests {
                 height: scale_y,
             },
             has_active_view_box,
+            2.0,
         );
         (geometry.list_size.width, geometry.list_size.height)
     }

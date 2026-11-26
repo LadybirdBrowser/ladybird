@@ -288,6 +288,7 @@ fn paint_vector_border_image_slice<O: Observer>(
             height: scale,
         },
         image.has_active_view_box,
+        recorder.inputs.device_pixels_per_css_pixel as f32,
     );
     let rendered_scale = FloatSize {
         width: geometry.list_size.width as f32 / image.width,
