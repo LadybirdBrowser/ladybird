@@ -1,0 +1,9 @@
+Ladybird now copies a selection as the text the page shows, with its
+whitespace collapsed as rendered and with no text that isn’t visible,
+which is what Selection.toString() already returned. Chrome 158,
+Firefox 151 and WebKit 26.5, run through their real copy and paste,
+do the same: Each pasted “Read this as one sentence.” for a sentence
+broken over source lines, and left out a “visibility: hidden” “¶”
+link after a heading. They differ in what separates blocks (Chrome
+pasted one newline between the heading and paragraph, Firefox and
+WebKit two), which this change leaves as it was.
