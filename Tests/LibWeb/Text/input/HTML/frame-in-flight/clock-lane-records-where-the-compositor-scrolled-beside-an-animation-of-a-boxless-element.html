@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    body > div { height: 500px; }
+    body > div:nth-child(odd) { background: #cde; }
+</style>
+<body>
+<div style="display: none"><span id="hidden">hidden</span></div>
+<script>
+    // An animation of an element with no box has a style record of its own that no box of the frame reads. The lane
+    // still records the frame where the compositor scrolled to, further than the display list it has reaches, while a
+    // task blocks the main thread.
+    for (let i = 0; i < 12; ++i) {
+        const block = document.createElement("div");
+        block.textContent = "block " + i;
+        document.body.appendChild(block);
+    }
+    asyncTest(async done => {
+        hidden.animate([{ color: "black" }, { color: "blue" }], { duration: 1000000, easing: "linear" });
+        await twoFramesLanded();
+        const laneState = internals.clockLaneState(document);
+        const windowBefore = internals.displayListWindowScrollPositions(document);
+        internals.wheelThroughUIProcess(50, 300, 0, 3000, true);
+        while (internals.displayListWindowScrollPositions(document) === windowBefore);
+        const presentedBy = internals.lastFramePresentedBy(document);
+        const windowAfter = internals.displayListWindowScrollPositions(document);
+        const scrollYOnTheMainThread = window.scrollY;
+        const scrollYOnTheCompositor = internals.compositorScrollState().scrollOffset.y;
+        println(`the lane before the wheel: ${laneState}`);
+        println(`the display list before the wheel was recorded around: ${windowBefore || "(0, 0)"}`);
+        println(`frame presented beside the task by: ${presentedBy}`);
+        println(`its display list was recorded around: ${windowAfter}`);
+        println(`the page is scrolled to ${scrollYOnTheMainThread} on the main thread`);
+        println(`the page is scrolled to ${scrollYOnTheCompositor} on the compositor`);
+        done();
+    });
+</script>

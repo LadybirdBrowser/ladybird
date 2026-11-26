@@ -527,7 +527,8 @@ impl LaneSlot {
             return;
         }
         if let Lanes::Newest(lane) = &mut self.lanes {
-            lane.record_where_scrolled(scrolled);
+            // The host records the document's frame again after a frame of the lane's fork, as after a tick's.
+            self.presented |= lane.record_where_scrolled(self.ticks.document, scrolled);
         }
     }
 
