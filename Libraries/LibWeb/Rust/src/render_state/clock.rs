@@ -230,6 +230,10 @@ pub(crate) struct Lane {
     frame_left_to_host: bool,
     /// Whether a tick had a frame presented.
     presented_a_tick: bool,
+    /// Where the compositor scrolled to past what the display list it showed held, as it said last, by the identity of
+    /// each scroll container's node. Every later frame of the lane is recorded there, as the state the lane ticks on
+    /// has the scroll containers where the host left them.
+    scrolled_past_display_list: Vec<(i64, CssPixelPoint)>,
     /// What the lane's hover moved.
     hovered: hover::LaneHover,
     /// What the move a tick's hover made started, with the time it made it at, until the tick presents the frame that
@@ -557,10 +561,10 @@ impl CommittedFrame {
 /// The frame the lane of a committed frame keeps, to record it again where the compositor scrolled to while the host is
 /// busy, or none where a lease on the style records its rows name would not keep all it reads.
 fn held_for_lane(state: &mut RenderState, frame: &PublishedFrame, viewport: NodeSlotId) -> Option<HeldFrame> {
-    if frame.paint_state().visual_context_tree.is_none()
-        || state.engine_ref().has_animation_overlay_records()
-        || state.arena_mut().names_uninstalled_style_records()
-    {
+    // NB: The lease keeps the installed records the rows name, and every record holds a counted reference to each of its
+    //     groups. So only a row that names an animation overlay record reads what the lease does not keep, and the
+    //     overlay records of elements whose rows name none, such as those with no box, do not stand in the way.
+    if frame.paint_state().visual_context_tree.is_none() || state.arena_mut().names_uninstalled_style_records() {
         return None;
     }
     let style_records = state
@@ -1258,6 +1262,7 @@ impl Lane {
             parked,
             frame_left_to_host: false,
             presented_a_tick: false,
+            scrolled_past_display_list: Vec::new(),
             hovered: hover::LaneHover::default(),
             unshown_move: None,
             samples_restored: false,
@@ -1334,16 +1339,26 @@ impl Lane {
         }
     }
 
-    /// Has the Paint thread record the lane's held frame where `scrolled` says the compositor scrolled to, and present
-    /// it, while no tick presented a frame of the lane.
-    pub(super) fn record_where_scrolled(&mut self, scrolled: Vec<(i64, CssPixelPoint)>) {
+    /// Has the Paint thread record the frame the lane shows where `scrolled` says the compositor scrolled to, and
+    /// present it: the lane's held frame while no tick presented a frame of the lane, and otherwise the frame of its
+    /// fork of the render state of `document`, which it forks where the state still shows its frame. Answers whether
+    /// it presents a frame of the fork, after which the host records the document's frame again, as after a tick.
+    pub(super) fn record_where_scrolled(&mut self, document: DocumentId, scrolled: Vec<(i64, CssPixelPoint)>) -> bool {
+        self.scrolled_past_display_list.clone_from(&scrolled);
+        if self.frame_left_to_host {
+            return false;
+        }
         if self.presented_a_tick {
-            return;
+            return self.record_fork_where_scrolled();
         }
         let clock_recorder = self.recording.0.take(WaitsForTickRecording(()));
         if clock_recorder.held_frame.is_none() {
             self.recording = TickRecording(Riding::landed(clock_recorder));
-            return;
+            // NB: A frame with a row that names an animation overlay record is not held, as the lease of a held frame
+            //     does not keep that record. A fork does. A lane that recorded a frame of its fork holds none either,
+            //     and forks again where a rendering update that presented no frame dropped its fork.
+            self.state.fork(document);
+            return self.record_fork_where_scrolled();
         }
         let turn = SamplingTurn(());
         let scrolled = SampledFrame::new(&turn, scrolled);
@@ -1351,6 +1366,33 @@ impl Lane {
             scrolled,
             move |scrolled, presenting| clock_recorder.record_where_scrolled(scrolled, presenting),
         ));
+        false
+    }
+
+    /// Has the Paint thread record the frame of the lane's fork, which the last tick that presented one left as the
+    /// screen shows it, where the compositor said it scrolled to, and present it, and answers whether it does. Nothing
+    /// is presented where the lane has no fork, or where the fork's frame does not freeze for a tick.
+    fn record_fork_where_scrolled(&mut self) -> bool {
+        let (mut fork, state_moved_on) = match std::mem::take(&mut self.state) {
+            LaneState::Forked { fork, state_moved_on } => (fork, state_moved_on),
+            state => {
+                self.state = state;
+                return false;
+            }
+        };
+        let turn = SamplingTurn(());
+        // The frame shows the records the ticks showed in the boxes they built, as a tick's frame does.
+        fork.engine_mut().lend_tick_shown(std::mem::take(&mut self.shown));
+        let presented = self.record_and_present(&mut fork, &turn).is_ok();
+        self.shown = fork.engine_mut().take_tick_shown();
+        if !presented {
+            // NB: A frame that does not freeze is the host's, as that of a tick is. The host records where the
+            //     compositor scrolled to itself.
+            self.leave_frame_to_host();
+        }
+        fork.engine_mut().free_style_records_after_tick();
+        self.state = LaneState::Forked { fork, state_moved_on };
+        presented
     }
 
     /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds` and where the compositor has scrolled
@@ -1638,29 +1680,9 @@ impl Lane {
     /// whose visual contexts only the host settles, or whose trace the host reads, is the host's to present, and so is
     /// any frame after one that renders an SVG image.
     fn present(&mut self, state: &mut RenderState, turn: &SamplingTurn) -> Result<(), Park> {
-        let mut clock_recorder = self.recording.0.take(WaitsForTickRecording(()));
+        self.record_and_present(state, turn)?;
+        self.presented_a_tick = true;
         let arena = state.arena.arena_mut();
-        match freeze_tick_frame(arena, &mut clock_recorder) {
-            Ok((frozen, inputs, visual_contexts)) => {
-                let frame = SampledFrame::new(
-                    turn,
-                    RecordedFrame {
-                        frozen,
-                        viewport: arena.layout_root(),
-                        inputs,
-                        visual_contexts,
-                    },
-                );
-                self.recording = TickRecording(crate::paint_stage::ride_presenting(frame, move |frame, presenting| {
-                    clock_recorder.record(frame, presenting)
-                }));
-                self.presented_a_tick = true;
-            }
-            Err(park) => {
-                self.recording = TickRecording(Riding::landed(clock_recorder));
-                return Err(park);
-            }
-        }
         let rows = arena.paintable_rows();
         self.presented_border_boxes.clear();
         let installed = self
@@ -1688,6 +1710,17 @@ impl Lane {
                     return None;
                 }
                 let element = arena.dom_node_style_node(scroll.paintable)?;
+                // The frame was recorded where the compositor scrolled the scroll container to, if it said so.
+                let identity = rows.paintable_row_is_populated(scroll.paintable).then(|| {
+                    crate::painting::paint_read::GeometryRead::paintable_data(&rows, scroll.paintable).node_identity
+                });
+                if let Some(&(_, position)) = self
+                    .scrolled_past_display_list
+                    .iter()
+                    .find(|(scroller, _)| Some(*scroller) == identity)
+                {
+                    return Some((element, position));
+                }
                 let offset = scroll_state.own_offset(slot);
                 Some((element, CssPixelPoint::new(-offset.x, -offset.y)))
             }));
@@ -1750,6 +1783,38 @@ impl Lane {
             }
         }
         Ok(())
+    }
+
+    /// Takes the frame the last tick presented in, and has the Paint thread record the frame of `state` and present it
+    /// beside the event loop and the next tick, with its scroll containers where the compositor scrolled them to past
+    /// the display list it showed, if it said so. The compositor is sent no other offsets than the state has.
+    fn record_and_present(&mut self, state: &mut RenderState, turn: &SamplingTurn) -> Result<(), Park> {
+        let mut clock_recorder = self.recording.0.take(WaitsForTickRecording(()));
+        let arena = state.arena.arena_mut();
+        match freeze_tick_frame(arena, &mut clock_recorder) {
+            Ok((mut frozen, inputs, visual_contexts)) => {
+                if !self.scrolled_past_display_list.is_empty() {
+                    frozen.frame.scroll_to_where_scrolled(&self.scrolled_past_display_list);
+                }
+                let frame = SampledFrame::new(
+                    turn,
+                    RecordedFrame {
+                        frozen,
+                        viewport: arena.layout_root(),
+                        inputs,
+                        visual_contexts,
+                    },
+                );
+                self.recording = TickRecording(crate::paint_stage::ride_presenting(frame, move |frame, presenting| {
+                    clock_recorder.record(frame, presenting)
+                }));
+                Ok(())
+            }
+            Err(park) => {
+                self.recording = TickRecording(Riding::landed(clock_recorder));
+                Err(park)
+            }
+        }
     }
 }
 

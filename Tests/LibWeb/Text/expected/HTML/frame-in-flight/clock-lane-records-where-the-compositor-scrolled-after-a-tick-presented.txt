@@ -1,0 +1,8 @@
+the tick's frame was presented by: clock
+the display list of the tick's frame was recorded around: (0, 0)
+frame presented beside the task by: clock
+its display list was recorded around: (0, 3000)
+a later tick presented a frame with a taller box: true
+the display list of the later tick's frame was recorded around: (0, 3000)
+the page is scrolled to 0 on the main thread
+the page is scrolled to 3000 on the compositor

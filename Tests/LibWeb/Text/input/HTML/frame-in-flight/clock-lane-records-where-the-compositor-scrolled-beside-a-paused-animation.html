@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    body > div { height: 500px; }
+    body > div:nth-child(odd) { background: #cde; }
+    #box { position: fixed; top: 0; left: 0; width: 50px; height: 50px; background: blue; }
+</style>
+<body>
+<div id="box"></div>
+<script>
+    // The box of a paused animation reads the style record the animation gave it, which is not one of the installed
+    // records that a held frame keeps. The lane still records its frame where the compositor scrolled to, further than
+    // the display list it has reaches, while a task blocks the main thread.
+    for (let i = 0; i < 12; ++i) {
+        const block = document.createElement("div");
+        block.textContent = "block " + i;
+        document.body.appendChild(block);
+    }
+    asyncTest(async done => {
+        const animation = box.animate([{ color: "black" }, { color: "blue" }], { duration: 1000, easing: "linear" });
+        animation.pause();
+        animation.currentTime = 500;
+        await twoFramesLanded();
+        const laneState = internals.clockLaneState(document);
+        const windowBefore = internals.displayListWindowScrollPositions(document);
+        internals.wheelThroughUIProcess(50, 300, 0, 3000, true);
+        while (internals.displayListWindowScrollPositions(document) === windowBefore);
+        const presentedBy = internals.lastFramePresentedBy(document);
+        const windowAfter = internals.displayListWindowScrollPositions(document);
+        const scrollYOnTheMainThread = window.scrollY;
+        const scrollYOnTheCompositor = internals.compositorScrollState().scrollOffset.y;
+        println(`the lane before the wheel: ${laneState}`);
+        println(`the display list before the wheel was recorded around: ${windowBefore || "(0, 0)"}`);
+        println(`frame presented beside the task by: ${presentedBy}`);
+        println(`its display list was recorded around: ${windowAfter}`);
+        println(`the page is scrolled to ${scrollYOnTheMainThread} on the main thread`);
+        println(`the page is scrolled to ${scrollYOnTheCompositor} on the compositor`);
+        done();
+    });
+</script>
