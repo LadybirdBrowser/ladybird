@@ -8,7 +8,7 @@
 //! tile, each in the groups that place and clip it, and the surfaces it shows the overlays of the compositor from. A
 //! window server that does not show tiles shows a painted layer from one surface that the tiles are copied into.
 
-use super::layers::{LayerCompositingInFrame, PaintedLayers};
+use super::layers::{CompositionStep, LayerCompositingInFrame, PaintedLayers, walk_composition};
 use super::tiles::TileDraw;
 use super::{
     ContextPresenting, FrameToPaint, PresentingEnvironment, rect_of_raster_shown_through, rect_of_size, size_of,
@@ -695,42 +695,44 @@ impl ContextPresenting {
             .raster_to_frame
             .is_none_or(AffineTransform::is_whole_pixel_translation);
         let rect_of_raster_shown = rect_of_raster_shown_through(painted.raster_to_frame, self.raster_rect());
-        let mut entered_composited_bands_and_their_groups: Vec<(BandIndex, i32)> = Vec::new();
-        let mut composited_bands_around_layer: Vec<BandIndex> = Vec::new();
-        for compositing in painted
+        let mut groups_of_entered_composited_bands: Vec<i32> = Vec::new();
+        let layers_shown = painted
             .compositing_of_layers
             .iter()
             .filter(|compositing| compositing.shown_by_window_server)
-            .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity))
-        {
+            .filter(|compositing| !self.layer_overlay.hides_layer(&compositing.identity));
+        let innermost_group_index = |groups_of_entered_composited_bands: &[i32]| {
+            groups_of_entered_composited_bands
+                .last()
+                .copied()
+                .unwrap_or(index_of_group_of_raster)
+        };
+        walk_composition(&painted.stack, layers_shown, |step| {
+            let compositing = match step {
+                CompositionStep::EnterBandOfCompositedEffect(band_index) => {
+                    let index_of_group_around = innermost_group_index(&groups_of_entered_composited_bands);
+                    groups_of_entered_composited_bands.push(Self::append_groups_of_composited_band(
+                        &mut sublayers,
+                        painted,
+                        band_index,
+                        index_of_group_around,
+                    ));
+                    return;
+                }
+                CompositionStep::LeaveInnermostBandEntered => {
+                    groups_of_entered_composited_bands.pop();
+                    return;
+                }
+                CompositionStep::Layer(compositing) => compositing,
+            };
             let layer_index = compositing.layer_index;
             let layer = compositing.layer_in(&painted.stack);
-            composited_bands_around_layer.clear();
-            composited_bands_around_layer
-                .extend(painted.stack.composited_bands_around_layer_innermost_first(layer_index));
-            composited_bands_around_layer.reverse();
-            let count_of_bands_still_entered = entered_composited_bands_and_their_groups
-                .iter()
-                .zip(&composited_bands_around_layer)
-                .take_while(|((entered_band, _), band_around_layer)| entered_band == *band_around_layer)
-                .count();
-            entered_composited_bands_and_their_groups.truncate(count_of_bands_still_entered);
-            for &band_index in &composited_bands_around_layer[count_of_bands_still_entered..] {
-                let index_of_group_around = entered_composited_bands_and_their_groups
-                    .last()
-                    .map_or(index_of_group_of_raster, |(_, group_index)| *group_index);
-                let index_of_group_of_effect =
-                    Self::append_groups_of_composited_band(&mut sublayers, painted, band_index, index_of_group_around);
-                entered_composited_bands_and_their_groups.push((band_index, index_of_group_of_effect));
-            }
-            let group_index = entered_composited_bands_and_their_groups
-                .last()
-                .map_or(index_of_group_of_raster, |(_, group_index)| *group_index);
+            let group_index = innermost_group_index(&groups_of_entered_composited_bands);
             if let (LayerContent::Media { .. }, LayerIdentity::Media { content, ordinal }) =
                 (&layer.content, layer.identity)
             {
                 let Some(Ok(placement)) = painted.window_server_placements_of_media.of_layer(layer_index) else {
-                    continue;
+                    return;
                 };
                 let (kind, id, sublayer_identity_of_media, has_content) = match content {
                     LiveMedia::Canvas(id) => (
@@ -754,10 +756,10 @@ impl ContextPresenting {
                     LiveMedia::ImageFrame(_)
                     | LiveMedia::CompositedContext(_)
                     | LiveMedia::Caret
-                    | LiveMedia::ScrollBar { .. } => continue,
+                    | LiveMedia::ScrollBar { .. } => return,
                 };
                 if !has_content {
-                    continue;
+                    return;
                 }
                 sublayers.push(FfiSublayer {
                     group_index,
@@ -769,7 +771,7 @@ impl ContextPresenting {
                         kind,
                     )
                 });
-                continue;
+                return;
             }
             if let LayerContent::OwnSurface { .. } = layer.content {
                 if let Some((surface, rect_in_layer_space)) = self.layers.tiles.own_surface_of(&compositing.identity) {
@@ -788,7 +790,7 @@ impl ContextPresenting {
                         raster_moves_by_whole_pixels_only,
                     );
                 }
-                continue;
+                return;
             }
             if painted.window_server_compositing.shows_tiles_of_painted_layers {
                 let draws = self.layers.tiles.draws_reaching_into(compositing, rect_of_raster_shown);
@@ -799,13 +801,13 @@ impl ContextPresenting {
                     group_index,
                     raster_moves_by_whole_pixels_only,
                 );
-                continue;
+                return;
             }
             let Some(presentation) = layers.presentation_by_layer.get(&compositing.identity) else {
-                continue;
+                return;
             };
             let Some(surface) = &presentation.latest_surface else {
-                continue;
+                return;
             };
             let mut sublayer = FfiSublayer {
                 group_index: index_of_group_of_raster,
@@ -819,7 +821,7 @@ impl ContextPresenting {
                 sublayer.placement.scaling_mode = ScalingMode::Bilinear;
             }
             sublayers.push(sublayer);
-        }
+        });
         if let Some((surface, rect_in_frame)) = &layers.latest_compositor_overlays_surface_and_rect {
             sublayers.push(unclipped_untransformed_surface_sublayer(
                 COMPOSITOR_OVERLAY_SUBLAYER_IDENTITY,
