@@ -201,7 +201,10 @@ be immediates, which need fixed registers, what it clobbers and where its output
 and temps are placed first; an input of the same node in the way moves to another free register.
 When no register is free, the value used furthest in the future is evicted. Inside a loop, the
 values the rest of the iteration uses come first, then those the next iteration reads, then those
-used after the loop. Values first used by a call argument or a return value prefer that register.
+used after the loop. Values first used by a call argument or a return value prefer that register. A
+value a loop's back edge carries into a phi of its header prefers the phi's register, so that the
+edge moves nothing: it takes it where it is free, or where an input dying there is the first one, or
+either one of an integer add, and, or, xor or mul.
 
 **Spilling** happens at the definition: a value that ever needs a stack slot gets one for its whole
 life, and code generation stores it right after defining it, so a slot always holds its value once
