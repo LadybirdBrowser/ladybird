@@ -1,0 +1,12 @@
+editor:
+  extend forward: "A "@2 to "B"@0, "★"
+  move forward: "B"@0 to "B"@0, ""
+  extend backward: "B"@0 to "A "@2, "★"
+  move backward: "A "@2 to "A "@2, ""
+  Shift+Right: "A "@2 to "B"@0, "★"
+empty:
+  extend forward: "A "@2 to "B"@0, ""
+  move forward: "B"@0 to "B"@0, ""
+  extend backward: "B"@0 to "A "@2, ""
+  move backward: "A "@2 to "A "@2, ""
+  Shift+Right: "A "@2 to "B"@0, ""
