@@ -1,0 +1,16 @@
+Ladybird now guesses http for a typed host with no known public suffix,
+and keeps https for a host that is itself a suffix. That’s the rule both
+Chrome and Firefox use to decide what not to upgrade to https. Chrome’s
+AutocompleteInput::ShouldUpgradeToHttps() never upgrades an IP address
+or a host that net::IsHostnameNonUnique() reports, which is any host
+without an ICANN registry-controlled suffix, but not a registry name
+such as “host” itself. Firefox’s HTTPS-First, schemeless typed input
+included, skips any host for which the function nsHTTPSOnlyUtils::
+UnknownPublicSuffixException() holds: one with no suffix that its
+HasKnownPublicSuffix() knows. In Chrome 158’s chrome://omnibox, typed
+devbox:8080, nas.local, printer.home.arpa and box.internal:3000 all
+resolve to http URLs before any upgrade, while a bare devbox, router.lan
+and box.localdomain with no port are searches. Chrome treats the name
+printer.home.arpa as unique, since home.arpa is on the public suffix
+list, so it keeps the https guess here too. Safari’s URL guessing isn’t
+open source, so WebKit wasn’t compared.
