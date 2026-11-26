@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibIPC/ConnectionToServer.h>
+#include <LibWebView/ChildIdentity.h>
 #include <LibWebView/Export.h>
 #include <VideoDecoderServer/VideoDecoderServerControlClientEndpoint.h>
 #include <VideoDecoderServer/VideoDecoderServerControlEndpoint.h>
@@ -23,8 +24,13 @@ public:
     explicit VideoDecoderServerControlClient(NonnullOwnPtr<IPC::Transport>);
     virtual ~VideoDecoderServerControlClient() override;
 
+    u64 child_id() const { return m_child_identity.child_id; }
+    void set_child_identity(ChildIdentity identity) { m_child_identity = identity; }
+
 private:
     virtual void die() override;
+
+    ChildIdentity m_child_identity;
 };
 
 }

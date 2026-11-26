@@ -106,6 +106,15 @@ void Client::request_video_decoder_server_connection(u64 request_id)
     });
 }
 
+void Client::video_decoder_server_unresponsive()
+{
+    if (!on_video_decoder_server_unresponsive) {
+        dbgln("A MediaServer reported an unresponsive VideoDecoderServer to a non-controller");
+        return;
+    }
+    on_video_decoder_server_unresponsive();
+}
+
 u64 Client::allocate_id()
 {
     return m_next_id++;

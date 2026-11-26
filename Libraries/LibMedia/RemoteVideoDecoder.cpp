@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/ScopeGuard.h>
 #include <AK/ThreadID.h>
 #include <AK/ThreadSafeWeakable.h>
 #include <AK/Vector.h>
@@ -27,7 +28,6 @@ namespace Media {
 
 static constexpr size_t MINIMUM_RING_SIZE = 4 * MiB;
 static constexpr size_t MAXIMUM_RING_SIZE = 256 * MiB;
-static constexpr AK::Duration SERVER_SILENCE_UNTIL_TREATED_AS_LOST = AK::Duration::from_seconds(10);
 
 namespace {
 
@@ -90,6 +90,8 @@ struct RemoteVideoDecoder::State : public AtomicRefCounted<State> {
 
     Vector<Output> outputs;
     Vector<SubmissionInFlight> submissions_in_flight;
+    // When the server last showed that it is not stuck, by answering or by being given something new to answer.
+    MonotonicTime last_progress_time { MonotonicTime::now_coarse() };
     bool server_decoder_has_any_decode_in_progress { false };
     Optional<DecoderError> failure;
     bool drained { false };
@@ -108,7 +110,15 @@ struct RemoteVideoDecoder::State : public AtomicRefCounted<State> {
     // Returns whether the server was waiting for storage, so that the storage freed callback must be called.
     [[nodiscard]] bool clear_server_wait_for_storage_while_locked()
     {
-        return exchange(server_is_waiting_for_storage, false);
+        if (!exchange(server_is_waiting_for_storage, false))
+            return false;
+        note_progress_while_locked();
+        return true;
+    }
+
+    void note_progress_while_locked()
+    {
+        last_progress_time = MonotonicTime::now_coarse();
     }
 
     // Returns whether the server was waiting for this release, so that the storage freed callback must be called.
@@ -137,6 +147,8 @@ struct RemoteVideoDecoder::State : public AtomicRefCounted<State> {
 namespace {
 
 NeverDestroyed<RemoteVideoDecoder::TransportRequester> s_transport_requester;
+NeverDestroyed<RemoteVideoDecoder::UnresponsiveServerReporter> s_unresponsive_server_reporter;
+Atomic<i64> s_milliseconds_without_progress_until_server_is_stuck { 10'000 };
 Core::EventLoop* s_transport_requester_event_loop { nullptr };
 AK::ThreadID s_transport_requester_thread_id;
 
@@ -267,16 +279,23 @@ public:
         s_transport_request_condition->broadcast();
     }
 
-    // Shuts the connection down on its own thread, where its death is handled, for a caller that found the server
-    // unresponsive from any other thread.
+    // Reports the server and shuts the connection down on its own thread, where its death is handled, for a caller
+    // that found the server stuck from any other thread. The report is posted before the death is handled, so that it
+    // reaches the reporter's event loop before any request for a replacement.
     static void disconnect_from_unresponsive_server(ThreadSafeWeakRef<VideoDecoderClientConnection> connection)
     {
         connection_thread().event_loop->deferred_invoke([connection = move(connection)] {
             // Shutting down revokes the weak reference, so it happens outside the reference's lock.
             RefPtr<VideoDecoderClientConnection> strong_connection;
             connection.with_target([&](auto& target) { strong_connection = target; });
-            if (strong_connection)
-                strong_connection->shutdown();
+            if (!strong_connection || strong_connection != *s_connection)
+                return;
+            if (*s_unresponsive_server_reporter) {
+                s_transport_requester_event_loop->deferred_invoke([] {
+                    (*s_unresponsive_server_reporter)();
+                });
+            }
+            strong_connection->shutdown();
         });
     }
 
@@ -438,6 +457,7 @@ private:
             if (generation != state.generation)
                 return {};
             auto storage_was_freed = state.clear_server_wait_for_storage_while_locked();
+            state.note_progress_while_locked();
             state.outputs.append({ frame.release_nonnull() });
             return { .has_something_to_take = true, .storage_was_freed = storage_was_freed };
         });
@@ -457,6 +477,7 @@ private:
         with_decoder(decoder_id, [&](RemoteVideoDecoder::State& state) -> CallerWakeup {
             if (!state.submissions_in_flight.is_empty())
                 state.submissions_in_flight.remove(0);
+            state.note_progress_while_locked();
             return {};
         });
     }
@@ -475,6 +496,7 @@ private:
             if (generation != state.generation)
                 return {};
             auto storage_was_freed = state.clear_server_wait_for_storage_while_locked();
+            state.note_progress_while_locked();
             if (!state.failure.has_value())
                 state.failure = move(error);
             return { .has_something_to_take = true, .storage_was_freed = storage_was_freed };
@@ -487,6 +509,7 @@ private:
             if (generation != state.generation)
                 return {};
             auto storage_was_freed = state.clear_server_wait_for_storage_while_locked();
+            state.note_progress_while_locked();
             state.drained = true;
             return { .has_something_to_take = true, .storage_was_freed = storage_was_freed };
         });
@@ -502,9 +525,15 @@ NeverDestroyed<Optional<ThreadSafeWeakRef<VideoDecoderClientConnection>>> VideoD
 
 }
 
-void RemoteVideoDecoder::set_transport_requester(TransportRequester requester)
+void RemoteVideoDecoder::set_time_without_progress_until_server_is_stuck(AK::Duration duration)
+{
+    s_milliseconds_without_progress_until_server_is_stuck.store(duration.to_milliseconds(), AK::MemoryOrder::memory_order_relaxed);
+}
+
+void RemoteVideoDecoder::set_server_broker(TransportRequester requester, UnresponsiveServerReporter reporter)
 {
     *s_transport_requester = move(requester);
+    *s_unresponsive_server_reporter = move(reporter);
     s_transport_requester_event_loop = &Core::EventLoop::current();
     s_transport_requester_thread_id = AK::ThreadID::current();
 }
@@ -587,6 +616,7 @@ DecoderErrorOr<void> RemoteVideoDecoder::start_server_decoder()
         m_state->connection_was_lost = false;
         m_state->connection = connection;
         m_state->decoder_id = decoder_id;
+        m_state->note_progress_while_locked();
         generation = m_state->generation;
     }
     m_ring = {};
@@ -702,6 +732,7 @@ DecoderErrorOr<void> RemoteVideoDecoder::receive_coded_data(CodedFrame const& co
 
     MutexLocker locker { m_state->mutex };
     m_state->submissions_in_flight.append({ m_ring_serial, ring_offset, coded_frame.data().size(), m_state->generation });
+    m_state->note_progress_while_locked();
     m_state->connection.with_target([&](auto& connection) {
         connection.async_submit_coded_frame(m_state->decoder_id, m_state->generation, ring_offset, coded_frame.data().size(), coded_frame.presentation_timestamp(), coded_frame.decode_timestamp(), coded_frame.duration(), coded_frame.flags(), coded_frame.maximum_scene_luminance(), move(new_codec_configuration), intent, m_output_target);
     });
@@ -713,6 +744,7 @@ void RemoteVideoDecoder::signal_end_of_stream()
     m_reached_end_of_stream = true;
     MutexLocker locker { m_state->mutex };
     m_state->drained = false;
+    m_state->note_progress_while_locked();
     m_state->connection.with_target([&](auto& connection) {
         connection.async_signal_end_of_stream(m_state->decoder_id, m_state->generation);
     });
@@ -722,6 +754,9 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> RemoteVideoDecoder::take_next_output(C
 {
     // The server hears of the target with the next submission, which follows the flush that any new target comes after.
     m_output_target = target;
+
+    auto time_without_progress_until_stuck = AK::Duration::from_milliseconds(s_milliseconds_without_progress_until_server_is_stuck.load(AK::MemoryOrder::memory_order_relaxed));
+    auto server_was_found_stuck = false;
 
     Optional<State::Output> output;
     {
@@ -752,12 +787,20 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> RemoteVideoDecoder::take_next_output(C
             if (m_state->server_is_waiting_for_storage)
                 return DecoderError::with_description(DecoderErrorCategory::TryAgain, "Every slot of the video decoder server is held"sv);
             m_state->caller_is_waiting_for_output = true;
-            auto server_answered = m_state->server_decoder_state_changed.wait_for(SERVER_SILENCE_UNTIL_TREATED_AS_LOST);
-            m_state->caller_is_waiting_for_output = false;
-            if (!server_answered) {
-                dbgln("The video decoder server has answered nothing for {} seconds, disconnecting.", SERVER_SILENCE_UNTIL_TREATED_AS_LOST.to_seconds());
-                VideoDecoderClientConnection::disconnect_from_unresponsive_server(m_state->connection);
+            ScopeGuard stop_waiting = [&] { m_state->caller_is_waiting_for_output = false; };
+            // Once the server is found stuck, its connection's death ends the wait.
+            if (server_was_found_stuck) {
+                m_state->server_decoder_state_changed.wait();
+                continue;
             }
+            auto time_until_stuck = m_state->last_progress_time + time_without_progress_until_stuck - MonotonicTime::now_coarse();
+            if (time_until_stuck > AK::Duration::zero()) {
+                (void)m_state->server_decoder_state_changed.wait_for(time_until_stuck);
+                continue;
+            }
+            dbgln("The video decoder server has made no progress for {} ms, disconnecting.", time_without_progress_until_stuck.to_milliseconds());
+            server_was_found_stuck = true;
+            VideoDecoderClientConnection::disconnect_from_unresponsive_server(m_state->connection);
         }
     }
 
@@ -781,6 +824,7 @@ void RemoteVideoDecoder::flush()
     m_state->failure.clear();
     m_state->drained = false;
     m_state->server_is_waiting_for_storage = false;
+    m_state->note_progress_while_locked();
     m_state->connection.with_target([&](auto& connection) {
         connection.async_flush(m_state->decoder_id, m_state->generation);
     });

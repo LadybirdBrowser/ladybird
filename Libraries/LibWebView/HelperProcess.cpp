@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
@@ -21,6 +22,7 @@
 #include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ImageDecoderControlClient.h>
+#include <LibWebView/RecentLossCounter.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/VideoDecoderServerControlClient.h>
@@ -502,8 +504,32 @@ ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owne
 
 static NeverDestroyed<Vector<WeakPtr<VideoDecoderServerControlClient>>> s_video_decoder_servers;
 
+// A GPU driver failure tends to take every running VideoDecoderServer with it, some by crashing and others by stalling
+// until they are found stuck, so the window covers the time it takes to find one stuck.
+static NeverDestroyed<RecentLossCounter> s_recent_video_decoder_server_losses {
+    3u, AK::Duration::from_seconds(45), AK::Duration::from_seconds(15)
+};
+static NeverDestroyed<HashMap<u64, RecentLossCounter::Epoch>> s_launch_epochs_of_video_decoder_servers;
+
+static void video_decoder_server_was_lost(u64 child_id)
+{
+    if (auto launch_epoch = s_launch_epochs_of_video_decoder_servers->take(child_id); launch_epoch.has_value())
+        s_recent_video_decoder_server_losses->record_loss(MonotonicTime::now_coarse(), *launch_epoch);
+}
+
+void video_decoder_server_exited(u64 child_id, bool was_lost)
+{
+    if (was_lost)
+        video_decoder_server_was_lost(child_id);
+    s_launch_epochs_of_video_decoder_servers->remove(child_id);
+}
+
 ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_server_process(u64 owner_child_id, IsPrivate is_private, Optional<Gfx::GpuDeviceIdentity> const& gpu_device_identity)
 {
+    // The MediaServers decode in software instead until enough time has passed without losses.
+    if (s_recent_video_decoder_server_losses->is_at_maximum(MonotonicTime::now_coarse()))
+        return Error::from_string_literal("VideoDecoderServers were lost too often recently");
+
     auto const& browser_options = WebView::Application::browser_options();
 
     Vector<ByteString> arguments;
@@ -522,6 +548,7 @@ ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_ser
     }
 
     auto server = TRY(launch_server_process_for<VideoDecoderServerControlClient>(owner_child_id, is_private, "VideoDecoderServer"sv, arguments));
+    s_launch_epochs_of_video_decoder_servers->set(server->child_id(), s_recent_video_decoder_server_losses->current_epoch());
     s_video_decoder_servers->remove_all_matching([](auto const& weak_server) { return !weak_server; });
     s_video_decoder_servers->append(server->make_weak_ptr<VideoDecoderServerControlClient>());
     return server;
@@ -675,13 +702,18 @@ MonotonicTime deadline_for_helper_response()
 void end_unresponsive_helper(IPC::ConnectionBase& connection)
 {
     Optional<u64> child_id;
+    Optional<ProcessType> process_type;
     Application::process_manager().for_each_process([&](Process& process) {
-        if (process.client<IPC::ConnectionBase>() == &connection)
+        if (process.client<IPC::ConnectionBase>() == &connection) {
             child_id = process.child_id();
+            process_type = process.type();
+        }
     });
     if (child_id.has_value()) {
         warnln("Ending a helper process that did not respond in time");
         (void)Application::process_manager().terminate_child(*child_id, Core::Process::TerminationMode::Forceful);
+        if (process_type == ProcessType::VideoDecoderServer)
+            video_decoder_server_was_lost(*child_id);
     }
     connection.shutdown();
 }
@@ -716,6 +748,17 @@ struct VideoDecoderServerHolder : public RefCounted<VideoDecoderServerHolder> {
     RefPtr<VideoDecoderServerControlClient> controller;
 };
 
+}
+
+static void end_unresponsive_video_decoder_server(RefPtr<VideoDecoderServerControlClient>& controller)
+{
+    if (!controller)
+        return;
+    dbgln("Ending the VideoDecoderServer that its MediaServer found unresponsive");
+    if (auto result = Application::process_manager().terminate_child(controller->child_id(), Core::Process::TerminationMode::Forceful); result.is_error())
+        dbgln("Could not end the unresponsive VideoDecoderServer: {}", result.error());
+    video_decoder_server_was_lost(controller->child_id());
+    controller = nullptr;
 }
 
 static ErrorOr<IPC::TransportHandle> connect_new_video_decoder_server_client(RefPtr<VideoDecoderServerControlClient>& controller, u64 owner_child_id, IsPrivate is_private, Optional<Gfx::GpuDeviceIdentity> const& gpu_device_identity)
@@ -757,7 +800,11 @@ ErrorOr<MediaServerClientConnection> connect_new_media_server_client(RefPtr<Medi
         // Each MediaServer has a VideoDecoderServer of its own, which lives as long as the controller holding it. The
         // server is launched once the Compositor has named the GPU that hardware decoders must output to, and once this
         // launch's probe has decided what the server may use there.
-        controller->on_request_video_decoder_server_connection = [video_decoder_server = make_ref_counted<VideoDecoderServerHolder>(), owner_child_id, is_private](auto answer) {
+        auto video_decoder_server = make_ref_counted<VideoDecoderServerHolder>();
+        controller->on_video_decoder_server_unresponsive = [video_decoder_server] {
+            end_unresponsive_video_decoder_server(video_decoder_server->controller);
+        };
+        controller->on_request_video_decoder_server_connection = [video_decoder_server, owner_child_id, is_private](auto answer) {
             Application::the().when_compositor_gpu_device_identity_is_known([video_decoder_server, owner_child_id, is_private, answer = move(answer)](auto const& gpu_device_identity) mutable {
                 Application::the().when_platform_features_are_current([video_decoder_server, owner_child_id, is_private, gpu_device_identity, answer = move(answer)] {
                     answer(connect_new_video_decoder_server_client(video_decoder_server->controller, owner_child_id, is_private, gpu_device_identity));

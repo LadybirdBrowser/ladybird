@@ -43,6 +43,7 @@ public:
     // once it has one, and the callback runs on this thread when the answer arrives.
     using VideoDecoderServerTransportCallback = Function<void(ErrorOr<NonnullOwnPtr<IPC::Transport>>)>;
     void request_video_decoder_server_transport(VideoDecoderServerTransportCallback);
+    void report_unresponsive_video_decoder_server();
 
 private:
     virtual Messages::MediaServer::ConnectNewClientResponse connect_new_client() override;
