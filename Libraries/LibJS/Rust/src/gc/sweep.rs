@@ -85,6 +85,19 @@ impl<'vm> Sweep<'vm> {
         }
     }
 
+    /// Like record_slot(), for a slot that may be empty, which it leaves out then.
+    ///
+    /// # Safety
+    ///
+    /// As for record_slot().
+    pub unsafe fn record_optional_slot<T>(&self, slot: &core::cell::Cell<Option<Gc<T>>>) {
+        if slot.get().is_some() {
+            // SAFETY: A Gc is a NonNull, so an Option of one that is Some is laid out as the Gc. The caller vouches for
+            //         the memory.
+            unsafe { self.record_slot(&*slot.as_ptr().cast::<Gc<T>>()) };
+        }
+    }
+
     /// Hands `finalization_registry` to HostEnqueueFinalizationRegistryCleanupJob once the collection is over.
     pub fn enqueue_finalization_registry_cleanup_job(&self, finalization_registry: Gc<FinalizationRegistry>) {
         self.0

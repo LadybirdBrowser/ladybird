@@ -510,7 +510,6 @@ fn key_concatenation_cache_index(lhs: u64, rhs: u64) -> usize {
     (((lhs >> 4) ^ (rhs >> 4).wrapping_mul(33)) as usize) & (KEY_CONCATENATION_CACHE_SIZE - 1)
 }
 
-#[derive(Trace)]
 pub struct NumericStringCacheEntry {
     pub number: Cell<u64>,
     pub string: Cell<Option<Gc<PrimitiveString>>>,
@@ -1365,8 +1364,6 @@ impl Vm {
         self.empty_string.trace(visitor);
         self.empty_realm.trace(visitor);
         self.single_ascii_character_strings.trace(visitor);
-        self.numeric_string_cache.trace(visitor);
-        self.large_numeric_string_cache.trace(visitor);
         self.json_parse_cache.trace(visitor);
         self.json_stringify_cache.trace(visitor);
         self.cached_strings.trace(visitor);
@@ -1745,6 +1742,22 @@ impl Vm {
             }
         }
         drop(interned_strings);
+        // NB: The numeric string caches hold their strings weakly, rather than as roots, which would keep every string
+        //     they ever made where it is.
+        let moves_cells = sweep.moves_cells();
+        let slots = self
+            .numeric_string_cache
+            .iter()
+            .chain(self.large_numeric_string_cache.iter().map(|entry| &entry.string));
+        for slot in slots {
+            if slot.get().is_some_and(|string| sweep.is_dead(string)) {
+                slot.set(None);
+            } else if moves_cells {
+                // SAFETY: Only making a numeric string changes the caches, which nothing does until the collection is
+                //         over.
+                unsafe { sweep.record_optional_slot(slot) };
+            }
+        }
         self.characters_to_atom_cache
             .borrow_mut()
             .fill_with(CharactersToAtomCacheEntry::default);
