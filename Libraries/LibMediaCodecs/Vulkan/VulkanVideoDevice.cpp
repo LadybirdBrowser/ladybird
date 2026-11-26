@@ -206,8 +206,12 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
     for (auto const* name : required_export_extensions)
         device->m_enabled_extensions.append(name);
 
+    VkPhysicalDeviceVideoDecodeVP9FeaturesKHR supported_video_decode_vp9 {};
+    supported_video_decode_vp9.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_DECODE_VP9_FEATURES_KHR;
     VkPhysicalDeviceVideoMaintenance1FeaturesKHR supported_video_maintenance1 {};
     supported_video_maintenance1.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_MAINTENANCE_1_FEATURES_KHR;
+    if (contains_extension(available_extensions, VK_KHR_VIDEO_DECODE_VP9_EXTENSION_NAME ""sv))
+        supported_video_maintenance1.pNext = &supported_video_decode_vp9;
     VkPhysicalDeviceVulkan13Features supported_vulkan13 {};
     supported_vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     supported_vulkan13.pNext = &supported_video_maintenance1;
@@ -246,6 +250,13 @@ ErrorOr<NonnullOwnPtr<VulkanVideoDevice>> VulkanVideoDevice::create(Gfx::GpuDevi
             device->m_video_maintenance1_features.videoMaintenance1 = VK_TRUE;
             *feature_chain_end = &device->m_video_maintenance1_features;
             feature_chain_end = &device->m_video_maintenance1_features.pNext;
+        } else if (name_view == VK_KHR_VIDEO_DECODE_VP9_EXTENSION_NAME ""sv) {
+            if (!supported_video_decode_vp9.videoDecodeVP9)
+                continue;
+            device->m_video_decode_vp9_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_DECODE_VP9_FEATURES_KHR;
+            device->m_video_decode_vp9_features.videoDecodeVP9 = VK_TRUE;
+            *feature_chain_end = &device->m_video_decode_vp9_features;
+            feature_chain_end = &device->m_video_decode_vp9_features.pNext;
         } else if (name_view == VK_KHR_VIDEO_MAINTENANCE_2_EXTENSION_NAME ""sv) {
             if (!supports_video_maintenance2(device->m_physical_device))
                 continue;
