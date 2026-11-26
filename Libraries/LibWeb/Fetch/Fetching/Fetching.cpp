@@ -42,7 +42,6 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
-#include <LibWeb/Fetch/Fetching/PreloadWaitHandle.h>
 #include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -432,17 +431,20 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
 
         // 2. Let onPreloadedResponseAvailable be an algorithm that runs the following step given a response
         //    response: set fetchParams’s preloaded response candidate to response.
-        auto preload_wait_handle = PreloadWaitHandle::create();
-        controller->set_preload_wait_handle(preload_wait_handle);
-        auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), GC::captures(fetch_params, controller, preload_wait_handle), [](auto& fetch_params, auto& controller, auto& preload_wait_handle, NonnullRefPtr<Infrastructure::Response> response) {
-            preload_wait_handle->disarm();
+        auto on_preloaded_response_available = GC::create_function(GC::Heap::the(), GC::captures(fetch_params, controller), [](auto& fetch_params, auto& controller, RefPtr<Infrastructure::Response> response) {
+            // AD-HOC: A fetch whose preload was cancelled reports its own timing, as one that found no preload does.
+            if (!response)
+                controller->set_preload_reports_timing(false);
 
             // NB: Once the fetch has started, its engine runs main fetch, which waits for the response there.
             if (auto fetch_id = controller->started_fetch_id(); fetch_id.has_value()) {
                 controller->started_fetch_executor().post(Engine::Command::PreloadResponseResolved { *fetch_id, move(response) });
                 return;
             }
-            fetch_params->set_preloaded_response_candidate(response);
+            if (response)
+                fetch_params->set_preloaded_response_candidate(response.release_nonnull());
+            else
+                fetch_params->set_preloaded_response_candidate(Empty {});
         });
 
         // 3. Let foundPreloadedResource be the result of invoking consume a preloaded resource for request’s
@@ -670,23 +672,35 @@ static NonnullRefPtr<PendingResponse> get_response(Infrastructure::FetchParams c
             auto pending_preloaded_response = PendingResponse::create(fetch_params);
             auto& engine_record = *fetch_params.engine_record();
 
-            // NB: Nothing can end the wait without the preload entry's callback, and a fetch stopped, aborted or
-            //     terminated does not wait, so main fetch hands nothing over.
-            auto controller = fetch_params.controller();
-            auto preload_wait_handle = controller->preload_wait_handle().strong_ref();
-            if (!preload_wait_handle || engine_record.is_stopped()) {
+            // AD-HOC: A fetch stopped, aborted or terminated does not wait for a preloaded response, which Fetch's wait
+            //         ignores, and main fetch hands nothing over.
+            if (engine_record.is_stopped()) {
                 engine_record.main_fetch_cannot_hand_over();
                 return pending_preloaded_response;
             }
 
-            // NB: The handle in the preload entry's callback ends the fetch if the callback goes without resolving the
-            //     wait.
-            auto fetch_id = controller->started_fetch_id();
-            VERIFY(fetch_id.has_value());
-            preload_wait_handle->arm(*fetch_id, controller->started_fetch_executor());
-            engine_record.wait_for_preload([fetch_params = NonnullRefPtr { fetch_params }, pending_preloaded_response](NonnullRefPtr<Infrastructure::Response> response) {
-                fetch_params->set_preloaded_response_candidate(response);
-                pending_preloaded_response->resolve(move(response));
+            engine_record.wait_for_preload([fetch_params = NonnullRefPtr { fetch_params }, pending_preloaded_response](RefPtr<Infrastructure::Response> response) {
+                if (response) {
+                    auto preloaded_response = response.release_nonnull();
+                    fetch_params->set_preloaded_response_candidate(preloaded_response);
+                    pending_preloaded_response->resolve(move(preloaded_response));
+                    return;
+                }
+
+                // AD-HOC: A cancelled preload gives no response, and main fetch fetches as if it had found no preloaded
+                //         resource. It does so in a task of its own, so a stop that comes with the cancellation, as a
+                //         document's abort stops a preload and its consumer, starts no request.
+                fetch_params->set_preloaded_response_candidate(Empty {});
+                fetch_params->engine_record()->defer([fetch_params, pending_preloaded_response] {
+                    auto& engine_record = *fetch_params->engine_record();
+                    if (engine_record.is_stopped()) {
+                        engine_record.main_fetch_cannot_hand_over();
+                        return;
+                    }
+                    get_response(*fetch_params)->when_loaded([pending_preloaded_response](NonnullRefPtr<Infrastructure::Response> response) {
+                        pending_preloaded_response->resolve(move(response));
+                    });
+                });
             });
             return pending_preloaded_response;
         }

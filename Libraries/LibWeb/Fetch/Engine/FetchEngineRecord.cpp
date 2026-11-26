@@ -186,7 +186,7 @@ void FetchEngineRecord::expect_preload_resolution()
         m_preload_wait_resolution = PreloadWaitUnresolved {};
 }
 
-void FetchEngineRecord::wait_for_preload(Function<void(NonnullRefPtr<Infrastructure::Response>)> resume)
+void FetchEngineRecord::wait_for_preload(Function<void(RefPtr<Infrastructure::Response>)> resume)
 {
     ASSERT(is_on_owner_thread());
     VERIFY(m_main_fetch.has<MainFetchRunning>());
@@ -200,7 +200,7 @@ void FetchEngineRecord::wait_for_preload(Function<void(NonnullRefPtr<Infrastruct
     m_main_fetch = MainFetchWaitsForPreload { move(resume) };
 }
 
-bool FetchEngineRecord::resolve_preload_wait(NonnullRefPtr<Infrastructure::Response> response)
+bool FetchEngineRecord::resolve_preload_wait(RefPtr<Infrastructure::Response> response)
 {
     ASSERT(is_on_owner_thread());
     if (!m_preload_wait_resolution.has<PreloadWaitUnresolved>())
@@ -215,15 +215,6 @@ bool FetchEngineRecord::resolve_preload_wait(NonnullRefPtr<Infrastructure::Respo
     auto resume = move(waiting->resume);
     m_main_fetch = MainFetchRunning {};
     resume(move(response));
-    return true;
-}
-
-bool FetchEngineRecord::abandon_preload_wait()
-{
-    ASSERT(is_on_owner_thread());
-    if (!m_main_fetch.has<MainFetchWaitsForPreload>())
-        return false;
-    end_main_fetch();
     return true;
 }
 
@@ -376,25 +367,7 @@ void FetchEngineRecords::did_offer_redirect_continuation(Badge<FetchEngineRecord
     m_last_offered_continuation_id = continuation_id;
 }
 
-void FetchEngineRecords::abandon_preload_wait(FetchId fetch_id)
-{
-    ASSERT(is_on_owner_thread());
-    if (fetch_id > m_last_started_fetch_id) {
-        m_agent->misbehaved("The agent abandoned a preload wait of a fetch it has not started"sv);
-        return;
-    }
-
-    auto found_record = m_records.get(fetch_id);
-    if (!found_record.has_value())
-        return;
-    NonnullRefPtr record = **found_record;
-    if (record->has_ended())
-        return;
-    if (!record->abandon_preload_wait())
-        m_agent->misbehaved("The agent abandoned a preload wait of a fetch that waits for no preload"sv);
-}
-
-void FetchEngineRecords::resolve_preload_wait(FetchId fetch_id, NonnullRefPtr<Infrastructure::Response> response)
+void FetchEngineRecords::resolve_preload_wait(FetchId fetch_id, RefPtr<Infrastructure::Response> response)
 {
     ASSERT(is_on_owner_thread());
     if (fetch_id > m_last_started_fetch_id) {
@@ -405,7 +378,7 @@ void FetchEngineRecords::resolve_preload_wait(FetchId fetch_id, NonnullRefPtr<In
     auto found_record = m_records.get(fetch_id);
     if (!found_record.has_value())
         return;
-    if (!response->is_network_error()) {
+    if (response && !response->is_network_error()) {
         auto body = response->unsafe_response()->body();
         if (!body.has_value() || !body->holds_all_its_bytes()) {
             m_agent->misbehaved("The agent resolved a preload wait with a response whose body is not all its bytes"sv);

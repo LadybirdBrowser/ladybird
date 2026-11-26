@@ -1125,10 +1125,15 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
 
         // 5. If entry's on response available is null, then set entry's response to response; otherwise call entry's
         //    on response available given response.
-        if (!entry->on_response_available)
-            entry->response = response;
-        else
-            entry->on_response_available->function()(response);
+        // AD-HOC: A cancelled entry takes no response, and an entry gives its response once.
+        if (!entry->on_response_available) {
+            if (!entry->cancelled)
+                entry->response = response;
+        } else {
+            auto on_response_available = entry->on_response_available;
+            entry->on_response_available = nullptr;
+            on_response_available->function()(response);
+        }
 
         // 6. If processResponse is given, then call processResponse with response.
         if (process_response)
@@ -1138,6 +1143,11 @@ void HTMLLinkElement::preload(LinkProcessingOptions& options, GC::Ptr<GC::Functi
     auto controller = Fetch::Fetching::fetch(realm, *request, Fetch::Infrastructure::FetchAlgorithms::create(move(fetch_algorithms_input)));
     controller_holder->set_controller(controller);
     entry->controller = controller;
+
+    // AD-HOC: A stopped preload cancels its entry, so no consumer waits for a response that may never come.
+    controller->set_stop_steps(GC::create_function(GC::Heap::the(), GC::captures(entry), [](auto& entry) {
+        entry->cancel();
+    }));
 
     // 12. Let commit be the following steps given a Document document:
     auto commit = GC::create_function(GC::Heap::the(), GC::captures(entry, report_timing, move(key)), [](auto& entry, auto& report_timing, auto& key, DOM::Document& document) {

@@ -196,7 +196,6 @@ private:
                     [&](ResolveRedirect::Abandon) { return ByteString::formatted("abandon redirect of {}", fetch(resolve.fetch_id)); });
             },
             [&](PreloadResponseResolved const& resolved) { return ByteString::formatted("preload response resolved {}", fetch(resolved.fetch_id)); },
-            [&](PreloadWaitAbandoned const& abandoned) { return ByteString::formatted("abandon preload wait of {}", fetch(abandoned.fetch_id)); },
             [](TransportControl const& control) { return describe_transport_control(control.operation, control.request_id, control.transport_epoch); },
             [](NavigationBodyAdopted const&) { return ByteString { "navigation body adopted"sv }; },
             [](AdoptNetworkTransport const&) { return ByteString { "adopt network transport"sv }; });

@@ -45,15 +45,10 @@ struct ResolveRedirect {
     Resolution resolution;
 };
 
-// The response of the preload that the fetch's main fetch waits for.
+// The response of the preload that the fetch's main fetch waits for, or null if the preload was cancelled.
 struct PreloadResponseResolved {
     FetchId fetch_id;
-    NonnullRefPtr<Infrastructure::Response> response;
-};
-
-// Main fetch's wait for a preload's response, which the agent can no longer resolve.
-struct PreloadWaitAbandoned {
-    FetchId fetch_id;
+    RefPtr<Infrastructure::Response> response;
 };
 
 struct TransportControl {
@@ -91,7 +86,6 @@ using EngineCommand = Variant<
     Command::Stop,
     Command::ResolveRedirect,
     Command::PreloadResponseResolved,
-    Command::PreloadWaitAbandoned,
     Command::TransportControl,
     Command::NavigationBodyAdopted,
     Command::AdoptNetworkTransport>;
