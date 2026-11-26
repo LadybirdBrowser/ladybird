@@ -1,3 +1,4 @@
+const showAllTabsButton = document.querySelector("#show-all-tabs-button");
 const showMenuBar = document.querySelector("#show-menu-bar");
 const alwaysShowScrollbars = document.querySelector("#always-show-scrollbars");
 const showMenuBarGroup = document.querySelector("#show-menu-bar-group");
@@ -39,6 +40,7 @@ const loadSettings = settings => {
 
     APPEARANCE = settings.appearance || {};
 
+    showAllTabsButton.checked = !!APPEARANCE.showAllTabsButton;
     showMenuBar.checked = !!APPEARANCE.showMenuBar;
     alwaysShowScrollbars.checked = !!APPEARANCE.alwaysShowScrollbars;
     showBookmarksBar.value = APPEARANCE.showBookmarksBar || "never";
@@ -50,6 +52,11 @@ const loadSettings = settings => {
 function saveAppearance() {
     ladybird.sendMessage("setAppearance", APPEARANCE);
 }
+
+showAllTabsButton.addEventListener("change", () => {
+    APPEARANCE.showAllTabsButton = showAllTabsButton.checked;
+    saveAppearance();
+});
 
 showMenuBar.addEventListener("change", () => {
     APPEARANCE.showMenuBar = showMenuBar.checked;

@@ -33,6 +33,7 @@ static constexpr auto LANGUAGES_KEY = "languages"sv;
 static constexpr auto TRANSLATION_PREFERS_HIGHER_QUALITY_KEY = "translationPrefersHigherQuality"sv;
 
 static constexpr auto APPEARANCE_KEY = "appearance"sv;
+static constexpr auto SHOW_ALL_TABS_BUTTON_KEY = "showAllTabsButton"sv;
 static constexpr auto SHOW_MENU_BAR_KEY = "showMenuBar"sv;
 static constexpr auto ALWAYS_SHOW_SCROLLBARS_KEY = "alwaysShowScrollbars"sv;
 static constexpr auto SHOW_BOOKMARKS_BAR_KEY = "showBookmarksBar"sv;
@@ -865,6 +866,7 @@ JsonValue Settings::serialize_json() const
     settings.set(TRANSLATION_PREFERS_HIGHER_QUALITY_KEY, m_translation_prefers_higher_quality);
 
     JsonObject appearance;
+    appearance.set(SHOW_ALL_TABS_BUTTON_KEY, m_appearance.show_all_tabs_button);
     appearance.set(SHOW_MENU_BAR_KEY, m_appearance.show_menu_bar);
     appearance.set(ALWAYS_SHOW_SCROLLBARS_KEY, m_appearance.always_show_scrollbars);
     appearance.set(SHOW_BOOKMARKS_BAR_KEY, show_bookmarks_bar_to_string(m_appearance.show_bookmarks_bar));
@@ -1157,6 +1159,8 @@ Appearance Settings::parse_appearance(JsonValue const& settings)
 
     Appearance appearance;
 
+    if (auto show_all_tabs_button = settings.as_object().get_bool(SHOW_ALL_TABS_BUTTON_KEY); show_all_tabs_button.has_value())
+        appearance.show_all_tabs_button = *show_all_tabs_button;
     if (auto show_menu_bar = settings.as_object().get_bool(SHOW_MENU_BAR_KEY); show_menu_bar.has_value())
         appearance.show_menu_bar = *show_menu_bar;
     if (auto always_show_scrollbars = settings.as_object().get_bool(ALWAYS_SHOW_SCROLLBARS_KEY); always_show_scrollbars.has_value())

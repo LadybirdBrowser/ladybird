@@ -377,6 +377,7 @@ public:
     void update_tab_layout();
     void place_horizontal_new_tab_button();
     int horizontal_tab_strip_drag_space() const;
+    void set_show_all_tabs_button(bool);
     void show_all_tabs();
     void update_all_tabs_entries();
     void update_all_tabs_entries_soon();
@@ -467,6 +468,7 @@ private:
     QStackedWidget* m_stacked_widget { nullptr };
     QToolButton* m_new_tab_button { nullptr };
     QToolButton* m_all_tabs_button { nullptr };
+    bool m_show_all_tabs_button { true };
     ChromeHeaderButton* m_bookmarks_menu_button { nullptr };
     QMenu* m_bookmarks_menu { nullptr };
     AllTabsPopover* m_all_tabs_popover { nullptr };
