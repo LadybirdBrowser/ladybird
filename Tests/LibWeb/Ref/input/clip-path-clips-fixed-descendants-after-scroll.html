@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-clips-fixed-descendants-after-scroll-ref.html" />
+<style>
+  body { margin: 0; }
+  main { height: 1500px; background: lightblue; position: relative; z-index: 1; }
+  footer { height: 300px; clip-path: border-box; overflow: hidden; }
+  .background { position: fixed; inset: 0; background: orange; }
+  .inner { position: fixed; bottom: 0; left: 0; width: 200px; height: 100px; background: green; }
+</style>
+<main></main>
+<footer><div class="background"></div><div class="inner"></div></footer>
+<script>
+  window.scrollTo(0, 99999);
+</script>
