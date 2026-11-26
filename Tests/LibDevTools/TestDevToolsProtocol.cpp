@@ -5736,6 +5736,38 @@ TEST_CASE(network_event_reports_non_utf8_response_headers)
     EXPECT_EQ(headers[0].as_object().get_string("value"sv).value(), "\xc3\xbf"sv);
 }
 
+static DevTools::DevToolsDelegate::NetworkRequestData make_binary_post_request()
+{
+    ByteBuffer request_body;
+    request_body.append("\xff\xfe\xfd", 3);
+
+    return { .request_id = 100,
+        .url = "https://example.test/upload"_string,
+        .method = "POST"_string,
+        .start_time = UnixDateTime::from_seconds_since_epoch(20),
+        .request_headers = {},
+        .request_body = move(request_body),
+        .initiator_type = "fetch"_string,
+        .referrer_policy = "strict-origin-when-cross-origin"_string,
+        .is_navigation_request = false,
+        .priority = Web::Fetch::Infrastructure::RequestPriority::Auto };
+}
+
+TEST_CASE(network_event_reports_non_utf8_request_body)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+    session->delegate.on_network_request_started(make_binary_post_request());
+    auto network_actor = read_resource(client, "network-event"sv).get_string("actor"sv).release_value();
+
+    auto post_data = client.request(network_actor, "getRequestPostData"sv).get_object("postData"sv).release_value();
+    EXPECT_EQ(post_data.get_string("text"sv).value(), "\xc3\xbf\xc3\xbe\xc3\xbd"sv);
+    EXPECT_EQ(post_data.get_integer<i64>("size"sv).value(), 3);
+}
+
 TEST_CASE(console_network_navigation_and_accessibility)
 {
     auto session = create_session();
