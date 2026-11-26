@@ -138,6 +138,18 @@ FrameActor::~FrameActor()
     stop_listening();
 }
 
+// A frame target is replaced once its navigation finishes, but the page's requests outlive it: Some are still in
+// flight, and the client asks for the details of finished ones later.
+void FrameActor::take_network_events_from(FrameActor& previous_target)
+{
+    for (auto& [request_id, network_event] : previous_target.m_network_events) {
+        previous_target.forget_child_actor(*network_event);
+        add_child_actor(*network_event);
+        m_network_events.set(request_id, network_event);
+    }
+    previous_target.m_network_events.clear();
+}
+
 void FrameActor::stop_listening()
 {
     if (!m_is_listening)

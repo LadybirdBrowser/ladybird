@@ -333,6 +333,7 @@ void WatcherActor::switch_frame_target(FrameActor& previous_target, String const
 
     m_debugger_is_attached = false;
     auto& target = create_frame_target();
+    target.take_network_events_from(*previous_target_ref);
     send_frame_target_available_message(target);
     target.send_frame_update_message();
     target.set_pending_navigation_document_events_after_target_switch(url, title);

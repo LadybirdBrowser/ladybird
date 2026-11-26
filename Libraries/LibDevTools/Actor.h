@@ -53,6 +53,7 @@ protected:
 
     void add_child_actor(Actor const&);
     void unregister_child_actor(Actor const&);
+    void forget_child_actor(Actor const&);
 
     virtual void handle_message(Message const&) = 0;
 
