@@ -258,6 +258,13 @@ impl Layer {
         set!(self, "setAllowsEdgeAntialiasing:", yes_or_no(allows));
     }
 
+    /// Has the window server cut every edge of the layer at whole pixels. An edge of a new layer that falls between
+    /// pixels covers them only in part, so two layers that meet there let what is below them show through.
+    pub fn stop_antialiasing_edges(&self) {
+        const NO_EDGES_OF_CA_EDGE_ANTIALIASING_MASK: u32 = 0;
+        set!(self, "setEdgeAntialiasingMask:", NO_EDGES_OF_CA_EDGE_ANTIALIASING_MASK);
+    }
+
     pub fn set_opacity(&self, opacity: f32) {
         set!(self, "setOpacity:", opacity);
     }

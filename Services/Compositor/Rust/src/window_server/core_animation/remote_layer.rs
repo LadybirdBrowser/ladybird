@@ -354,6 +354,10 @@ impl NativeSublayers for Natives {
         if kind == SublayerKind::Group {
             outermost_layer.set_allows_group_opacity(true);
         }
+        let meets_other_sublayers_edge_to_edge = matches!(kind, SublayerKind::Tile | SublayerKind::Color);
+        if meets_other_sublayers_edge_to_edge {
+            outermost_layer.stop_antialiasing_edges();
+        }
         let mut content_layer = None;
         if kind == SublayerKind::PlacedContent {
             outermost_layer.set_masks_to_bounds(true);
