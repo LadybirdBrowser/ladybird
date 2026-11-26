@@ -496,10 +496,10 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             // -> "image"
             case Infrastructure::Request::Destination::Image:
                 // `image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5`
-                // AD-HOC: The spec default omits AVIF and WebP, which causes CDNs that perform format negotiation to
-                //         potentially fall back to non alpha-preserving formats.
+                // AD-HOC: The spec default omits AVIF, JPEG XL and WebP, so CDNs that perform format negotiation do not
+                //         send them, and potentially fall back to non alpha-preserving formats.
                 //         Spec issue: https://github.com/whatwg/fetch/issues/1740
-                value = "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"sv;
+                value = "image/avif,image/jxl,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5"sv;
                 break;
             // -> "json"
             case Infrastructure::Request::Destination::JSON:
