@@ -26,10 +26,10 @@ namespace Media {
 // the server has yet to answer reach the maximum in flight, unless the server waits for one of its slots to be
 // released here, which is answered with TryAgain.
 //
-// If the server is lost, or answers nothing for too long while it is waited on, the next call reports
+// If the server is lost, or makes no progress for too long while it is waited on, the next call reports
 // NeedsResubmission, and the coded frames submitted after it, starting from a keyframe, go to a new server. A decoder
-// that loses its server too many times answers NotImplemented instead, so that its stream falls back to the next
-// decoder.
+// that loses its server too many times, or cannot get a new one, answers NotImplemented instead, so that its stream
+// falls back to the next decoder. A server found stuck is reported, so that whoever launched it can end it.
 class MEDIA_API RemoteVideoDecoder final : public VideoDecoder {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -42,7 +42,10 @@ public:
     // answer; the installing thread never asks, since it could not return to its event loop while waiting.
     using TransportCallback = Function<void(ErrorOr<NonnullOwnPtr<IPC::Transport>>)>;
     using TransportRequester = Function<void(TransportCallback)>;
-    static void set_transport_requester(TransportRequester);
+    // Called on the same event loop as the requester, so the report comes before the request for a replacement.
+    using UnresponsiveServerReporter = Function<void()>;
+    static void set_server_broker(TransportRequester, UnresponsiveServerReporter);
+    static void set_time_without_progress_until_server_is_stuck(AK::Duration);
 
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
     static DecoderErrorOr<NonnullOwnPtr<RemoteVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);

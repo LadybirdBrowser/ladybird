@@ -82,9 +82,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Audio::ClientConnection::set_transport_factory([client] {
         return client->request_audio_server_transport();
     });
-    Media::RemoteVideoDecoder::set_transport_requester([client](auto callback) {
-        client->request_video_decoder_server_transport(move(callback));
-    });
+    Media::RemoteVideoDecoder::set_server_broker(
+        [client](auto callback) { client->request_video_decoder_server_transport(move(callback)); },
+        [client] { client->report_unresponsive_video_decoder_server(); });
 
     if (stats_log)
         stats_log->start_sampling();

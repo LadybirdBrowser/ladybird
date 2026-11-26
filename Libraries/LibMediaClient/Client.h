@@ -53,6 +53,7 @@ public:
     // The answer may be given later, once the Browser can launch a server.
     using VideoDecoderServerConnectionAnswer = Function<void(ErrorOr<IPC::TransportHandle>)>;
     Function<void(VideoDecoderServerConnectionAnswer)> on_request_video_decoder_server_connection;
+    Function<void()> on_video_decoder_server_unresponsive;
 
     // The synchronous queries serve APIs that must answer on the spot; everything else asks through a promise.
     Media::MediaSupportInfo query_file_media_support(StringView type, StringView subtype, Optional<String> codecs_parameter);
@@ -89,6 +90,7 @@ private:
 
     virtual Messages::MediaClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;
     virtual void request_video_decoder_server_connection(u64 request_id) override;
+    virtual void video_decoder_server_unresponsive() override;
     virtual void file_media_support_reported(u64 request_id, Media::MediaSupportInfo info) override;
     virtual void decoder_capabilities_reported(u64 request_id, Optional<Media::DecoderCapabilities> capabilities) override;
     virtual void audio_data_decoded(u64 request_id, u32 sample_rate, u32 channel_count, u64 frame_count, Core::AnonymousBuffer planar_samples) override;
