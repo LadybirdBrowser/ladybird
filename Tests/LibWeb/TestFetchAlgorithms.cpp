@@ -199,7 +199,7 @@ static NonnullRefPtr<AlgorithmCalls> deliver_to_a_fetch(FetchHarness const& harn
     auto request = harness.create_request_for("https://example.com/delivered"sv);
     auto algorithms = FetchAlgorithms::create(algorithms_recording_their_calls(heap, record));
     auto timing_info = Web::Fetch::Infrastructure::FetchTimingInfo::create();
-    auto fetch_params = FetchParams::create(*controller, move(request), algorithms, move(timing_info), Web::current_loader_config());
+    auto fetch_params = controller->create_fetch_params(move(request), algorithms, move(timing_info), Web::current_loader_config());
     controller->set_realm(*harness.realm);
     controller->set_task_destination(GC::Ref { harness.realm->global_object() });
     Web::Fetch::Engine::FetchId fetch_id { 1 };

@@ -10,12 +10,12 @@
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
-#include <LibGC/Ptr.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Engine/StartFetchInput.h>
-#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
-#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/FetchControlBlock.h>
+#include <LibWeb/Fetch/Infrastructure/FetchControllerToken.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -23,6 +23,8 @@
 #include <LibWebCommon/Loader/LoaderConfigSnapshot.h>
 
 namespace Web::Fetch::Infrastructure {
+
+class FetchControllerRegistry;
 
 // https://fetch.spec.whatwg.org/#fetch-params
 class WEB_API FetchParams
@@ -34,13 +36,13 @@ public:
     struct PreloadedResponseCandidatePendingTag { };
     using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, NonnullRefPtr<Response>>;
 
-    [[nodiscard]] static NonnullRefPtr<FetchParams> create(FetchController&, NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
+    [[nodiscard]] static NonnullRefPtr<FetchParams> create(FetchControllerToken, WeakPtr<FetchControllerRegistry>, NonnullRefPtr<FetchControlBlock>, NonnullRefPtr<Request>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     [[nodiscard]] static NonnullRefPtr<FetchParams> copy(FetchParams const&);
 
     [[nodiscard]] NonnullRefPtr<Request> request() const { return m_request; }
     void set_request(NonnullRefPtr<Request> request) { m_request = move(request); }
-    [[nodiscard]] GC::Ref<FetchController> controller() const;
     [[nodiscard]] FetchControllerToken controller_token() const { return m_controller_token; }
+    [[nodiscard]] WeakPtr<FetchControllerRegistry> const& controller_registry() const { return m_controller_registry; }
     [[nodiscard]] FetchControlBlock& control_block() const { return *m_control_block; }
     [[nodiscard]] NonnullRefPtr<FetchTimingInfo> timing_info() const { return m_timing_info; }
     [[nodiscard]] LoaderConfig const& loader_config() const { return m_loader_config->config; }
@@ -81,7 +83,7 @@ public:
     void discard_response_body(Response const&) const;
 
 private:
-    FetchParams(NonnullRefPtr<Request>, GC::Ref<FetchAlgorithms const>, FetchController&, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
+    FetchParams(FetchControllerToken, WeakPtr<FetchControllerRegistry>, NonnullRefPtr<FetchControlBlock>, NonnullRefPtr<Request>, NonnullRefPtr<FetchTimingInfo>, NonnullRefPtr<LoaderConfigSnapshot const>);
     FetchParams(FetchParams const&);
 
     // https://fetch.spec.whatwg.org/#fetch-params-request

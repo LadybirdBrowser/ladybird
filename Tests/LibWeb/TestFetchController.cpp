@@ -48,7 +48,7 @@ static NonnullRefPtr<FetchParams> create_fetch_params(FetchController& controlle
     auto algorithms = FetchAlgorithms::create(FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
     auto request = Web::Fetch::Infrastructure::Request::create();
     auto timing_info = Web::Fetch::Infrastructure::FetchTimingInfo::create();
-    return FetchParams::create(controller, move(request), algorithms, move(timing_info), Web::current_loader_config());
+    return controller.create_fetch_params(move(request), algorithms, move(timing_info), Web::current_loader_config());
 }
 
 static NonnullRefPtr<Web::Fetch::Engine::FetchEngineRecord> start_fetch(FetchEngineRecords& records)

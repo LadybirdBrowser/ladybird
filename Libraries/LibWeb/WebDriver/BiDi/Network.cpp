@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -83,7 +84,7 @@ static RefPtr<NetworkRequest> network_request_of(RefPtr<NetworkObservation> cons
 // The state of the request the fetch was started with.
 static RefPtr<NetworkRequest> network_request_of(FetchParams const& fetch_params)
 {
-    return network_request_of(fetch_params.controller()->network_observation());
+    return network_request_of(Fetch::Fetching::fetch_controller_of(fetch_params)->network_observation());
 }
 
 static RefPtr<NetworkContinuation> blocked_request(NetworkRequest const& state)
@@ -119,7 +120,7 @@ static void resume_blocked_request(String id, NetworkContinuationAction action, 
 
 static void cancel_network_interception_impl(FetchParams const& fetch_params, StringView error_text)
 {
-    auto blocked = blocked_request(*fetch_params.controller());
+    auto blocked = blocked_request(*Fetch::Fetching::fetch_controller_of(fetch_params));
     if (!blocked)
         return;
     resume_blocked_request(blocked->request_id, NetworkContinuationAction::Fail, Response::network_error(String::from_utf8_with_replacement_character(error_text)));
@@ -301,7 +302,7 @@ void initialize_network_request(Request& request, GC::Ptr<HTML::Navigable> navig
 
 void initialize_network_request(FetchParams const& fetch_params, GC::Ptr<HTML::Navigable> navigable)
 {
-    auto observation = fetch_params.controller()->network_observation();
+    auto observation = Fetch::Fetching::fetch_controller_of(fetch_params)->network_observation();
     VERIFY(observation);
     initialize_network_request(*observation, *fetch_params.request(), navigable, {});
 }

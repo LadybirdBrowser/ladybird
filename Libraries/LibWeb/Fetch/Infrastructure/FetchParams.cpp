@@ -9,18 +9,14 @@
 
 namespace Web::Fetch::Infrastructure {
 
-FetchParams::FetchParams(NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, FetchController& controller, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
+FetchParams::FetchParams(FetchControllerToken controller_token, WeakPtr<FetchControllerRegistry> controller_registry, NonnullRefPtr<FetchControlBlock> control_block, NonnullRefPtr<Request> request, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
     : m_request(move(request))
-    , m_controller_token(controller.token())
-    , m_controller_registry(controller.registry())
-    , m_control_block(controller.control_block())
+    , m_controller_token(controller_token)
+    , m_controller_registry(move(controller_registry))
+    , m_control_block(move(control_block))
     , m_timing_info(move(timing_info))
     , m_loader_config(move(loader_config))
 {
-    controller.set_algorithms({}, algorithms);
-    controller.set_original_fetch_params({}, *this);
-    controller.set_request({}, m_request);
-    controller.set_network_observation({}, m_request->ensure_network_observation());
 }
 
 FetchParams::FetchParams(FetchParams const& params)
@@ -40,9 +36,9 @@ FetchParams::FetchParams(FetchParams const& params)
 {
 }
 
-NonnullRefPtr<FetchParams> FetchParams::create(FetchController& controller, NonnullRefPtr<Request> request, GC::Ref<FetchAlgorithms const> algorithms, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
+NonnullRefPtr<FetchParams> FetchParams::create(FetchControllerToken controller_token, WeakPtr<FetchControllerRegistry> controller_registry, NonnullRefPtr<FetchControlBlock> control_block, NonnullRefPtr<Request> request, NonnullRefPtr<FetchTimingInfo> timing_info, NonnullRefPtr<LoaderConfigSnapshot const> loader_config)
 {
-    return adopt_ref(*new FetchParams(move(request), algorithms, controller, move(timing_info), move(loader_config)));
+    return adopt_ref(*new FetchParams(controller_token, move(controller_registry), move(control_block), move(request), move(timing_info), move(loader_config)));
 }
 
 NonnullRefPtr<FetchParams> FetchParams::copy(FetchParams const& params)
@@ -78,14 +74,6 @@ void FetchParams::discard_response_body(Response const& response) const
 {
     response.release_request_transfer_lease();
     stop_body_transport();
-}
-
-GC::Ref<FetchController> FetchParams::controller() const
-{
-    VERIFY(m_controller_registry);
-    auto controller = m_controller_registry->find(m_controller_token);
-    VERIFY(controller);
-    return *controller;
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-aborted
