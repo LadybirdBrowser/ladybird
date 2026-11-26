@@ -1,0 +1,14 @@
+In a fixed-layout table, Ladybird now scales column percentages that add
+up to more than 100% down in proportion, and still clamps them in order
+in auto mode. Chrome 158, Firefox 151 and WebKit 26.5 give the same
+widths in all nine cases of the new test, run with engine-compare: with
+a length column, an auto column, col elements, cell padding, and with
+percentages that add up to exactly 100%.
+
+Blink’s ApplyCellConstraintsToColumnConstraints() multiplies each
+column’s percent by 100 / total when the table is in fixed layout and
+the total is over 100. WebKit’s FixedTableLayout::layout() scales the
+percent columns to the table width when the widths add up to more, and
+Gecko’s FixedTableLayoutStrategy::ComputeColumnISizes() reduces the
+percentage columns by one ratio when they take up too much space. This
+paragraph comes from reading their sources, not running them.
