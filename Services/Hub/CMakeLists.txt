@@ -31,4 +31,5 @@ add_executable(Hub main.cpp)
 target_include_directories(Hub PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 target_link_libraries(Hub PRIVATE hubservice hubipc LibCore LibHTTP LibIPC LibMain LibRequests LibThreading LibURL LibWebView)
 
+set_target_properties(Hub PROPERTIES OUTPUT_NAME ladybird-hub)
 ladybird_sign_helper_process(Hub)

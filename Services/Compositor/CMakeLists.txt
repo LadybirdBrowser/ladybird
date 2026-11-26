@@ -89,4 +89,5 @@ if (WIN32)
     ladybird_windows_bin(Compositor CONSOLE)
 endif()
 
+set_target_properties(Compositor PROPERTIES OUTPUT_NAME ladybird-gpu)
 ladybird_sign_helper_process(Compositor)

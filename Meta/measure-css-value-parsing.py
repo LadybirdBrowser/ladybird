@@ -18,7 +18,7 @@ import urllib.request
 
 from pathlib import Path
 
-DEFAULT_WEBDRIVER = "Build/release/bin/WebDriver"
+DEFAULT_WEBDRIVER = "Build/release/bin/ladybird-driver"
 DEFAULT_STYLESHEET = "Tests/LibWeb/WPT/wpt/tools/runner/css/bootstrap.min.css"
 
 BENCHMARK_SCRIPT = r"""

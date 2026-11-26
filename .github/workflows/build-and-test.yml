@@ -241,7 +241,7 @@ jobs:
         env:
           BUILD_LADYBIRD: 'false'
           LADYBIRD_BINARY: ${{ github.workspace }}/Build/bin/Ladybird
-          WEBDRIVER_BINARY: ${{ github.workspace }}/Build/bin/WebDriver
+          WEBDRIVER_BINARY: ${{ github.workspace }}/Build/bin/ladybird-driver
           WPT_PROCESSES: '4'
 
       - name: Test

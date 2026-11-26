@@ -30,4 +30,5 @@ if (WIN32)
     ladybird_windows_bin(VideoDecoderServer CONSOLE)
 endif()
 
+set_target_properties(VideoDecoderServer PROPERTIES OUTPUT_NAME ladybird-video)
 ladybird_sign_helper_process(VideoDecoderServer)

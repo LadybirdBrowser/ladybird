@@ -97,7 +97,7 @@ def main():
             line.split(": ", 1) for line in (results / "harness-status.txt").read_text().splitlines() if ": " in line
         )
         assert status["completed"] == "2/2" and status["pass"] == "2", status
-        processes = re.findall(r"WebContent\((\d+)\).*HISTORY_RESET_(EXHAUST|CONSUMER)", process.stdout)
+        processes = re.findall(r"ladybird-render\((\d+)\).*HISTORY_RESET_(EXHAUST|CONSUMER)", process.stdout)
         assert len(processes) == 2 and processes[0][1] == "EXHAUST" and processes[1][1] == "CONSUMER", processes
         assert processes[0][0] == processes[1][0], f"WebContent was not reused: {processes}"
 

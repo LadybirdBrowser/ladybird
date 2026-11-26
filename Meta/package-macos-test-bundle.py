@@ -265,8 +265,8 @@ def resign(app: Path, build_directory: Path) -> list[str]:
         if executable == main_executable:
             continue
         command = ["codesign", "--sign", "-", "--force"]
-        entitlements = build_directory / "Services" / executable.name / f"{executable.name}.entitlements"
-        if entitlements.is_file():
+        entitlements = next((build_directory / "Services").glob(f"*/{executable.name}.entitlements"), None)
+        if entitlements is not None:
             command += ["--options", "runtime", "--entitlements", str(entitlements)]
         subprocess.run([*command, str(executable)], check=True, capture_output=True)
         resigned.append(executable.name)

@@ -20,4 +20,5 @@ if (WIN32)
     ladybird_windows_bin(WebRTCClient CONSOLE)
 endif()
 
+set_target_properties(WebRTCClient PROPERTIES OUTPUT_NAME ladybird-webrtc)
 ladybird_sign_helper_process(WebRTCClient)

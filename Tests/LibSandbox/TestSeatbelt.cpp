@@ -963,14 +963,14 @@ TEST_CASE(sandboxed_process_spawns_only_allowed_executables_and_cannot_fork)
 
 TEST_CASE(application_bundle_is_found_only_for_bundled_executables)
 {
-    EXPECT_EQ(Sandbox::application_bundle_for_executable("/Applications/Ladybird.app/Contents/MacOS/WebContent"sv), "/Applications/Ladybird.app"sv);
-    EXPECT_EQ(Sandbox::application_bundle_for_executable("/Users/user/Applications/Ladybird.app/Contents/MacOS/Compositor"sv), "/Users/user/Applications/Ladybird.app"sv);
-    EXPECT_EQ(Sandbox::application_bundle_for_executable("/src/Build/release/bin/Ladybird.app/Contents/MacOS/WebContent"sv), "/src/Build/release/bin/Ladybird.app"sv);
+    EXPECT_EQ(Sandbox::application_bundle_for_executable("/Applications/Ladybird.app/Contents/MacOS/ladybird-render"sv), "/Applications/Ladybird.app"sv);
+    EXPECT_EQ(Sandbox::application_bundle_for_executable("/Users/user/Applications/Ladybird.app/Contents/MacOS/ladybird-gpu"sv), "/Users/user/Applications/Ladybird.app"sv);
+    EXPECT_EQ(Sandbox::application_bundle_for_executable("/src/Build/release/bin/Ladybird.app/Contents/MacOS/ladybird-render"sv), "/src/Build/release/bin/Ladybird.app"sv);
 
     EXPECT(!Sandbox::application_bundle_for_executable("/src/Build/release/bin/TestSeatbelt"sv).has_value());
-    EXPECT(!Sandbox::application_bundle_for_executable("/Users/user/Ladybird/Contents/MacOS/WebContent"sv).has_value());
-    EXPECT(!Sandbox::application_bundle_for_executable("/Contents/MacOS/WebContent"sv).has_value());
-    EXPECT(!Sandbox::application_bundle_for_executable("WebContent"sv).has_value());
+    EXPECT(!Sandbox::application_bundle_for_executable("/Users/user/Ladybird/Contents/MacOS/ladybird-render"sv).has_value());
+    EXPECT(!Sandbox::application_bundle_for_executable("/Contents/MacOS/ladybird-render"sv).has_value());
+    EXPECT(!Sandbox::application_bundle_for_executable("ladybird-render"sv).has_value());
 }
 
 TEST_CASE(sandboxed_process_with_network_connects_only_to_network_hosts)

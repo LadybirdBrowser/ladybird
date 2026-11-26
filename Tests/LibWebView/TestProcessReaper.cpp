@@ -16,7 +16,7 @@ static ByteString process_reaper_path()
 {
     // The helpers live in the application bundle next to the test executables.
     auto test_directory = LexicalPath::dirname(MUST(Core::System::current_executable_path()));
-    return ByteString::formatted("{}/Ladybird.app/Contents/MacOS/ProcessReaper", test_directory);
+    return ByteString::formatted("{}/Ladybird.app/Contents/MacOS/ladybird-reaper", test_directory);
 }
 
 TEST_CASE(helpers_are_killed_once_the_browser_is_gone)

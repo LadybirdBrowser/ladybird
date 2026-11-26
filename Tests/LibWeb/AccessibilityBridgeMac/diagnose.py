@@ -4,7 +4,7 @@
 Launches Ladybird on the roles.html fixture exactly the way the test harness does, then records (from outside the app)
 everything needed to tell *why* an AXWebArea did or did not appear:
 
-  1. whether the helper processes (WebContent, RequestServer, ImageDecoder, ...) spawn, and when;
+  1. whether the helper processes (ladybird-render, ladybird-net, ladybird-image, ...) spawn, and when;
   2. what the process family logs (captured stderr/stdout, the unified log, and crash reports);
   3. whether a real window exists at the window-server level (CGWindowList), independent of the AX bridge;
   4. whether the app activates and finishes launching (NSRunningApplication);
@@ -88,7 +88,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird.app" / "Contents" / "MacOS" / "Ladybird"
 FIXTURE = pathlib.Path(__file__).resolve().parents[1] / "AccessibilityBridge" / "input" / "roles.html"
 
-HELPER_NAMES = ("WebContent", "RequestServer", "ImageDecoder", "Compositor", "WebDriver")
+HELPER_NAMES = ("ladybird-render", "ladybird-net", "ladybird-image", "ladybird-gpu", "ladybird-driver")
 
 AX_ERROR_NAMES = {
     0: "success",
@@ -617,9 +617,9 @@ class Probe:
                 % (pid, row["ppid"], row["state"], row["cpu"], row["rss"], row["command"][:120])
             )
         names = sorted({short_name(table[p]["command"]) for p in family if p in table})
-        for expected in ("WebContent", "RequestServer", "ImageDecoder"):
+        for expected in ("ladybird-render", "ladybird-net", "ladybird-image"):
             note_summary("helper %-13s: %s" % (expected, "spawned" if expected in names else "NEVER SPAWNED"))
-        extras = [n for n in names if n not in ("WebContent", "RequestServer", "ImageDecoder")]
+        extras = [n for n in names if n not in ("ladybird-render", "ladybird-net", "ladybird-image")]
         if extras:
             note_summary("other helpers      : %s" % ",".join(extras))
 
@@ -754,7 +754,7 @@ class Probe:
         table, family = ladybird_family(self.proc.pid) if self.proc else ({}, [])
         for child in family:
             name = short_name(table.get(child, {}).get("command", ""))
-            if name == "WebContent":
+            if name == "ladybird-render":
                 targets.append((name, child))
                 break
         if not targets:
@@ -993,7 +993,7 @@ class Probe:
             except Exception:
                 continue
             for entry in entries:
-                if not re.match(r"(Ladybird|WebContent|RequestServer|ImageDecoder|Compositor)", entry.name):
+                if not re.match(r"(Ladybird|ladybird-)", entry.name):
                     continue
                 try:
                     if entry.stat().st_mtime < cutoff:

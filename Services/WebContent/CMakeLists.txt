@@ -62,4 +62,5 @@ target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
           WebDriverConnection.h
 )
 
+set_target_properties(WebContent PROPERTIES OUTPUT_NAME ladybird-render)
 ladybird_sign_helper_process(WebContent ALLOW_JIT)

@@ -102,7 +102,7 @@ def web_content_resident_bytes(root_pid):
     while pending:
         for pid, command in children.get(pending.pop(), []):
             pending.append(pid)
-            if command.split()[0].endswith("/WebContent"):
+            if command.split()[0].endswith("/ladybird-render"):
                 largest = max(largest, resident_bytes(pid))
     return largest
 

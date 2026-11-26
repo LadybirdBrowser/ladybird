@@ -1771,7 +1771,8 @@ void Application::launch_spare_web_content_process()
     if (browser_options().webdriver_browser_endpoint.has_value())
         return;
 
-    // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
+    // Disable spare processes when debugging WebContent. Otherwise, it breaks running
+    // `gdb attach -p $(pidof ladybird-render)`.
     if (browser_options().debug_helper_processes.contains_slow(ProcessType::WebContent))
         return;
     // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
