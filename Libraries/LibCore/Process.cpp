@@ -277,15 +277,17 @@ struct SpawnedChildContext {
     int child_errno { 0 };
 };
 
+[[noreturn]] NO_SANITIZE_ADDRESS static void report_errno_and_exit(SpawnedChildContext& context, int error)
+{
+    context.child_errno = error;
+    _exit(127);
+}
+
 // The child shares our memory but has its own stack until exec(), while the spawning thread waits.
 // Like a vfork() child, it may only make system calls: allocating could corrupt our heap.
 NO_SANITIZE_ADDRESS static int spawned_child_main(void* argument)
 {
     auto& context = *static_cast<SpawnedChildContext*>(argument);
-    auto report_errno_and_exit = [&](int error) {
-        context.child_errno = error;
-        _exit(127);
-    };
 
     // Reset handlers before unblocking signals so they cannot touch our shared state.
     // Use raw syscalls to avoid sanitizer wrappers modifying bookkeeping in our memory.
@@ -307,29 +309,28 @@ NO_SANITIZE_ADDRESS static int spawned_child_main(void* argument)
 
     if (context.options.die_with_parent) {
         if (prctl(PR_SET_PDEATHSIG, SIGKILL) < 0)
-            report_errno_and_exit(errno);
+            report_errno_and_exit(context, errno);
         if (getppid() != context.parent_pid)
             _exit(127);
     }
 
     if (context.options.new_process_group && setpgid(0, 0) < 0)
-        report_errno_and_exit(errno);
+        report_errno_and_exit(context, errno);
 
     if (auto error = run_file_actions_in_child(context.options.file_actions); error.has_value())
-        report_errno_and_exit(error.value());
+        report_errno_and_exit(context, error.value());
     if (auto error = close_undeclared_descriptors(context.descriptors_to_keep); error.has_value())
-        report_errno_and_exit(error.value());
+        report_errno_and_exit(context, error.value());
 
     if (syscall(SYS_rt_sigprocmask, SIG_SETMASK, &context.child_signal_mask, nullptr, kernel_signal_set_size) < 0)
-        report_errno_and_exit(errno);
+        report_errno_and_exit(context, errno);
 
     if (context.options.search_for_executable_in_path)
         execvpe(context.options.executable.characters(), const_cast<char* const*>(context.arguments.data()), context.environment);
     else
         execve(context.options.executable.characters(), const_cast<char* const*>(context.arguments.data()), context.environment);
 
-    report_errno_and_exit(errno);
-    return 127;
+    report_errno_and_exit(context, errno);
 }
 
 // Share memory until exec(), as posix_spawn() does, to avoid fork()'s page-table copying and copy-on-write setup.
