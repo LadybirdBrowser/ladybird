@@ -213,15 +213,23 @@ struct MatchingFontCandidate {
 
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-static RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceSnapshot const& snapshot, Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, FontFaceSize size, Gfx::FontVariationSettings const& variations, WeightAxisFollowsFontWeight weight_axis_follows_font_weight, Gfx::ShapeFeatures const& shape_features, Gfx::FontSynthesisRequest const& synthesis_request)
+// Whether a family name can name the document's own @font-face faces, or only the platform's fonts.
+enum class FontFamilySource : u8 {
+    AuthorAndSystem,
+    SystemOnly,
+};
+
+static RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceSnapshot const& snapshot, Utf16FlyString const& family_name, int weight, Percentage const& font_width, int slope, FontFaceSize size, Gfx::FontVariationSettings const& variations, WeightAxisFollowsFontWeight weight_axis_follows_font_weight, Gfx::ShapeFeatures const& shape_features, Gfx::FontSynthesisRequest const& synthesis_request, FontFamilySource source)
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
     Vector<MatchingFontCandidate> matching_family_fonts;
-    for (auto const& [key, faces] : snapshot.table()) {
-        if (key.family_name.equals_ignoring_ascii_case(family_name)) {
-            matching_family_fonts.empend(key);
-            matching_family_fonts.last().width = font_width_bucket_from_percentage(key.width);
+    if (source == FontFamilySource::AuthorAndSystem) {
+        for (auto const& [key, faces] : snapshot.table()) {
+            if (key.family_name.equals_ignoring_ascii_case(family_name)) {
+                matching_family_fonts.empend(key);
+                matching_family_fonts.last().width = font_width_bucket_from_percentage(key.width);
+            }
         }
     }
     if (matching_family_fonts.is_empty()) {
@@ -437,7 +445,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
     };
 #endif
 
-    auto find_font = [&](Utf16FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
+    auto find_font = [&](Utf16FlyString const& family, FontFamilySource source = FontFamilySource::AuthorAndSystem) -> RefPtr<Gfx::FontCascadeList const> {
         auto const shape_features = shape_features_for(key, &font_feature_values_for_family(family));
 
         // OPTIMIZATION: Look for an exact match in loaded fonts first.
@@ -448,7 +456,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
             .slope = slope,
             .width = static_cast<int>(font_width.value()),
         };
-        if (auto const* faces = snapshot.faces(lookup_key)) {
+        if (auto const* faces = source == FontFamilySource::AuthorAndSystem ? snapshot.faces(lookup_key) : nullptr) {
             auto clamped_variations = variations_clamped_to_weight_descriptor(variation, weight_axis_follows_font_weight, lookup_key.weight);
             auto result = Gfx::FontCascadeList::create();
             for (auto const& face : *faces) {
@@ -468,7 +476,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
         }
 #endif
 
-        if (auto found_font = font_matching_algorithm(snapshot, family, weight, font_width, slope, face_size, variation, weight_axis_follows_font_weight, shape_features, synthesis_request); found_font && !found_font->is_empty())
+        if (auto found_font = font_matching_algorithm(snapshot, family, weight, font_width, slope, face_size, variation, weight_axis_follows_font_weight, shape_features, synthesis_request, source); found_font && !found_font->is_empty())
             return found_font;
 
         return {};
@@ -520,7 +528,9 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
         default:
             return {};
         }
-        return find_font(Utf16FlyString::from_fly_string(Platform::FontPlugin::the().generic_font_name(generic_font)));
+        // A generic family names one of the platform's fonts, which a page's @font-face rule of the same family name
+        // doesn't replace.
+        return find_font(Utf16FlyString::from_fly_string(Platform::FontPlugin::the().generic_font_name(generic_font)), FontFamilySource::SystemOnly);
     };
 
     auto font_list = Gfx::FontCascadeList::create();
@@ -544,7 +554,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
         select_fonts_at(font_size);
     }
     if (font_list->is_empty()) {
-        if (auto fallback_font_list = with_font_size_adjust([&] { return find_font(Utf16FlyString::from_fly_string(Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::UiSansSerif))); }))
+        if (auto fallback_font_list = with_font_size_adjust([&] { return find_font(Utf16FlyString::from_fly_string(Platform::FontPlugin::the().generic_font_name(Platform::GenericFont::UiSansSerif)), FontFamilySource::SystemOnly); }))
             font_list->extend(*fallback_font_list);
     }
     if (font_list->is_empty()) {

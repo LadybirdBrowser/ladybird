@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    /* SerenitySans is the platform font every generic family names in layout tests. */
+    @font-face { font-family: SerenitySans; src: url(../../Ref/data/fonts/Ahem.ttf); }
+    @font-face { font-family: TestAhem; src: url(../../Ref/data/fonts/Ahem.ttf); }
+</style>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        await document.fonts.load("20px TestAhem");
+        await document.fonts.load("20px SerenitySans");
+        const width = family => {
+            const span = document.createElement("span");
+            span.style.font = `20px ${family}`;
+            span.textContent = "iiiii";
+            document.body.appendChild(span);
+            return span.getBoundingClientRect().width;
+        };
+        const ahem_width = width("TestAhem");
+        for (const family of ["monospace", "serif", "sans-serif", "non-existent-font", "SerenitySans"])
+            println(`${family} renders in the @font-face face: ${width(family) === ahem_width}`);
+        done();
+    });
+</script>
