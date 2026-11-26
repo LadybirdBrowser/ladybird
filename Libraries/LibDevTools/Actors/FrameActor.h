@@ -31,6 +31,7 @@ public:
     void send_thread_state_resource_available_message(JsonObject);
     void set_pending_navigation_document_events_after_target_switch(String const& url, String const& title);
     void stop_listening();
+    void take_network_events_from(FrameActor& previous_target);
 
     JsonObject serialize_target() const;
 

@@ -34,6 +34,11 @@ void Actor::unregister_child_actor(Actor const& actor)
     devtools().unregister_actor(actor.name());
 }
 
+void Actor::forget_child_actor(Actor const& actor)
+{
+    m_child_actors.remove(actor.name());
+}
+
 void Actor::message_received(StringView type, JsonObject message)
 {
     auto message_id = m_next_message_id++;
