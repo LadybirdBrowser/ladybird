@@ -560,7 +560,7 @@ private:
     template<typename Callback>
     void for_each_canvas_element(Callback&& callback);
 
-    Vector<GC::Root<DOM::Document>> documents_in_active_window() const;
+    Vector<GC::Root<DOM::Document>> documents_to_search() const;
     void discard_provisional_navigable_of(HTML::RemoteNavigable&);
 
     enum class SearchDirection {

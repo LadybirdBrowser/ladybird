@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    iframe { display: block; margin-top: 200vh; height: 100px; border: 0; }
+</style>
+<p>Outer document text</p>
+<p id="needle">needle</p>
+<p id="after">after the needle</p>
+<iframe srcdoc="<p>Embedded document text</p><p>needle</p><p id=two>needle two</p><p id=three>needle three</p>"></iframe>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        const run = () => {
+            internals.findInPage("document text");
+            internals.findInPageNextMatch();
+            const rect = iframe.getBoundingClientRect();
+            println(`iframe in view: ${rect.top >= 0 && rect.bottom <= document.documentElement.clientHeight}`);
+            internals.findInPageEnd();
+            println(`selection in the iframe: "${iframe.contentDocument.getSelection().toString()}"`);
+            println(`selection in the outer document: "${getSelection().toString()}"`);
+
+            // Find next from a selection past the outer document's last match goes on to the iframe's.
+            internals.findInPage("needle");
+            getSelection().selectAllChildren(document.getElementById("after"));
+            internals.findInPageNextMatch();
+            iframe.contentDocument.getSelection().removeAllRanges();
+            getSelection().removeAllRanges();
+            internals.findInPageEnd();
+            println(`after find next from past the outer match: "${iframe.contentDocument.getSelection().toString()}" in the iframe, "${getSelection().toString()}" outside`);
+
+            // Find next from a selection the user made in the iframe goes on to the match after it.
+            internals.findInPage("needle");
+            iframe.contentWindow.focus();
+            iframe.contentDocument.getSelection().selectAllChildren(iframe.contentDocument.getElementById("two"));
+            internals.findInPageNextMatch();
+            iframe.contentDocument.getSelection().removeAllRanges();
+            internals.findInPageEnd();
+            const anchor = iframe.contentDocument.getSelection().anchorNode;
+            println(`after find next from a selection in the iframe: in #${anchor ? anchor.parentElement.id : "nothing"}`);
+            done();
+        };
+        if (document.readyState === "complete")
+            run();
+        else
+            window.addEventListener("load", run, { once: true });
+    });
+</script>
