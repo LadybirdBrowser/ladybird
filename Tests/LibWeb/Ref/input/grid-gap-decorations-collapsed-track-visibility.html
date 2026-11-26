@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/grid-gap-decorations-collapsed-track-visibility-ref.html" />
+<style>
+body { margin: 0; }
+.grid { display: grid; width: 170px; grid-template-columns: repeat(auto-fit, 50px); grid-auto-rows: 50px; column-gap: 10px; column-rule: 10px solid green; column-rule-visibility-items: between; }
+.grid > div { background: gray; }
+</style>
+<div class="grid"><div style="grid-column: 1"></div><div style="grid-column: 3"></div></div>

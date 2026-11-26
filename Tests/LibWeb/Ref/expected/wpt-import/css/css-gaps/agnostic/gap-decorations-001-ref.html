@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+<style>
+    body {
+        margin: 0px;
+    }
+
+  .container {
+    display: flex;
+    width: 110px;
+    height: 110px;
+    column-gap: 10px;
+    row-gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .item {
+    background: skyblue;
+    height: 50px;
+    width: 50px;
+    margin: 0;
+  }
+
+  .row-gap {
+    position: absolute;
+    top: 50px;
+    background: green;
+    width: 110px;
+    height: 10px;
+  }
+
+  .column-gap {
+    position: absolute;
+    top: 0px;
+    left: 50px;
+    background: pink;
+    height: 110px;
+    width: 10px;
+  }
+
+</style>
+<div class="container">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+
+<div class="column-gap"></div>
+<div class="row-gap"></div>

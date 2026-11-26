@@ -463,6 +463,9 @@ impl LayoutStyle {
             target.column_rule_style = misc_layout.column_rule_style;
             target.column_rule_width = misc_layout.column_rule_width;
             target.column_rule_color = misc_layout.column_rule_color;
+            target.column_rules = misc_layout.column_rules.clone();
+            target.row_rules = misc_layout.row_rules.clone();
+            target.rule_overlap = misc_layout.rule_overlap;
         });
         let alignment = source.group::<AlignmentValues>();
         self.edit::<AlignmentValues>(|target| target.column_gap = alignment.column_gap.clone());

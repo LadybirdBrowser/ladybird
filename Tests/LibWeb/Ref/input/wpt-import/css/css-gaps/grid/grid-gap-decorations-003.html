@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>
+  CSS Gap Decorations: grid column gaps are painted with dotted styling.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-gaps/grid/grid-gap-decorations-003-ref.html">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+<style>
+
+  body {
+    margin: 0px;
+  }
+
+  .grid-container {
+    height: 110px;
+    width: 110px;
+
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+
+    column-gap: 10px;
+    row-gap: 10px;
+
+    column-rule-color: pink;
+    column-rule-style: dotted;
+    column-rule-width: 10px;
+
+    row-rule-color: green;
+    row-rule-style: dotted;
+    row-rule-width: 10px;
+  }
+
+  .grid-item {
+    background: skyblue;
+  }
+</style>
+<div class="grid-container">
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+</div>

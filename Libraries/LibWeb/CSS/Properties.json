@@ -1940,6 +1940,7 @@
     ]
   },
   "column-rule-break": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -1980,6 +1981,7 @@
     ]
   },
   "column-rule-inset-cap-end": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -1995,6 +1997,7 @@
     "percentages-resolve-to": "length"
   },
   "column-rule-inset-cap-start": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2024,6 +2027,7 @@
     ]
   },
   "column-rule-inset-junction-end": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2039,6 +2043,7 @@
     "percentages-resolve-to": "length"
   },
   "column-rule-inset-junction-start": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2072,6 +2077,7 @@
     ]
   },
   "column-rule-visibility-items": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -5093,6 +5099,7 @@
     ]
   },
   "row-rule-break": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -5105,6 +5112,7 @@
     ]
   },
   "row-rule-color": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -5132,6 +5140,7 @@
     ]
   },
   "row-rule-inset-cap-end": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -5147,6 +5156,7 @@
     "percentages-resolve-to": "length"
   },
   "row-rule-inset-cap-start": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -5176,6 +5186,7 @@
     ]
   },
   "row-rule-inset-junction-end": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -5191,6 +5202,7 @@
     "percentages-resolve-to": "length"
   },
   "row-rule-inset-junction-start": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -5213,6 +5225,7 @@
     ]
   },
   "row-rule-style": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -5223,6 +5236,7 @@
     ]
   },
   "row-rule-visibility-items": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,
@@ -5236,6 +5250,7 @@
     ]
   },
   "row-rule-width": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -5322,6 +5337,7 @@
     ]
   },
   "rule-overlap": {
+    "style-group": "MiscLayoutValues",
     "affects-layout": false,
     "animation-type": "discrete",
     "inherited": false,

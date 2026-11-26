@@ -15,7 +15,8 @@ use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::published_frame::PublishedPaintState;
 use crate::painting::record::paint::{
-    border_image, column_rule, outline, shadow, table_backgrounds, table_borders, text, text_decoration,
+    border_image, column_rule, gap_decorations, outline, shadow, table_backgrounds, table_borders, text,
+    text_decoration,
 };
 use crate::painting::visual_context::node_values::{OverflowClipRanges, overflow_clip_ranges};
 use crate::painting::{border_shape, chrome_geometry, node_painting, paintable_geometry, style_queries, text_fragment};
@@ -147,6 +148,11 @@ pub(crate) fn own_ink_overflow(
         if column_rule::has_visible_column_rule(style) {
             for rule in column_rule::column_rule_rects(source, owner, style) {
                 ink.rect.unite(inflated(rule, style.column_rule_width() * 2));
+            }
+        }
+        if gap_decorations::has_visible_gap_decorations(style) {
+            for decoration in gap_decorations::gap_decorations(source, owner, style) {
+                ink.rect.unite(inflated(decoration.rect, decoration.width * 2));
             }
         }
         if style_queries::is_scroll_container(source, owner) || chrome_geometry::has_resizer(source, owner) {

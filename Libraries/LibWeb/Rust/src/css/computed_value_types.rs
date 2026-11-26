@@ -475,6 +475,23 @@ pub mod user_agent_margin_side {
     pub const LEFT: u8 = 1 << 3;
 }
 
+/// The gap decoration values of one axis of a container.
+// https://drafts.csswg.org/css-gaps-1/#gap-decorations
+#[repr(C)]
+#[derive(Clone, PartialEq)]
+pub struct ComputedGapRules {
+    /// The computed lists of colors, styles and widths, which can hold repeat() functions.
+    pub color: ComputedStyleValueHandle,
+    pub style: ComputedStyleValueHandle,
+    pub width: ComputedStyleValueHandle,
+    pub inset_cap_start: ComputedStyleValueHandle,
+    pub inset_cap_end: ComputedStyleValueHandle,
+    pub inset_junction_start: ComputedStyleValueHandle,
+    pub inset_junction_end: ComputedStyleValueHandle,
+    pub rule_break: u8,
+    pub visibility_items: u8,
+}
+
 /// The non-inherited values of how a box lays out and outlines that no more specific group holds:
 /// appearance, fragmentation breaks, columns, object fitting, outlines, overflow clip margins and
 /// float shapes.
@@ -509,6 +526,9 @@ pub struct MiscLayoutValues {
     pub shape_image_threshold: f64,
     pub shape_margin: ComputedStyleValueHandle,
     pub shape_outside: ComputedStyleValueHandle,
+    pub column_rules: ComputedGapRules,
+    pub row_rules: ComputedGapRules,
+    pub rule_overlap: u8,
     pub content_visibility: u8,
 }
 

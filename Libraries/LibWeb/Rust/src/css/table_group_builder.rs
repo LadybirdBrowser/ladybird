@@ -387,7 +387,7 @@ pub(crate) fn groups_reading_current_color_through_inherited_values<'a>(
 
 /// The computed color `data` is, as a group holds it: `currentcolor` stays for the group's reader
 /// to resolve against the element's color.
-fn style_color(data: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleColor> {
+pub(crate) fn style_color(data: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleColor> {
     if let StyleValueData::Keyword { keyword: code } = data
         && *code == keyword::CURRENTCOLOR
     {
@@ -444,7 +444,11 @@ fn gather_group_entries<'a>(
     assert!(descriptors.len() <= MAX_GROUP_FIELD_COUNT);
     let mut entries = GroupValueEntries::new();
     for descriptor in descriptors {
-        let handle = values.handle(descriptor.property_id);
+        // NB: A retained value is held as it is, so a gap decoration list keeps all of its values.
+        let handle = match descriptor.kind {
+            GroupFieldKind::RetainedData => values.unmapped_handle(descriptor.property_id),
+            _ => values.handle(descriptor.property_id),
+        };
         let data = handle.optional_data()?;
         let mut entry = GroupValueEntry {
             data: handle,

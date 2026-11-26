@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.parent { display: grid; grid-template-rows: 50px 50px; grid-template-columns: 50px 50px; gap: 20px; }
+.subgrid { grid-row: 1 / 3; grid-column: 1 / 3; display: grid; grid-template-rows: subgrid; grid-template-columns: subgrid; padding-block: 12px; }
+.subgrid > div { background: gray; }
+.rule { position: absolute; left: 55px; top: 12px; width: 10px; height: 96px; background: green; }
+</style>
+<div class="parent"><div class="subgrid"><div></div><div></div><div></div><div></div></div></div>
+<div class="rule"></div>

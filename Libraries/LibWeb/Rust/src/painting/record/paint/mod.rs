@@ -15,6 +15,7 @@ pub mod column_rule;
 pub mod fieldset;
 pub mod form_controls;
 pub mod frameset;
+pub mod gap_decorations;
 pub mod gradient_resolution;
 pub mod inline_box;
 pub mod inspector_overlay;
@@ -71,6 +72,7 @@ pub(crate) fn paint_phase_mask<O: Observer>(
             || style_queries::has_css_borders(style)
             || crate::painting::border_shape::has_border_shape(style)
             || facts.paints_column_rules
+            || facts.paints_gap_decorations
         {
             phases |= PaintPhase::Border.bit();
         }
@@ -280,6 +282,12 @@ pub(crate) fn paint_base_with<O: Observer>(
         if facts.paints_column_rules {
             let context = recorder.for_descendants_context(paintable);
             recorder.with_context(context, |recorder| column_rule::paint_column_rules(recorder, paintable));
+        }
+        if facts.paints_gap_decorations {
+            let context = recorder.for_descendants_context(paintable);
+            recorder.with_context(context, |recorder| {
+                gap_decorations::paint_gap_decorations(recorder, paintable);
+            });
         }
         recorder.recorder.set_contrast_backdrop(previous);
     }

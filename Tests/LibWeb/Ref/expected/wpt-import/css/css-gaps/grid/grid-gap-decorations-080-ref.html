@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<link rel="author" title="Javier Contreras" href="mailto:javiercon@microsoft.com">
+<style>
+  body { margin: 0px; }
+  .container {
+    display: grid;
+    grid-template: repeat(4, 100px) / repeat(4, 100px);
+    gap: 20px;
+    padding: 10px;
+    position: relative;
+  }
+  .item {
+    background: rgba(192 192 192 / 0.75);
+  }
+  .col-rule {
+    position: absolute;
+    width: 0px;
+    border-left: 6px solid rgba(128 0 0 / 0.5);
+  }
+  .row-rule {
+    position: absolute;
+    height: 0px;
+    border-top: 6px solid rgba(0 0 128 / 0.5);
+  }
+</style>
+<div class="container">
+  <div class="item" style="grid-area: 1/1/4/2">L</div>
+  <div class="item" style="grid-area: 1/4/4/5">R</div>
+  <div class="item" style="grid-area: 1/2/2/3">A</div>
+  <div class="item" style="grid-area: 1/3/2/4">B</div>
+  <div class="item" style="grid-area: 3/2/4/3">C</div>
+  <div class="item" style="grid-area: 3/3/4/4">D</div>
+  <div class="item" style="grid-area: 4/2/5/3">E</div>
+  <!-- Col gap 0 (between cols 1-2), segment 1: geo edge (5px inset) to dangling (5px inset) -->
+  <div class="col-rule" style="left: 117px; top: 15px; height: 90px;"></div>
+  <!-- Col gap 0, segment 2: dangling (5px inset) to interior overlap-join -->
+  <div class="col-rule" style="left: 117px; top: 255px; height: 108px;"></div>
+  <!-- Col gap 1 (between cols 2-3), segment 1: geo edge (5px inset) to dangling (5px inset) -->
+  <div class="col-rule" style="left: 237px; top: 15px; height: 90px;"></div>
+  <!-- Col gap 1, segment 2: dangling (5px inset) to interior overlap-join -->
+  <div class="col-rule" style="left: 237px; top: 255px; height: 108px;"></div>
+  <!-- Col gap 2 (between cols 3-4), segment 1: geo edge (5px inset) to dangling (5px inset) -->
+  <div class="col-rule" style="left: 357px; top: 15px; height: 90px;"></div>
+  <!-- Col gap 2, segment 2: dangling (5px inset) to dangling (5px inset) -->
+  <div class="col-rule" style="left: 357px; top: 255px; height: 90px;"></div>
+  <!-- Row gap 3-4, only visible segment: interior overlap-join on both sides -->
+  <div class="row-rule" style="left: 117px; top: 357px; width: 126px;"></div>
+</div>

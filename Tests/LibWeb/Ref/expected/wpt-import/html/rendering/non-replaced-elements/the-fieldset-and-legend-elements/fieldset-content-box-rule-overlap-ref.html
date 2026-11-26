@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Fieldset anonymous content box inherits rule-overlap (reference)</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#anonymous-fieldset-content-box">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#propdef-rule-overlap">
+<style>
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  column-rule: 20px solid green;
+  row-rule: 20px solid blue;
+  rule-overlap: column-over-row;
+  width: 200px;
+  margin: 0;
+}
+.item {
+  height: 50px;
+  background: silver;
+}
+</style>
+<p>There should be a 2-column grid with green column rules overlapping blue row rules below.</p>
+<div class="container">
+  <div class="item"></div>
+  <div class="item"></div>
+  <div class="item"></div>
+  <div class="item"></div>
+</div>
