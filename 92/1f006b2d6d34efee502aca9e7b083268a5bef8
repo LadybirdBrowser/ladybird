@@ -1,0 +1,14 @@
+Ladybird now resolves the x, y, dx, and dy lists of SVG text for each
+addressable character, with a descendant’s value overriding its
+ancestor’s, and an absolute x or y starting a new text chunk. Blink does
+the same in SvgTextLayoutAttributesBuilder::Build() and in two steps of
+SvgTextLayoutAlgorithm: AdjustPositionsDxDy() and AdjustPositionsXY();
+WebKit in SVGTextLayoutAlgorithm::resolveCharacterPositioning(); and
+Gecko in SVGTextFrame::ResolvePositionsForNode(). Run with Ahem in
+Chrome 158, Firefox 151, and WebKit 26.5, all three engines give the
+same character positions as Ladybird for a dx list on a text element and
+on a tspan, an x list, and a dy list. And Chrome 158 gives the same
+positions for a middle-anchored x list, an x or a dx list under
+textLength, and lists with commas and units. Like Chrome, Ladybird
+counts a dx at the start of a chunk toward the length that textLength
+measures, which Firefox doesn’t.
