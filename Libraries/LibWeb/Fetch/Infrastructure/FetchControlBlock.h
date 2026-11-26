@@ -11,7 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibWeb/Fetch/Engine/BodyIntent.h>
 #include <LibWeb/Fetch/Engine/FetchTimingSeed.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>

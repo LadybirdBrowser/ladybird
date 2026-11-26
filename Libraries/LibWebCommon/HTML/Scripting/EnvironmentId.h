@@ -8,7 +8,7 @@
 
 #include <AK/Format.h>
 #include <AK/String.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 

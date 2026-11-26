@@ -39,6 +39,12 @@
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 
+namespace Web::HTML {
+
+struct PolicyContainer;
+
+}
+
 namespace Web::Fetch::Infrastructure {
 
 class Response;
