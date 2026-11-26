@@ -205,10 +205,12 @@ used after the loop. Values first used by a call argument or a return value pref
 
 **Spilling** happens at the definition: a value that ever needs a stack slot gets one for its whole
 life, and code generation stores it right after defining it, so a slot always holds its value once
-it has one. Parameters use their home slots and the instance its frame header slot. Every value
-live across a call gets a slot, since calls clobber every register. A phi and its inputs (its web)
-share slots wherever their intervals do not overlap, so that the moves into a spilled phi on its
-edges, a loop's back edge above all, are mostly no moves at all.
+it has one. A value evicted from its register needs a slot only if its block or a successor of its
+block still uses it: its interval may go on past a block that returns. Parameters use their home
+slots and the instance its frame header slot. Every value live across a call gets a slot, since
+calls clobber every register. A phi and its inputs (its web) share slots wherever their intervals do
+not overlap, so that the moves into a spilled phi on its edges, a loop's back edge above all, are
+mostly no moves at all.
 
 **Blocks.** A block with one predecessor starts with that predecessor's registers. A merge starts
 with those of the predecessor that keeps the most of its values in registers, so that a path that

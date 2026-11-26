@@ -36,7 +36,7 @@ pub use aarch64::fits_immediate;
 use crate::codegen;
 use crate::convention::{self, Place, Register};
 use crate::ir::{BlockId, Func, NONE, Op, Type, Value};
-use liveness::{Liveness, NO_HINT, block_start_position, node_position, predecessor_index};
+use liveness::{Liveness, NO_HINT, block_start_position, edge_position, node_position, predecessor_index};
 
 /// No register.
 pub const NO_REGISTER: u8 = u8::MAX;
@@ -700,10 +700,28 @@ impl Allocator {
         if value == NONE {
             return;
         }
-        if self.liveness.is_live_after(value, self.position) {
+        if self.is_needed_after(func, value) {
             self.ensure_slot(func, allocation, value);
         }
         self.free(register);
+    }
+
+    /// Whether the current block or one of its successors still uses `value`. Its interval may go on past a block that
+    /// returns, where nothing reads it any more.
+    fn is_needed_after(&self, func: &Func, value: Value) -> bool {
+        if !self.liveness.is_live_after(value, self.position) {
+            return false;
+        }
+        if self
+            .liveness
+            .next_use(value, self.position)
+            .is_some_and(|next| next <= edge_position(func, self.current_block))
+        {
+            return true;
+        }
+        func.successors(self.current_block)
+            .iter()
+            .any(|&successor| self.liveness.is_live_at(value, block_start_position(func, successor)))
     }
 
     fn location(&self, func: &Func, allocation: &Allocation, value: Value) -> Location {
