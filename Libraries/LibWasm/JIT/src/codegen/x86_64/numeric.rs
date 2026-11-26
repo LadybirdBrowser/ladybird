@@ -252,7 +252,9 @@ impl CodeGenerator<'_> {
         if output != a {
             self.asm.mov_rr(width(ty), gpr(output), gpr(a));
         }
+        let start = self.asm.offset();
         self.asm.alu_rm(op, width(ty), gpr(output), &address);
+        self.note_zero_flag(value, width(ty), start);
     }
 
     fn add(&mut self, value: Value, ty: Type, output: Register, a: Register, b: Register) {
@@ -262,14 +264,20 @@ impl CodeGenerator<'_> {
         } else if b == CONSTANT_INPUT {
             let immediate = self.immediate(value, 1) as i32;
             if output == a {
+                let start = self.asm.offset();
                 self.asm.add_ri(width(ty), dst, immediate);
+                self.note_zero_flag(value, width(ty), start);
             } else {
                 self.asm.lea(width(ty), dst, &Address::new(a_register, immediate));
             }
         } else if output == a {
+            let start = self.asm.offset();
             self.asm.add_rr(width(ty), dst, gpr(b));
+            self.note_zero_flag(value, width(ty), start);
         } else if output == b {
+            let start = self.asm.offset();
             self.asm.add_rr(width(ty), dst, a_register);
+            self.note_zero_flag(value, width(ty), start);
         } else {
             self.asm.lea(
                 width(ty),
@@ -288,15 +296,23 @@ impl CodeGenerator<'_> {
             if output != a {
                 self.asm.mov_rr(width(ty), dst, a_register);
             }
+            let start = self.asm.offset();
             self.asm.sub_ri(width(ty), dst, immediate);
+            self.note_zero_flag(value, width(ty), start);
         } else if output == a {
+            let start = self.asm.offset();
             self.asm.sub_rr(width(ty), dst, gpr(b));
+            self.note_zero_flag(value, width(ty), start);
         } else if output == b {
             self.asm.neg(width(ty), dst);
+            let start = self.asm.offset();
             self.asm.add_rr(width(ty), dst, a_register);
+            self.note_zero_flag(value, width(ty), start);
         } else {
             self.asm.mov_rr(width(ty), dst, a_register);
+            let start = self.asm.offset();
             self.asm.sub_rr(width(ty), dst, gpr(b));
+            self.note_zero_flag(value, width(ty), start);
         }
     }
 
@@ -309,14 +325,22 @@ impl CodeGenerator<'_> {
             if output != a {
                 self.asm.mov_rr(width(ty), dst, a_register);
             }
+            let start = self.asm.offset();
             self.asm.alu_ri(op, width(ty), dst, immediate);
+            self.note_zero_flag(value, width(ty), start);
         } else if output == a {
+            let start = self.asm.offset();
             self.asm.alu_rr(op, width(ty), dst, gpr(b));
+            self.note_zero_flag(value, width(ty), start);
         } else if output == b {
+            let start = self.asm.offset();
             self.asm.alu_rr(op, width(ty), dst, a_register);
+            self.note_zero_flag(value, width(ty), start);
         } else {
             self.asm.mov_rr(width(ty), dst, a_register);
+            let start = self.asm.offset();
             self.asm.alu_rr(op, width(ty), dst, gpr(b));
+            self.note_zero_flag(value, width(ty), start);
         }
     }
 
