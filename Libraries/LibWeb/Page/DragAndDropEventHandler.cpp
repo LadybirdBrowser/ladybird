@@ -133,13 +133,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
         auto contents = file.take_contents();
         auto mime_type = MimeSniff::Resource::sniff(contents);
 
-        m_drag_data_store->add_item({
-            .kind = HTML::DragDataStoreItem::Kind::File,
-            .type_string = Utf16String::from_utf8(mime_type.essence()),
-            .data = {},
-            .file_data = move(contents),
-            .file_name = file.name(),
-        });
+        m_drag_data_store->add_file(Utf16FlyString::from_utf8(mime_type.essence()), move(contents), file.name());
     }
 
     // FIXME: 6. If the list of dragged nodes is not empty, then extract the microdata from those nodes into a JSON form, and
@@ -197,13 +191,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
         //        Text
         //    The actual data
         //        url string
-        m_drag_data_store->add_item({
-            .kind = HTML::DragDataStoreItem::Kind::Text,
-            .type_string = "text/uri-list"_utf16,
-            .data = move(url),
-            .file_data = {},
-            .file_name = {},
-        });
+        m_drag_data_store->add_text("text/uri-list"_utf16_fly_string, url);
     }();
 
     // FIXME: 8. Update the drag data store default feedback as appropriate for the user agent (if the user is dragging the

@@ -6543,13 +6543,7 @@ void LocalNavigable::paste(Utf16View text)
     // INTEROP: For middle-click paste, Gecko and Blink also fire the paste event — with the event's clipboard data
     //          reading from the primary selection.
     auto data_store = DragDataStore::create();
-    data_store->add_item({
-        .kind = DragDataStoreItem::Kind::Text,
-        .type_string = "text/plain"_utf16_fly_string,
-        .data = Utf16String::from_utf16(text),
-        .file_data = {},
-        .file_name = {},
-    });
+    data_store->add_text("text/plain"_utf16_fly_string, Utf16String::from_utf16(text));
     m_event_handler.perform_paste_action(data_store, nullptr);
 }
 

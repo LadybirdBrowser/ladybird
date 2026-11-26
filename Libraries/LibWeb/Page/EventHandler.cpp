@@ -8,7 +8,6 @@
  */
 
 #include <AK/AnyOf.h>
-#include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <AK/TemporaryChange.h>
@@ -2709,8 +2708,9 @@ static bool fire_clipboard_event(DOM::Document& document, Utf16FlyString const& 
 static void write_data_transfer_to_clipboard(DOM::Document& document, HTML::DragDataStore const& data_store)
 {
     Vector<Clipboard::SystemClipboardRepresentation> representations;
-    for (auto const& item : data_store.item_list()) {
-        if (item.kind != HTML::DragDataStoreItem::Kind::Text)
+    for (size_t index = 0; index < data_store.size(); ++index) {
+        auto item = data_store.item_at(index);
+        if (item.is_file)
             continue;
         if (item.type_string != u"text/plain"sv && item.type_string != u"text/html"sv)
             continue;
@@ -2765,7 +2765,7 @@ bool EventHandler::perform_copy_action(ClipboardActionTrigger trigger)
 
     auto data_store = HTML::DragDataStore::create();
     data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
-    auto data_transfer = HTML::DataTransfer::create(data_store);
+    auto data_transfer = HTML::DataTransfer::create(*data_store);
 
     // 2. Fire a clipboard event named copy.
     bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::copy, data_transfer);
@@ -2836,7 +2836,7 @@ bool EventHandler::perform_cut_action(ClipboardActionTrigger trigger)
 
     auto data_store = HTML::DragDataStore::create();
     data_store->set_mode(HTML::DragDataStore::Mode::ReadWrite);
-    auto data_transfer = HTML::DataTransfer::create(data_store);
+    auto data_transfer = HTML::DataTransfer::create(*data_store);
 
     // 2. Fire a clipboard event named cut.
     bool event_was_not_canceled = fire_clipboard_event(*document, HTML::EventNames::cut, data_transfer);
@@ -2938,26 +2938,6 @@ EventResult EventHandler::perform_paste_action(Vector<Clipboard::SystemClipboard
 {
     auto data_store = HTML::DragDataStore::create();
 
-    auto add_text_item = [&](Utf16FlyString type, Utf16String data) {
-        data_store->add_item({
-            .kind = HTML::DragDataStoreItem::Kind::Text,
-            .type_string = move(type),
-            .data = move(data),
-            .file_data = {},
-            .file_name = {},
-        });
-    };
-
-    auto add_file_item = [&](Utf16FlyString type, Utf16String name, ByteBuffer data) {
-        data_store->add_item({
-            .kind = HTML::DragDataStoreItem::Kind::File,
-            .type_string = move(type),
-            .data = {},
-            .file_data = move(data),
-            .file_name = move(name),
-        });
-    };
-
     if (!system_clipboard_data.is_empty()) {
         for (auto const& representation : system_clipboard_data.first().system_clipboard_representations) {
             auto mime_type = MimeSniff::MimeType::parse(representation.name);
@@ -2971,17 +2951,16 @@ EventResult EventHandler::perform_paste_action(Vector<Clipboard::SystemClipboard
                     auto data = String::from_utf8_with_replacement_character(text);
 
                     if (essence.is_one_of("text/plain"sv, "text/html"sv)) {
-                        add_text_item(move(essence), Utf16String::from_utf8_with_replacement_character(text));
+                        data_store->add_text(essence, Utf16String::from_utf8_with_replacement_character(text));
                     } else if (essence == "image/png"sv) {
                         // AD-HOC: The spec doesn't say what to do here, but other engines add a file named
                         //         image.png for any PNG inserted via navigator.clipboard. Note that only PNG
                         //         images are supported via that API.
-                        add_file_item(move(essence), "image.png"_utf16, text.to_byte_buffer());
+                        data_store->add_file(essence, text.to_byte_buffer(), "image.png"_utf16);
                     }
                 },
                 [&](HTML::SelectedFile const& file) {
-                    auto contents = file;
-                    add_file_item(move(essence), file.name(), contents.take_contents());
+                    data_store->add_file(essence, file.file_or_contents().get<ByteBuffer>(), file.name());
                 });
         }
     }
@@ -3002,7 +2981,7 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     TemporaryChange handling_user_paste { s_is_handling_user_key_press_or_paste, true };
 
     data_store->set_mode(HTML::DragDataStore::Mode::ReadOnly);
-    auto data_transfer = HTML::DataTransfer::create(data_store);
+    auto data_transfer = HTML::DataTransfer::create(*data_store);
 
     // NB: Pasting the system clipboard is the user's interaction with the user agent's "Paste" control, so script
     //     running as a result of the paste event may read the data being pasted. A paste of handed-over content lets
@@ -3021,15 +3000,16 @@ EventResult EventHandler::perform_paste_action(NonnullRefPtr<HTML::DragDataStore
     auto result = EventResult::Handled;
     if (event_was_not_canceled) {
         Optional<Utf16String> html;
-        Utf16View plain_text;
+        Utf16String plain_text;
 
-        for (auto const& item : data_store->item_list()) {
+        for (size_t index = 0; index < data_store->size(); ++index) {
+            auto item = data_store->item_at(index);
             if (item.type_string == "text/html"sv) {
                 html = item.data;
             } else if (item.type_string == "text/plain"sv) {
                 plain_text = item.data;
             } else if (item.type_string.starts_with("image/"sv)) {
-                if (auto base64 = AK::encode_base64(item.file_data); !base64.is_error())
+                if (auto base64 = data_store->file_data_as_base64(index); !base64.is_error())
                     html = Utf16String::formatted("<img src=\"data:{};base64,{}\" />", item.type_string, base64.value());
             }
         }

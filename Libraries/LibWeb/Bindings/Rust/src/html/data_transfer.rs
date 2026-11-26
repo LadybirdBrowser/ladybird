@@ -9,111 +9,26 @@
 
 use core::cell::{self, Cell, RefCell};
 use core::ffi::c_void;
-use core::ptr::NonNull;
+use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_rust::api::{Gc, GcRefCell, Must, Object, Realm, Trace, Utf16View, Value, Vm};
+use libjs_rust::api::{GcRefCell, Must, Object, Trace, Utf16View, Value, Vm};
 
 use super::data_transfer_item::DataTransferItem;
 use super::data_transfer_item_list::DataTransferItemList;
-use crate::bindings::conversions::{CppInterface, ToJs, frozen_array_to_js, sequence_to_js};
-use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_from_abi, cell_into_abi};
+use super::drag_data_store::{DragDataStore, LentDragDataStore, Mode};
+use crate::bindings::conversions::{ToJs, frozen_array_to_js, sequence_to_js};
+use crate::bindings::interface::{InterfaceCell, Ref, Wrappable, allocate, cell_into_abi};
 use crate::bindings::lent_string::LentUtf16FlyString;
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
-use crate::file_api::file::File;
 use crate::file_api::file_list::FileList;
-
-unsafe extern "C" {
-    fn web_data_transfer_create_writable_store() -> *mut c_void;
-    fn web_data_transfer_store_unref(store: *mut c_void);
-    fn web_data_transfer_store_mode(store: *mut c_void) -> u8;
-    fn web_data_transfer_store_size(store: *mut c_void) -> usize;
-    fn web_data_transfer_store_item(store: *mut c_void, index: usize) -> DragDataStoreItemView;
-    fn web_data_transfer_store_add_text(store: *mut c_void, type_: usize, data: usize);
-    fn web_data_transfer_store_remove_item(store: *mut c_void, index: usize);
-    fn web_data_transfer_store_add_file(store: *mut c_void, file: *mut c_void);
-    fn web_data_transfer_create_file(store: *mut c_void, index: usize) -> *mut c_void;
-    fn web_data_transfer_create_file_entry(store: *mut c_void, index: usize, realm: *mut c_void) -> *mut c_void;
-}
-
-pub(super) const READ_WRITE: u8 = 0;
-pub(super) const PROTECTED: u8 = 2;
-
-// The store is shared with the native drag, drop and clipboard handlers. This holds one reference to it.
-pub(super) struct DragDataStore(NonNull<c_void>);
-
-impl Drop for DragDataStore {
-    fn drop(&mut self) {
-        // SAFETY: This owns a reference to the store.
-        unsafe { web_data_transfer_store_unref(self.0.as_ptr()) };
-    }
-}
-
-#[repr(C)]
-struct DragDataStoreItemView {
-    type_string: usize,
-    data: usize,
-    is_file: bool,
-}
-
-impl DragDataStore {
-    pub(super) fn mode(&self) -> u8 {
-        // SAFETY: This holds the store alive.
-        unsafe { web_data_transfer_store_mode(self.0.as_ptr()) }
-    }
-
-    pub(super) fn len(&self) -> usize {
-        // SAFETY: This holds the store alive.
-        unsafe { web_data_transfer_store_size(self.0.as_ptr()) }
-    }
-
-    pub(super) fn item(&self, index: usize) -> (bool, Utf16FlyString, Utf16String) {
-        // SAFETY: All callers pass an index within the live store. The strings are lent by that item.
-        unsafe {
-            let item = web_data_transfer_store_item(self.0.as_ptr(), index);
-            (
-                item.is_file,
-                Utf16FlyString::from_raw_borrowed(item.type_string),
-                Utf16String::from_raw_borrowed(item.data),
-            )
-        }
-    }
-
-    pub(super) fn add_text(&self, type_string: &Utf16FlyString, data: &Utf16String) {
-        // SAFETY: This holds the store alive and the strings are lent for the call.
-        unsafe { web_data_transfer_store_add_text(self.0.as_ptr(), type_string.raw_identity(), data.raw_identity()) };
-    }
-
-    pub(super) fn add_file(&self, file: Ref<File>) {
-        // SAFETY: This holds the store alive and the file is live.
-        unsafe { web_data_transfer_store_add_file(self.0.as_ptr(), cell_into_abi(file)) };
-    }
-
-    pub(super) fn create_file(&self, index: usize) -> Ref<File> {
-        // SAFETY: This holds the store alive, and the index refers to a file item. LibWeb returns the new File cell.
-        unsafe { cell_from_abi(web_data_transfer_create_file(self.0.as_ptr(), index)) }
-    }
-
-    pub(super) fn create_file_entry(&self, index: usize, realm: Gc<Realm>) -> CppInterface {
-        // SAFETY: The store and realm are live, and the index refers to a file item.
-        let wrapper = unsafe { web_data_transfer_create_file_entry(self.0.as_ptr(), index, realm.as_ptr().cast()) };
-        let wrapper = NonNull::new(wrapper.cast()).expect("LibWeb wraps the file entry");
-        // SAFETY: LibWeb returns a live FileSystemEntry wrapper.
-        unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
-    }
-
-    fn remove_item(&self, index: usize) {
-        // SAFETY: The transfer's item list and the store have matching indices.
-        unsafe { web_data_transfer_store_remove_item(self.0.as_ptr(), index) };
-    }
-}
 
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct DataTransfer {
     #[gc(untraced)]
-    store: RefCell<Option<DragDataStore>>,
+    store: RefCell<Option<Rc<DragDataStore>>>,
     #[gc(untraced)]
     drop_effect: RefCell<Utf16FlyString>,
     #[gc(untraced)]
@@ -128,7 +43,7 @@ pub(crate) struct DataTransfer {
 impl Wrappable for DataTransfer {}
 
 impl DataTransfer {
-    fn create(vm: &Vm, store: DragDataStore) -> Ref<Self> {
+    fn create(vm: &Vm, store: Rc<DragDataStore>) -> Ref<Self> {
         let count = store.len();
         let transfer = allocate(vm, |_| Self {
             store: RefCell::new(Some(store)),
@@ -151,9 +66,8 @@ impl DataTransfer {
     pub(crate) fn construct(cx: &mut CallContext) -> WebIdlResult<Ref<Self>> {
         // 1. Set the drag data store's item list to be an empty list.
         // 2. Set the drag data store's mode to read/write mode.
-        // SAFETY: LibWeb transfers one reference to a new, empty read/write store.
-        let store = unsafe { web_data_transfer_create_writable_store() };
-        let store = DragDataStore(NonNull::new(store).expect("LibWeb creates a drag data store"));
+        let store = DragDataStore::create();
+        store.set_mode(Mode::ReadWrite);
 
         // 3. Set the dropEffect and effectAllowed to "none".
         // NB: create() sets both to "none".
@@ -192,7 +106,7 @@ impl DataTransfer {
             .store
             .borrow()
             .as_ref()
-            .is_some_and(|store| store.mode() == READ_WRITE)
+            .is_some_and(|store| store.mode() == Mode::ReadWrite)
         {
             self.set_effect_allowed_internal(Utf16FlyString::from_utf16_string(&effect));
         }
@@ -232,7 +146,7 @@ impl DataTransfer {
     }
 
     pub(super) fn store(&self) -> Option<cell::Ref<'_, DragDataStore>> {
-        cell::Ref::filter_map(self.store.borrow(), Option::as_ref).ok()
+        cell::Ref::filter_map(self.store.borrow(), Option::as_deref).ok()
     }
 
     pub(super) fn item(&self, index: usize) -> Ref<DataTransferItem> {
@@ -259,7 +173,7 @@ impl DataTransfer {
         };
 
         // 2. If the drag data store's mode is the protected mode, then return the empty string.
-        if store.mode() == PROTECTED {
+        if store.mode() == Mode::Protected {
             return Ok(Utf16String::default());
         }
 
@@ -304,7 +218,7 @@ impl DataTransfer {
         };
 
         // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
-        if store.mode() != READ_WRITE {
+        if store.mode() != Mode::ReadWrite {
             return Ok(());
         }
 
@@ -326,7 +240,7 @@ impl DataTransfer {
 
         // 6. Add an item to the drag data store item list whose kind is text, whose type string is equal to format, and
         //    whose data is the string given by the method's second argument.
-        store.add_text(&format, &data);
+        store.add_text(format, data);
         Self::did_add_item(this, cx.vm());
         Ok(())
     }
@@ -340,7 +254,7 @@ impl DataTransfer {
         };
 
         // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
-        if store.mode() != READ_WRITE {
+        if store.mode() != Mode::ReadWrite {
             return Ok(());
         }
 
@@ -378,7 +292,7 @@ impl DataTransfer {
         };
 
         // 3. If the drag data store's mode is the protected mode, return the empty list L.
-        if store.mode() == PROTECTED {
+        if store.mode() == Mode::Protected {
             return Ok(files);
         }
 
@@ -387,7 +301,7 @@ impl DataTransfer {
         for index in 0..store.len() {
             let (is_file, _, _) = store.item(index);
             if is_file {
-                files.add_file(vm, store.create_file(index));
+                files.add_file(vm, store.create_file(vm, index));
             }
         }
 
@@ -474,12 +388,9 @@ fn normalize_format(format: &Utf16String) -> Utf16View<'_> {
     }
 }
 
-/// # Safety
-///
-/// The caller transfers one ownership reference to a live drag data store.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_data_transfer_create(vm: &Vm, store: NonNull<c_void>) -> *mut c_void {
-    cell_into_abi(DataTransfer::create(vm, DragDataStore(store)))
+pub extern "C" fn web_rust_data_transfer_create(vm: &Vm, store: LentDragDataStore<'_>) -> *mut c_void {
+    cell_into_abi(DataTransfer::create(vm, store.to_rc()))
 }
 
 #[unsafe(no_mangle)]
