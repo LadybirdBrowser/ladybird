@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- Each unnamed feBlend reads the result before it as both of its inputs, and each feDropShadow copies it for its
+     shadow, which doubles the filter graph each time. -->
+<svg width="0" height="0" style="position:absolute">
+    <filter id="chain"></filter>
+    <filter id="shadows"></filter>
+</svg>
+<div style="width: 20px; height: 20px; background: red; filter: url(#chain)"></div>
+<div style="width: 20px; height: 20px; background: red; filter: url(#shadows)"></div>
+<script>
+    const chain = document.getElementById("chain");
+    for (let i = 0; i < 40; i++)
+        chain.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "feBlend"));
+    const shadows = document.getElementById("shadows");
+    for (let i = 0; i < 40; i++)
+        shadows.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "feDropShadow"));
+</script>

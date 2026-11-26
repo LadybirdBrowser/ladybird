@@ -199,6 +199,12 @@ const LUMINANCE_TO_ALPHA_MATRIX: [f32; 20] = [
     0.2126, 0.7152, 0.0722, 0.0, 0.0,
 ];
 
+/// How many nodes a filter's graph may have once each input it reads is spelled out where it's read. A primitive whose
+/// inputs both default to the result before it doubles the graph, so a chain of such primitives grows it
+/// exponentially. The cap leaves room for any graph that reads each result about once, as the primitive budget
+/// allows, and stops a doubling chain long before it takes noticeable time or memory to build.
+const MAXIMUM_FILTER_GRAPH_NODES: usize = 8192;
+
 fn boxed(filter: Option<Filter>) -> Option<Box<Filter>> {
     filter.map(Box::new)
 }
@@ -221,6 +227,12 @@ pub(crate) struct SvgFilterGraphBuilder {
     /// The output of the last primitive, which is what an unnamed `in` refers to and what the
     /// filter as a whole produces.
     last_result: FilterResult,
+    /// The number of nodes of each result, by name and for the last one.
+    nodes_by_name: HashMap<Vec<u16>, usize>,
+    last_result_nodes: usize,
+    /// Set once a primitive would take the graph past `MAXIMUM_FILTER_GRAPH_NODES`, after which the filter applies
+    /// as if it had no primitives.
+    too_large: bool,
 }
 
 impl SvgFilterGraphBuilder {
@@ -233,6 +245,9 @@ impl SvgFilterGraphBuilder {
             target: None,
             results_by_name: HashMap::new(),
             last_result: FilterResult::default(),
+            nodes_by_name: HashMap::new(),
+            last_result_nodes: 1,
+            too_large: false,
         }
     }
 
@@ -284,6 +299,9 @@ impl SvgFilterGraphBuilder {
     }
 
     pub(crate) fn push(&mut self, mut primitive: SvgFilterPrimitive) {
+        if self.too_large {
+            return;
+        }
         let result_name = std::mem::take(&mut primitive.result);
         let subregion = self.subregion_of(&primitive);
         let result = match subregion {
@@ -300,6 +318,18 @@ impl SvgFilterGraphBuilder {
                 subregion: Some(subregion),
             },
             _ => {
+                // Each input is a copy of the result it names, which a color space conversion may wrap, and the
+                // primitive adds itself and the crop to its subregion. This bounds what the primitive is about to build
+                // from its inputs, before it builds it.
+                let estimated_nodes = Self::input_names(&primitive)
+                    .iter()
+                    .map(|name| self.nodes_of_input(name) + 1)
+                    .sum::<usize>()
+                    + 2;
+                if estimated_nodes > MAXIMUM_FILTER_GRAPH_NODES {
+                    self.too_large = true;
+                    return;
+                }
                 let Some(mut result) = self.primitive_result(primitive, subregion) else {
                     return;
                 };
@@ -318,15 +348,38 @@ impl SvgFilterGraphBuilder {
                 result
             }
         };
+        // A primitive may also copy an input within its own graph, as feDropShadow does for its shadow, so count what
+        // it built.
+        let nodes = result
+            .filter
+            .as_ref()
+            .map_or(1, |filter| filter.node_count_up_to(MAXIMUM_FILTER_GRAPH_NODES));
+        if nodes > MAXIMUM_FILTER_GRAPH_NODES {
+            self.too_large = true;
+            return;
+        }
         if !result_name.is_empty() {
+            self.nodes_by_name.insert(result_name.clone(), nodes);
             self.results_by_name.insert(result_name, result.clone());
         }
         self.last_result = result;
+        self.last_result_nodes = nodes;
+    }
+
+    /// The number of nodes of the result an input named `name` reads, as `resolve_input` finds it.
+    fn nodes_of_input(&self, name: &[u16]) -> usize {
+        if Self::is_standard_input(name) {
+            return 2;
+        }
+        self.nodes_by_name.get(name).copied().unwrap_or(self.last_result_nodes)
     }
 
     /// The graph, with its output in sRGB for compositing onto the canvas, or `None` when no
-    /// primitive produced anything.
+    /// primitive produced anything, or when the graph would have grown too large.
     pub(crate) fn finish(self) -> Option<Filter> {
+        if self.too_large {
+            return None;
+        }
         self.last_result.converted_to(InterpolationColorSpace::SRGB)
     }
 

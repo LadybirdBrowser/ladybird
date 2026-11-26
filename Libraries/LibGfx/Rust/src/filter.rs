@@ -578,6 +578,26 @@ impl Filter {
         fits
     }
 
+    /// The number of nodes of the graph, counting an input as often as the graph holds it, or `limit + 1` for a graph
+    /// with more than `limit` nodes. Counts no further than that, so the count costs no more than `limit` steps.
+    pub fn node_count_up_to(&self, limit: usize) -> usize {
+        fn count(filter: &Filter, remaining: &mut usize) -> bool {
+            if *remaining == 0 {
+                return false;
+            }
+            *remaining -= 1;
+            let mut fits = true;
+            filter.for_each_input(&mut |input| fits = fits && count(input, remaining));
+            fits
+        }
+        let mut remaining = limit;
+        if count(self, &mut remaining) {
+            limit - remaining
+        } else {
+            limit + 1
+        }
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
         let mut encoder = Encoder::new();
         encoder.encode(self).expect("a filter encodes");
@@ -1213,6 +1233,17 @@ mod tests {
         (1..depth).fold(Filter::hue_rotate(0.0, None), |input, _| {
             Filter::hue_rotate(0.0, Some(input))
         })
+    }
+
+    #[test]
+    fn a_node_count_counts_every_copy_of_an_input_up_to_its_limit() {
+        assert_eq!(nested(3).node_count_up_to(10), 3);
+        let doubled = Filter::Merge {
+            inputs: vec![Some(nested(3)), Some(nested(3))],
+        };
+        assert_eq!(doubled.node_count_up_to(7), 7);
+        assert_eq!(doubled.node_count_up_to(6), 7);
+        assert_eq!(doubled.node_count_up_to(0), 1);
     }
 
     #[test]
