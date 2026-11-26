@@ -11,73 +11,47 @@
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
-#include <AK/Vector.h>
-#include <LibGfx/Forward.h>
-#include <LibGfx/Point.h>
 
 namespace Web::HTML {
 
-struct DragDataStoreItem {
-    enum class Kind {
-        Text,
-        File,
-    };
+struct RustDragDataStore;
 
-    // https://html.spec.whatwg.org/multipage/dnd.html#the-drag-data-item-kind
-    Kind kind { Kind::Text };
-
-    // https://html.spec.whatwg.org/multipage/dnd.html#the-drag-data-item-type-string
-    Utf16FlyString type_string;
-
-    Utf16String data;
-    ByteBuffer file_data;
-    Utf16String file_name;
-};
-
-// https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store
-class DragDataStore : public RefCounted<DragDataStore> {
+class DragDataStore final : public RefCounted<DragDataStore> {
 public:
-    enum class Mode {
+    enum class Mode : u8 {
         ReadWrite,
         ReadOnly,
         Protected,
     };
 
+    struct Item {
+        Utf16FlyString type_string;
+        Utf16String data;
+        bool is_file;
+    };
+
     static NonnullRefPtr<DragDataStore> create();
     ~DragDataStore();
 
-    void add_item(DragDataStoreItem item) { m_item_list.append(move(item)); }
-    void remove_item_at(size_t const& index) { m_item_list.remove(index); }
-    ReadonlySpan<DragDataStoreItem> item_list() const { return m_item_list; }
-    size_t size() const { return m_item_list.size(); }
+    void add_text(Utf16FlyString const& type_string, Utf16String const& data);
+    void add_file(Utf16FlyString const& type_string, ByteBuffer data, Utf16String const& name);
+
+    Item item_at(size_t index) const;
+    ErrorOr<String> file_data_as_base64(size_t index) const;
+    size_t size() const;
     bool has_text_item() const;
 
-    Mode mode() const { return m_mode; }
-    void set_mode(Mode mode) { m_mode = mode; }
+    void set_mode(Mode);
 
-    Utf16FlyString allowed_effects_state() const { return m_allowed_effects_state; }
-    void set_allowed_effects_state(Utf16FlyString allowed_effects_state) { m_allowed_effects_state = move(allowed_effects_state); }
+    Utf16FlyString allowed_effects_state() const;
+    void set_allowed_effects_state(Utf16FlyString const&);
+
+    RustDragDataStore const* rust_store() const { return m_store; }
 
 private:
-    DragDataStore();
+    explicit DragDataStore(RustDragDataStore*);
 
-    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-item-list
-    Vector<DragDataStoreItem> m_item_list;
-
-    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-default-feedback
-    Utf16String m_default_feedback;
-
-    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-bitmap
-    RefPtr<Gfx::Bitmap> m_bitmap;
-
-    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-hot-spot-coordinate
-    Gfx::IntPoint m_hot_spot_coordinate;
-
-    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-mode
-    Mode m_mode { Mode::Protected };
-
-    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-allowed-effects-state
-    Utf16FlyString m_allowed_effects_state;
+    RustDragDataStore* m_store;
 };
 
 }

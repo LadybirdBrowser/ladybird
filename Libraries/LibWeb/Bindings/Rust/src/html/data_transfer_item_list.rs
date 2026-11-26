@@ -10,8 +10,9 @@
 use ak::{Utf16FlyString, Utf16String};
 use libjs_rust::api::{Trace, Utf16StringBuilder, Utf16View, Vm};
 
-use super::data_transfer::{DataTransfer, READ_WRITE};
+use super::data_transfer::DataTransfer;
 use super::data_transfer_item::DataTransferItem;
+use super::drag_data_store::Mode;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::file_api::file::File;
@@ -50,7 +51,11 @@ impl DataTransferItemList {
         type_string: Utf16String,
     ) -> WebIdlResult<Option<Ref<DataTransferItem>>> {
         // 1. If the DataTransferItemList object is not in the read/write mode, return null.
-        let Some(store) = self.data_transfer.store().filter(|store| store.mode() == READ_WRITE) else {
+        let Some(store) = self
+            .data_transfer
+            .store()
+            .filter(|store| store.mode() == Mode::ReadWrite)
+        else {
             return Ok(None);
         };
 
@@ -75,7 +80,7 @@ impl DataTransferItemList {
         // value of the method's second argument, converted to ASCII lowercase, and whose data is the string given by the
         // method's first argument.
         let lowercase_type = Utf16FlyString::from_utf16_string(&type_string.to_ascii_lowercase());
-        store.add_text(&lowercase_type, &data);
+        store.add_text(lowercase_type, data);
 
         // 3. Determine the value of the indexed property corresponding to the newly added item, and return that value (a
         //    newly created DataTransferItem object).
@@ -89,7 +94,11 @@ impl DataTransferItemList {
         file: Ref<File>,
     ) -> WebIdlResult<Option<Ref<DataTransferItem>>> {
         // 1. If the DataTransferItemList object is not in the read/write mode, return null.
-        let Some(store) = self.data_transfer.store().filter(|store| store.mode() == READ_WRITE) else {
+        let Some(store) = self
+            .data_transfer
+            .store()
+            .filter(|store| store.mode() == Mode::ReadWrite)
+        else {
             return Ok(None);
         };
 
@@ -108,7 +117,11 @@ impl DataTransferItemList {
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-remove
     pub(crate) fn remove(&self, cx: &mut CallContext, index: u32) -> WebIdlResult<()> {
         // 1. If the DataTransferItemList object is not in the read/write mode, throw an "InvalidStateError" DOMException.
-        let Some(store) = self.data_transfer.store().filter(|store| store.mode() == READ_WRITE) else {
+        let Some(store) = self
+            .data_transfer
+            .store()
+            .filter(|store| store.mode() == Mode::ReadWrite)
+        else {
             return Err(Exception::Dom(
                 "InvalidStateError",
                 Utf16String::from_ascii(b"DataTransferItemList is not in read/write mode"),
@@ -130,7 +143,11 @@ impl DataTransferItemList {
     pub(crate) fn clear(&self, cx: &mut CallContext) -> WebIdlResult<()> {
         // The clear() method, if the DataTransferItemList object is in the read/write mode, must remove all the items from
         // the drag data store. Otherwise, it must do nothing.
-        let Some(store) = self.data_transfer.store().filter(|store| store.mode() == READ_WRITE) else {
+        let Some(store) = self
+            .data_transfer
+            .store()
+            .filter(|store| store.mode() == Mode::ReadWrite)
+        else {
             return Ok(());
         };
 

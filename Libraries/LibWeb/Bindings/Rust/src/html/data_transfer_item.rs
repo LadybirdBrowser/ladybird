@@ -13,7 +13,8 @@ use core::cell::{self, Cell};
 use ak::Utf16String;
 use libjs_rust::api::{PrimitiveString, Trace, Value, Vm};
 
-use super::data_transfer::{DataTransfer, DragDataStore, PROTECTED};
+use super::data_transfer::DataTransfer;
+use super::drag_data_store::{DragDataStore, Mode};
 use crate::bindings::callback::CallbackFunction;
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
@@ -84,7 +85,10 @@ impl DataTransferItem {
 
         // 2. If the DataTransferItem object is not in the read/write mode or the read-only mode, return. The callback is
         //    never invoked.
-        let Some((store, index)) = self.store_and_index().filter(|(store, _)| store.mode() != PROTECTED) else {
+        let Some((store, index)) = self
+            .store_and_index()
+            .filter(|(store, _)| store.mode() != Mode::Protected)
+        else {
             return Ok(());
         };
 
@@ -111,9 +115,12 @@ impl DataTransferItem {
     }
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasfile
-    pub(crate) fn get_as_file(&self, _: &mut CallContext) -> WebIdlResult<Option<Ref<File>>> {
+    pub(crate) fn get_as_file(&self, cx: &mut CallContext) -> WebIdlResult<Option<Ref<File>>> {
         // 1. If the DataTransferItem object is not in the read/write mode or the read-only mode, then return null.
-        let Some((store, index)) = self.store_and_index().filter(|(store, _)| store.mode() != PROTECTED) else {
+        let Some((store, index)) = self
+            .store_and_index()
+            .filter(|(store, _)| store.mode() != Mode::Protected)
+        else {
             return Ok(None);
         };
 
@@ -124,7 +131,7 @@ impl DataTransferItem {
         }
 
         // 3. Return a new File object representing the actual data of the item represented by the DataTransferItem object.
-        Ok(Some(store.create_file(index)))
+        Ok(Some(store.create_file(cx.vm(), index)))
     }
 
     // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry
@@ -132,7 +139,10 @@ impl DataTransferItem {
         // 1. Let store be this's DataTransfer object’s drag data store.
 
         // 2. If store’s drag data store mode is not read/write mode or read-only mode, return null and abort these steps
-        let Some((store, index)) = self.store_and_index().filter(|(store, _)| store.mode() != PROTECTED) else {
+        let Some((store, index)) = self
+            .store_and_index()
+            .filter(|(store, _)| store.mode() != Mode::Protected)
+        else {
             return Ok(None);
         };
 

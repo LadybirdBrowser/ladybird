@@ -8,9 +8,10 @@
 
 #include <LibWeb/Bindings/DataTransfer.h>
 #include <LibWeb/Bindings/RustInterface.h>
-#include <LibWeb/HTML/DragDataStore.h>
 
 namespace Web::HTML {
+
+class DragDataStore;
 
 #define ENUMERATE_DATA_TRANSFER_EFFECTS        \
     __ENUMERATE_DATA_TRANSFER_EFFECT(none)     \
@@ -35,7 +36,7 @@ class DataTransfer final : public Bindings::RustInterfaceCell {
     WEB_RUST_INTERFACE(DataTransfer, data_transfer)
 
 public:
-    static GC::Ref<DataTransfer> create(NonnullRefPtr<DragDataStore>);
+    static GC::Ref<DataTransfer> create(DragDataStore const&);
 
     Utf16FlyString drop_effect() const;
     void set_drop_effect(Utf16FlyString const&);
