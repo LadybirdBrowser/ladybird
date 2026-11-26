@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Symbols should be included while moving backward by word
+Pass	Symbols should be included while moving forward by word
+Pass	Symbols should be included while moving backward by word in textarea element
+Pass	Symbols should be included while moving forward by word in textarea element
+Pass	Symbols should be included while moving backward by word in input element
+Pass	Symbols should be included while moving forward by word in input element

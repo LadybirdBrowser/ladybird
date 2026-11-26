@@ -28,6 +28,7 @@ bool code_point_has_punctuation_general_category(u32 code_point);
 bool code_point_has_separator_general_category(u32 code_point);
 bool code_point_has_space_separator_general_category(u32 code_point);
 bool code_point_has_symbol_general_category(u32 code_point);
+bool code_point_extends_grapheme_cluster(u32 code_point);
 
 Optional<Property> property_from_string(StringView);
 bool code_point_has_property(u32 code_point, Property property, CaseSensitivity case_sensitivity = CaseSensitivity::CaseSensitive);

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Include symbols while moving forward/backward by word</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="../resources/testdriver-actions.js"></script>
+<script src="../editing/include/editor-test-utils.js"></script>
+
+<div contenteditable id="target">~>>>>>p+++</div>
+<textarea id="textareaTarget">$$$$q~~~</textarea>
+<input id="inputTarget" value="||||r=====">
+
+<script>
+  const selection = getSelection();
+  const textNode = document.getElementById("target").childNodes[0];
+  const textareaNode = document.getElementById("textareaTarget");
+  const inputNode = document.getElementById("inputTarget");
+
+  test(() => {
+    selection.collapse(textNode, 6); // Start just before 'p'
+    selection.modify("move", "backward", "word");
+    assert_equals(selection.focusNode, textNode);
+    assert_equals(selection.focusOffset, 0, "Caret should move to the beginning");
+  }, "Symbols should be included while moving backward by word");
+
+  test(() => {
+    selection.collapse(textNode, 7); // Start just after 'p'
+    selection.modify("move", "forward", "word");
+    assert_equals(selection.focusNode, textNode);
+    assert_equals(selection.focusOffset, 10, "Caret should move to the end");
+  }, "Symbols should be included while moving forward by word");
+
+  promise_test(async () => {
+    textareaNode.focus();
+    textareaNode.setSelectionRange(4, 4); // Start just before 'q'
+    const utils = new EditorTestUtils(textareaNode);
+    await utils.sendMoveWordLeftKey();
+    assert_equals(textareaNode.selectionStart, 0, "Caret should move to the beginning");
+  }, "Symbols should be included while moving backward by word in textarea element");
+
+  promise_test(async () => {
+    textareaNode.focus();
+    textareaNode.setSelectionRange(5, 5); // Start just after 'q'
+    const utils = new EditorTestUtils(textareaNode);
+    await utils.sendMoveWordRightKey();
+    assert_equals(textareaNode.selectionStart, 8, "Caret should move to the end");
+  }, "Symbols should be included while moving forward by word in textarea element");
+
+  promise_test(async () => {
+    inputNode.focus();
+    inputNode.setSelectionRange(4, 4); // Start just before 'r'
+    const utils = new EditorTestUtils(inputNode);
+    await utils.sendMoveWordLeftKey();
+    assert_equals(inputNode.selectionStart, 0, "Caret should move to the beginning");
+  }, "Symbols should be included while moving backward by word in input element");
+
+  promise_test(async () => {
+    inputNode.focus();
+    inputNode.setSelectionRange(5, 5); // Start just after 'r'
+    const utils = new EditorTestUtils(inputNode);
+    await utils.sendMoveWordRightKey();
+    assert_equals(inputNode.selectionStart, 10, "Caret should move to the end");
+  }, "Symbols should be included while moving forward by word in input element");
+
+</script>

@@ -205,6 +205,20 @@ bool code_point_has_symbol_general_category(u32 code_point)
     return code_point_has_general_category(code_point, GENERAL_CATEGORY_SYMBOL);
 }
 
+bool code_point_extends_grapheme_cluster(u32 code_point)
+{
+    // Such as a variation selector, a combining mark, an emoji modifier, a tag, or the zero-width joiner of an emoji
+    // sequence.
+    switch (u_getIntPropertyValue(static_cast<UChar32>(code_point), UCHAR_GRAPHEME_CLUSTER_BREAK)) {
+    case U_GCB_EXTEND:
+    case U_GCB_ZWJ:
+    case U_GCB_SPACING_MARK:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static constexpr Property PROPERTY_ANY = UCHAR_BINARY_LIMIT + 1;
 static constexpr Property PROPERTY_ASCII = UCHAR_BINARY_LIMIT + 2;
 static constexpr Property PROPERTY_ASSIGNED = UCHAR_BINARY_LIMIT + 3;

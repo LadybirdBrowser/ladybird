@@ -1,0 +1,10 @@
+emoji forward from 3: 9
+emoji backward from 9: 3
+mixed forward from 2: 8
+mixed backward from 8: 2
+selectors forward from 2: 6
+selectors backward from 6: 2
+textarea "ab $$$$" word Backspace from 7: ""
+textarea "$$$$ ab" word Delete from 0: ""
+textarea "ab +-~" word Backspace from 6: ""
+textarea "ab ☀️☀️" word Backspace from 7: ""

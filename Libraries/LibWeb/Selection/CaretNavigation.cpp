@@ -36,9 +36,16 @@ static WordSegmentKind word_segment_kind(Utf16View const& segment)
 {
     if (all_of(segment, [](auto code_point) { return Unicode::code_point_has_separator_general_category(code_point); }))
         return WordSegmentKind::Separator;
-    if (all_of(segment, [](auto code_point) { return Unicode::code_point_has_punctuation_general_category(code_point); }))
-        return WordSegmentKind::Punctuation;
-    return WordSegmentKind::Word;
+    // Symbols, such as ">", "+" or an emoji, stop word movement as punctuation does, and so does a symbol written with
+    // what attaches to it, such as the variation selector of an emoji.
+    bool has_punctuation_or_symbol = false;
+    for (auto code_point : segment) {
+        if (Unicode::code_point_has_punctuation_general_category(code_point) || Unicode::code_point_has_symbol_general_category(code_point))
+            has_punctuation_or_symbol = true;
+        else if (!Unicode::code_point_extends_grapheme_cluster(code_point))
+            return WordSegmentKind::Word;
+    }
+    return has_punctuation_or_symbol ? WordSegmentKind::Punctuation : WordSegmentKind::Word;
 }
 
 static bool text_node_has_rendered_text(DOM::Text const& text)
@@ -582,12 +589,9 @@ Optional<CaretLocation> CaretNavigator::move_by_word(CaretLocation const& initia
                     ? canonicalize_backward_word_location(location, alteration)
                     : Optional<CaretLocation> { location };
 
+            // A run of punctuation, such as ">>>", is one stop, which ends where the run does.
             punctuation_end = location;
-            if ((direction == SelectionDirection::Forward && location.offset != text->length())
-                || (direction == SelectionDirection::Backward && location.offset != 0))
-                return direction == SelectionDirection::Backward
-                    ? canonicalize_backward_word_location(location, alteration)
-                    : Optional<CaretLocation> { location };
+            continue;
         }
 
         if (!editing_host)
