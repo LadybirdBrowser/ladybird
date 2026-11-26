@@ -127,31 +127,35 @@ impl Essence<'_> {
     }
 
     // https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type
-    pub fn minimize_a_supported_mime_type(self) -> &'static str {
+    // NB: Whether the user agent supports mimeType is up to the caller.
+    pub fn minimize_a_supported_mime_type(self, is_supported_by_the_user_agent: bool) -> String {
         // 1. If mimeType is a JavaScript MIME type, then return "text/javascript".
         if self.is_javascript() {
-            return "text/javascript";
+            return "text/javascript".to_owned();
         }
 
         // 2. If mimeType is a JSON MIME type, then return "application/json".
         if self.is_json() {
-            return "application/json";
+            return "application/json".to_owned();
         }
 
         // 3. If mimeType’s essence is "image/svg+xml", then return "image/svg+xml".
         if self.is("image/svg+xml") {
-            return "image/svg+xml";
+            return "image/svg+xml".to_owned();
         }
 
         // 4. If mimeType is an XML MIME type, then return "application/xml".
         if self.is_xml() {
-            return "application/xml";
+            return "application/xml".to_owned();
         }
 
-        // FIXME: 5. If mimeType is supported by the user agent, then return mimeType’s essence.
+        // 5. If mimeType is supported by the user agent, then return mimeType’s essence.
+        if is_supported_by_the_user_agent {
+            return format!("{}/{}", self.type_, self.subtype);
+        }
 
         // 6. Return the empty string.
-        ""
+        String::new()
     }
 }
 

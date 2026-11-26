@@ -19,6 +19,8 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibMedia/ContainerID.h>
+#include <LibMedia/DemuxerRegistry.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibTextCodec/Encoder.h>
@@ -67,6 +69,7 @@
 #include <LibWeb/HTML/Scripting/CompiledScriptCache.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/SupportedImageTypes.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -1184,6 +1187,22 @@ void fetch_response_handover(Infrastructure::FetchParams const& fetch_params, In
     engine_record->main_fetch_hands_over(move(delivery));
 }
 
+// https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type
+// NB: Which MIME types the user agent supports is left to the user agent. These are HTML, CSS, plain text, WebVTT, the
+//     image types that are decoded and the audio and video containers that are demuxed.
+static bool is_supported_by_the_user_agent(MimeSniff::MimeType const& mime_type)
+{
+    if (mime_type.is_html() || mime_type.essence().is_one_of("text/css"sv, "text/plain"sv, "text/vtt"sv))
+        return true;
+    if (mime_type.is_image())
+        return HTML::is_supported_image_type(Utf16String::from_utf8(mime_type.essence()));
+    if (mime_type.is_audio_or_video()) {
+        auto container = Media::container_mime_type_from_mime_type(mime_type.type(), mime_type.subtype());
+        return container.has_value() && Media::is_supported_file_container(*container);
+    }
+    return false;
+}
+
 // https://fetch.spec.whatwg.org/#fetch-finale
 void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController> controller, Engine::Event::ResponseDelivery delivery)
 {
@@ -1280,7 +1299,7 @@ void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController> con
 
                 // 3. If mimeType is non-null, then set bodyInfo’s content type to the result of minimizing a supported MIME type given mimeType.
                 if (mime_type.has_value())
-                    body_info.content_type = Utf16String::from_utf8(MimeSniff::minimise_a_supported_mime_type(mime_type.value()));
+                    body_info.content_type = Utf16String::from_utf8(MimeSniff::minimise_a_supported_mime_type(mime_type.value(), is_supported_by_the_user_agent(mime_type.value())));
             }
 
             // 8. If fetchParams’s request’s initiator type is not null, then mark resource timing given timingInfo,

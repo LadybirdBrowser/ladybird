@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function resourceEntry(url) {
+        return new Promise(resolve => {
+            new PerformanceObserver((list, observer) => {
+                const entry = list.getEntriesByName(url)[0];
+                if (!entry)
+                    return;
+                observer.disconnect();
+                resolve(entry);
+            }).observe({ type: "resource", buffered: true });
+        });
+    }
+
+    promiseTest(async () => {
+        const contentTypes = [
+            "image/png",
+            "image/webp",
+            "text/html;charset=utf-8",
+            "text/css",
+            "text/plain",
+            "text/vtt",
+            "text/javascript",
+            "audio/mpeg",
+            "video/mp4",
+            "application/wasm",
+            "application/octet-stream",
+            "image/x-unknown",
+        ];
+        for (const [index, contentType] of contentTypes.entries()) {
+            const url = await httpTestServer().createEcho("GET", `/content-type-${index}`, {
+                status: 200,
+                headers: { "Access-Control-Allow-Origin": "*", "Content-Type": contentType },
+                body: "",
+            });
+            const entryPromise = resourceEntry(url);
+            await (await fetch(url)).text();
+            const entry = await entryPromise;
+            println(`${contentType}: "${entry.contentType}"`);
+        }
+    });
+</script>

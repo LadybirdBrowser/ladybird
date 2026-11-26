@@ -78,7 +78,7 @@ private:
     String m_cached_essence;
 };
 
-WEBCOMMON_API String minimise_a_supported_mime_type(MimeType const&);
+WEBCOMMON_API String minimise_a_supported_mime_type(MimeType const&, bool is_supported_by_the_user_agent);
 
 }
 

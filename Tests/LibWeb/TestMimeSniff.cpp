@@ -503,6 +503,11 @@ TEST_CASE(determine_minimised_mime_type)
 
     for (auto const& mime_type_to_minimised_mime_type : mime_type_to_minimised_mime_type_map) {
         auto mime_type = Web::MimeSniff::MimeType::parse(mime_type_to_minimised_mime_type.key).release_value();
-        EXPECT_EQ(mime_type_to_minimised_mime_type.value, Web::MimeSniff::minimise_a_supported_mime_type(mime_type));
+        EXPECT_EQ(mime_type_to_minimised_mime_type.value, Web::MimeSniff::minimise_a_supported_mime_type(mime_type, false));
     }
+
+    // MIME types supported by the user agent should return their essence.
+    auto supported_mime_type = Web::MimeSniff::MimeType::parse("image/png; foo=bar"sv).release_value();
+    EXPECT_EQ("image/png"sv, Web::MimeSniff::minimise_a_supported_mime_type(supported_mime_type, true));
+    EXPECT_EQ("text/javascript"sv, Web::MimeSniff::minimise_a_supported_mime_type(Web::MimeSniff::MimeType::parse("text/javascript"sv).release_value(), true));
 }
