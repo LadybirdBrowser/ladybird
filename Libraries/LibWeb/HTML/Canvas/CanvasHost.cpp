@@ -99,8 +99,14 @@ Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_from_surface()
 
 Optional<Gfx::DecodedImageFrame> CanvasHost::get_frame_for_serialization(Utf16View type)
 {
-    if (serialization_of_the_bitmap_supports_color_profiles(type))
-        return get_frame_from_surface();
+    // NB: The pixels of a 2D context that is not in sRGB are read in sRGB right away for a type that cannot describe
+    //     their color space, instead of being read once in each color space.
+    if (auto* context = canvas_2d_context(); context && context->color_space() != Bindings::PredefinedColorSpace::Srgb && !serialization_of_the_bitmap_supports_coding_independent_code_points(type))
+        return get_srgb_frame_from_surface();
+
+    auto frame = get_frame_from_surface();
+    if (!frame.has_value() || serialization_of_the_bitmap_supports_color_space(type, frame->color_space()))
+        return frame;
     return get_srgb_frame_from_surface();
 }
 

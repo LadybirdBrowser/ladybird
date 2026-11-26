@@ -27,13 +27,15 @@ struct SerializeBitmapResult {
 StringView serialized_bitmap_mime_type_to_byte_string(SerializedBitmapMimeType);
 Utf16View serialized_bitmap_mime_type_to_utf16_view(SerializedBitmapMimeType);
 
-// Whether a serialization of the bitmap as a file of the type includes a color profile that indicates the color space
-// of the bitmap. The bitmap of any other file is converted to sRGB.
-bool serialization_of_the_bitmap_supports_color_profiles(Utf16View type);
+bool serialization_of_the_bitmap_supports_coding_independent_code_points(Utf16View type);
+
+// Whether a serialization of the bitmap as a file of the type can include a color profile that indicates the color
+// space. A bitmap in any other color space is converted to sRGB.
+bool serialization_of_the_bitmap_supports_color_space(Utf16View type, Gfx::ColorSpace const&);
 
 // https://html.spec.whatwg.org/multipage/canvas.html#a-serialisation-of-the-bitmap-as-a-file
-// NB: The bitmap of the frame is in the color space of the frame, which has to be sRGB unless the type supports color
-//     profiles.
+// NB: The bitmap of the frame is in the color space of the frame, which has to be sRGB unless the type supports that
+//     color space.
 ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::DecodedImageFrame const&, Utf16View type, Optional<double> quality);
 
 }

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    async function firstPixel(source) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext("2d");
+        context.drawImage(source, 0, 0);
+        return Array.from(context.getImageData(0, 0, 1, 1).data);
+    }
+
+    async function loadImage(url) {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        return image;
+    }
+
+    promiseTest(async () => {
+        const image = await loadImage("../../../Assets/display-p3-bb0000.png");
+        const expected = await firstPixel(image);
+
+        const canvas = document.createElement("canvas");
+        canvas.getContext("bitmaprenderer").transferFromImageBitmap(await createImageBitmap(image));
+
+        for (const type of ["image/png", "image/jpeg"]) {
+            const actual = await firstPixel(await loadImage(canvas.toDataURL(type, 1.0)));
+            const matches = actual.every((value, index) => Math.abs(value - expected[index]) <= 2);
+            println(`${type}: ${matches ? "matches the image" : `${actual} instead of ${expected}`}`);
+        }
+    });
+</script>
