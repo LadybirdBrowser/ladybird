@@ -94,6 +94,7 @@ set(TEST_SOURCES
     TestPictureInPictureWindow.cpp
     TestPlatformFeatures.cpp
     TestProfile.cpp
+    TestRecentLossCounter.cpp
     TestScrollbarSettings.cpp
     TestSessionHistory.cpp
     TestSessionHistoryTraversalQueue.cpp
