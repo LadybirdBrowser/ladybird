@@ -11,6 +11,7 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use libgfx_rust::IntRect;
 use libjs_rust::api::{Gc, GcRefCell, Realm, Trace, Vm};
 
 use crate::bindings::cpp_cell::CppCell;
@@ -20,7 +21,14 @@ use crate::bindings::{CallContext, WebIdlResult};
 use crate::css::screen_orientation::ScreenOrientation;
 
 unsafe extern "C" {
-    fn web_css_screen_area(window: *mut c_void, available: bool, width: *mut i32, height: *mut i32);
+    fn web_css_screen_area(
+        window: *mut c_void,
+        available: bool,
+        x: *mut i32,
+        y: *mut i32,
+        width: *mut i32,
+        height: *mut i32,
+    );
     fn web_css_screen_is_extended(window: *mut c_void) -> bool;
 }
 
@@ -75,42 +83,44 @@ impl Screen {
         object
     }
 
-    fn area(&self, area: ScreenArea) -> (i32, i32) {
-        let (mut width, mut height) = (0, 0);
-        // SAFETY: The window is live, and the sizes are lent for the call.
+    fn area(&self, area: ScreenArea) -> IntRect {
+        let mut rect = IntRect::default();
+        // SAFETY: The window is live, and the fields of the rect are lent for the call.
         unsafe {
             web_css_screen_area(
                 self.window.as_ptr(),
                 matches!(area, ScreenArea::WebExposedAvailable),
-                &raw mut width,
-                &raw mut height,
+                &raw mut rect.x,
+                &raw mut rect.y,
+                &raw mut rect.width,
+                &raw mut rect.height,
             );
         }
-        (width, height)
+        rect
     }
 
     // https://drafts.csswg.org/cssom-view-1/#dom-screen-availwidth
     pub(crate) fn avail_width(&self, _: &mut CallContext) -> WebIdlResult<i32> {
         // The availWidth attribute must return the width of the Web-exposed available screen area.
-        Ok(self.area(ScreenArea::WebExposedAvailable).0)
+        Ok(self.area(ScreenArea::WebExposedAvailable).width)
     }
 
     // https://drafts.csswg.org/cssom-view-1/#dom-screen-availheight
     pub(crate) fn avail_height(&self, _: &mut CallContext) -> WebIdlResult<i32> {
         // The availHeight attribute must return the height of the Web-exposed available screen area.
-        Ok(self.area(ScreenArea::WebExposedAvailable).1)
+        Ok(self.area(ScreenArea::WebExposedAvailable).height)
     }
 
     // https://drafts.csswg.org/cssom-view-1/#dom-screen-width
     pub(crate) fn width(&self, _: &mut CallContext) -> WebIdlResult<i32> {
         // The width attribute must return the width of the Web-exposed screen area.
-        Ok(self.area(ScreenArea::WebExposed).0)
+        Ok(self.area(ScreenArea::WebExposed).width)
     }
 
     // https://drafts.csswg.org/cssom-view-1/#dom-screen-height
     pub(crate) fn height(&self, _: &mut CallContext) -> WebIdlResult<i32> {
         // The height attribute must return the height of the Web-exposed screen area.
-        Ok(self.area(ScreenArea::WebExposed).1)
+        Ok(self.area(ScreenArea::WebExposed).height)
     }
 
     // https://drafts.csswg.org/cssom-view-1/#dom-screen-colordepth
@@ -121,6 +131,16 @@ impl Screen {
     // https://drafts.csswg.org/cssom-view-1/#dom-screen-pixeldepth
     pub(crate) fn pixel_depth(&self, _: &mut CallContext) -> WebIdlResult<u32> {
         Ok(COLOR_DEPTH)
+    }
+
+    // Non-standard: the x of the Web-exposed available screen area.
+    pub(crate) fn avail_left(&self, _: &mut CallContext) -> WebIdlResult<i32> {
+        Ok(self.area(ScreenArea::WebExposedAvailable).x)
+    }
+
+    // Non-standard: the y of the Web-exposed available screen area.
+    pub(crate) fn avail_top(&self, _: &mut CallContext) -> WebIdlResult<i32> {
+        Ok(self.area(ScreenArea::WebExposedAvailable).y)
     }
 
     pub(crate) fn orientation(&self, cx: &mut CallContext) -> WebIdlResult<Ref<ScreenOrientation>> {

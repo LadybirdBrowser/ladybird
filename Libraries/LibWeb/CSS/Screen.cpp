@@ -22,7 +22,7 @@ extern "C" {
 void* web_screen_create(JSVM*, void* realm, void* window);
 
 // Declared in Bindings/Rust/src/css/screen.rs.
-void web_css_screen_area(void* window, bool available, i32* width, i32* height);
+void web_css_screen_area(void* window, bool available, i32* x, i32* y, i32* width, i32* height);
 bool web_css_screen_is_extended(void* window);
 }
 
@@ -31,10 +31,12 @@ static HTML::Window& window_from_abi(void* window)
     return *static_cast<HTML::Window*>(static_cast<GC::Cell*>(window));
 }
 
-void web_css_screen_area(void* window, bool available, i32* width, i32* height)
+void web_css_screen_area(void* window, bool available, i32* x, i32* y, i32* width, i32* height)
 {
     auto& page = window_from_abi(window).page();
     auto area = available ? page.web_exposed_available_screen_area() : page.web_exposed_screen_area();
+    *x = area.x().to_int();
+    *y = area.y().to_int();
     *width = area.width().to_int();
     *height = area.height().to_int();
 }
