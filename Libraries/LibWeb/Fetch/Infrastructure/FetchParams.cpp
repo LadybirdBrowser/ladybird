@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
+#include <LibWeb/Fetch/Engine/StartFetchInput.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
@@ -46,9 +48,16 @@ NonnullRefPtr<FetchParams> FetchParams::copy(FetchParams const& params)
     return adopt_ref(*new FetchParams(params));
 }
 
-Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id, NonnullOwnPtr<Engine::EngineEventSink> event_sink) const
+FetchParams::~FetchParams() = default;
+
+Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id, RefPtr<Response> response, NonnullOwnPtr<Engine::EngineEventSink> event_sink) const
 {
-    return Engine::StartFetchInput { {}, fetch_id, m_control_block->body_intent(), m_blob_url_entry, move(event_sink) };
+    return Engine::StartFetchInput { {}, fetch_id, Engine::MainFetchInput { *this, move(response) }, move(event_sink) };
+}
+
+void FetchParams::set_engine_record(NonnullRefPtr<Engine::FetchEngineRecord> engine_record) const
+{
+    m_engine_record = move(engine_record);
 }
 
 void FetchParams::set_body_transport(Engine::FetchBodyDeliveryGate::Transport& transport) const

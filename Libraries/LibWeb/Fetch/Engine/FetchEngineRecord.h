@@ -37,12 +37,20 @@ class FetchExecutor;
 class KnownHSTSHostProvider;
 class FetchLoad;
 
+// How the agent answers a manual redirect that main fetch handed over.
+enum class RedirectAnswer : u8 {
+    Follow,
+    AcceptAsFinal,
+    Abandon,
+};
+
 // What the fetch engine keeps of a fetch it has started. Every method runs on the engine's loop, and so does the
 // record's destruction.
 class WEB_API FetchEngineRecord final : public RefCounted<FetchEngineRecord> {
 public:
     ~FetchEngineRecord();
 
+    [[nodiscard]] FetchId fetch_id() const { return m_fetch_id; }
     [[nodiscard]] EngineEventSink& event_sink() { return *m_event_sink; }
 
     // Reports what happened to one of the fetch's RequestServer requests to the agent that started the fetch.
@@ -93,7 +101,7 @@ public:
     };
     // Settles the open continuation with the agent's answer once main fetch has handed the redirect over. Following also
     // lets main fetch run again.
-    [[nodiscard]] RedirectAnswerResult resolve_redirect(ContinuationId, Command::ResolveRedirect::Resolution const&);
+    [[nodiscard]] RedirectAnswerResult resolve_redirect(ContinuationId, RedirectAnswer);
 
     // Starts a load of the fetch's request, which main fetch runs.
     [[nodiscard]] NonnullRefPtr<FetchLoad> start_load();
@@ -224,6 +232,9 @@ public:
 
     explicit FetchEngineRecords(NonnullOwnPtr<Agent>);
 
+    // Reports to the agent a command no honest agent could have posted.
+    void agent_misbehaved(StringView reason) { m_agent->misbehaved(reason); }
+
     // The executor that runs the engine, which outlives the records.
     void attach_to_executor(FetchExecutor&);
     [[nodiscard]] KnownHSTSHostProvider& known_hsts_host_provider();
@@ -243,7 +254,7 @@ public:
 
     // Settles the open continuation the answer names, returning the fetch's record. Reports to the agent a fetch id
     // above every start, a continuation id above every offer, or an answer before the redirect's handover.
-    [[nodiscard]] RedirectAnswerOutcome resolve_redirect(Command::ResolveRedirect const&);
+    [[nodiscard]] RedirectAnswerOutcome resolve_redirect(FetchId, ContinuationId, RedirectAnswer);
     void did_offer_redirect_continuation(Badge<FetchEngineRecord>, ContinuationId);
 
     // Resolves the preload wait of a started fetch's main fetch. Reports to the agent a fetch id above every start, then,

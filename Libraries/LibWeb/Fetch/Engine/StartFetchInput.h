@@ -8,36 +8,33 @@
 
 #include <AK/Badge.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Optional.h>
-#include <LibWeb/Fetch/Engine/BodyIntent.h>
+#include <AK/NonnullRefPtr.h>
+#include <AK/RefPtr.h>
 #include <LibWeb/Fetch/Engine/EngineEventSink.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
-#include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
-
-namespace Web::Fetch::Infrastructure {
-
-class FetchParams;
-
-}
+#include <LibWeb/Fetch/Infrastructure/FetchParams.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
 namespace Web::Fetch::Engine {
 
+// What main fetch runs its in-parallel steps from, starting at step 12.
+struct MainFetchInput {
+    NonnullRefPtr<Infrastructure::FetchParams const> fetch_params;
+    // The response main fetch's earlier steps set: null, or a network error.
+    RefPtr<Infrastructure::Response> response;
+};
+
 struct StartFetchInput {
-    StartFetchInput(Badge<Infrastructure::FetchParams>, FetchId fetch_id, BodyIntent body_intent, Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry, NonnullOwnPtr<EngineEventSink> event_sink)
+    StartFetchInput(Badge<Infrastructure::FetchParams>, FetchId fetch_id, MainFetchInput main_fetch, NonnullOwnPtr<EngineEventSink> event_sink)
         : fetch_id(fetch_id)
-        , body_intent(body_intent)
-        , blob_url_entry(move(blob_url_entry))
+        , main_fetch(move(main_fetch))
         , event_sink(move(event_sink))
     {
     }
 
     // An agent's fetch ids rise in the order it posts their starts.
     FetchId fetch_id;
-    BodyIntent body_intent;
-
-    // Resolved by the agent that starts the fetch, at fetch start.
-    Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry;
-
+    MainFetchInput main_fetch;
     NonnullOwnPtr<EngineEventSink> event_sink;
 };
 

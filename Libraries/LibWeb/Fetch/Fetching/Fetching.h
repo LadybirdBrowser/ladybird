@@ -57,9 +57,7 @@ void append_accept_language_header_if_missing(Infrastructure::Request&, LoaderCo
 [[nodiscard]] WEB_API GC::Ref<Infrastructure::FetchController> fetch_controller_of(Infrastructure::FetchParams const&);
 RefPtr<PendingResponse> main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Engine::KnownHSTSHostProvider&, Recursive recursive = Recursive::No);
 void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Infrastructure::Request&, Function<bool(String const&)> const& is_known_hsts_host);
-// Runs the in-parallel steps that main fetch deferred under the id.
-void run_deferred_main_fetch_steps(Engine::FetchId, NonnullRefPtr<Engine::FetchEngineRecord>);
-void drop_deferred_main_fetch_steps(Engine::FetchId);
+void run_main_fetch_parallel_steps(Engine::MainFetchInput, NonnullRefPtr<Engine::FetchEngineRecord>);
 void populate_request_from_client(Infrastructure::Request&, Optional<HTML::FetchClient> const& client);
 void fetch_response_handover(Infrastructure::FetchParams const&, Infrastructure::Response&);
 // Runs the steps of fetch response handover that follow the response's delivery to the agent that started the fetch.

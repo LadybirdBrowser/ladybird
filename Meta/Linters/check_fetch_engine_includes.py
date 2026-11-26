@@ -29,6 +29,7 @@ GENERATED_HEADERS = {
     "LibWeb/Export.h",
     "LibWebCommon/Bindings/SecurityPolicyViolationEvent.h",
     "LibWebCommon/Export.h",
+    "LibWebCommon/MixedContent/ProhibitsMixedSecurityContextsCodecs.h",
     "LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicyCodecs.h",
 }
 

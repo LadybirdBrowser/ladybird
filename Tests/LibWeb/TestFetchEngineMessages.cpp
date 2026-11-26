@@ -21,7 +21,7 @@ static_assert(IsMoveConstructible<EngineCommand>);
 static_assert(!IsConstructible<Delivered<NonNullLocalBodyHandle>, NullBody>);
 
 // Only fetch params build the input that starts a fetch.
-static_assert(!IsConstructible<StartFetchInput, FetchId, BodyIntent, Optional<Web::FileAPI::SerializedBlobURLEntry>, NonnullOwnPtr<EngineEventSink>>);
+static_assert(!IsConstructible<StartFetchInput, FetchId, MainFetchInput, NonnullOwnPtr<EngineEventSink>>);
 
 TEST_CASE(commands_round_trip_their_payloads)
 {

@@ -924,223 +924,210 @@ RefPtr<PendingResponse> main_fetch(Infrastructure::FetchParams const& fetch_para
     }
 
     // 11. If recursive is false, then run the remaining steps in parallel.
-    auto in_parallel_steps = GC::create_function<void(NonnullRefPtr<Engine::FetchEngineRecord>)>(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params }, request, response), [](NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, NonnullRefPtr<Infrastructure::Request>& request, RefPtr<Infrastructure::Response>& response, NonnullRefPtr<Engine::FetchEngineRecord> engine_record) {
-        fetch_params->set_engine_record(move(engine_record));
-        if (fetch_params->preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>())
-            fetch_params->engine_record()->expect_preload_resolution();
-
-        // 12. If response is null, then set response to the result of running the steps corresponding to the first
-        //     matching statement:
-        auto pending_response = PendingResponse::create(*fetch_params, Infrastructure::Response::create());
-        if (!response) {
-            pending_response = get_response(*fetch_params);
-        }
-        pending_response->when_loaded([fetch_params, request, response, response_was_null = !response](NonnullRefPtr<Infrastructure::Response> resolved_response) mutable {
-            dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
-
-            // AD-HOC: From here on, response processing captures fetchParams's task destination as it schedules work
-            //         (fetch response handover's tasks, body pipe and body read). Record that the response has arrived
-            //         (a network response was recorded as its headers came in), so consume_a_preloaded_resource()
-            //         re-targets an in-flight preload's fetch only until then.
-            fetch_params->control_block().set_response_arrived();
-
-            if (response_was_null)
-                response = resolved_response;
-            // 14. If response is not a network error and response is not a filtered response, then:
-            if (!response->is_network_error() && !is<Infrastructure::FilteredResponse>(*response)) {
-                // 1. If request’s response tainting is "cors", then:
-                if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS) {
-                    // 1. Let headerNames be the result of extracting header list values given
-                    //    `Access-Control-Expose-Headers` and response’s header list.
-                    auto header_names_or_failure = response->header_list()->extract_header_list_values("Access-Control-Expose-Headers"sv);
-
-                    if (auto* header_names = header_names_or_failure.get_pointer<Vector<ByteString>>()) {
-                        // 2. If request’s credentials mode is not "include" and headerNames contains `*`, then set
-                        //    response’s CORS-exposed header-name list to all unique header names in response’s header
-                        //    list.
-                        if (request->credentials_mode() != Infrastructure::Request::CredentialsMode::Include && header_names->contains_slow("*"sv)) {
-                            auto unique_header_names = response->header_list()->unique_names();
-                            response->set_cors_exposed_header_name_list(move(unique_header_names));
-                        }
-                        // 3. Otherwise, if headerNames is not null or failure, then set response’s CORS-exposed
-                        //    header-name list to headerNames.
-                        else if (!header_names->is_empty()) {
-                            response->set_cors_exposed_header_name_list(move(*header_names));
-                        }
-                    }
-                }
-
-                // 2. Set response to the following filtered response with response as its internal response, depending
-                //    on request’s response tainting:
-                response = [&]() -> NonnullRefPtr<Infrastructure::Response> {
-                    switch (request->response_tainting()) {
-                    // -> "basic"
-                    case Infrastructure::Request::ResponseTainting::Basic:
-                        // basic filtered response
-                        return Infrastructure::BasicFilteredResponse::create(*response);
-                    // -> "cors"
-                    case Infrastructure::Request::ResponseTainting::CORS:
-                        // CORS filtered response
-                        return Infrastructure::CORSFilteredResponse::create(*response);
-                    // -> "opaque"
-                    case Infrastructure::Request::ResponseTainting::Opaque:
-                        // opaque filtered response
-                        return Infrastructure::OpaqueFilteredResponse::create(*response);
-                    default:
-                        VERIFY_NOT_REACHED();
-                    }
-                }();
-            }
-
-            // 15. Let internalResponse be response, if response is a network error, and response’s internal response
-            //     otherwise.
-            auto internal_response = response->is_network_error()
-                ? NonnullRefPtr { *response }
-                : static_cast<Infrastructure::FilteredResponse&>(*response).internal_response();
-
-            // 16. If internalResponse’s URL list is empty, then set it to a clone of request’s URL list.
-            // NOTE: A response’s URL list can be empty (for example, when the response represents an about URL).
-            if (internal_response->url_list().is_empty())
-                internal_response->set_url_list(request->url_list());
-
-            // 17. Set internalResponse’s redirect taint to request’s redirect-taint.
-            internal_response->set_redirect_taint(request->redirect_taint());
-
-            // 18. If request is a navigation request, then set internalResponse's navigation timing allow values list
-            //     to a clone of request's navigation timing allow values list.
-            if (request->is_navigation_request())
-                internal_response->set_navigation_timing_allow_values_list(request->navigation_timing_allow_values_list());
-
-            // 19. If request’s timing allow failed flag is unset, then set internalResponse’s timing allow passed flag.
-            if (!request->timing_allow_failed())
-                internal_response->set_timing_allow_passed(true);
-
-            // 20. If response is not a network error and any of the following returns blocked
-            auto report_violation = engine_violation_reporter(*fetch_params->engine_record(), request);
-            if (!response->is_network_error() && (
-                    // - should internalResponse to request be blocked as mixed content
-                    MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
-                    // - should internalResponse to request be blocked by Content Security Policy
-                    || ContentSecurityPolicy::should_response_to_request_be_blocked_by_content_security_policy(*internal_response, request, report_violation) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
-                    // - should internalResponse to request be blocked due to its MIME type
-                    || Infrastructure::should_response_to_request_be_blocked_due_to_its_mime_type(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked
-                    // - should internalResponse to request be blocked due to nosniff
-                    || Infrastructure::should_response_to_request_be_blocked_due_to_nosniff(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked)) {
-                // then set response and internalResponse to a network error.
-                fetch_params->discard_response_body(*internal_response);
-                response = internal_response = Infrastructure::Response::network_error("Response was blocked"_string);
-            }
-
-            // 21. If response’s type is "opaque", internalResponse’s status is 206, internalResponse’s range-requested
-            //     flag is set, and request’s header list does not contain `Range`, then set response and
-            //     internalResponse to a network error.
-            // NOTE: Traditionally, APIs accept a ranged response even if a range was not requested. This prevents a
-            //       partial response from an earlier ranged request being provided to an API that did not make a range
-            //       request.
-            if (response->type() == Infrastructure::Response::Type::Opaque
-                && internal_response->status() == 206
-                && internal_response->range_requested()
-                && !request->header_list()->contains("Range"sv)) {
-                fetch_params->discard_response_body(*internal_response);
-                response = internal_response = Infrastructure::Response::network_error("Response has status 206 and 'range-requested' flag set, but request has no 'Range' header"_string);
-            }
-
-            // 22. If response is not a network error and either request’s method is `HEAD` or `CONNECT`, or
-            //     internalResponse’s status is a null body status, set internalResponse’s body to null and disregard
-            //     any enqueuing toward it (if any).
-            // NOTE: This standardizes the error handling for servers that violate HTTP.
-            if (!response->is_network_error() && (request->method().is_one_of("HEAD"sv, "CONNECT"sv) || Infrastructure::is_null_body_status(internal_response->status())))
-                internal_response->set_body({});
-
-            // 23. If request’s integrity metadata is not the empty string, then:
-            if (!request->integrity_metadata().is_empty()) {
-                // 1. Let processBodyError be this step: run fetch response handover given fetchParams and a network
-                //    error.
-                auto process_body_error = [fetch_params] {
-                    fetch_response_handover(*fetch_params, Infrastructure::Response::network_error("Response body could not be processed"_string));
-                };
-
-                // 2. If response’s body is null, then run processBodyError and abort these steps.
-                if (!response->body().has_value()) {
-                    process_body_error();
-                    return;
-                }
-
-                // 3. Let processBody given bytes be these steps:
-                auto process_body = [request, response, fetch_params, process_body_error](ByteBuffer bytes) {
-                    // 1. If bytes do not match request’s integrity metadata, then run processBodyError and abort these steps.
-                    if (!TRY_OR_IGNORE(SRI::do_bytes_match_metadata_list(bytes, request->integrity_metadata()))) {
-                        process_body_error();
-                        return;
-                    }
-
-                    // 2. Set response’s body to bytes as a body.
-                    response->set_body(Infrastructure::ResponseBody::from_bytes(Core::ImmutableBytes::adopt(move(bytes))));
-
-                    // 3. Run fetch response handover given fetchParams and response.
-                    fetch_response_handover(*fetch_params, *response);
-                };
-
-                // 4. Fully read response’s body given processBody and processBodyError.
-                // NB: The fetch's engine reads the body, and its executor runs processBody or processBodyError as the
-                //     parallel queue that fully reading starts would.
-                NonnullRefPtr engine_record = *fetch_params->engine_record();
-                auto continue_after_the_read = [engine_record, process_body, process_body_error](Engine::WholeBodyReadResult result) {
-                    engine_record->defer([process_body, process_body_error, result = move(result)]() mutable {
-                        result.visit(
-                            [&](ByteBuffer& bytes) { process_body(move(bytes)); },
-                            [&](Engine::WholeBodyReadFailure) { process_body_error(); });
-                    });
-                };
-                Engine::read_whole_body(*response->body(), move(continue_after_the_read));
-            }
-            // 24. Otherwise, run fetch response handover given fetchParams and response.
-            else {
-                fetch_response_handover(*fetch_params, *response);
-            }
-        });
-    });
-    VERIFY(fetch_params.controller_registry());
-    auto& controller_registry = *fetch_params.controller_registry();
     auto controller = fetch_controller_of(fetch_params);
 
     // AD-HOC: A manual redirect's next hop runs under its fetch's id once the engine is told of the follow. It does not
     //         run for a redirect answered before, or for a fetch no longer ongoing, whose hop could only stop or fail.
-    if (auto started_fetch_id = controller->started_fetch_id(); started_fetch_id.has_value()) {
-        if (!controller->has_unanswered_redirect())
-            return nullptr;
-        auto next_hop_steps = GC::create_function<void(NonnullRefPtr<Engine::FetchEngineRecord>)>(GC::Heap::the(), GC::captures(NonnullRefPtr { fetch_params.control_block() }, in_parallel_steps), [](auto& control_block, auto& in_parallel_steps, NonnullRefPtr<Engine::FetchEngineRecord> engine_record) {
-            if (control_block->is_ongoing())
-                in_parallel_steps->function()(move(engine_record));
-            else
-                engine_record->main_fetch_cannot_hand_over();
-        });
-        controller_registry.defer_main_fetch_steps(*started_fetch_id, next_hop_steps);
-        controller->resolve_redirect(Engine::Command::ResolveRedirect::Follow {});
+    if (controller->started_fetch_id().has_value()) {
+        if (controller->has_unanswered_redirect()) {
+            Engine::MainFetchInput next_hop { NonnullRefPtr { fetch_params }, response };
+            controller->resolve_redirect(Engine::Command::ResolveRedirect::Follow { move(next_hop) });
+        }
         return nullptr;
     }
 
-    auto fetch_id = controller_registry.defer_main_fetch_steps(in_parallel_steps);
+    VERIFY(fetch_params.controller_registry());
+    auto& controller_registry = *fetch_params.controller_registry();
+    auto fetch_id = Infrastructure::FetchControllerRegistry::next_fetch_id();
     controller_registry.root_fetch(fetch_id, controller);
     auto& fetch_executor = *HTML::surrounding_agent().fetch_executor;
     controller->set_started_fetch(fetch_id, fetch_executor);
-    auto event_sink = make<FetchEventSink>(*controller);
-    auto start_fetch_input = fetch_params.start_fetch_input(fetch_id, move(event_sink));
+    auto start_fetch_input = fetch_params.start_fetch_input(fetch_id, response, make<FetchEventSink>(*controller));
     fetch_executor.post(Engine::Command::StartFetch { move(start_fetch_input) });
 
     return nullptr;
 }
 
-void run_deferred_main_fetch_steps(Engine::FetchId fetch_id, NonnullRefPtr<Engine::FetchEngineRecord> engine_record)
+// https://fetch.spec.whatwg.org/#concept-main-fetch
+void run_main_fetch_parallel_steps(Engine::MainFetchInput input, NonnullRefPtr<Engine::FetchEngineRecord> engine_record)
 {
-    // An agent's fetch engine runs on the agent's thread.
-    auto steps = HTML::surrounding_agent().fetch_controller_registry.take_deferred_main_fetch_steps(fetch_id);
-    steps->function()(move(engine_record));
-}
+    auto fetch_params = move(input.fetch_params);
+    auto request = fetch_params->request();
+    auto response = move(input.response);
+    fetch_params->set_engine_record(move(engine_record));
+    if (fetch_params->preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>())
+        fetch_params->engine_record()->expect_preload_resolution();
 
-void drop_deferred_main_fetch_steps(Engine::FetchId fetch_id)
-{
-    (void)HTML::surrounding_agent().fetch_controller_registry.take_deferred_main_fetch_steps(fetch_id);
+    // 12. If response is null, then set response to the result of running the steps corresponding to the first
+    //     matching statement:
+    auto pending_response = PendingResponse::create(*fetch_params, Infrastructure::Response::create());
+    if (!response) {
+        pending_response = get_response(*fetch_params);
+    }
+    pending_response->when_loaded([fetch_params, request, response, response_was_null = !response](NonnullRefPtr<Infrastructure::Response> resolved_response) mutable {
+        dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' pending_response load callback");
+
+        // AD-HOC: From here on, response processing captures fetchParams's task destination as it schedules work
+        //         (fetch response handover's tasks, body pipe and body read). Record that the response has arrived
+        //         (a network response was recorded as its headers came in), so consume_a_preloaded_resource()
+        //         re-targets an in-flight preload's fetch only until then.
+        fetch_params->control_block().set_response_arrived();
+
+        if (response_was_null)
+            response = resolved_response;
+        // 14. If response is not a network error and response is not a filtered response, then:
+        if (!response->is_network_error() && !is<Infrastructure::FilteredResponse>(*response)) {
+            // 1. If request’s response tainting is "cors", then:
+            if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS) {
+                // 1. Let headerNames be the result of extracting header list values given
+                //    `Access-Control-Expose-Headers` and response’s header list.
+                auto header_names_or_failure = response->header_list()->extract_header_list_values("Access-Control-Expose-Headers"sv);
+
+                if (auto* header_names = header_names_or_failure.get_pointer<Vector<ByteString>>()) {
+                    // 2. If request’s credentials mode is not "include" and headerNames contains `*`, then set
+                    //    response’s CORS-exposed header-name list to all unique header names in response’s header
+                    //    list.
+                    if (request->credentials_mode() != Infrastructure::Request::CredentialsMode::Include && header_names->contains_slow("*"sv)) {
+                        auto unique_header_names = response->header_list()->unique_names();
+                        response->set_cors_exposed_header_name_list(move(unique_header_names));
+                    }
+                    // 3. Otherwise, if headerNames is not null or failure, then set response’s CORS-exposed
+                    //    header-name list to headerNames.
+                    else if (!header_names->is_empty()) {
+                        response->set_cors_exposed_header_name_list(move(*header_names));
+                    }
+                }
+            }
+
+            // 2. Set response to the following filtered response with response as its internal response, depending
+            //    on request’s response tainting:
+            response = [&]() -> NonnullRefPtr<Infrastructure::Response> {
+                switch (request->response_tainting()) {
+                // -> "basic"
+                case Infrastructure::Request::ResponseTainting::Basic:
+                    // basic filtered response
+                    return Infrastructure::BasicFilteredResponse::create(*response);
+                // -> "cors"
+                case Infrastructure::Request::ResponseTainting::CORS:
+                    // CORS filtered response
+                    return Infrastructure::CORSFilteredResponse::create(*response);
+                // -> "opaque"
+                case Infrastructure::Request::ResponseTainting::Opaque:
+                    // opaque filtered response
+                    return Infrastructure::OpaqueFilteredResponse::create(*response);
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            }();
+        }
+
+        // 15. Let internalResponse be response, if response is a network error, and response’s internal response
+        //     otherwise.
+        auto internal_response = response->is_network_error()
+            ? NonnullRefPtr { *response }
+            : static_cast<Infrastructure::FilteredResponse&>(*response).internal_response();
+
+        // 16. If internalResponse’s URL list is empty, then set it to a clone of request’s URL list.
+        // NOTE: A response’s URL list can be empty (for example, when the response represents an about URL).
+        if (internal_response->url_list().is_empty())
+            internal_response->set_url_list(request->url_list());
+
+        // 17. Set internalResponse’s redirect taint to request’s redirect-taint.
+        internal_response->set_redirect_taint(request->redirect_taint());
+
+        // 18. If request is a navigation request, then set internalResponse's navigation timing allow values list
+        //     to a clone of request's navigation timing allow values list.
+        if (request->is_navigation_request())
+            internal_response->set_navigation_timing_allow_values_list(request->navigation_timing_allow_values_list());
+
+        // 19. If request’s timing allow failed flag is unset, then set internalResponse’s timing allow passed flag.
+        if (!request->timing_allow_failed())
+            internal_response->set_timing_allow_passed(true);
+
+        // 20. If response is not a network error and any of the following returns blocked
+        auto report_violation = engine_violation_reporter(*fetch_params->engine_record(), request);
+        if (!response->is_network_error() && (
+                // - should internalResponse to request be blocked as mixed content
+                MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
+                // - should internalResponse to request be blocked by Content Security Policy
+                || ContentSecurityPolicy::should_response_to_request_be_blocked_by_content_security_policy(*internal_response, request, report_violation) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
+                // - should internalResponse to request be blocked due to its MIME type
+                || Infrastructure::should_response_to_request_be_blocked_due_to_its_mime_type(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked
+                // - should internalResponse to request be blocked due to nosniff
+                || Infrastructure::should_response_to_request_be_blocked_due_to_nosniff(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked)) {
+            // then set response and internalResponse to a network error.
+            fetch_params->discard_response_body(*internal_response);
+            response = internal_response = Infrastructure::Response::network_error("Response was blocked"_string);
+        }
+
+        // 21. If response’s type is "opaque", internalResponse’s status is 206, internalResponse’s range-requested
+        //     flag is set, and request’s header list does not contain `Range`, then set response and
+        //     internalResponse to a network error.
+        // NOTE: Traditionally, APIs accept a ranged response even if a range was not requested. This prevents a
+        //       partial response from an earlier ranged request being provided to an API that did not make a range
+        //       request.
+        if (response->type() == Infrastructure::Response::Type::Opaque
+            && internal_response->status() == 206
+            && internal_response->range_requested()
+            && !request->header_list()->contains("Range"sv)) {
+            fetch_params->discard_response_body(*internal_response);
+            response = internal_response = Infrastructure::Response::network_error("Response has status 206 and 'range-requested' flag set, but request has no 'Range' header"_string);
+        }
+
+        // 22. If response is not a network error and either request’s method is `HEAD` or `CONNECT`, or
+        //     internalResponse’s status is a null body status, set internalResponse’s body to null and disregard
+        //     any enqueuing toward it (if any).
+        // NOTE: This standardizes the error handling for servers that violate HTTP.
+        if (!response->is_network_error() && (request->method().is_one_of("HEAD"sv, "CONNECT"sv) || Infrastructure::is_null_body_status(internal_response->status())))
+            internal_response->set_body({});
+
+        // 23. If request’s integrity metadata is not the empty string, then:
+        if (!request->integrity_metadata().is_empty()) {
+            // 1. Let processBodyError be this step: run fetch response handover given fetchParams and a network
+            //    error.
+            auto process_body_error = [fetch_params] {
+                fetch_response_handover(*fetch_params, Infrastructure::Response::network_error("Response body could not be processed"_string));
+            };
+
+            // 2. If response’s body is null, then run processBodyError and abort these steps.
+            if (!response->body().has_value()) {
+                process_body_error();
+                return;
+            }
+
+            // 3. Let processBody given bytes be these steps:
+            auto process_body = [request, response, fetch_params, process_body_error](ByteBuffer bytes) {
+                // 1. If bytes do not match request’s integrity metadata, then run processBodyError and abort these steps.
+                if (!TRY_OR_IGNORE(SRI::do_bytes_match_metadata_list(bytes, request->integrity_metadata()))) {
+                    process_body_error();
+                    return;
+                }
+
+                // 2. Set response’s body to bytes as a body.
+                response->set_body(Infrastructure::ResponseBody::from_bytes(Core::ImmutableBytes::adopt(move(bytes))));
+
+                // 3. Run fetch response handover given fetchParams and response.
+                fetch_response_handover(*fetch_params, *response);
+            };
+
+            // 4. Fully read response’s body given processBody and processBodyError.
+            // NB: The fetch's engine reads the body, and its executor runs processBody or processBodyError as the
+            //     parallel queue that fully reading starts would.
+            NonnullRefPtr engine_record = *fetch_params->engine_record();
+            auto continue_after_the_read = [engine_record, process_body, process_body_error](Engine::WholeBodyReadResult result) {
+                engine_record->defer([process_body, process_body_error, result = move(result)]() mutable {
+                    result.visit(
+                        [&](ByteBuffer& bytes) { process_body(move(bytes)); },
+                        [&](Engine::WholeBodyReadFailure) { process_body_error(); });
+                });
+            };
+            Engine::read_whole_body(*response->body(), move(continue_after_the_read));
+        }
+        // 24. Otherwise, run fetch response handover given fetchParams and response.
+        else {
+            fetch_response_handover(*fetch_params, *response);
+        }
+    });
 }
 
 using RequestEnvironment = Variant<Empty, NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const>, NonnullRefPtr<Infrastructure::ClientContextSnapshot const>>;
