@@ -36,6 +36,8 @@ public:
     // For tests of the client's recovery: the connection closes once its decoders have decoded this many frames, or
     // never if the count is zero.
     void close_after_decoded_frame_count(u32);
+    // Likewise, a decoder stops making progress once it has decoded this many frames, until the connection closes.
+    void stall_after_decoded_frame_count(u32);
 
 private:
     class DecoderSession;
@@ -56,6 +58,7 @@ private:
     // Callable from the decoder threads.
     u64 hold_frame_until_released(NonnullRefPtr<VideoFrame>);
     bool should_close_after_decoding_frame();
+    bool should_stall_after_decoding_frame();
 
     Core::EventLoop& m_event_loop;
     ReadonlySpan<VideoDecoderRegistration> const m_hosted_decoders;
@@ -66,6 +69,7 @@ private:
     u64 m_next_held_frame_id { 1 };
 
     Atomic<u32> m_frames_until_close { 0 };
+    Atomic<u32> m_frames_until_stall { 0 };
 };
 
 }

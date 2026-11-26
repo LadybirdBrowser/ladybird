@@ -76,6 +76,12 @@ void ConnectionFromClient::request_video_decoder_server_transport(VideoDecoderSe
     async_request_video_decoder_server_connection(request_id);
 }
 
+void ConnectionFromClient::report_unresponsive_video_decoder_server()
+{
+    VERIFY(m_role == Role::Controller);
+    async_video_decoder_server_unresponsive();
+}
+
 void ConnectionFromClient::video_decoder_server_connection_ready(u64 request_id, Optional<IPC::TransportHandle> handle)
 {
     if (m_role != Role::Controller) {
