@@ -18,7 +18,7 @@ enum class ContainerID : u8 {
     WebM,
     Ogg,
     MPEGAudio,
-    ADTS,
+    AAC,
     FLAC,
     WAV,
 };

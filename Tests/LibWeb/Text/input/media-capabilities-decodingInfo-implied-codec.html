@@ -2,7 +2,7 @@
 <script src="include.js"></script>
 <script>
     promiseTest(async () => {
-        for (const contentType of ["audio/flac", "audio/aac", "audio/mpeg", "audio/mpeg;", 'audio/mpeg; codecs="mp3"', 'audio/mp4; codecs="mp4a.40.2"', "audio/webm"]) {
+        for (const contentType of ["audio/flac", 'audio/flac; codecs="flac"', "audio/aac", 'audio/aac; codecs="mp4a.40.2"', "audio/mpeg", "audio/mpeg;", 'audio/mpeg; codecs="mp3"', 'audio/mp4; codecs="mp4a.40.2"', "audio/webm"]) {
             try {
                 const info = await navigator.mediaCapabilities.decodingInfo({ type: "file", audio: { contentType } });
                 println(`${contentType}: supported=${info.supported}`);

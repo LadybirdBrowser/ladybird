@@ -37,13 +37,14 @@ static Optional<CodecID> wave_codec_from_codec_parameter(StringView codec_parame
 }
 
 // A container whose MIME type names its only codec needs no codecs parameter to be identified.
-Optional<CodecID> codec_implied_by_file_container(ContainerMimeType mime_type)
+Optional<ParsedCodec> codec_implied_by_file_container(ContainerMimeType mime_type)
 {
     switch (mime_type.container_id) {
-    case ContainerID::ADTS:
-        return CodecID::AAC;
+    case ContainerID::AAC:
+        // The audio/aac registration covers AAC up to the HE-AAC v2 profile.
+        return ParsedCodec { Codecs::AAC::Parameters { Codecs::AAC::MPEG4_AUDIO_OBJECT_TYPE_INDICATION, Codecs::AAC::PARAMETRIC_STEREO_AUDIO_OBJECT_TYPE } };
     case ContainerID::FLAC:
-        return CodecID::FLAC;
+        return ParsedCodec { CodecID::FLAC };
     case ContainerID::MPEGAudio:
     case ContainerID::ISOBMFF:
     case ContainerID::Matroska:
@@ -64,18 +65,20 @@ MediaSupportInfo file_media_support(MimeTypeView const& mime_type)
     // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
     // "Generally, a user agent should never return "probably" for a type that allows the codecs parameter if that
     //  parameter is not present."
-    // So a container that names its only codec answers "maybe" when that codec decodes, and nothing when it doesn't.
+    auto implied_codec = codec_implied_by_file_container(*container);
     auto codecs_iterator = mime_type.parameters.find("codecs"sv);
     if (codecs_iterator == mime_type.parameters.end()) {
-        auto implied_codec = codec_implied_by_file_container(*container);
         if (!implied_codec.has_value())
             return { MediaSupport::Maybe };
 
-        auto capabilities = decoder_capabilities(ParsedCodec { *implied_codec });
+        auto capabilities = decoder_capabilities(implied_codec.value());
         if (!capabilities.has_value())
             return {};
-        return { MediaSupport::Maybe, *capabilities };
+        return { MediaSupport::Probably, *capabilities };
     }
+
+    if (implied_codec.has_value())
+        return {};
 
     auto codec_strings = codecs_iterator->value.bytes_as_string_view().split_view(',', SplitBehavior::KeepEmpty);
     if (codec_strings.is_empty())

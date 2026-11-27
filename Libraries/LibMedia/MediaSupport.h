@@ -13,7 +13,7 @@
 #include <LibIPC/Forward.h>
 #include <LibMedia/ContainerID.h>
 #include <LibMedia/Export.h>
-#include <LibMediaCodecs/CodecID.h>
+#include <LibMediaCodecs/CodecParameters.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
 
 namespace Media {
@@ -37,7 +37,7 @@ struct MediaSupportInfo {
     bool operator==(MediaSupportInfo const&) const = default;
 };
 
-MEDIA_API Optional<CodecID> codec_implied_by_file_container(ContainerMimeType);
+MEDIA_API Optional<ParsedCodec> codec_implied_by_file_container(ContainerMimeType);
 MEDIA_API MediaSupportInfo file_media_support(MimeTypeView const&);
 
 }

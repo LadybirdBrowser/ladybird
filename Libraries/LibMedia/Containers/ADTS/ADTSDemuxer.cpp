@@ -45,12 +45,12 @@ public:
 
 bool ADTSDemuxer::supports_container_mime_type(ContainerMimeType mime_type)
 {
-    return mime_type.container_id == ContainerID::ADTS && mime_type.media_type == ContainerMediaType::Audio;
+    return mime_type.container_id == ContainerID::AAC && mime_type.media_type == ContainerMediaType::Audio;
 }
 
 bool ADTSDemuxer::supports_codec_in_container(ContainerID container_id, CodecID codec_id)
 {
-    return container_id == ContainerID::ADTS && codec_id == CodecID::AAC;
+    return container_id == ContainerID::AAC && codec_id == CodecID::AAC;
 }
 
 static Audio::ChannelMap channel_map_from_channel_count(u8 channel_count)
