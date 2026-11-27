@@ -153,6 +153,7 @@ template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeSameDocumentNavigationHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));
+    TRY(encoder.encode(parameters.document_id));
     TRY(encoder.encode(parameters.target_entry));
     TRY(encoder.encode(parameters.entry_to_replace));
     TRY(encoder.encode(parameters.previous_entry_persisted_state));
@@ -166,6 +167,7 @@ ErrorOr<Web::FinalizeSameDocumentNavigationHistoryOperationParameters> IPC::deco
 {
     return Web::FinalizeSameDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .document_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .target_entry = TRY(decoder.decode<Web::HTML::SameDocumentNavigationEntry>()),
         .entry_to_replace = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryEntryIdentity>>()),
         .previous_entry_persisted_state = TRY(decoder.decode<Optional<Web::HTML::SessionHistoryEntryPersistedState>>()),

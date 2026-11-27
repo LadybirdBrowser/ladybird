@@ -2416,8 +2416,10 @@ void CanonicalTraversable::finalize_a_same_document_navigation(HistoryOperation&
     //         document can push entries until it is destroyed (e.g. from pagehide, or from a timer that fires
     //         during the commit). Such a stale finalization must not be applied. Its target entry belongs to a
     //         document that is no longer active, so applying it would traverse across documents and populate the
-    //         unloaded document again, replacing the one that just committed.
-    if (!target_entry || target_entry->document_state != target_navigable->active_session_history_entry()->document_state) {
+    //         unloaded document again, replacing the one that just committed. A reload commits a new document into
+    //         the same document state, so it is the document that is compared.
+    auto const& active_document = target_navigable->active_session_history_entry()->document_state->document;
+    if (!target_entry || !active_document || active_document->id() != request.document_id) {
         finish_history_operation(operation.operation_id);
         return;
     }
