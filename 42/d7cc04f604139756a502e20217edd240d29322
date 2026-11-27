@@ -1,0 +1,6 @@
+Ladybird’s seccomp policy allows pwrite64() and answers pwritev2()
+with ENOSYS, so musl’s pwrite() falls back to pwrite64(). Gecko’s
+SandboxFilter.cpp allows pwrite64() and has no rule for pwritev2(),
+which then gets InvalidSyscall(): a trap whose BlockedSyscallTrap()
+also answers ENOSYS. Chromium’s syscall_sets.cc allows pwrite64()
+and lists neither pwritev() nor pwritev2(). From reading the sources.
