@@ -4,6 +4,7 @@ set(SOURCES
     Cell.cpp
     CellAllocator.cpp
     CrossHeapMember.cpp
+    Function.cpp
     Root.cpp
     RootHashMap.cpp
     RootHashTable.cpp

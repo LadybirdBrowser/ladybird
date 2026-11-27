@@ -189,8 +189,9 @@ public:
     }
 };
 
-// Heap::allocate<T>() takes every cell from T::cell_allocator, and a subclass of T must declare an allocator of its own,
-// so a cell that came from T::cell_allocator is exactly a T. This identifies a cell's type without reading its vtable.
+// Heap::allocate<T>() takes every cell from T::cell_allocator, and a subclass of T must declare an allocator of its own
+// unless it adds no state to T (see Heap::allocate_from_allocator_of_base()), so a cell that came from T::cell_allocator
+// has exactly the layout of a T. This identifies a cell's type without reading its vtable.
 inline bool cell_was_allocated_from(Cell const& cell, CellAllocatorDescriptorBase const& descriptor)
 {
     return &HeapBlock::from_cell(&cell)->cell_allocator().descriptor() == &descriptor;

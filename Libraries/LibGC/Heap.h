@@ -96,6 +96,22 @@ public:
         return construct_cell<T>(allocate_cell(descriptor), forward<Args>(args)...);
     }
 
+    // Like allocate(), for a T that adds no state to the class whose allocator it inherits. A cell of that allocator is
+    // then a cell of the class or of any such subclass, and all of them have the layout of the class. The allocator
+    // visits and destroys its cells as the class, so T must not override how a cell is visited, finalized or destroyed.
+    template<typename T, typename... Args>
+    Ref<T> allocate_from_allocator_of_base(Args&&... args)
+    {
+        using AllocatingType = typename decltype(T::cell_allocator)::CellType;
+        static_assert(IsBaseOf<AllocatingType, T> && !IsSame<AllocatingType, T>);
+        static_assert(sizeof(T) == sizeof(AllocatingType) && alignof(T) == alignof(AllocatingType), "A cell that shares the allocator of its base class adds no state to it");
+        static_assert(IsSame<decltype(&T::visit_edges), decltype(&AllocatingType::visit_edges)>
+                && IsSame<decltype(&T::finalize), decltype(&AllocatingType::finalize)>
+                && IsSame<decltype(&T::external_memory_size), decltype(&AllocatingType::external_memory_size)>,
+            "A cell that shares the allocator of its base class is visited and finalized as that class");
+        return construct_cell<T>(allocate_cell(T::cell_allocator), forward<Args>(args)...);
+    }
+
     enum class CollectionType {
         CollectGarbage,
         CollectEverything,
