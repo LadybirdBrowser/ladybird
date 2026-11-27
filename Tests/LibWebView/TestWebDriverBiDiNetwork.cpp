@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonValue.h>
 #include <LibTest/TestCase.h>
+#include <LibWebCommon/WebDriver/Network.h>
 #include <LibWebView/WebDriverBiDiNetwork.h>
 
 TEST_CASE(scoped_network_state_only_contains_hosted_traversables)
@@ -39,4 +41,21 @@ TEST_CASE(scoped_network_state_only_contains_hosted_traversables)
     EXPECT(unhosted.network_navigable_headers.is_empty());
     EXPECT(unhosted.network_navigable_cache_behavior.is_empty());
     EXPECT_EQ(unhosted.network_default_headers.size(), 1u);
+}
+
+TEST_CASE(a_network_event_ends_a_routed_block_only_for_the_interception_it_names)
+{
+    auto parameters = MUST(JsonValue::from_string(R"({"isBlocked":false,"__webdriver_network_interception":7})"sv)).as_object();
+    EXPECT_EQ(WebView::take_network_interception(parameters), 7u);
+    EXPECT(!parameters.has(Web::WebDriver::Network::network_interception_parameter));
+    EXPECT(!WebView::take_network_interception(parameters).has_value());
+
+    auto ended = Web::WebDriver::Network::network_interception_ended_event;
+    EXPECT(WebView::network_event_ends_routed_block(ended, 7, 7));
+
+    // The end of another fetch of the request, which shares its id, names no interception of the block.
+    EXPECT(!WebView::network_event_ends_routed_block(ended, {}, 7));
+    EXPECT(!WebView::network_event_ends_routed_block(ended, 8, 7));
+    EXPECT(!WebView::network_event_ends_routed_block("network.fetchError"sv, 7, 7));
+    EXPECT(!WebView::network_event_ends_routed_block("network.beforeRequestSent"sv, 7, 7));
 }

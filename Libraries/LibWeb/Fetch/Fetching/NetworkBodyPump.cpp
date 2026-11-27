@@ -11,12 +11,12 @@
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
+#include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/WebDriver/BiDi/Network.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -155,8 +155,9 @@ void NetworkBodyPump::handle_network_complete(Optional<i64> request_server_encod
 void NetworkBodyPump::handle_network_error(StringView error_message)
 {
     m_delivery_gate->detach_transport();
-    if (WebDriver::BiDi::network_events_enabled() && m_fetch_params)
-        WebDriver::BiDi::network_fetch_error(*m_fetch_params, error_message);
+    // AD-HOC: An error of a response's body runs the WebDriver BiDi fetch error steps.
+    if (m_fetch_params)
+        report_fetch_error(*m_fetch_params, String::from_utf8_with_replacement_character(error_message));
     abandon_cache_entry(HTTP::MemoryCache::StoredResponse::Keep);
     m_channel->error({ .message = MUST(ByteBuffer::copy(error_message.bytes())) });
 }

@@ -18,6 +18,8 @@
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
+#include <LibWeb/Fetch/Engine/NetworkActivity.h>
+#include <LibWeb/Fetch/Engine/NetworkInterception.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControlBlock.h>
 #include <LibWeb/Fetch/Infrastructure/FetchControllerRegistry.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -55,6 +57,8 @@ public:
 
     // Posts the answer to the manual redirect handed over last, unless it was answered before.
     void resolve_redirect(Engine::Command::ResolveRedirect::Resolution);
+
+    void resolve_network_interception(Engine::ContinuationId, Engine::NetworkDecision);
     [[nodiscard]] bool has_unanswered_redirect() const { return m_redirect_continuation_id.has_value(); }
     // The continuation of the manual redirect handed over last, if it waits for an answer.
     void set_redirect_continuation_id(Optional<Engine::ContinuationId> continuation_id) { m_redirect_continuation_id = continuation_id; }
@@ -74,9 +78,6 @@ public:
 
     [[nodiscard]] GC::Ref<FetchAlgorithms const> algorithms() const;
 
-    // The fetch params created with the controller, for which WebDriver BiDi reports errors and intercepts requests.
-    [[nodiscard]] RefPtr<FetchParams> original_fetch_params() const;
-
     // The request the controller's fetch params were created with.
     [[nodiscard]] NonnullRefPtr<Request> request() const;
 
@@ -94,6 +95,15 @@ public:
 
     // The network observation of the request the controller's fetch params were created with.
     [[nodiscard]] RefPtr<NetworkObservation> const& network_observation() const { return m_network_observation; }
+
+    // The network observation of one of the fetch's CORS preflights, which the controller keeps from the preflight's
+    // first network event on.
+    [[nodiscard]] NonnullRefPtr<NetworkObservation> cors_preflight_network_observation(Engine::CorsPreflightId);
+
+    // The fetch's own request as its latest network event reported it, or as it was when main fetch handed the fetch to
+    // its engine.
+    [[nodiscard]] Optional<Engine::Event::ObservedRequest> const& observed_request() const { return m_observed_request; }
+    void set_observed_request(Engine::Event::ObservedRequest observed_request) { m_observed_request = move(observed_request); }
 
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
     void set_task_destination(TaskDestination task_destination) { m_task_destination = move(task_destination); }
@@ -131,17 +141,16 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual void finalize() override;
 
-    void report_webdriver_bidi_fetch_error(StringView error_text) const;
-    void cancel_webdriver_bidi_network_interception() const;
     void stop_request();
 
     WeakPtr<FetchControllerRegistry> m_registry;
     FetchControllerToken m_token;
     NonnullRefPtr<FetchControlBlock> m_control_block;
-    WeakPtr<FetchParams> m_original_fetch_params;
     RefPtr<Request> m_request;
     GC::Ptr<JS::Realm> m_realm;
     RefPtr<NetworkObservation> m_network_observation;
+    HashMap<Engine::CorsPreflightId, NonnullRefPtr<NetworkObservation>> m_cors_preflight_network_observations;
+    Optional<Engine::Event::ObservedRequest> m_observed_request;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // report timing steps (default null)

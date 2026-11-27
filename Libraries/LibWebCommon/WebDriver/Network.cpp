@@ -503,7 +503,7 @@ ErrorOr<InterceptionOverrides, Error> deserialize_interception_overrides(StringV
     }
     if (auto cookies = params.get_array("cookies"sv); cookies.has_value()) {
         StringBuilder cookie_header;
-        Vector<Header> set_cookie_headers;
+        Vector<ByteString> set_cookie_values;
         for (auto const& value : cookies->values()) {
             auto const& cookie = value.as_object();
             auto name = cookie.get_string("name"sv).release_value();
@@ -542,14 +542,14 @@ ErrorOr<InterceptionOverrides, Error> deserialize_interception_overrides(StringV
             append_attribute("sameSite"sv, "SameSite"sv);
             if (!HTTP::is_header_value(serialized.string_view()))
                 return invalid_argument("Invalid Set-Cookie header"sv);
-            set_cookie_headers.append({ "Set-Cookie"sv, serialized.to_byte_string() });
+            set_cookie_values.append(serialized.to_byte_string());
         }
         if (command == "network.continueRequest"sv) {
             if (!HTTP::is_header_value(cookie_header.string_view()))
                 return invalid_argument("Invalid Cookie header"sv);
             result.cookie_header = cookie_header.to_byte_string();
         } else {
-            result.set_cookie_headers = move(set_cookie_headers);
+            result.set_cookie_values = move(set_cookie_values);
         }
     }
     return result;

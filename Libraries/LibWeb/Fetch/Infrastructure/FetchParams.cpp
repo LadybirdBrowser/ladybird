@@ -34,7 +34,7 @@ FetchParams::FetchParams(FetchParams const& params)
     , m_blob_url_entry(params.m_blob_url_entry)
     , m_loader_config(params.m_loader_config)
     , m_engine_record(params.m_engine_record)
-    , m_is_cors_preflight(params.m_is_cors_preflight)
+    , m_cors_preflight_id(params.m_cors_preflight_id)
     , m_originating_page_id(params.m_originating_page_id)
 {
 }
@@ -64,7 +64,7 @@ void FetchParams::set_engine_record(NonnullRefPtr<Engine::FetchEngineRecord> eng
 void FetchParams::set_body_transport(Engine::FetchBodyDeliveryGate::Transport& transport) const
 {
     VERIFY(m_engine_record);
-    if (m_is_cors_preflight)
+    if (is_cors_preflight())
         m_engine_record->set_cors_preflight_body_transport(transport);
     else
         m_engine_record->set_body_transport(transport);
@@ -74,7 +74,7 @@ void FetchParams::stop_body_transport() const
 {
     if (!m_engine_record)
         return;
-    if (m_is_cors_preflight)
+    if (is_cors_preflight())
         m_engine_record->stop_cors_preflight_body_transport();
     else
         m_engine_record->stop_body_transport();

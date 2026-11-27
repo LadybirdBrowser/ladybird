@@ -34,4 +34,6 @@ private:
     bool m_fetch_ended { false };
 };
 
+void report_response_completed_to_observers(Infrastructure::FetchController&, Infrastructure::Response const&, Infrastructure::FetchTimingInfo const&);
+
 }

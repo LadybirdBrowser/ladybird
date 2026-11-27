@@ -104,6 +104,17 @@ Engine::FetchNetworkPhases FetchTimingInfo::final_network_phases(Requests::Reque
     };
 }
 
+Optional<Engine::FetchNetworkPhases> FetchTimingInfo::network_phases() const
+{
+    if (!m_final_connection_timing_info.has_value())
+        return {};
+    return Engine::FetchNetworkPhases {
+        .final_connection_timing_info = *m_final_connection_timing_info,
+        .final_network_request_start_time = m_final_network_request_start_time,
+        .final_network_response_start_time = m_final_network_response_start_time,
+    };
+}
+
 void FetchTimingInfo::set_network_phases(Engine::FetchNetworkPhases network_phases)
 {
     m_final_connection_timing_info = move(network_phases.final_connection_timing_info);

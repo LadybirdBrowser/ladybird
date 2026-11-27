@@ -9,6 +9,7 @@
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Fetch::Fetching {
@@ -134,6 +136,13 @@ static void drain_request_body_stream(GC::Ref<Infrastructure::FetchController> c
     request_body_reader->body->incrementally_read_loop(request_body_reader->reader, task_destination, ignore_chunk, ignore_end_of_body, ignore_error);
 }
 
+void report_response_completed_to_observers(Infrastructure::FetchController& controller, Infrastructure::Response const& response, Infrastructure::FetchTimingInfo const& timing_info)
+{
+    if (!WebDriver::BiDi::network_events_enabled())
+        return;
+    WebDriver::BiDi::network_response_completed(controller, observed_response(response), timing_info);
+}
+
 void FetchEventSink::handle_event(Engine::EngineEvent event)
 {
     VERIFY(m_agent_thread_id.is_current_thread());
@@ -168,10 +177,14 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         [&](Engine::Event::RequestBodySentFromSource const&) {
             drain_request_body_stream(controller);
         },
-        [&](Engine::Event::NetworkActivity const& network_activity) {
-            controller->page()->did_receive_network_activity(network_activity);
+        [&](Engine::Event::TransportActivity const& activity) {
+            controller->page()->did_receive_network_activity(activity);
         },
-        [](Engine::Event::FetchNetworkActivity const&) { VERIFY_NOT_REACHED(); },
+        [&](Engine::Event::FetchNetworkActivity const& activity) {
+            if (!activity.cors_preflight_id.has_value())
+                controller->set_observed_request(activity.request);
+            WebDriver::BiDi::receive_network_activity(controller, activity);
+        },
         [&](Engine::Event::ViolationReport const& report) {
             ContentSecurityPolicy::report_a_violation_of_a_request(controller->realm(), report.violation);
         },

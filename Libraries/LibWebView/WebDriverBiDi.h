@@ -172,6 +172,8 @@ private:
         Optional<URL::URL> url;
         // The id of the navigation the request fetches the response of, if it does.
         Optional<Utf16String> navigation_id;
+        // The network interception that blocks the request, as the process that holds it names it.
+        Optional<u64> interception;
     };
     u64 m_next_network_interception_generation { 0 };
     HashMap<String, BlockedNetworkRequest> m_blocked_network_requests;

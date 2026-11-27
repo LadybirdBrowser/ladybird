@@ -224,6 +224,9 @@ public:
     [[nodiscard]] Optional<ObservedNavigation> const& observed_navigation() const { return m_observed_navigation; }
     void set_observed_navigation(Optional<ObservedNavigation> observed_navigation) { m_observed_navigation = move(observed_navigation); }
 
+    [[nodiscard]] RefPtr<HTTP::HeaderList const> const& generated_header_overrides() const { return m_generated_header_overrides; }
+    void set_generated_header_overrides(RefPtr<HTTP::HeaderList const> overrides) { m_generated_header_overrides = move(overrides); }
+
     [[nodiscard]] RefPtr<ReservedClientContextSnapshot const> const& reserved_client_snapshot() const { return m_reserved_client_snapshot; }
     void set_reserved_client_snapshot(RefPtr<ReservedClientContextSnapshot const> reserved_client_snapshot) { m_reserved_client_snapshot = move(reserved_client_snapshot); }
 
@@ -420,6 +423,9 @@ private:
     Optional<ChildNavigableNavigation> m_child_navigable_navigation;
 
     Optional<ObservedNavigation> m_observed_navigation;
+
+    // Reapply intercepted headers when Fetch regenerates them on a later hop.
+    RefPtr<HTTP::HeaderList const> m_generated_header_overrides;
 
     // https://fetch.spec.whatwg.org/#concept-request-reserved-client
     // A request has an associated reserved client (null, an environment, or an environment settings object). Unless

@@ -896,6 +896,7 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
         "network.responseCompleted"sv,
         "network.fetchError"sv,
         "network.authRequired"sv,
+        Web::WebDriver::Network::network_interception_ended_event,
     });
     if (!any_of(content_events, [&](auto event_name) { return event_name == name; }))
         return;
@@ -916,6 +917,8 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
     }
 
     if (name.starts_with_bytes("network."sv)) {
+        // NB: Several fetches of a request share its id, so a route ends only with the interception that holds it.
+        auto interception = take_network_interception(params.as_object());
         if (auto request = params.as_object().get_object("request"sv); request.has_value()) {
             if (auto id = request->get_string("request"sv); id.has_value()) {
                 auto existing = m_blocked_network_requests.find(*id);
@@ -924,12 +927,15 @@ void WebDriverBiDi::did_receive_event(WebContentPage& page, Web::HTML::CrossProc
                 if (params.as_object().get_bool("isBlocked"sv).value_or(false)) {
                     auto url = request->get_string("url"sv).map([](auto const& url) { return URL::Parser::basic_parse(url); }).value_or({});
                     auto navigation_id = params.as_object().get_string("navigation"sv).map([](auto const& id) { return Utf16String::from_utf8(id); });
-                    m_blocked_network_requests.set(*id, { page, navigable_id, m_next_network_interception_generation++, move(url), move(navigation_id) });
-                } else if (name.is_one_of("network.responseCompleted"sv, "network.fetchError"sv))
+                    m_blocked_network_requests.set(*id, { page, navigable_id, m_next_network_interception_generation++, move(url), move(navigation_id), interception });
+                } else if (existing != m_blocked_network_requests.end() && network_event_ends_routed_block(name, interception, existing->value.interception)) {
                     m_blocked_network_requests.remove(*id);
+                }
             }
         }
     }
+    if (name == Web::WebDriver::Network::network_interception_ended_event)
+        return;
     // NB: Route bookkeeping also runs for events whose subscription changed while they were in flight.
     //     WebDriver buffers the log events that no subscription enables.
     if (!is_event_enabled(name) && name != "log.entryAdded"sv)

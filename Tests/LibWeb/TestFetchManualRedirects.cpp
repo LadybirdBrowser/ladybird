@@ -545,7 +545,7 @@ TEST_CASE(a_navigation_aborted_while_its_redirect_waits_gets_no_network_error)
 
         // The redirect's process response task is queued, but has not run.
         VERIFY(was_handed_over(*controller));
-        EXPECT_EQ(controller->original_fetch_params()->request()->redirect_count(), 0);
+        EXPECT_EQ(controller->request()->redirect_count(), 0);
         EXPECT(completions->steps.is_empty());
 
         // The navigation aborts its fetch and completes with null at once.
@@ -561,7 +561,7 @@ TEST_CASE(a_navigation_aborted_while_its_redirect_waits_gets_no_network_error)
     EXPECT_EQ(completions->steps, (Vector<ByteString> { "null" }));
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1", "follow redirect of 1" }));
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /taken-over-redirect", "release lease 0", "stop 0" }));
-    EXPECT_EQ(controller->original_fetch_params()->request()->redirect_count(), 1);
+    EXPECT_EQ(controller->request()->redirect_count(), 1);
     EXPECT(!is_rooted(controller->token()));
 }
 

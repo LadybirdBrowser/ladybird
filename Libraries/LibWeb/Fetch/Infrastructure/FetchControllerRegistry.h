@@ -41,10 +41,8 @@ public:
     // A fetch id above every one given before.
     [[nodiscard]] static Engine::FetchId next_fetch_id();
 
-    // Keeps the controller of a fetch that has started alive until the fetch is released, and with it the controllers of
-    // the fetch's CORS preflights.
+    // Keeps the controller of a fetch that has started alive until the fetch is released.
     void root_fetch(Engine::FetchId, GC::Ref<FetchController>);
-    void root_cors_preflight(Engine::FetchId, GC::Ref<FetchController>);
     // Does nothing for a fetch it does not root.
     void release_fetch(Engine::FetchId);
     [[nodiscard]] bool roots(FetchControllerToken) const;
@@ -53,11 +51,7 @@ private:
     u64 m_id { 0 };
     HashMap<u64, GC::Weak<FetchController>> m_controllers;
 
-    struct RootedFetch {
-        GC::Root<FetchController> controller;
-        Vector<GC::Root<FetchController>> cors_preflight_controllers;
-    };
-    HashMap<Engine::FetchId, RootedFetch> m_rooted_fetches;
+    HashMap<Engine::FetchId, GC::Root<FetchController>> m_rooted_fetches;
 };
 
 }
