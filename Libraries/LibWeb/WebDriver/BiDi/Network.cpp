@@ -41,6 +41,7 @@ bool network_events_enabled()
 struct BlockedRequest {
     WeakPtr<FetchControllerRegistry> registry;
     FetchControllerToken controller;
+    Optional<Fetch::Engine::CorsPreflightId> cors_preflight_id;
     Fetch::Engine::ContinuationId interception;
     Fetch::Engine::NetworkPhase phase;
 };
@@ -138,11 +139,12 @@ public:
     ObservedRequestSource(FetchController& controller, Optional<Fetch::Engine::CorsPreflightId> cors_preflight_id)
         : m_controller(controller)
         , m_observation(cors_preflight_id.has_value() ? RefPtr { controller.cors_preflight_network_observation(*cors_preflight_id) } : controller.network_observation())
-        , m_is_cors_preflight(cors_preflight_id.has_value())
+        , m_cors_preflight_id(cors_preflight_id)
     {
     }
 
     [[nodiscard]] FetchController& controller() const { return m_controller; }
+    [[nodiscard]] Optional<Fetch::Engine::CorsPreflightId> cors_preflight_id() const { return m_cors_preflight_id; }
 
     [[nodiscard]] RefPtr<NetworkRequest> network_request() const
     {
@@ -161,6 +163,14 @@ public:
         auto state = NetworkRequest::create();
         state->navigable_id = request.navigable_id;
         state->navigation = request.navigation_id;
+        // NB: A CORS preflight's request has the WebDriver id of the request it is for.
+        if (m_cors_preflight_id.has_value()) {
+            auto const& fetch_request = m_controller->observed_request();
+            auto fetch_state = ObservedRequestSource { m_controller, {} }.ensure_network_request(fetch_request.value_or(request));
+            if (!fetch_state)
+                return nullptr;
+            state->id = fetch_state->id;
+        }
         m_observation->set_observer_state(state);
         return state;
     }
@@ -169,13 +179,13 @@ public:
     // completes.
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp end_time() const
     {
-        return m_is_cors_preflight ? 0 : m_controller->control_block().end_time();
+        return m_cors_preflight_id.has_value() ? 0 : m_controller->control_block().end_time();
     }
 
     // The end time a response's completion reports, which it sets for a fetch with none yet.
     HighResolutionTime::DOMHighResTimeStamp end_time_at_completion() const
     {
-        if (m_is_cors_preflight)
+        if (m_cors_preflight_id.has_value())
             return HighResolutionTime::unsafe_shared_current_time();
         auto& control_block = m_controller->control_block();
         if (!control_block.end_time())
@@ -186,7 +196,7 @@ public:
 private:
     GC::Ref<FetchController> m_controller;
     RefPtr<NetworkObservation> m_observation;
-    bool m_is_cors_preflight { false };
+    Optional<Fetch::Engine::CorsPreflightId> m_cors_preflight_id;
 };
 
 static void end_network_interception(NetworkRequest const& state, Fetch::Engine::ContinuationId interception)
@@ -564,7 +574,7 @@ static void network_fetch_error(ObservedRequestSource const& source, Fetch::Engi
     // NB: An error fails the fetch if the session blocks it.
     if (state) {
         auto blocked = blocked_requests().get(state->id);
-        if (blocked.has_value() && blocked->controller == source.controller().token()) {
+        if (blocked.has_value() && blocked->controller == source.controller().token() && blocked->cors_preflight_id == source.cors_preflight_id()) {
             end_network_interception(*state, blocked->interception);
             resume_blocked_request(state->id, Fetch::Engine::FailFetch {});
         }
@@ -602,7 +612,7 @@ static JsonArray block_network_request_if_intercepted(ObservedRequestSource cons
         controller.resolve_network_interception(interception, Fetch::Engine::ContinueFetch {});
         return {};
     }
-    blocked_requests().set(state->id, BlockedRequest { controller.registry(), controller.token(), interception, phase });
+    blocked_requests().set(state->id, BlockedRequest { controller.registry(), controller.token(), source.cors_preflight_id(), interception, phase });
     return intercepts;
 }
 
