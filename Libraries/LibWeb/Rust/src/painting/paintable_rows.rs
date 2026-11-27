@@ -515,6 +515,8 @@ impl PaintableRowStore {
         let first = first_slot / PAINTABLE_SLOTS_PER_CHUNK;
         for chunk in first..first + count / PAINTABLE_SLOTS_PER_CHUNK {
             self.rows.release_chunk_if_default(chunk);
+            self.side_data
+                .release_chunk_if_all(chunk, PaintableSideData::is_default);
             self.ink_overflow.release_chunk_if_default(chunk);
             self.committed_side_data.release_chunk_if_default(chunk);
             self.paint_change_stamps.release_chunk_if_default(chunk);
@@ -824,8 +826,8 @@ impl LayoutNodeArena {
         store.visual_context_node_handles.grow_to(index + 1);
         store.stacking_context_entries.grow_to(index + 1);
         store.paint_change_stamps.grow_to(index + 1);
-        while store.side_data.len() <= index {
-            store.side_data.push(PaintableSideData::default());
+        if store.side_data.len() <= index {
+            store.side_data.resize_with_default(index + 1);
         }
 
         store.population_writes += 1;
@@ -889,7 +891,10 @@ impl LayoutNodeArena {
         let index = id.slot_index() as usize;
         store.population_writes += 1;
         store.rows.set(index, PaintableData::default());
-        store.side_data[index] = PaintableSideData::default();
+        // OPTIMIZATION: A write copies the chunk a snapshot shares, and makes one where the column stores none.
+        if store.side_data.get(index).is_some_and(|row| !row.is_default()) {
+            store.side_data[index] = PaintableSideData::default();
+        }
         store.committed_side_data.set(index, CommittedSideData::default());
         store.paint_change_stamps.set(index, PaintChangeStamps::default());
         store.visual_context_records.set(index, None);

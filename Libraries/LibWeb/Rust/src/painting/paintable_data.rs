@@ -203,6 +203,17 @@ pub struct PaintableSideData {
         Option<std::sync::Arc<crate::painting::fragment_ownership::FragmentOwnershipFilter>>,
 }
 
+impl PaintableSideData {
+    pub(crate) fn is_default(&self) -> bool {
+        // NB: Every field is named, so one added later has to say here what its default is.
+        let Self {
+            overflow_style,
+            fragment_ownership_before_recommit,
+        } = self;
+        overflow_style.is_none() && fragment_ownership_before_recommit.is_none()
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct CommittedBoxFragment {
     pub(crate) link: crate::layout::fragment_tree::FragmentLink,
