@@ -1,0 +1,4 @@
+Ladybird’s JIT uses a memory protection key to write code only on
+x86_64 Linux with glibc, and toggles page protection with mprotect()
+everywhere else on Linux, musl included. No other engine is involved
+in this build fix.
