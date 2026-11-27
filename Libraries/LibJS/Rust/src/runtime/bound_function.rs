@@ -41,7 +41,7 @@ struct BoundArguments(OnceCell<Box<[Value]>>);
 
 // SAFETY: Visits every bound argument.
 unsafe impl Trace for BoundArguments {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(arguments) = self.0.get() {
             // SAFETY: The arguments are the function's own, which nothing changes once they are set, and only its
             //         destructor frees.

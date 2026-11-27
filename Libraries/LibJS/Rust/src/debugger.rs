@@ -787,7 +787,7 @@ impl Drop for Debugger {
 
 // SAFETY: The last exception the debugger paused at and the embedder's context are the only cells it keeps alive.
 unsafe impl Trace for Debugger {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.last_paused_exception.trace(visitor);
         self.pause_callback_context.trace(visitor);
     }

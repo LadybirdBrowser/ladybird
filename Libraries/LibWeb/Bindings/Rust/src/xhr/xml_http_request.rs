@@ -163,7 +163,7 @@ enum Response {
 
 // SAFETY: A response that the fetch handed over is the only cell this reaches.
 unsafe impl Trace for Response {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Self::Fetched(response) = self {
             response.trace(visitor);
         }
@@ -246,7 +246,7 @@ enum ResponseObject {
 
 // SAFETY: The Document and the Blob are the only cells this reaches.
 unsafe impl Trace for ResponseObject {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         match self {
             Self::Null => {}
             Self::Document(document) => document.trace(visitor),

@@ -303,7 +303,7 @@ impl ExecutionContext {
 // SAFETY: Visits every cell a frame can reach. Until the frame is initialized only its reserved registers and its
 // arguments hold values; the other slots are left over from earlier frames.
 unsafe impl Trace for ExecutionContext {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.function.trace(visitor);
         if self.holds_variable_environment() {
             self.variable_environment_in_frame.trace(visitor);
@@ -325,8 +325,8 @@ unsafe impl Trace for ExecutionContext {
         if self.function.get().is_none() {
             match self.script_or_module_without_function.get() {
                 ScriptOrModule::Empty => {}
-                ScriptOrModule::Script(script) => script.trace(visitor),
-                ScriptOrModule::Module(module) => module.trace(visitor),
+                ScriptOrModule::Script(script) => visitor.visit(script),
+                ScriptOrModule::Module(module) => visitor.visit(module),
             }
         }
         let slots = self.slots();
@@ -343,10 +343,14 @@ unsafe impl Trace for ExecutionContext {
     }
 }
 
-fn trace_slots(slots: &[Cell<Value>], visitor: &mut Visitor) {
+fn trace_slots<'c>(slots: &'c [Cell<Value>], visitor: &mut Visitor<'c>) {
+    visitor.visit_values(values_of_slots(slots));
+}
+
+/// The values in `slots`, for a trace to visit, borrowed for as long as the slots are.
+fn values_of_slots(slots: &[Cell<Value>]) -> &[Value] {
     // SAFETY: Cell<Value> has the same layout as Value, and nothing writes the slots while they are visited.
-    let values = unsafe { ak::slice_from_raw_parts(slots.as_ptr().cast::<Value>(), slots.len()) };
-    visitor.visit_values(values);
+    unsafe { ak::slice_from_raw_parts(slots.as_ptr().cast::<Value>(), slots.len()) }
 }
 
 /// The slot counts that the slots of a context outside the interpreter stack are rounded up to. Contexts of these sizes
@@ -452,7 +456,7 @@ impl OwnedExecutionContext {
 
 // SAFETY: Visits every cell the context reaches.
 unsafe impl Trace for OwnedExecutionContext {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         (**self).trace(visitor);
     }
 }

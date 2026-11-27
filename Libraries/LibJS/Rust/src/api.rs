@@ -19,7 +19,7 @@ pub use crate::gc::class::ExternalMemorySize;
 pub use crate::gc::defer_gc::DeferGc;
 pub use crate::gc::embedder_cell::{EmbedderCell, EmbedderClass, EmbedderValue};
 pub use crate::gc::foreign::ForeignCellSlot;
-pub use crate::gc::gc_ref_cell::{GcRefCell, GcRefMut};
+pub use crate::gc::gc_ref_cell::{GcRefCell, GcRefMut, ref_cell_for_trace};
 pub use crate::gc::root::{CellRoot, MarkedVec, Root};
 pub use crate::gc::shared_memory::{
     AsSharedMemory, OwnedSharedMemory, borrowed_from_raw_descriptor, into_raw_descriptor, owned_from_raw_descriptor,

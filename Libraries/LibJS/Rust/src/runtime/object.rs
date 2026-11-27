@@ -315,7 +315,7 @@ impl ExternalMemorySize for Object {
 // SAFETY: Visits the shape, the named properties the shape describes and the indexed properties, which are all the
 // cells an object reaches.
 unsafe impl Trace for Object {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: Compiled code depends on the slots of global objects by their address, so they stay where they are.
         if self.has_flag(object_flag::IS_GLOBAL_OBJECT) {
             visitor.pin(self.as_gc());

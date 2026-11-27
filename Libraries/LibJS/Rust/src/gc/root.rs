@@ -40,7 +40,7 @@ impl RootSet {
         self.free_slots.borrow_mut().push(slot);
     }
 
-    pub fn trace(&self, visitor: &mut Visitor) {
+    pub fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for value in self.entries.borrow().iter().flatten() {
             // SAFETY: A registered value stays alive until its root unregisters it.
             unsafe { &**value }.trace(visitor);

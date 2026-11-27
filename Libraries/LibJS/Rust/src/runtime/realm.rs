@@ -56,7 +56,7 @@ define_cell!(Realm, Other);
 
 // SAFETY: Visits every cell a realm holds.
 unsafe impl Trace for Realm {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.intrinsics.trace(visitor);
         self.global_object.trace(visitor);
         self.global_environment.trace(visitor);

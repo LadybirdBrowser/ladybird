@@ -59,7 +59,7 @@ impl<T: Default> Default for GcRefCell<T> {
 
 // SAFETY: Traces the current value.
 unsafe impl<T: Trace> Trace for GcRefCell<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // SAFETY: Nothing writes the value while a collection traces it.
         unsafe { self.borrow_for_trace() }.trace(visitor);
     }
@@ -84,6 +84,21 @@ impl<T> GcRefCell<T> {
         };
         value
     }
+}
+
+/// The value of `cell`, for a trace() that visits the slots in it: like GcRefCell::borrow_for_trace(), for a RefCell
+/// that only the thread that owns the heap uses, which is stopped while its collection marks.
+///
+/// # Safety
+///
+/// As for GcRefCell::borrow_for_trace().
+pub unsafe fn ref_cell_for_trace<T>(cell: &core::cell::RefCell<T>) -> &T {
+    // SAFETY: See GcRefCell::borrow_for_trace().
+    let Ok(value) = (unsafe { cell.try_borrow_unguarded() }) else {
+        eprintln!("libjs_rust: garbage collection while a RefCell it traces is mutably borrowed");
+        std::process::abort();
+    };
+    value
 }
 
 /// A mutable borrow of the state in a GcRefCell, with the deferral of collections that it holds until it ends.

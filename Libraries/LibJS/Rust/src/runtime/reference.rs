@@ -50,7 +50,7 @@ pub struct Reference {
 
 // SAFETY: Visits the base, the name and the this value, as Reference::visit_edges does.
 unsafe impl Trace for Reference {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         match self.base_type {
             BaseType::Value => self.base_value.trace(visitor),
             BaseType::Environment => self.base_environment.trace(visitor),

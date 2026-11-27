@@ -66,7 +66,7 @@ define_cell!(HostObject, Object, extends: [Object], methods: ORDINARY_OBJECT_MET
 
 // SAFETY: Visits the object and the embedder's two cells, which are all the cells a host object reaches.
 unsafe impl Trace for HostObject {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.wrappable.trace(visitor);
         self.host_data.trace(visitor);

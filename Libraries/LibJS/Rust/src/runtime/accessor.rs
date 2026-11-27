@@ -19,7 +19,7 @@ define_cell!(Accessor, Accessor);
 
 // SAFETY: Visits the getter, the setter and the key of the cached value, which are all the cells an accessor holds.
 unsafe impl Trace for Accessor {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.getter.trace(visitor);
         self.setter.trace(visitor);
         self.cached_value_key.trace(visitor);

@@ -49,7 +49,7 @@ pub struct Class {
     owner_thread_only: bool,
     /// The trace of the cells of this class, which type_info.visit_edges calls with the visitor LibGC passes, for
     /// tracing them with a visitor that is not one of LibGC's (see record_cell_slots()).
-    pub trace: unsafe fn(cell: *const c_void, visitor: &mut Visitor),
+    pub trace: unsafe fn(cell: *const c_void, visitor: &mut Visitor<'_>),
 }
 
 // The layout module's mirror of the class, through which Layout.h tells an embedder where a class keeps its id and
@@ -70,7 +70,7 @@ pub(crate) const MIN_CELL_SIZE: usize = 24;
 const MAX_CELL_ALIGNMENT: usize = 16;
 
 impl Class {
-    pub const fn new<T: Trace>(
+    pub const fn new<T: Trace + 'static>(
         name: &'static str,
         id: ClassId,
         kind: CellKind,
@@ -210,7 +210,7 @@ impl Class {
     }
 }
 
-unsafe extern "C" fn visit_edges<T: Trace>(cell: *mut c_void, visitor: *mut GCVisitor) {
+unsafe extern "C" fn visit_edges<T: Trace + 'static>(cell: *mut c_void, visitor: *mut GCVisitor) {
     // SAFETY: LibGC passes a live cell of this class and a visitor that outlives the call.
     unsafe { trace::<T>(cell, &mut Visitor::from_raw(visitor)) };
 }
@@ -218,7 +218,7 @@ unsafe extern "C" fn visit_edges<T: Trace>(cell: *mut c_void, visitor: *mut GCVi
 /// # Safety
 ///
 /// `cell` must be a live cell of the class of `T`, which stays where it is while the visitor visits it.
-unsafe fn trace<T: Trace>(cell: *const c_void, visitor: &mut Visitor) {
+unsafe fn trace<T: Trace + 'static>(cell: *const c_void, visitor: &mut Visitor<'_>) {
     // SAFETY: The caller vouches for the cell.
     unsafe { &*cell.cast::<T>() }.trace(visitor);
 }

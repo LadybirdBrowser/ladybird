@@ -230,12 +230,14 @@ define_cell!(SharedFunctionInstanceData, Other, traced_on: owner_thread_only);
 //         flushes code, an executable that idled long enough is left to what else holds it, and the cells that outlive
 //         a flush of it are visited instead (see `bytecode::flushing`).
 unsafe impl Trace for SharedFunctionInstanceData {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         match self.executable() {
             Some(executable) if flushing::bytecode_flush_candidate(self, executable) => {
                 // NB: The executable is not visited, so that it dies unless something else holds it. If it survives,
                 //     it stays where it is, as the slot of the shared data is not rewritten.
                 visitor.pin(executable);
+                // SAFETY: The executable is pinned, so it stays where it is until the collection is over.
+                let executable = unsafe { &*executable.as_ptr() };
                 executable.trace_what_outlives_a_flush(visitor);
             }
             _ => self.executable.trace(visitor),
@@ -243,8 +245,8 @@ unsafe impl Trace for SharedFunctionInstanceData {
         self.call_environment_template.trace(visitor);
         match self.script_or_module.get() {
             ScriptOrModule::Empty => {}
-            ScriptOrModule::Script(script) => script.trace(visitor),
-            ScriptOrModule::Module(module) => module.trace(visitor),
+            ScriptOrModule::Script(script) => visitor.visit(script),
+            ScriptOrModule::Module(module) => visitor.visit(module),
         }
         self.storage.trace(visitor);
     }
@@ -255,7 +257,7 @@ define_cell!(CallEnvironmentTemplate, Other);
 // SAFETY: The words of a template refer to the environment's shape, which the shared function instance data keeps
 //         alive, and to no other cell.
 unsafe impl Trace for CallEnvironmentTemplate {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The words are an image of the environment, whose shape they hold as a member, which is visited as a slot
         //     of the template so that a collection that moves the shape rewrites it.
         const SHAPE_OFFSET: usize = core::mem::offset_of!(Environment, shape);

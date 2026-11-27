@@ -257,7 +257,7 @@ impl Hash for PropertyKey {
 
 // SAFETY: A key reaches a cell only when it holds a symbol, which this visits.
 unsafe impl Trace for PropertyKey {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if self.is_symbol() {
             visitor.visit(self.as_symbol());
         }

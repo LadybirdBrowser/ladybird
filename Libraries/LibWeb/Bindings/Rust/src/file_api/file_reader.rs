@@ -123,7 +123,7 @@ struct QueuedSteps<C> {
 
 // SAFETY: The steps are a plain function, which holds no cells.
 unsafe impl<C: Trace> Trace for QueuedSteps<C> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.captures.trace(visitor);
     }
 }

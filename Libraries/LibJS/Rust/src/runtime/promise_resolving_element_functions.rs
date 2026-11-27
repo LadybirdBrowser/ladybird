@@ -73,7 +73,7 @@ pub struct PromiseValueList {
 
 // SAFETY: Visits the values.
 unsafe impl Trace for PromiseValueList {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // SAFETY: Nothing writes the values while a collection traces them.
         let values = unsafe { self.values.borrow_for_trace() };
         // NB: The values are visited as owned slots, so that a collection that moves their cells rewrites them here

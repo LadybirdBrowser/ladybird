@@ -71,7 +71,7 @@ impl FillOrStrokeStyle {
 
 // SAFETY: Visits the gradient or the pattern, the cells that a style holds.
 unsafe impl Trace for FillOrStrokeStyle {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         match self {
             Self::Color(_) => {}
             Self::Gradient(gradient) => gradient.trace(visitor),
@@ -170,7 +170,7 @@ impl Default for DrawingState {
 
 // SAFETY: Visits the fill and the stroke style, the cells that a drawing state holds.
 unsafe impl Trace for DrawingState {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.fill_style.trace(visitor);
         self.stroke_style.trace(visitor);
     }

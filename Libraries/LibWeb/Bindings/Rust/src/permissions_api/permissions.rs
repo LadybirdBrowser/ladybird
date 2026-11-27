@@ -10,6 +10,7 @@
 use core::cell::RefCell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use libjs_rust::api::ref_cell_for_trace;
 
 use ak::Utf16String;
 use libjs_rust::api::{
@@ -86,7 +87,7 @@ struct CapturedDecisionSteps<C> {
 
 // SAFETY: The steps are a plain function, which holds no cells.
 unsafe impl<C: Trace> Trace for CapturedDecisionSteps<C> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.captures.trace(visitor);
     }
 }
@@ -102,8 +103,9 @@ struct PendingDecision(RefCell<Option<Box<dyn DecisionSteps>>>);
 
 // SAFETY: The steps that have not run are all the cells this reaches.
 unsafe impl Trace for PendingDecision {
-    fn trace(&self, visitor: &mut Visitor) {
-        if let Some(steps) = &*self.0.borrow() {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // SAFETY: Nothing takes the steps while a collection traces them.
+        if let Some(steps) = unsafe { ref_cell_for_trace(&self.0) } {
             steps.trace(visitor);
         }
     }

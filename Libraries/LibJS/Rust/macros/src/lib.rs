@@ -136,16 +136,26 @@ pub fn derive_trace(input: TokenStream) -> TokenStream {
         Ok(body) => body,
         Err(error) => return error.to_compile_error().into(),
     };
+    let lifetime = free_lifetime(&input.generics, "__c");
     quote! {
         // SAFETY: Traces every field that is not marked untraced.
         unsafe impl #impl_generics #gc::visitor::Trace for #name #type_generics #where_clause {
             #[allow(unused_variables)]
-            fn trace(&self, visitor: &mut #gc::visitor::Visitor) {
+            fn trace<#lifetime>(&#lifetime self, visitor: &mut #gc::visitor::Visitor<#lifetime>) {
                 #body
             }
         }
     }
     .into()
+}
+
+/// A lifetime named `base`, with as many more underscores in front as it takes for `generics` not to have it.
+fn free_lifetime(generics: &syn::Generics, base: &str) -> syn::Lifetime {
+    let mut name = base.to_string();
+    while generics.lifetimes().any(|lifetime| lifetime.lifetime.ident == name) {
+        name.insert(0, '_');
+    }
+    syn::Lifetime::new(&format!("'{name}"), proc_macro2::Span::call_site())
 }
 
 /// The path of the module that has the visitor module, from the type's #[gc(crate = path)], or crate::gc.

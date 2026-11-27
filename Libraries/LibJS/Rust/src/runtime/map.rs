@@ -33,13 +33,13 @@ pub(crate) trait StoredValue: Copy {
     /// # Safety
     ///
     /// As for Visitor::visit_owned_values().
-    unsafe fn trace_owned(&self, visitor: &mut Visitor);
+    unsafe fn trace_owned<'c>(&'c self, visitor: &mut Visitor<'c>);
 }
 
 impl StoredValue for Value {
     const REMOVED: Self = Value::UNDEFINED;
 
-    unsafe fn trace_owned(&self, visitor: &mut Visitor) {
+    unsafe fn trace_owned<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // SAFETY: Forwarded from the caller.
         unsafe { visitor.visit_owned_values(core::slice::from_ref(self)) };
     }
@@ -124,7 +124,7 @@ pub(crate) struct Storage<V: StoredValue> {
 
 // SAFETY: Visits the key and value of every entry, which are all the cells the storage holds.
 unsafe impl<V: StoredValue> Trace for Storage<V> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The entries are visited as owned values, so that a collection that moves their cells rewrites them where
         //     they are. Only the collection's own methods change them, and no finalizer, destructor or sweep callback
         //     calls those.

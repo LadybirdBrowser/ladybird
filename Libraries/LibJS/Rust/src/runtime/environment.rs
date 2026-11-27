@@ -114,7 +114,7 @@ define_cell!(Environment, Other);
 
 // SAFETY: The outer environment and the shape of a declarative environment are the cells an Environment holds.
 unsafe impl Trace for Environment {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.outer.trace(visitor);
         self.shape.trace(visitor);
     }

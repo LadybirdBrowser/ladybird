@@ -321,7 +321,7 @@ pub struct DataBlock {
 
 // SAFETY: The owner of external storage is the only cell a data block refers to.
 unsafe impl Trace for DataBlock {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let DataBlockStorage::External(storage) = &self.byte_buffer {
             storage.owner.trace(visitor);
         }

@@ -41,7 +41,7 @@ pub(crate) struct AnimationTimeline {
 // SAFETY: Visits the cells of the host that the record names: the document the timeline is associated with, and the
 //         element a scroll timeline finds its scroller from.
 unsafe impl Trace for AnimationTimeline {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.record.for_each_host_cell(|cell| {
             // SAFETY: The record names live cells of the host, which this keeps alive.
             visitor.visit(unsafe { Gc::from_non_null(cell) });

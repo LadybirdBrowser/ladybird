@@ -45,7 +45,7 @@ pub(crate) struct StorageBottle {
 
 // SAFETY: The settings object is the only cell a bottle holds.
 unsafe impl Trace for StorageBottle {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.environment.trace(visitor);
     }
 }

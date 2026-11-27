@@ -94,7 +94,7 @@ pub(crate) struct AnimationEffect {
 // SAFETY: Visits the cells of the host that keep the record's associated animation and target element alive, as the
 //         host visits them.
 unsafe impl Trace for AnimationEffect {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         let Some(raw) = visitor.as_raw() else {
             return;
         };

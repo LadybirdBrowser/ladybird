@@ -13,6 +13,7 @@ use core::hash::{Hash, Hasher};
 
 use ak::{Utf16FlyString, Utf16String};
 
+use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
@@ -113,8 +114,9 @@ pub struct JsonParseCache {
 // SAFETY: The values being parsed are the only cells the cache keeps alive; its keys are strings and its shapes are
 // weak.
 unsafe impl Trace for JsonParseCache {
-    fn trace(&self, visitor: &mut Visitor) {
-        self.values.borrow().trace(visitor);
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // SAFETY: Nothing writes the values while a collection traces them.
+        unsafe { ref_cell_for_trace(&self.values) }.trace(visitor);
     }
 }
 

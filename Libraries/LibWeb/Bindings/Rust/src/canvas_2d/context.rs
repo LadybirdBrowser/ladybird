@@ -69,7 +69,7 @@ impl<K: CanvasKind> Deref for RenderingContext2D<K> {
 
 // SAFETY: The state holds every cell that a context can reach.
 unsafe impl<K: CanvasKind> Trace for RenderingContext2D<K> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.state.trace(visitor);
     }
 }

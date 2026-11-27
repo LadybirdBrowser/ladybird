@@ -36,7 +36,7 @@ struct FinalizationRecords(Vec<FinalizationRecord>);
 // SAFETY: Visits the held value and the unregister token of every record. The targets are held weakly, and cleared in
 // remove_dead_cells() once they die, which also hands the slots of those that survived to a collection that moves cells.
 unsafe impl Trace for FinalizationRecords {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for record in &self.0 {
             record.held_value.trace(visitor);
             record.unregister_token.trace(visitor);

@@ -162,7 +162,7 @@ impl InterpreterBuffer<Value> {
 
 // SAFETY: Visits every element.
 unsafe impl<T: Copy + Trace> Trace for InterpreterBuffer<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if self.is_empty() {
             return;
         }
@@ -298,14 +298,14 @@ impl<T> Drop for ThinSlice<T> {
 
 // SAFETY: Visits every element.
 unsafe impl<T: Trace> Trace for ThinSlice<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         T::trace_slice(self.as_slice(), visitor);
     }
 }
 
 // SAFETY: Visits every element.
 unsafe impl<T: Trace> Trace for BlockSlice<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         T::trace_slice(self.as_slice(), visitor);
     }
 }

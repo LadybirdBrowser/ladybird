@@ -59,7 +59,7 @@ impl PrivateName {
 
 // SAFETY: The symbol is the only cell a private name holds.
 unsafe impl Trace for PrivateName {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.symbol.trace(visitor);
     }
 }
@@ -77,7 +77,7 @@ define_cell!(PrivateEnvironment, Other);
 
 // SAFETY: Visits the outer environment and the names.
 unsafe impl Trace for PrivateEnvironment {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.outer.trace(visitor);
         self.storage.trace(visitor);
     }

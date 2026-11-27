@@ -25,6 +25,7 @@ use super::entry_table::{JIT_ENTRY_SLOT_MASK, JitEntryTable, NO_JIT_ENTRY_SLOT};
 use super::executable_memory::ExecutableMemory;
 use crate::bytecode::executable::{Executable, PropertyLookupCache, PropertyLookupCacheTier};
 use crate::gc::defer_gc::DeferGc;
+use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
@@ -665,7 +666,7 @@ fn realm_of_embedded_cell(cell: Gc<CellHeader>) -> Option<Gc<Realm>> {
 // where they are, and are kept alive only while their realms are. The code is dropped before any of them that died is
 // swept (see `JitCode::embedded_cells`).
 unsafe impl Trace for JitCode {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The cells are visited without keeping them in place: the code hands the slots of the ones a realm or a
         //     function holds to the collection once it survived it (see `record_cell_slots()`), and the code is
         //     patched where they moved (see `relocate()`).
@@ -695,7 +696,8 @@ unsafe impl Trace for JitCode {
             // SAFETY: See above.
             unsafe { visitor.visit_ephemeron_cell_without_pinning(function, cell) };
         }
-        for materialized in self.materialized_objects.borrow().iter() {
+        // SAFETY: Nothing writes the list while a collection traces it.
+        for materialized in unsafe { ref_cell_for_trace(&self.materialized_objects) } {
             // SAFETY: Only the main thread changes the list, which runs no code during a collection, and only dropping
             //         the code frees it, which a sweep callback defers until the collection is over if it moves cells.
             unsafe { visitor.visit_owned(&materialized.object) };
@@ -776,7 +778,7 @@ pub struct ExecutableJitState {
 
 // SAFETY: The executables of the builtins are the only cells the state keeps.
 unsafe impl Trace for ExecutableJitState {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The executables of the builtins are visited as owned slots, so that a collection that moves one rewrites
         //     it where it is.
         // SAFETY: Only exits add to the sites, which never run in a collection, and only the executable's destructor
@@ -901,7 +903,7 @@ impl Executable {
     }
 
     /// Visits the cells the executable's attached JIT code keeps alive.
-    pub fn trace_jit_code(&self, visitor: &mut Visitor) {
+    pub fn trace_jit_code<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(code) = self.jit_code(Vm::of_cell(self)) {
             code.trace(visitor);
         }

@@ -39,6 +39,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::defer_gc::{DeferGc, Deferred};
+use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::dispatch_tables::DispatchTable;
 use crate::interpreter::vm::Vm;
@@ -553,8 +554,9 @@ impl Drop for JitState {
 }
 
 unsafe impl Trace for JitState {
-    fn trace(&self, visitor: &mut Visitor) {
-        for job in self.jobs.borrow().values() {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // SAFETY: Nothing writes the jobs while a collection traces them.
+        for job in unsafe { ref_cell_for_trace(&self.jobs) }.values() {
             job.trace(visitor);
         }
     }

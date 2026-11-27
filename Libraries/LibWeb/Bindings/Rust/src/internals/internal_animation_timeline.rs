@@ -24,7 +24,7 @@ pub(crate) struct InternalAnimationTimeline {
 
 // SAFETY: The timeline visits what it reaches.
 unsafe impl Trace for InternalAnimationTimeline {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.timeline.trace(visitor);
     }
 }

@@ -5,6 +5,7 @@
  */
 
 use core::cell::Cell;
+use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use super::capi::{
@@ -18,7 +19,11 @@ use crate::layout::member::{Member, NullableMember};
 use crate::layout::value::Value;
 
 /// A LibGC visitor, which marks what it visits during a collection and roots it while roots are gathered.
-pub struct Visitor {
+///
+/// It visits slots for `'c`, the borrow of the cell it traces: the slots it takes by reference must live that long, so
+/// that only slots in the cell, or in memory the cell owns, can be handed to the collector, which rewrites them when it
+/// moves their cells. A copy on the stack does not live long enough, and is visited by value.
+pub struct Visitor<'c> {
     /// The LibGC visitor, or None in the visitor of record_cell_slots(), which never calls into LibGC.
     raw: Option<NonNull<GCVisitor>>,
     /// The marker of a visitor that marks for a collection, and null in every other visitor.
@@ -26,11 +31,9 @@ pub struct Visitor {
     /// The marker, except while visit_owned_slots() traces, when it is null, so that the visits of slots outside it,
     /// which are almost all of them, need one check.
     plain_marker: *mut GCMarker,
-    /// While visit_owned_slots() traces memory that the cell being visited owns, the address of a local of its frame,
-    /// above any copy of a slot that the tracing makes on the stack. Zero otherwise.
-    owned_slots_frame: usize,
     /// The slots that record_cell_slots() gathers, if it traces with this visitor, and null in every other visitor.
     recorder: *mut CellSlots,
+    slots: PhantomData<&'c ()>,
 }
 
 /// What a slot of a cell holds, as record_cell_slots() finds it.
@@ -108,8 +111,8 @@ pub fn record_cell_slots<T>(cell: Gc<T>, size: usize) -> CellSlots {
         raw: None,
         marker: core::ptr::null_mut(),
         plain_marker: core::ptr::null_mut(),
-        owned_slots_frame: 0,
         recorder: &raw mut slots,
+        slots: PhantomData,
     };
     // SAFETY: The cell is live and of the class whose trace this is, and stays where it is during the trace.
     unsafe { (super::class::class_of(cell).trace)(cell.as_ptr().cast(), &mut visitor) };
@@ -127,7 +130,7 @@ enum OwnedModeSlot<'a> {
 /// check_layout() checks against GCLayout::visitor_marker_offset.
 pub(crate) const VISITOR_MARKER_OFFSET: usize = size_of::<usize>();
 
-impl Visitor {
+impl<'c> Visitor<'c> {
     /// The marker of a visitor that marks for a collection, which takes the cells it visits directly.
     #[inline(always)]
     fn marker(&self) -> Option<NonNull<GCMarker>> {
@@ -158,8 +161,8 @@ impl Visitor {
             raw: Some(raw),
             marker,
             plain_marker: marker,
-            owned_slots_frame: 0,
             recorder: core::ptr::null_mut(),
+            slots: PhantomData,
         }
     }
 
@@ -214,7 +217,7 @@ impl Visitor {
     /// Visits the cell a member names. It takes the slot, which a collection that moves the cell rewrites if the slot
     /// is in a cell. A slot elsewhere keeps the cell where it is.
     #[inline(always)]
-    pub fn visit_member<T>(&mut self, slot: &Member<T>) {
+    pub fn visit_member<T>(&mut self, slot: &'c Member<T>) {
         if let Some(marker) = self.plain_marker() {
             // SAFETY: The marker is the visitor's, and the slot holds a compressed pointer to a live cell.
             unsafe { gc_marker_visit_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
@@ -225,7 +228,7 @@ impl Visitor {
 
     /// Visits the cell a member names, if it is not null, like visit_member().
     #[inline(always)]
-    pub fn visit_nullable_member<T>(&mut self, slot: &NullableMember<T>) {
+    pub fn visit_nullable_member<T>(&mut self, slot: &'c NullableMember<T>) {
         if let Some(marker) = self.plain_marker() {
             // SAFETY: The marker is the visitor's, and the slot holds 0 or a compressed pointer to a live cell.
             unsafe { gc_marker_visit_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
@@ -238,8 +241,6 @@ impl Visitor {
     /// visit_member_outside_plain_marking().
     #[inline(never)]
     fn visit_gc_outside_plain_marking(&mut self, slot: *const usize) {
-        // SAFETY: A Gc is a pointer to the start of a live cell.
-        let cell = unsafe { slot.read() };
         let Some(marker) = self.marker() else {
             if let Some(slots) = self.slot_recorder() {
                 slots.record(slot.cast(), size_of::<usize>(), SlotKind::Cell);
@@ -248,19 +249,13 @@ impl Visitor {
             let Some(raw) = self.as_raw() else {
                 return;
             };
-            // SAFETY: The visitor is live, and the cell too.
-            unsafe { gc_visitor_visit_cell(raw.as_ptr(), core::ptr::without_provenance_mut(cell)) };
+            // SAFETY: A Gc is a pointer to the start of a live cell, and the visitor is live.
+            unsafe { gc_visitor_visit_cell(raw.as_ptr(), core::ptr::without_provenance_mut(slot.read())) };
             return;
         };
-        // SAFETY: The marker is the visitor's. The caller of visit_owned_slots() vouches for owned memory, which is not
-        //         a copy on the stack.
-        unsafe {
-            if self.slot_is_owned(slot) {
-                gc_marker_visit_owned_cell_pointer(marker.as_ptr(), slot);
-            } else {
-                gc_marker_visit_interior_pointer(marker.as_ptr(), slot, core::ptr::without_provenance_mut(cell));
-            }
-        }
+        // SAFETY: The marker is the visitor's. The caller of visit_owned_slots() vouches for the memory, and the slot
+        //         lives for `'c`, so it is not a copy on the stack.
+        unsafe { gc_marker_visit_owned_cell_pointer(marker.as_ptr(), slot) };
     }
 
     /// Visits the member in `slot`, which holds 0 or a compressed pointer to a live cell, while visit_owned_slots()
@@ -290,7 +285,7 @@ impl Visitor {
 
     /// Visits `cell`, which the raw pointer in `slot` points into, past its start, as an object points into the cell
     /// that holds its property storage. A collection that moves the cell rewrites the slot if it is in a cell.
-    pub fn visit_interior_pointer<T, U>(&mut self, slot: &Cell<*mut T>, cell: Gc<U>) {
+    pub fn visit_interior_pointer<T, U>(&mut self, slot: &'c Cell<*mut T>, cell: Gc<U>) {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, the slot holds a pointer, and the cell is live.
             unsafe { gc_marker_visit_interior_pointer(marker.as_ptr(), slot.as_ptr().cast(), cell.as_ptr().cast()) };
@@ -301,7 +296,7 @@ impl Visitor {
 
     /// Notes that the raw pointer in `slot` points into the cell that holds the slot, up to one past its end, as an
     /// object points to its inline property storage. A collection that moves the cell points the slot into the copy.
-    pub fn visit_self_pointer<T>(&mut self, slot: &Cell<*mut T>) {
+    pub fn visit_self_pointer<T>(&mut self, slot: &'c Cell<*mut T>) {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, and the slot is in the cell being visited.
             unsafe { gc_marker_visit_self_pointer(marker.as_ptr(), slot.as_ptr().cast()) };
@@ -321,7 +316,7 @@ impl Visitor {
         }
     }
 
-    pub fn visit_values(&mut self, values: &[Value]) {
+    pub fn visit_values(&mut self, values: &'c [Value]) {
         if let Some(marker) = self.plain_marker() {
             if !values.is_empty() {
                 // SAFETY: The marker is the visitor's, and Value is a NaN-boxed u64.
@@ -363,7 +358,7 @@ impl Visitor {
     ///
     /// Nothing may free, move or write the values until the collection is over: no finalizer, destructor or sweep
     /// callback may touch them.
-    pub unsafe fn visit_owned_values(&mut self, values: &[Value]) {
+    pub unsafe fn visit_owned_values(&mut self, values: &'c [Value]) {
         if let Some(marker) = self.marker() {
             if !values.is_empty() {
                 // SAFETY: The marker is the visitor's, Value is a NaN-boxed u64, and the caller vouches for the memory.
@@ -382,65 +377,29 @@ impl Visitor {
     ///
     /// As for visit_owned_values(), for every slot that `value` traces.
     #[inline(never)]
-    pub unsafe fn visit_owned_slots<T: Trace + ?Sized>(&mut self, value: &T) {
-        let frame = 0u8;
-        let frame = core::hint::black_box(&frame) as *const u8 as usize;
-        // NB: A nested call keeps the outermost frame, which is above every copy either of them makes.
-        let outer_frame = self.owned_slots_frame;
-        if outer_frame == 0 {
-            self.owned_slots_frame = frame;
-        }
+    pub unsafe fn visit_owned_slots<T: Trace + ?Sized>(&mut self, value: &'c T) {
         let outer_plain_marker = self.plain_marker;
         self.plain_marker = core::ptr::null_mut();
         value.trace(self);
         self.plain_marker = outer_plain_marker;
-        self.owned_slots_frame = outer_frame;
     }
 
-    /// Marks what `slot` holds while visit_owned_slots() traces, as an owned slot unless it is a copy on the stack. Out
-    /// of line, so that the visits outside visit_owned_slots() stay small enough to inline.
+    /// Marks what `slot` holds as an owned slot while visit_owned_slots() traces. Out of line, so that the visits
+    /// outside visit_owned_slots() stay small enough to inline.
     #[cold]
     #[inline(never)]
     fn mark_slot_in_owned_slots_mode(&mut self, marker: NonNull<GCMarker>, slot: OwnedModeSlot<'_>) {
-        let address = match slot {
-            OwnedModeSlot::Values(values) => values.as_ptr().cast::<u8>(),
-            OwnedModeSlot::Member(slot) => slot.cast::<u8>(),
-        };
-        let owned = self.slot_is_owned(address);
         // SAFETY: The marker is the visitor's. Values are NaN-boxed u64s, and a member slot holds 0 or a compressed
-        //         pointer to a live cell. The caller of visit_owned_slots() vouches for owned memory, which is not a
-        //         copy on the stack.
+        //         pointer to a live cell. The caller of visit_owned_slots() vouches for the memory, and the slot lives
+        //         for `'c`, so it is not a copy on the stack.
         unsafe {
-            match (slot, owned) {
-                (OwnedModeSlot::Values(values), true) => {
+            match slot {
+                OwnedModeSlot::Values(values) => {
                     gc_marker_visit_owned_values(marker.as_ptr(), values.as_ptr().cast(), values.len());
                 }
-                (OwnedModeSlot::Values(values), false) => {
-                    gc_marker_visit_values(marker.as_ptr(), values.as_ptr().cast(), values.len());
-                }
-                (OwnedModeSlot::Member(slot), true) => gc_marker_visit_owned_member(marker.as_ptr(), slot),
-                (OwnedModeSlot::Member(slot), false) => gc_marker_visit_member(marker.as_ptr(), slot),
+                OwnedModeSlot::Member(slot) => gc_marker_visit_owned_member(marker.as_ptr(), slot),
             }
         }
-    }
-
-    /// Whether `slot` is in memory that the caller of visit_owned_slots() vouches for: not a copy that the tracing
-    /// made on the stack, between this frame and the frame of visit_owned_slots(), which only a slot in place may be.
-    #[inline(always)]
-    fn slot_is_owned<T: ?Sized>(&self, slot: *const T) -> bool {
-        // OPTIMIZATION: Most slots are visited outside visit_owned_slots().
-        self.owned_slots_frame != 0 && self.slot_is_off_the_tracing_stack(slot.cast::<u8>())
-    }
-
-    #[inline(never)]
-    fn slot_is_off_the_tracing_stack(&self, slot: *const u8) -> bool {
-        // NB: The stack grows down on every supported platform. The margins cover locals of inlined frames, which may
-        //     sit on either side of the frame addresses.
-        const MARGIN: usize = 4096;
-        let here = 0u8;
-        let here = core::hint::black_box(&here) as *const u8 as usize;
-        let stack = here.saturating_sub(MARGIN)..self.owned_slots_frame.saturating_add(MARGIN);
-        !stack.contains(&slot.addr())
     }
 
     /// Visits the cell a member names, in memory that the cell being visited owns outside the heap, such as a box,
@@ -449,7 +408,7 @@ impl Visitor {
     /// # Safety
     ///
     /// As for visit_owned_values().
-    pub unsafe fn visit_owned_member<T>(&mut self, slot: &Member<T>) {
+    pub unsafe fn visit_owned_member<T>(&mut self, slot: &'c Member<T>) {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, the slot holds a compressed pointer to a live cell, and the caller
             //         vouches for the memory.
@@ -472,7 +431,7 @@ impl Visitor {
     /// # Safety
     ///
     /// As for visit_owned_values().
-    pub unsafe fn visit_owned_nullable_member<T>(&mut self, slot: &NullableMember<T>) {
+    pub unsafe fn visit_owned_nullable_member<T>(&mut self, slot: &'c NullableMember<T>) {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, the slot holds 0 or a compressed pointer to a live cell, and the
             //         caller vouches for the memory.
@@ -498,7 +457,7 @@ impl Visitor {
     /// # Safety
     ///
     /// As for visit_owned_values().
-    pub unsafe fn visit_owned<T>(&mut self, slot: &Gc<T>) {
+    pub unsafe fn visit_owned<T>(&mut self, slot: &'c Gc<T>) {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, a Gc is a pointer to a live cell, and the caller vouches for the
             //         memory.
@@ -517,7 +476,7 @@ impl Visitor {
     /// # Safety
     ///
     /// As for visit_owned_values().
-    pub unsafe fn visit_owned_option<T>(&mut self, slot: &Option<Gc<T>>) {
+    pub unsafe fn visit_owned_option<T>(&mut self, slot: &'c Option<Gc<T>>) {
         if let Some(marker) = self.marker() {
             // SAFETY: A Gc is a NonNull, so an Option of one is a pointer to a live cell or null. The marker is the
             //         visitor's, and the caller vouches for the memory.
@@ -534,7 +493,7 @@ impl Visitor {
     }
 
     /// Visits a value that is reachable only while `key` is. A collection that moves cells keeps both where they are.
-    pub fn visit_ephemeron<T>(&mut self, key: Gc<T>, value: &Value) {
+    pub fn visit_ephemeron<T>(&mut self, key: Gc<T>, value: &'c Value) {
         let Some(raw) = self.as_raw() else {
             return;
         };
@@ -583,7 +542,7 @@ impl Visitor {
     ///
     /// If the entry survives a collection that moves cells, its holder must hand the slots of the key and the value to
     /// Sweep::record_slot() and Sweep::record_value_slot().
-    pub unsafe fn visit_ephemeron_without_pinning<T>(&mut self, key: Gc<T>, value: &Value) {
+    pub unsafe fn visit_ephemeron_without_pinning<T>(&mut self, key: Gc<T>, value: &'c Value) {
         let Some(marker) = self.marker() else {
             self.visit_ephemeron(key, value);
             return;
@@ -607,10 +566,10 @@ impl Visitor {
 ///
 /// `trace` must visit every cell the value can reach directly; a cell it misses can be collected while still in use.
 pub unsafe trait Trace {
-    fn trace(&self, visitor: &mut Visitor);
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>);
 
     /// Traces a slice of values, which some types can report in a single call.
-    fn trace_slice(values: &[Self], visitor: &mut Visitor)
+    fn trace_slice<'c>(values: &'c [Self], visitor: &mut Visitor<'c>)
     where
         Self: Sized,
     {
@@ -665,35 +624,35 @@ unsafe impl<T: ?Sized> Trace for core::marker::PhantomData<T> {
 
 // SAFETY: Forwards to the boxed value.
 unsafe impl<T: Trace + ?Sized> Trace for Box<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         (**self).trace(visitor);
     }
 }
 
 // SAFETY: Forwards to every element.
 unsafe impl<T: Trace> Trace for [T] {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         T::trace_slice(self, visitor);
     }
 }
 
 // SAFETY: Forwards to every element.
 unsafe impl<T: Trace, const N: usize> Trace for [T; N] {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         T::trace_slice(self, visitor);
     }
 }
 
 // SAFETY: Forwards to every element.
 unsafe impl<T: Trace> Trace for Vec<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         T::trace_slice(self, visitor);
     }
 }
 
 // SAFETY: Forwards to every element.
 unsafe impl<T: Trace> Trace for std::collections::VecDeque<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         let (front, back) = self.as_slices();
         T::trace_slice(front, visitor);
         T::trace_slice(back, visitor);
@@ -702,7 +661,7 @@ unsafe impl<T: Trace> Trace for std::collections::VecDeque<T> {
 
 // SAFETY: Forwards to every key and value. The default RandomState hasher holds no cells.
 unsafe impl<K: Trace, V: Trace> Trace for std::collections::HashMap<K, V> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for (key, value) in self {
             key.trace(visitor);
             value.trace(visitor);
@@ -712,7 +671,7 @@ unsafe impl<K: Trace, V: Trace> Trace for std::collections::HashMap<K, V> {
 
 // SAFETY: Forwards to the value once it exists.
 unsafe impl<T: Trace> Trace for core::cell::OnceCell<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(value) = self.get() {
             value.trace(visitor);
         }
@@ -725,7 +684,7 @@ macro_rules! impl_trace_for_tuples {
             // SAFETY: Forwards to every element.
             #[allow(non_snake_case)]
             unsafe impl<$($name: Trace),+> Trace for ($($name,)+) {
-                fn trace(&self, visitor: &mut Visitor) {
+                fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
                     let ($($name,)+) = self;
                     $($name.trace(visitor);)+
                 }
@@ -746,7 +705,7 @@ impl_trace_for_tuples!(
 
 // SAFETY: A Gc reaches exactly its cell.
 unsafe impl<T> Trace for Gc<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The Gc is visited where it is, so that a collection that moves its cell rewrites it if it is in a cell.
         //     Elsewhere, such as on the stack or in malloc memory, it keeps its cell where it is.
         if let Some(marker) = visitor.plain_marker() {
@@ -766,21 +725,21 @@ unsafe impl<T> Trace for Gc<T> {
 
 // SAFETY: A member reaches exactly its cell.
 unsafe impl<T> Trace for Member<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         visitor.visit_member(self);
     }
 }
 
 // SAFETY: A nullable member reaches exactly its cell, if it has one.
 unsafe impl<T> Trace for NullableMember<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         visitor.visit_nullable_member(self);
     }
 }
 
 // SAFETY: Forwards to the contained value.
 unsafe impl<T: Trace> Trace for Option<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(value) = self {
             value.trace(visitor);
         }
@@ -789,7 +748,7 @@ unsafe impl<T: Trace> Trace for Option<T> {
 
 // SAFETY: Forwards to the contained value or error.
 unsafe impl<T: Trace, E: Trace> Trace for Result<T, E> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         match self {
             Ok(value) => value.trace(visitor),
             Err(error) => error.trace(visitor),
@@ -799,18 +758,18 @@ unsafe impl<T: Trace, E: Trace> Trace for Result<T, E> {
 
 // SAFETY: LibGC decodes the value and visits its cell, if it has one.
 unsafe impl Trace for Value {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         visitor.visit_values(core::slice::from_ref(self));
     }
 
-    fn trace_slice(values: &[Self], visitor: &mut Visitor) {
+    fn trace_slice<'c>(values: &'c [Self], visitor: &mut Visitor<'c>) {
         visitor.visit_values(values);
     }
 }
 
 // SAFETY: Forwards to the current value, in place, so that a collection that moves cells can update a slot in it.
 unsafe impl<T: Copy + Trace> Trace for Cell<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // SAFETY: Nothing writes the value while it is traced, since the mutator waits for tracing to end.
         unsafe { &*self.as_ptr() }.trace(visitor);
     }

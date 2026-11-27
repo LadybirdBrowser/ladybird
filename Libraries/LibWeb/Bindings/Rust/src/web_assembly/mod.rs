@@ -134,7 +134,14 @@ impl<T> Copy for EntityRef<T> {}
 
 // SAFETY: The handle is the address of the entity's cell, which this visits.
 unsafe impl<T: Entity + 'static> Trace for EntityRef<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        self.visit(visitor);
+    }
+}
+
+impl<T: Entity + 'static> EntityRef<T> {
+    /// Visits the cell by value: the handle is not a slot the collector could rewrite.
+    pub(crate) fn visit(&self, visitor: &mut Visitor<'_>) {
         let Some(raw) = visitor.as_raw() else {
             return;
         };
@@ -150,7 +157,7 @@ pub(crate) struct CellReference(pub(crate) u64);
 
 // SAFETY: The reference is the address of its cell, which this visits.
 unsafe impl Trace for CellReference {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         let Some(raw) = visitor.as_raw() else {
             return;
         };
@@ -221,7 +228,7 @@ impl WasmValues {
 
 // SAFETY: Every reference among the values is traced as the type it was made for says.
 unsafe impl Trace for WasmValues {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         let Some(raw) = visitor.as_raw() else {
             return;
         };

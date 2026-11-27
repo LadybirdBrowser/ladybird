@@ -43,7 +43,7 @@ const STACK_SLOT_CAPACITY: usize = 8;
 
 // SAFETY: The type holds no cells, so the function is the one cell the slots reach.
 unsafe impl Trace for ExportedFunction {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.function.trace(visitor);
     }
 }

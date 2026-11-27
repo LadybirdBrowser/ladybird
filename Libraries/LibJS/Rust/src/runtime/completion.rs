@@ -72,6 +72,13 @@ pub struct Completion {
     value: Value,                    // [[Value]]
 }
 
+// SAFETY: The value is the only cell a completion reaches.
+unsafe impl crate::gc::visitor::Trace for Completion {
+    fn trace<'c>(&'c self, visitor: &mut crate::gc::visitor::Visitor<'c>) {
+        self.value.trace(visitor);
+    }
+}
+
 impl Completion {
     pub fn new(completion_type: CompletionType, value: Value) -> Self {
         debug_assert!(completion_type != CompletionType::Empty);

@@ -36,7 +36,7 @@ define_cell!(FunctionObject, Object, extends: [Object], methods: FUNCTION_OBJECT
 
 // SAFETY: The builtin is a number; everything else is the Object's.
 unsafe impl Trace for FunctionObject {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
     }
 }
