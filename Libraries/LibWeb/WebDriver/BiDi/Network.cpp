@@ -43,7 +43,6 @@ struct BlockedRequest {
     FetchControllerToken controller;
     Fetch::Engine::ContinuationId interception;
     Fetch::Engine::NetworkPhase phase;
-    JsonArray intercepts;
 };
 
 static HashMap<String, BlockedRequest>& blocked_requests()
@@ -447,17 +446,24 @@ static JsonObject get_the_response_data(Fetch::Engine::Event::ObservedResponse c
 }
 
 // https://w3c.github.io/webdriver-bidi/#process-a-network-event
-static JsonObject process_a_network_event(HTML::Navigable const& navigable, NetworkRequest const& state, Fetch::Engine::Event::ObservedRequest const& request, FetchTimingInfo const& timing_info, HighResolutionTime::DOMHighResTimeStamp end_time)
+static JsonObject process_a_network_event(HTML::Navigable const& navigable, NetworkRequest const& state, Fetch::Engine::Event::ObservedRequest const& request, FetchTimingInfo const& timing_info, HighResolutionTime::DOMHighResTimeStamp end_time, JsonArray const& intercepts = {})
 {
     JsonObject params;
     params.set("context"sv, navigable_id(navigable));
     params.set("userContext"sv, "default"sv);
-    auto blocked = blocked_requests().find(state.id);
-    params.set("isBlocked"sv, blocked != blocked_requests().end());
-    if (blocked != blocked_requests().end()) {
-        params.set("intercepts"sv, blocked->value.intercepts);
-        params.set(Network::network_interception_parameter, blocked->value.interception.value());
+
+    // 7. Let intercepts be the result of get the network intercepts with session, event, request, and top-level
+    //    navigable id.
+    // NB: The caller gives the intercepts that blocked the request at the event's phase, if any.
+
+    // 10. If intercepts is not empty, let is blocked be true, otherwise let is blocked be false.
+    auto is_blocked = !intercepts.is_empty();
+    params.set("isBlocked"sv, is_blocked);
+    if (is_blocked) {
+        params.set("intercepts"sv, intercepts);
+        params.set(Network::network_interception_parameter, blocked_requests().get(state.id)->interception.value());
     }
+
     params.set("navigation"sv, state.navigation.has_value() ? JsonValue(*state.navigation) : JsonValue {});
     params.set("redirectCount"sv, request.redirect_count);
     JsonObject request_data;
@@ -472,7 +478,7 @@ static JsonObject process_a_network_event(HTML::Navigable const& navigable, Netw
 }
 
 // https://w3c.github.io/webdriver-bidi/#webdriver-bidi-before-request-sent
-static void network_before_request_sent(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, FetchTimingInfo const& timing_info)
+static void network_before_request_sent(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, FetchTimingInfo const& timing_info, JsonArray const& intercepts = {})
 {
     auto state = source.ensure_network_request(request);
     if (!state || state->before_request_sent.contains(request.redirect_count))
@@ -486,11 +492,11 @@ static void network_before_request_sent(ObservedRequestSource const& source, Fet
     state->before_request_sent.set(request.redirect_count);
     state->request_data.set(request.redirect_count, get_the_request_data(*state, request, timing_info, source.end_time()));
     if (is_event_enabled("network.beforeRequestSent"sv))
-        emit_event(*navigable, "network.beforeRequestSent"_string, process_a_network_event(*navigable, *state, request, timing_info, source.end_time()));
+        emit_event(*navigable, "network.beforeRequestSent"_string, process_a_network_event(*navigable, *state, request, timing_info, source.end_time(), intercepts));
 }
 
 // https://w3c.github.io/webdriver-bidi/#event-network-responseStarted
-static void network_response_started(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, Fetch::Engine::Event::ObservedResponse const& response, FetchTimingInfo const& timing_info)
+static void network_response_started(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, Fetch::Engine::Event::ObservedResponse const& response, FetchTimingInfo const& timing_info, JsonArray const& intercepts)
 {
     network_before_request_sent(source, request, timing_info);
     auto state = source.network_request();
@@ -504,14 +510,14 @@ static void network_response_started(ObservedRequestSource const& source, Fetch:
     // 5. Let sessions be the set of sessions for which an event is enabled given "network.responseStarted" and related
     //    navigables.
     if (is_event_enabled("network.responseStarted"sv)) {
-        auto params = process_a_network_event(*navigable, *state, request, timing_info, source.end_time());
+        auto params = process_a_network_event(*navigable, *state, request, timing_info, source.end_time(), intercepts);
         params.set("response"sv, get_the_response_data(response, timing_info));
         emit_event(*navigable, "network.responseStarted"_string, move(params));
     }
 }
 
 // https://w3c.github.io/webdriver-bidi/#event-network-authRequired
-static void network_auth_required(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, Fetch::Engine::Event::ObservedResponse const& response, FetchTimingInfo const& timing_info)
+static void network_auth_required(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, Fetch::Engine::Event::ObservedResponse const& response, FetchTimingInfo const& timing_info, JsonArray const& intercepts)
 {
     auto state = source.network_request();
     if (!state || !is_event_enabled("network.authRequired"sv))
@@ -519,7 +525,7 @@ static void network_auth_required(ObservedRequestSource const& source, Fetch::En
     auto navigable = navigable_of(*state);
     if (!navigable)
         return;
-    auto params = process_a_network_event(*navigable, *state, request, timing_info, source.end_time());
+    auto params = process_a_network_event(*navigable, *state, request, timing_info, source.end_time(), intercepts);
     params.set("response"sv, get_the_response_data(response, timing_info));
     emit_event(*navigable, "network.authRequired"_string, move(params));
 }
@@ -584,8 +590,9 @@ static void network_fetch_error(ObservedRequestSource const& source, Fetch::Engi
     emit_event(*navigable, "network.fetchError"_string, move(params));
 }
 
-// Blocks the request at the phase if an intercept matches it, and answers the interception at once otherwise.
-static void block_network_request_if_intercepted(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, Fetch::Engine::NetworkPhase phase, Fetch::Engine::ContinuationId interception)
+// Blocks the request at the phase if an intercept matches it, and answers the interception at once otherwise. Returns
+// the intercepts that blocked the request.
+static JsonArray block_network_request_if_intercepted(ObservedRequestSource const& source, Fetch::Engine::Event::ObservedRequest const& request, Fetch::Engine::NetworkPhase phase, Fetch::Engine::ContinuationId interception)
 {
     auto& controller = source.controller();
     auto intercepts = g_network_events_enabled ? get_network_intercepts(source, request, phase_name(phase)) : JsonArray {};
@@ -593,9 +600,10 @@ static void block_network_request_if_intercepted(ObservedRequestSource const& so
     // NB: A request has one block at a time, so a fetch whose request another fetch holds blocked goes on.
     if (intercepts.is_empty() || blocked_requests().contains(state->id)) {
         controller.resolve_network_interception(interception, Fetch::Engine::ContinueFetch {});
-        return;
+        return {};
     }
-    blocked_requests().set(state->id, BlockedRequest { controller.registry(), controller.token(), interception, phase, move(intercepts) });
+    blocked_requests().set(state->id, BlockedRequest { controller.registry(), controller.token(), interception, phase });
+    return intercepts;
 }
 
 void receive_network_activity(FetchController& controller, Fetch::Engine::Event::FetchNetworkActivity const& activity)
@@ -605,22 +613,25 @@ void receive_network_activity(FetchController& controller, Fetch::Engine::Event:
     auto timing_info = timing_info_of(request);
     activity.activity.visit(
         [&](Fetch::Engine::Event::FetchNetworkActivity::BeforeRequestSent const& reached) {
+            JsonArray intercepts;
             if (reached.interception.has_value())
-                block_network_request_if_intercepted(source, request, Fetch::Engine::NetworkPhase::BeforeRequestSent, *reached.interception);
+                intercepts = block_network_request_if_intercepted(source, request, Fetch::Engine::NetworkPhase::BeforeRequestSent, *reached.interception);
             if (g_network_events_enabled)
-                network_before_request_sent(source, request, timing_info);
+                network_before_request_sent(source, request, timing_info, intercepts);
         },
         [&](Fetch::Engine::Event::FetchNetworkActivity::ResponseStarted const& reached) {
+            JsonArray intercepts;
             if (reached.interception.has_value())
-                block_network_request_if_intercepted(source, request, Fetch::Engine::NetworkPhase::ResponseStarted, *reached.interception);
+                intercepts = block_network_request_if_intercepted(source, request, Fetch::Engine::NetworkPhase::ResponseStarted, *reached.interception);
             if (g_network_events_enabled)
-                network_response_started(source, request, reached.response, timing_info);
+                network_response_started(source, request, reached.response, timing_info, intercepts);
         },
         [&](Fetch::Engine::Event::FetchNetworkActivity::AuthRequired const& reached) {
+            JsonArray intercepts;
             if (reached.interception.has_value())
-                block_network_request_if_intercepted(source, request, Fetch::Engine::NetworkPhase::AuthRequired, *reached.interception);
+                intercepts = block_network_request_if_intercepted(source, request, Fetch::Engine::NetworkPhase::AuthRequired, *reached.interception);
             if (g_network_events_enabled)
-                network_auth_required(source, request, reached.response, timing_info);
+                network_auth_required(source, request, reached.response, timing_info, intercepts);
         },
         [&](Fetch::Engine::Event::FetchNetworkActivity::RequestUpdated const&) {
             if (auto state = source.network_request())
