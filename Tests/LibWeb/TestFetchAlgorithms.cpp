@@ -2323,6 +2323,133 @@ TEST_CASE(a_webdriver_bidi_answer_with_credentials_fetches_the_request_again_wit
     harness.settle();
 }
 
+TEST_CASE(a_header_webdriver_bidi_changes_before_a_request_is_sent_selects_the_stored_response)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+    auto memory_cache_was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();
+    Web::Fetch::Fetching::set_http_memory_cache_enabled(true);
+    ScopeGuard restore_memory_cache = [&] { Web::Fetch::Fetching::set_http_memory_cache_enabled(memory_cache_was_enabled); };
+
+    // The harness's document has an origin of the network, so its requests have an HTTP cache.
+    auto origin = URL::Parser::basic_parse("http://127.0.0.1:8000/"sv)->origin();
+    harness.document->set_origin(origin);
+    harness.document->relevant_settings_object().top_level_origin = origin;
+
+    auto url = "http://127.0.0.1:8000/varies-by-language"sv;
+    auto fetch_in = [&](StringView language, NonnullRefPtr<AlgorithmCalls> const& record) {
+        auto request = harness.create_request_for(url);
+        request->header_list()->set({ "Accept-Language"sv, language });
+        (void)harness.fetch(request, recording_responses(heap, record));
+        return request;
+    };
+
+    // The cache holds a fresh response for each of two languages.
+    for (auto language : { "en"sv, "fr"sv }) {
+        auto record = make_ref_counted<AlgorithmCalls>();
+        auto request = fetch_in(language, record);
+        auto request_id = request_server.wait_for_request("GET"sv);
+        request_server.send_headers(request_id, 200, { { "Cache-Control"sv, "max-age=3600"sv }, { "Vary"sv, "Accept-Language"sv }, { "Content-Language"sv, language } });
+        request_server.send_finished(request_id);
+        harness.run_tasks_until(GC::create_function(heap, GC::captures(request), [](auto& request) { return request->done(); }));
+    }
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string }, recording_blocked_requests(blocked) };
+    block_each_request_before_it_is_sent();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    (void)fetch_in("en"sv, record);
+    run_until_blocked(harness, blocked);
+
+    // The command changes the request's language before the cache is consulted.
+    auto params = MUST(JsonValue::from_string(R"({"headers":[{"name":"Accept-Language","value":{"type":"string","value":"fr"}}]})"sv)).as_object();
+    params.set("request"sv, blocked->request_ids[0]);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params).is_error());
+    });
+    harness.run_until_responses(record, 1);
+    harness.settle();
+
+    auto response = record->responses[0]->record()->unsafe_response();
+    EXPECT(response->cache_state() == Response::CacheState::Local);
+    EXPECT_EQ(response->header_list()->get("Content-Language"sv).value_or({}), "fr"sv);
+    size_t started_requests = 0;
+    for (auto const& message : request_server.messages()) {
+        if (message.starts_with("start "sv))
+            ++started_requests;
+    }
+    EXPECT_EQ(started_requests, 2u);
+}
+
+TEST_CASE(a_blocked_request_aborted_after_it_is_continued_looks_up_no_stored_response)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+    auto memory_cache_was_enabled = Web::Fetch::Fetching::http_memory_cache_enabled();
+    Web::Fetch::Fetching::set_http_memory_cache_enabled(true);
+    ScopeGuard restore_memory_cache = [&] { Web::Fetch::Fetching::set_http_memory_cache_enabled(memory_cache_was_enabled); };
+
+    // The harness's document has an origin of the network, so its requests have an HTTP cache.
+    auto origin = URL::Parser::basic_parse("http://127.0.0.1:8000/"sv)->origin();
+    harness.document->set_origin(origin);
+    harness.document->relevant_settings_object().top_level_origin = origin;
+
+    // The cache holds a response that is stale at once. A lookup drops it, unless the request takes a stale response.
+    auto url = "http://127.0.0.1:8000/stale-at-once"sv;
+    {
+        auto record = make_ref_counted<AlgorithmCalls>();
+        auto request = harness.create_request_for(url);
+        (void)harness.fetch(request, recording_responses(heap, record));
+        auto request_id = request_server.wait_for_request("GET"sv);
+        request_server.send_headers(request_id, 200, { { "Cache-Control"sv, "max-age=0"sv } });
+        request_server.send_finished(request_id);
+        harness.run_tasks_until(GC::create_function(heap, GC::captures(request), [](auto& request) { return request->done(); }));
+    }
+
+    // The blocked request is continued, then aborted, before its fetch goes on.
+    {
+        auto blocked = make_ref_counted<ReportedNetworkEvents>();
+        WebDriverBiDiSession session { { "network.beforeRequestSent"_string }, recording_blocked_requests(blocked) };
+        block_each_request_before_it_is_sent();
+
+        auto record = make_ref_counted<AlgorithmCalls>();
+        auto controller = GC::make_root(harness.fetch(harness.create_request_for(url), recording_responses(heap, record)));
+        run_until_blocked(harness, blocked);
+
+        JsonObject params;
+        params.set("request"sv, blocked->request_ids[0]);
+        harness.with_execution_context([&] {
+            EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params).is_error());
+            controller->abort(*harness.realm, {});
+        });
+        harness.run_until_responses(record, 1);
+        VERIFY(record->responses.size() == 1);
+        EXPECT(record->responses[0]->is_aborted_network_error());
+    }
+
+    // The stored response is still there, so a request that takes a stale response gets it without the network.
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for(url);
+    request->set_cache_mode(HTTP::CacheMode::ForceCache);
+    (void)harness.fetch(request, recording_responses(heap, record));
+    harness.run_until_responses(record, 1);
+    VERIFY(record->responses.size() == 1);
+    EXPECT(record->responses[0]->record()->unsafe_response()->cache_state() == Response::CacheState::Local);
+    size_t started_requests = 0;
+    for (auto const& message : request_server.messages()) {
+        if (message.starts_with("start "sv))
+            ++started_requests;
+    }
+    EXPECT_EQ(started_requests, 1u);
+}
+
 TEST_CASE(a_cors_preflight_reports_its_network_events_under_a_request_id_of_its_own)
 {
     Core::EventLoop event_loop;
