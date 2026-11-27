@@ -1,0 +1,4 @@
+Ladybird’s seccomp policy allows lstat with the stat family, and its
+file broker answers it like newfstatat with AT_SYMLINK_NOFOLLOW. Gecko’s
+SandboxFilter.cpp also sends lstat to its broker, through LStatTrap,
+next to stat through StatTrap. From reading the source.
