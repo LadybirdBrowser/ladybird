@@ -1,0 +1,3 @@
+Ladybird’s seccomp policy allows pipe() along with pipe2(). Gecko’s
+SandboxFilter.cpp allows its CASES_FOR_pipe, which take in the pipe
+system call where the architecture has one. From reading the source.
