@@ -41,6 +41,7 @@
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
+#include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Fetching/RefCountedFlag.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -2602,8 +2603,10 @@ NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::Fetch
     if (WebDriver::BiDi::network_events_enabled())
         WebDriver::BiDi::initialize_network_request(fetch_params);
 
-    if (WebDriver::BiDi::network_configuration_enabled())
-        WebDriver::BiDi::apply_network_cache_behavior(fetch_params);
+    // AD-HOC: Fetch has no step that runs the WebDriver BiDi cache behavior steps, so they run here. Their "bypass",
+    //         which network.setCacheBehavior leaves to the implementation, sets the request's cache mode to "no-store".
+    if (webdriver_bidi_bypasses_cache(fetch_params))
+        request->set_cache_mode(HTTP::CacheMode::NoStore);
 
     // 2. Let httpFetchParams be null.
     RefPtr<Infrastructure::FetchParams const> http_fetch_params;
@@ -2856,8 +2859,10 @@ NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::Fetch
 
         // NB: Existing interception overrides still apply after subscriptions or intercepts are removed.
         WebDriver::BiDi::apply_network_request_header_overrides(*http_fetch_params);
-        if (WebDriver::BiDi::network_configuration_enabled())
-            WebDriver::BiDi::apply_network_extra_headers(*http_fetch_params);
+
+        // AD-HOC: The part of the WebDriver BiDi before request sent steps that updates the request's headers runs
+        //         here, on httpRequest.
+        update_request_headers_for_webdriver_bidi(*http_fetch_params);
 
         // 23. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
         http_cache = determine_the_http_cache_partition(*http_request);

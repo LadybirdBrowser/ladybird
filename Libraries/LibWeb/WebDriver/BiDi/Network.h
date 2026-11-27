@@ -89,8 +89,6 @@ WEB_API bool network_configuration_enabled();
 
 void network_session_state_changed();
 void cancel_network_interception(Fetch::Infrastructure::FetchParams const&);
-void apply_network_cache_behavior(Fetch::Infrastructure::FetchParams const&);
-void apply_network_extra_headers(Fetch::Infrastructure::FetchParams const&);
 void apply_network_request_header_overrides(Fetch::Infrastructure::FetchParams const&);
 void remove_network_request_content_length_override(Fetch::Infrastructure::FetchParams const&);
 JsonArray get_network_intercepts(Fetch::Infrastructure::FetchParams const&, StringView phase);

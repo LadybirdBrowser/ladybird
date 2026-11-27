@@ -61,8 +61,10 @@ struct ClientContext {
 
     double time_origin { 0 };
 
-    // The navigable of the Window that is the global object, if it has one and this process hosts the Window.
+    // The navigable of the Window that is the global object, if it has one and this process hosts the Window, and
+    // that navigable's top-level traversable.
     Optional<HTML::CrossProcessId> navigable_id;
+    Optional<HTML::CrossProcessId> top_level_traversable_id;
 
     // The URL a "client" referrer is determined from, or none for no referrer.
     Optional<URL::URL> referrer_source;
