@@ -1115,6 +1115,12 @@ impl CipherContext {
         check(unsafe { sys::EVP_CIPHER_CTX_ctrl(self.as_ptr(), kind, int_length(argument)?, pointer.cast()) })
     }
 
+    /// Makes a block cipher take only whole blocks, and add no padding to them. This is for after `init`.
+    pub(crate) fn disable_padding(&mut self) -> Result<(), CryptoError> {
+        // SAFETY: The context is live.
+        check(unsafe { sys::EVP_CIPHER_CTX_set_padding(self.as_ptr(), 0) })
+    }
+
     pub(crate) fn set_iv_length(&mut self, length: usize) -> Result<(), CryptoError> {
         self.control(sys::EVP_CTRL_AEAD_SET_IVLEN, length, ptr::null_mut())
     }

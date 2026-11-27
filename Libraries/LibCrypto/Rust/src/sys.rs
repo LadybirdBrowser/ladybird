@@ -278,6 +278,7 @@ unsafe extern "C" {
         pointer: *mut c_void,
     ) -> c_int;
     pub(crate) fn EVP_CIPHER_CTX_set_flags(context: *mut EVP_CIPHER_CTX, flags: c_int);
+    pub(crate) fn EVP_CIPHER_CTX_set_padding(context: *mut EVP_CIPHER_CTX, padding: c_int) -> c_int;
     pub(crate) fn EVP_aes_128_cbc() -> *const EVP_CIPHER;
     pub(crate) fn EVP_aes_192_cbc() -> *const EVP_CIPHER;
     pub(crate) fn EVP_aes_256_cbc() -> *const EVP_CIPHER;

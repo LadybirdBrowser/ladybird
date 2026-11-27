@@ -442,6 +442,30 @@ pub fn aes_cbc_cipher(encrypt: bool, key: &[u8], input: &[u8], iv: &[u8]) -> Res
     cipher(encrypt, aes, key, Some(iv), input, false)
 }
 
+/// AES-CBC over whole blocks, with no padding added or taken away. The input must be a multiple of the block size.
+pub fn aes_cbc_cipher_without_padding(
+    encrypt: bool,
+    key: &[u8],
+    input: &[u8],
+    iv: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    const BLOCK_LENGTH: usize = 16;
+
+    let aes = aes_cipher(AesMode::Cbc, key)?;
+    if iv.len() != BLOCK_LENGTH || !input.len().is_multiple_of(BLOCK_LENGTH) {
+        return Err(CryptoError::Backend);
+    }
+    let mut context = CipherContext::create()?;
+    context.init(encrypt, Some(aes), Some(key), Some(iv))?;
+    context.disable_padding()?;
+    let mut output = Vec::with_capacity(input.len());
+    context
+        .update(input, &mut output)
+        .and_then(|()| context.finalize(&mut output))
+        .inspect_err(|_| key::clear_allocation(&mut output))?;
+    Ok(output)
+}
+
 /// Increments only the low `counter_length` bits of the counter block, modulo 2^counter_length, as the standard
 /// incrementing function of NIST SP 800-38A Appendix B.1 does.
 pub fn aes_ctr_cipher(
