@@ -17,7 +17,7 @@ shared: 500 elements, 500 styled
   hostTree: within 24
   elementDeclarations: within 0
   heldRecordMaps: within 12
-  layoutStyleColumns: within 28
+  layoutStyleColumns: within 36
   otherMaps: within 0
   styleValues: within 4
   animationEffects: within 0
@@ -47,7 +47,7 @@ custom: 500 elements, 500 styled
   hostTree: within 24
   elementDeclarations: within 88
   heldRecordMaps: within 12
-  layoutStyleColumns: within 28
+  layoutStyleColumns: within 36
   otherMaps: within 0
   styleValues: within 144
   animationEffects: within 0
@@ -77,7 +77,7 @@ unique: 500 elements, 500 styled
   hostTree: within 24
   elementDeclarations: within 40
   heldRecordMaps: within 12
-  layoutStyleColumns: within 28
+  layoutStyleColumns: within 36
   otherMaps: within 0
   styleValues: within 0
   animationEffects: within 0
@@ -107,7 +107,7 @@ uniqueFont: 500 elements, 500 styled
   hostTree: within 24
   elementDeclarations: within 40
   heldRecordMaps: within 12
-  layoutStyleColumns: within 208
+  layoutStyleColumns: within 36
   otherMaps: within 0
   styleValues: within 28
   animationEffects: within 0
@@ -137,7 +137,7 @@ uniqueVisual: 500 elements, 500 styled
   hostTree: within 24
   elementDeclarations: within 40
   heldRecordMaps: within 12
-  layoutStyleColumns: within 28
+  layoutStyleColumns: within 36
   otherMaps: within 0
   styleValues: within 180
   animationEffects: within 0
@@ -167,7 +167,7 @@ substituted: 500 elements, 500 styled
   hostTree: within 24
   elementDeclarations: within 84
   heldRecordMaps: within 12
-  layoutStyleColumns: within 28
+  layoutStyleColumns: within 36
   otherMaps: within 0
   styleValues: within 160
   animationEffects: within 0

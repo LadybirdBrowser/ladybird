@@ -454,6 +454,7 @@ impl LayoutNodeArena {
             self.pre_order_labels.extend_from_slice(&pre_order_labels);
             self.unique_node_ids_mut().publish_new_chunk(
                 chunk_slot,
+                end,
                 FRESH_ROW_GENERATION,
                 &chunk.columns.unique_node_ids,
             );

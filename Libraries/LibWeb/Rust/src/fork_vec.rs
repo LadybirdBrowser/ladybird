@@ -283,7 +283,7 @@ impl<T: Clone + Default> ForkVec<T> {
         let rows = self.storage_mut();
         let capacity = rows.capacity();
         let additional = len.saturating_sub(rows.len());
-        rows.reserve(additional);
+        Self::make_room_for_len(rows, len);
         if rows.capacity() == capacity {
             return;
         }
@@ -291,6 +291,23 @@ impl<T: Clone + Default> ForkVec<T> {
         //               than a fault at a time.
         ak::populate_room_for_write(rows, additional);
         self.note_storage_moved();
+    }
+
+    /// Makes room in `rows` for `len` of them.
+    // OPTIMIZATION: A column with a row for every slot of a tree grows a few chunks at a time once the tree is built,
+    //               and lives as long as the tree. Room that doubles would leave it up to twice as long as the tree
+    //               needs, so it grows by an eighth, which still moves a row a bounded number of times. A short
+    //               vector doubles, and then grows by a few rows at a time, so that one that grows a row at a time
+    //               does not move its rows for each.
+    fn make_room_for_len(rows: &mut Vec<T>, len: usize) {
+        const SMALLEST_STEP_IN_ROWS: usize = 16;
+        let capacity = rows.capacity();
+        if len <= capacity {
+            return;
+        }
+        let step = (capacity / 8).max(capacity.min(SMALLEST_STEP_IN_ROWS));
+        let room = len.max(capacity + step);
+        rows.reserve_exact(room - rows.len());
     }
 
     /// Makes room in the log of the newest fork, while a fork reads it, for the old values of `rows` more rows, which
@@ -355,7 +372,9 @@ impl<T: Clone + Default> ForkVec<T> {
             fork.len = fork.len.max(len);
             return;
         }
-        self.storage_mut().resize_with(len, T::default);
+        let rows = self.storage_mut();
+        Self::make_room_for_len(rows, len);
+        rows.resize_with(len, T::default);
         self.note_storage_moved();
     }
 
