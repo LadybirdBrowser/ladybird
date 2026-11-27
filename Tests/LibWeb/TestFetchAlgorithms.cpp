@@ -2450,6 +2450,50 @@ TEST_CASE(a_blocked_request_aborted_after_it_is_continued_looks_up_no_stored_res
     EXPECT_EQ(started_requests, 1u);
 }
 
+TEST_CASE(only_the_event_of_the_phase_a_late_session_blocks_at_reports_the_block)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/blocked-at-response-started"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto request_id = request_server.wait_for_request("GET"sv);
+
+    // A session that starts while the request is in flight intercepts its response only.
+    auto events = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session {
+        { "network.beforeRequestSent"_string, "network.responseStarted"_string },
+        [events](Web::HTML::Navigable const&, String const& name, JsonValue params) {
+            auto const& object = params.as_object();
+            auto is_blocked = object.get_bool("isBlocked"sv).value();
+            events->names.append(MUST(String::formatted("{} {}", name, is_blocked ? "blocked"sv : "not blocked"sv)));
+            events->request_ids.append(*object.get_object("request"sv)->get_string("request"sv));
+        },
+    };
+    auto session_state = Web::WebDriver::BiDi::session_state();
+    session_state.enabled_event_contexts.set("network.responseStarted"_string, {});
+    session_state.network_intercepts.append({ .id = "intercept"_string, .url_patterns = {}, .phases = { "responseStarted"_string }, .browsing_contexts = {} });
+    Web::WebDriver::BiDi::set_session_state(move(session_state));
+
+    request_server.send_headers(request_id, 200);
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(events), [](auto& events) { return events->names.size() == 2; }));
+    EXPECT_EQ(events->names, (Vector<String> { "network.beforeRequestSent not blocked"_string, "network.responseStarted blocked"_string }));
+
+    JsonObject params;
+    params.set("request"sv, events->request_ids[1]);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueResponse"sv, params).is_error());
+    });
+    harness.run_until_responses(record, 1);
+    request_server.send_finished(request_id);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+}
+
 TEST_CASE(a_cors_preflight_reports_its_network_events_under_a_request_id_of_its_own)
 {
     Core::EventLoop event_loop;
