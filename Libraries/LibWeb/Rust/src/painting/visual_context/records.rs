@@ -114,6 +114,14 @@ pub static EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES: BoxVisualContextNodeHandles = 
 };
 
 impl BoxVisualContextNodeHandles {
+    /// Whether the box owns no node.
+    pub fn is_empty(&self) -> bool {
+        self.spatial.is_empty()
+            && self.chain_clips.is_empty()
+            && self.descendant_clips.is_empty()
+            && self.effects.is_empty()
+    }
+
     pub fn clip_handles(&self) -> impl Iterator<Item = ClipNodeIndex> + '_ {
         self.chain_clips.iter().chain(&self.descendant_clips).copied()
     }
@@ -159,4 +167,41 @@ pub(crate) struct PaintableVisualContextRecord {
     pub owns_geometry_dependent_nodes: bool,
     pub subtree_may_own_geometry_dependent_nodes: bool,
     pub stacking_context: crate::painting::stacking_context::StackingContextFacts,
+}
+
+/// A box's [`PaintableVisualContextRecord`] as its row holds it.
+///
+/// OPTIMIZATION: Almost every box hands its descendants the contexts it inherited, which are the contexts its parent
+///               hands every child. So a row shares the contexts it holds with the rows around it, rather than
+///               holding two copies of its own.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct HeldVisualContextRecord {
+    pub inherited_input: std::sync::Arc<DescendantVisualContexts>,
+    pub output_for_descendants: std::sync::Arc<DescendantVisualContexts>,
+    pub owns_geometry_dependent_nodes: bool,
+    pub subtree_may_own_geometry_dependent_nodes: bool,
+    pub stacking_context: crate::painting::stacking_context::StackingContextFacts,
+}
+
+/// The descendant contexts the rows written last hold, the latest first, which the next rows written share where
+/// theirs are the same: a walk writes a box's children right after the box.
+#[derive(Clone, Default)]
+pub(crate) struct SharedDescendantVisualContexts {
+    recent: Vec<std::sync::Arc<DescendantVisualContexts>>,
+}
+
+impl SharedDescendantVisualContexts {
+    const HELD: usize = 8;
+
+    /// `contexts`, shared with the rows written lately that hold the same.
+    pub(crate) fn share(&mut self, contexts: DescendantVisualContexts) -> std::sync::Arc<DescendantVisualContexts> {
+        if let Some(position) = self.recent.iter().position(|held| **held == contexts) {
+            self.recent[..=position].rotate_right(1);
+            return self.recent[0].clone();
+        }
+        let shared = std::sync::Arc::new(contexts);
+        self.recent.truncate(Self::HELD - 1);
+        self.recent.insert(0, shared.clone());
+        shared
+    }
 }

@@ -17,6 +17,7 @@ use crate::painting::stacking_context::entries::{StackingContextEntryColumn, dro
 use crate::painting::visual_context::dirty::{RemovedBoxBlocks, VisualContextBoxDirtyKind, VisualContextUpdateScope};
 use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
+    records::{HeldVisualContextRecord, SharedDescendantVisualContexts},
 };
 use smallvec::{SmallVec, smallvec};
 use std::cell::RefCell;
@@ -257,7 +258,8 @@ pub(crate) struct PaintableRowStore {
     pub(crate) paint_change_stamps: CowColumn<PaintChangeStamps, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) paint_generations: PaintGenerations,
     // NB: Boxed, as most rows have no record, and a row holds no more than a pointer for one.
-    visual_context_records: CowColumn<Option<Box<PaintableVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>,
+    visual_context_records: CowColumn<Option<Box<HeldVisualContextRecord>>, PAINTABLE_SLOTS_PER_CHUNK>,
+    shared_descendant_visual_contexts: SharedDescendantVisualContexts,
     /// The visual context node handles of each row that has a record. They are kept here only, in
     /// a column a frame publishes, so the visual context update and the recording read the same.
     visual_context_node_handles: VisualContextNodeHandleColumn,
@@ -801,7 +803,7 @@ impl LayoutNodeArena {
                 .dirty_boxes
                 .note_removed(RemovedBoxBlocks {
                     slot: id,
-                    node_handles: Arc::unwrap_or_clone(node_handles),
+                    node_handles,
                     former_paint_parent,
                 });
         } else {
@@ -843,7 +845,7 @@ impl LayoutNodeArena {
         &mut self.paintable_rows.unique_node_ids
     }
 
-    pub(crate) fn paintable_visual_context_record(&self, id: NodeSlotId) -> Option<&PaintableVisualContextRecord> {
+    pub(crate) fn paintable_visual_context_record(&self, id: NodeSlotId) -> Option<&HeldVisualContextRecord> {
         if !self.paintable_row_is_populated(id) {
             return None;
         }
@@ -857,7 +859,7 @@ impl LayoutNodeArena {
     pub(crate) fn take_paintable_visual_context_record(
         &mut self,
         id: NodeSlotId,
-    ) -> Option<(PaintableVisualContextRecord, Arc<BoxVisualContextNodeHandles>)> {
+    ) -> Option<(HeldVisualContextRecord, BoxVisualContextNodeHandles)> {
         if !self.paintable_row_is_populated(id) {
             return None;
         }
@@ -873,7 +875,8 @@ impl LayoutNodeArena {
             .visual_context_node_handles
             .row_mut(index)
             .and_then(|mut handles| handles.take())
-            .expect("a row with a record has node handles");
+            .map(Arc::unwrap_or_clone)
+            .unwrap_or_default();
         Some((record, node_handles))
     }
 
@@ -890,11 +893,21 @@ impl LayoutNodeArena {
                 crate::painting::style_queries::z_index(self, id),
             )
         });
+        // OPTIMIZATION: Almost every box owns no node, and a row without handles reads as one that owns none, so only
+        //               a box that owns a node holds an allocation for them.
         set_visual_context_node_handles(
             &mut self.paintable_rows.visual_context_node_handles,
             id.slot_index() as usize,
-            Some(node_handles),
+            (!node_handles.is_empty()).then_some(node_handles),
         );
+        let shared = &mut self.paintable_rows.shared_descendant_visual_contexts;
+        let record = HeldVisualContextRecord {
+            inherited_input: shared.share(record.inherited_input),
+            output_for_descendants: shared.share(record.output_for_descendants),
+            owns_geometry_dependent_nodes: record.owns_geometry_dependent_nodes,
+            subtree_may_own_geometry_dependent_nodes: record.subtree_may_own_geometry_dependent_nodes,
+            stacking_context: record.stacking_context,
+        };
         self.paintable_rows
             .visual_context_records
             .set(id.slot_index() as usize, Some(Box::new(record)));
@@ -927,7 +940,7 @@ impl LayoutNodeArena {
         self.paintable_rows.visual_context_node_handles.publish()
     }
 
-    /// A row's visual context node handles, if it has a visual context record.
+    /// A row's visual context node handles, if it has a visual context record and owns a node.
     pub(crate) fn paintable_visual_context_node_handles(&self, id: NodeSlotId) -> Option<&BoxVisualContextNodeHandles> {
         if !self.paintable_row_is_populated(id) {
             return None;
