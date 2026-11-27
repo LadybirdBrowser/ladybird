@@ -16,6 +16,10 @@ namespace WebView {
 
 WEBVIEW_API Web::WebDriver::BiDiSessionState session_state_for_hosted_traversables(Web::WebDriver::BiDiSessionState const&, HashTable<String> const&);
 
+WEBVIEW_API Optional<u64> take_network_interception(JsonObject& parameters);
+
+WEBVIEW_API bool network_event_ends_routed_block(StringView event_name, Optional<u64> interception, Optional<u64> routed_interception);
+
 // NB: The network state belongs to the browser side of a BiDi session, where context IDs can be resolved.
 class WebDriverBiDiNetwork {
     AK_ALLOC_WITH_KMALLOC;

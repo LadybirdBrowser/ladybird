@@ -2668,8 +2668,6 @@ static void create_navigation_params_by_fetching(
         .navigable_id = navigable->id(),
         .navigation_id = navigation_id.map([](auto const& id) { return id.to_utf8(); }),
     });
-    if (WebDriver::BiDi::network_events_enabled() || WebDriver::BiDi::network_configuration_enabled())
-        WebDriver::BiDi::initialize_network_request(*request, navigable, navigation_id);
     request->set_referrer(document_state.request_referrer);
     request->set_referrer_policy(document_state.request_referrer_policy);
     request->set_policy_container(source_snapshot_params->source_policy_container);

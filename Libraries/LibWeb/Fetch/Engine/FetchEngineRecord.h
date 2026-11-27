@@ -54,9 +54,10 @@ public:
     [[nodiscard]] EngineEventSink& event_sink() { return *m_event_sink; }
 
     // Reports what happened to one of the fetch's RequestServer requests to the agent that started the fetch.
-    void report_network_activity(RequestId request_id, Event::NetworkActivity::Activity activity)
+    void report_network_activity(RequestId request_id, Event::TransportActivity::Activity activity)
     {
-        m_event_sink->handle_event(Event::NetworkActivity { .request_id = request_id, .activity = move(activity) });
+        ASSERT(is_on_owner_thread());
+        m_event_sink->handle_event(Event::TransportActivity { .request_id = request_id, .activity = move(activity) });
     }
 
     void report_network_activity(Event::FetchNetworkActivity activity)
@@ -77,6 +78,8 @@ public:
         Invalid,
     };
     [[nodiscard]] NetworkInterceptionAnswerResult resolve_network_interception(ContinuationId, NetworkDecision);
+
+    [[nodiscard]] CorsPreflightId start_cors_preflight();
 
     void report_violation(ContentSecurityPolicy::RequestViolation violation)
     {

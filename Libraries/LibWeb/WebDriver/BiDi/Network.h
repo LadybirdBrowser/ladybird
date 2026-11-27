@@ -6,57 +6,18 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
-#include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/Optional.h>
-#include <AK/RefCounted.h>
-#include <AK/RefPtr.h>
 #include <AK/String.h>
-#include <AK/Utf16String.h>
-#include <LibGC/Forward.h>
-#include <LibGC/Ptr.h>
-#include <LibHTTP/HeaderList.h>
+#include <LibWeb/Fetch/Engine/NetworkActivity.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkObservation.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/WebDriver/Response.h>
 
 namespace Web::WebDriver::BiDi {
-
-// NB: How Fetch proceeds with a blocked request once a command or the end of the fetch resumes it.
-enum class NetworkContinuationAction : u8 {
-    Continue,
-    ContinueWithModifiedRequest,
-    ProvideResponse,
-    Fail,
-    UseDefaultAuthentication,
-    CancelAuthentication,
-    ProvideCredentials,
-    RetryAuthentication,
-};
-
-// NB: A resumed interception drops its captured fetch state before its callback runs.
-class NetworkContinuation final : public RefCounted<NetworkContinuation> {
-public:
-    using Callback = Function<void(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>)>;
-    static NonnullRefPtr<NetworkContinuation> create(Callback);
-    void invoke(NetworkContinuationAction, RefPtr<Fetch::Infrastructure::Response>);
-    void clear_blocked_state();
-
-    String request_id;
-    String phase;
-    JsonArray intercepts;
-    RefPtr<Fetch::Infrastructure::FetchParams const> fetch_params;
-    RefPtr<Fetch::Infrastructure::Request> original_request;
-    RefPtr<Fetch::Infrastructure::Response> response;
-
-private:
-    explicit NetworkContinuation(Callback);
-    Callback m_callback;
-};
 
 // https://w3c.github.io/webdriver-bidi/#request-id
 // NB: Fetch's internal request clones and redirects share this identity.
@@ -75,34 +36,23 @@ public:
     HashTable<u8> completed;
     HashTable<u8> transferred;
     HashMap<u8, JsonObject> request_data;
-    // Explicit overrides for headers Fetch appends during preparation. Keep them out of the unprepared list.
-    RefPtr<HTTP::HeaderList> request_header_overrides;
 
 private:
     NetworkRequest();
 };
 
-// NB: Fetch checks this cached flag before doing any network instrumentation.
-// NB: A session reaches only the window agent, so these are false on the thread of a worker.
+// NB: A session reaches only the window agent, so this is false on the thread of a worker.
 WEB_API bool network_events_enabled();
-WEB_API bool network_configuration_enabled();
 
 void network_session_state_changed();
-void cancel_network_interception(Fetch::Infrastructure::FetchParams const&);
-void apply_network_request_header_overrides(Fetch::Infrastructure::FetchParams const&);
-void remove_network_request_content_length_override(Fetch::Infrastructure::FetchParams const&);
-JsonArray get_network_intercepts(Fetch::Infrastructure::FetchParams const&, StringView phase);
-void block_network_request(Fetch::Infrastructure::FetchParams const&, RefPtr<Fetch::Infrastructure::Response>, String phase, JsonArray intercepts, NonnullRefPtr<NetworkContinuation>, RefPtr<Fetch::Infrastructure::Request> original_request = nullptr);
-WEB_API Response continue_network_request(StringView method, JsonObject const&);
 
-void initialize_network_request(Fetch::Infrastructure::Request&, GC::Ptr<HTML::Navigable>, Optional<Utf16String> const& navigation);
-void initialize_network_request(Fetch::Infrastructure::FetchParams const&, GC::Ptr<HTML::Navigable> = nullptr);
-void initialize_network_request_with_its_navigable(Fetch::Infrastructure::FetchParams const&);
-void network_before_request_sent(Fetch::Infrastructure::FetchParams const&);
-void network_response_started(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response&);
-void network_auth_required(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response const&);
-void network_response_completed(Fetch::Infrastructure::FetchParams const&, Fetch::Infrastructure::Response const&, Fetch::Infrastructure::FetchTimingInfo const&);
-void network_fetch_error(Fetch::Infrastructure::FetchParams const&, StringView);
+void receive_network_activity(Fetch::Infrastructure::FetchController&, Fetch::Engine::Event::FetchNetworkActivity const&);
+
+void network_response_completed(Fetch::Infrastructure::FetchController&, Fetch::Engine::Event::ObservedResponse const&, Fetch::Infrastructure::FetchTimingInfo const&);
+
+void network_fetch_stopped(Fetch::Infrastructure::FetchController&, StringView error_text);
+
+WEB_API Response continue_network_request(StringView method, JsonObject const&);
 
 Optional<JsonObject> network_response_for_navigation(Fetch::Infrastructure::Request const&, Fetch::Infrastructure::FetchTimingInfo const&,
     Fetch::Infrastructure::Response const&);

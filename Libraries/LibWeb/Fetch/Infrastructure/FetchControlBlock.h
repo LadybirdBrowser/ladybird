@@ -61,14 +61,19 @@ public:
 
     // The timing info the agent has of its latest response handover.
     [[nodiscard]] RefPtr<FetchTimingInfo> agent_timing_info() const { return m_agent_timing_info; }
-    // Makes the agent's timing info from the fields a response handover gives it, the network phases settled last and
-    // the fetch's end time.
-    NonnullRefPtr<FetchTimingInfo> hand_over_timing(Engine::FetchTimingSeed const& seed)
+    // A timing info of the given fields, the network phases settled last and the fetch's end time.
+    [[nodiscard]] NonnullRefPtr<FetchTimingInfo> timing_info_with(Engine::FetchTimingSeed const& seed) const
     {
         auto timing_info = FetchTimingInfo::create(seed);
         if (m_network_phases.has_value())
             timing_info->set_network_phases(*m_network_phases);
         timing_info->set_end_time(m_end_time);
+        return timing_info;
+    }
+    // Makes the agent's timing info from the fields a response handover gives it.
+    NonnullRefPtr<FetchTimingInfo> hand_over_timing(Engine::FetchTimingSeed const& seed)
+    {
+        auto timing_info = timing_info_with(seed);
         m_agent_timing_info = timing_info;
         return timing_info;
     }

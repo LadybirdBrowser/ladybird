@@ -989,7 +989,7 @@ static Event::FetchNetworkActivity network_phase_activity(NetworkPhase phase)
         activity = Event::FetchNetworkActivity::ResponseStarted { .response = {}, .interception = {} };
     else if (phase == NetworkPhase::AuthRequired)
         activity = Event::FetchNetworkActivity::AuthRequired { .response = {}, .interception = {} };
-    return { .request = move(request), .activity = move(activity) };
+    return { .cors_preflight_id = {}, .request = move(request), .activity = move(activity) };
 }
 
 // Has the record's fetch wait at the network phase if it can, and records each decision it continues with. Returns

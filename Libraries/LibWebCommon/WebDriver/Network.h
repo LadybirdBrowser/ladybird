@@ -32,6 +32,13 @@ struct WEBCOMMON_API UrlPattern {
 
 using Header = HTTP::Header;
 
+// The parameter of a network event in which the process that reported it names the network interception that blocks
+// the event's request, or that the event ended.
+constexpr auto network_interception_parameter = "__webdriver_network_interception"sv;
+
+// The event in which the process that hosts a blocked request reports that the request's network interception ended.
+constexpr auto network_interception_ended_event = "network.__webdriverInterceptionEnded"sv;
+
 WEBCOMMON_API ErrorOr<Vector<Header>, Error> create_a_headers_list(JsonValue const&);
 
 struct WEBCOMMON_API Intercept {
@@ -48,7 +55,7 @@ struct WEBCOMMON_API InterceptionOverrides {
     Optional<Vector<Header>> headers;
     Optional<ByteBuffer> body;
     Optional<ByteString> cookie_header;
-    Optional<Vector<Header>> set_cookie_headers;
+    Optional<Vector<ByteString>> set_cookie_values;
     Optional<u64> status;
     Optional<ByteString> reason;
 };

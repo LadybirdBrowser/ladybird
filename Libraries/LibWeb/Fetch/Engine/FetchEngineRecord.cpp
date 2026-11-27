@@ -13,6 +13,7 @@ namespace Web::Fetch::Engine {
 
 static Atomic<u64> s_next_delivery_id { 1 };
 static Atomic<u64> s_next_continuation_id { 1 };
+static Atomic<u64> s_next_cors_preflight_id { 1 };
 
 FetchEngineRecord::FetchEngineRecord(FetchEngineRecords& records, FetchId fetch_id, NonnullOwnPtr<EngineEventSink> event_sink, NonnullRefPtr<NetworkActivityObservers const> network_activity_observers)
     : m_records(records)
@@ -109,6 +110,12 @@ FetchEngineRecord::NetworkInterceptionAnswerResult FetchEngineRecord::resolve_ne
 
     m_network_interception.release_value().resume(move(decision));
     return NetworkInterceptionAnswerResult::Settled;
+}
+
+CorsPreflightId FetchEngineRecord::start_cors_preflight()
+{
+    ASSERT(is_on_owner_thread());
+    return CorsPreflightId { s_next_cors_preflight_id.fetch_add(1) };
 }
 
 void FetchEngineRecord::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)

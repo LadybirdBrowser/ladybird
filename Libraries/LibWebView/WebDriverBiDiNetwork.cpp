@@ -23,6 +23,18 @@ Web::WebDriver::BiDiSessionState session_state_for_hosted_traversables(Web::WebD
     return filtered_state;
 }
 
+Optional<u64> take_network_interception(JsonObject& parameters)
+{
+    auto interception = parameters.get_u64(Web::WebDriver::Network::network_interception_parameter);
+    parameters.remove(Web::WebDriver::Network::network_interception_parameter);
+    return interception;
+}
+
+bool network_event_ends_routed_block(StringView event_name, Optional<u64> interception, Optional<u64> routed_interception)
+{
+    return event_name == Web::WebDriver::Network::network_interception_ended_event && interception.has_value() && interception == routed_interception;
+}
+
 using Web::WebDriver::as_js_uint;
 using Web::WebDriver::Error;
 using Web::WebDriver::ErrorCode;

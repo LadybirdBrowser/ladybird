@@ -15,6 +15,7 @@
 #include <LibCore/Timer.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGC/Function.h>
+#include <LibGC/HeapAccess.h>
 #include <LibGC/Root.h>
 #include <LibGC/Testing.h>
 #include <LibIPC/File.h>
@@ -23,6 +24,7 @@
 #include <LibJS/Script.h>
 #include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
@@ -35,6 +37,7 @@
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
+#include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -59,6 +62,7 @@
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWebCommon/WebDriver/Network.h>
 
 using Web::Fetch::Engine::FetchBodyDeliveryGate;
 using Web::Fetch::Engine::FetchByteChannel;
@@ -66,12 +70,12 @@ using Web::Fetch::Engine::NetworkTransportHandle;
 using Web::Fetch::Engine::WholeBodyTransport;
 using Web::Fetch::Engine::Command::TransportControl;
 using Web::Fetch::Engine::Event::EndOfBody;
-using Web::Fetch::Engine::Event::NetworkActivity;
 using Web::Fetch::Engine::Event::ReadRequestBodyStream;
 using Web::Fetch::Engine::Event::RequestBodyEndOfBody;
 using Web::Fetch::Engine::Event::RequestBodyProgress;
 using Web::Fetch::Engine::Event::RequestBodySentFromSource;
 using Web::Fetch::Engine::Event::RequestTransmissionEnded;
+using Web::Fetch::Engine::Event::TransportActivity;
 using Web::Fetch::Fetching::FetchEventSink;
 using Web::Fetch::Fetching::NetworkBodyPump;
 using Web::Fetch::Fetching::PendingResponse;
@@ -335,7 +339,7 @@ namespace {
 // A fetch that has run to its end, with a response body whose transport the fetch's engine record keeps.
 struct FetchWithBody {
     GC::Root<FetchController> controller;
-    NonnullRefPtr<FetchParams> fetch_params;
+    NonnullRefPtr<FetchParams const> fetch_params;
     NonnullRefPtr<NetworkBodyPump> body_pump;
     NonnullRefPtr<WholeBodyTransport> transport;
 };
@@ -344,17 +348,18 @@ struct FetchWithBody {
 
 static FetchWithBody fetch_with_a_body(FetchHarness const& harness)
 {
+    auto started = harness.record_started_fetches();
     auto request = harness.create_request();
     auto controller = GC::make_root(harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard }));
-    auto fetch_params = controller->original_fetch_params();
-    VERIFY(fetch_params);
     harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(request), [](auto& request) { return request->done(); }));
+    VERIFY(started->fetch_params.size() == 1);
+    auto fetch_params = started->fetch_params.take_first();
 
     // The case's fetch has run to its end, so another engine's fetch starts the body's load.
     auto body_pump = NetworkBodyPump::create(fetch_params, FetchBodyDeliveryGate::NavigationHold::None, nullptr);
     auto transport = Web::Fetch::Fetching::create_whole_body_transport(*body_pump->delivery_gate(), *body_pump->channel(), start_a_load_of_another_engine());
     fetch_params->set_body_transport(*transport);
-    return { move(controller), fetch_params.release_nonnull(), move(body_pump), move(transport) };
+    return { move(controller), move(fetch_params), move(body_pump), move(transport) };
 }
 
 // Hands the transport its body, as the network fetch does once the response's headers arrive.
@@ -378,7 +383,7 @@ TEST_CASE(each_stop_of_a_started_fetch_reaches_the_engine_for_its_fetch_id)
     };
     auto fetch_executor = Web::Fetch::Engine::InlineFetchExecutor::create(move(services), make<CommandRecordingEngine>(reached));
 
-    auto& registry = Web::HTML::surrounding_agent().fetch_controller_registry;
+    Web::Fetch::Infrastructure::FetchControllerRegistry registry;
     auto create_controller = [&](Optional<u64> fetch_id) {
         auto controller = GC::make_root(FetchController::create(registry));
         if (fetch_id.has_value())
@@ -484,14 +489,16 @@ TEST_CASE(a_fetch_whose_controller_nothing_holds_still_runs_its_algorithms)
 }
 
 // The fetch params of a fetch that has run to its end, whose engine record defers work through the agent's executor.
-static NonnullRefPtr<FetchParams> fetch_params_of_a_finished_fetch(FetchHarness const& harness)
+static NonnullRefPtr<FetchParams const> fetch_params_of_a_finished_fetch(FetchHarness const& harness)
 {
+    auto started = harness.record_started_fetches();
     auto request = harness.create_request();
     auto controller = GC::make_root(harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard }));
     harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(request), [](auto& request) { return request->done(); }));
-    auto fetch_params = controller->original_fetch_params();
-    VERIFY(fetch_params && fetch_params->engine_record());
-    return fetch_params.release_nonnull();
+    VERIFY(started->fetch_params.size() == 1);
+    auto fetch_params = started->fetch_params.take_first();
+    VERIFY(fetch_params->engine_record());
+    return fetch_params;
 }
 
 TEST_CASE(a_pending_response_lets_go_of_its_callback_once_the_callback_has_run)
@@ -1331,7 +1338,7 @@ TEST_CASE(a_fetch_whose_request_fails_before_its_response_ends_at_the_handover_o
     EXPECT(!is_rooted(controller->token()));
 }
 
-TEST_CASE(a_cors_preflights_controller_is_rooted_until_the_fetch_it_is_for_ends)
+TEST_CASE(a_cors_preflight_runs_under_the_controller_of_the_fetch_it_is_for)
 {
     Core::EventLoop event_loop;
     install_font_plugin();
@@ -1339,27 +1346,27 @@ TEST_CASE(a_cors_preflights_controller_is_rooted_until_the_fetch_it_is_for_ends)
     auto commands = harness.record_commands();
     StandInRequestServer request_server { harness };
 
+    auto& registry = Web::HTML::surrounding_agent().fetch_controller_registry;
+    auto controllers_before = registry.controllers();
     auto record = make_ref_counted<AlgorithmCalls>();
     auto request = harness.create_request_for("http://127.0.0.1:8000/preflighted"sv);
     request->set_mode(Request::Mode::CORS);
     request->set_use_cors_preflight(true);
     auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
     auto preflight_id = request_server.wait_for_request("OPTIONS"sv);
-    auto preflight_token = token_of_fetch([](auto const& fetch_params) { return fetch_params.is_cors_preflight(); });
-    VERIFY(preflight_token.has_value());
-    EXPECT(is_rooted(*preflight_token));
+    for (auto const& other : registry.controllers()) {
+        if (other.ptr() != controller.ptr())
+            EXPECT(any_of(controllers_before, [&](auto const& before) { return before.ptr() == other.ptr(); }));
+    }
+    EXPECT(is_rooted(controller->token()));
 
-    // The preflight's request has ended once the fetch's own request starts.
     request_server.send_headers(preflight_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     auto request_id = request_server.wait_for_request("GET"sv);
-    EXPECT(is_rooted(*preflight_token));
-
     request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
     request_server.send_finished(request_id);
     harness.run_until_step(commands, "end of fetch 1"sv);
     EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 OPTIONS /preflighted", "stop 0", "start 1 GET /preflighted" }));
     EXPECT(!is_rooted(controller->token()));
-    EXPECT(!is_rooted(*preflight_token));
 }
 
 // A request torn down before its response arrives leaves main fetch nothing to hand over.
@@ -1736,6 +1743,37 @@ TEST_CASE(a_fetch_waiting_for_a_preload_stopped_with_its_body_in_flight_fetches_
 
 namespace {
 
+// The interceptions the engine offered, in the order it offered them.
+struct OfferedInterceptions : RefCounted<OfferedInterceptions> {
+    Vector<Web::Fetch::Engine::ContinuationId> ids;
+};
+
+// Records the interception each network phase event offers, and ignores every other event.
+class InterceptionRecordingEventSink final : public Web::Fetch::Engine::EngineEventSink {
+public:
+    explicit InterceptionRecordingEventSink(NonnullRefPtr<OfferedInterceptions> offered)
+        : m_offered(move(offered))
+    {
+    }
+
+    virtual void handle_event(Web::Fetch::Engine::EngineEvent event) override
+    {
+        using Web::Fetch::Engine::Event::FetchNetworkActivity;
+        auto const* activity = event.get_pointer<FetchNetworkActivity>();
+        if (!activity)
+            return;
+        activity->activity.visit(
+            [&](OneOf<FetchNetworkActivity::BeforeRequestSent, FetchNetworkActivity::ResponseStarted, FetchNetworkActivity::AuthRequired> auto const& phase) {
+                if (phase.interception.has_value())
+                    m_offered->ids.append(*phase.interception);
+            },
+            [](auto const&) { });
+    }
+
+private:
+    NonnullRefPtr<OfferedInterceptions> m_offered;
+};
+
 // The WebDriver BiDi network events that reached the event sink, by name and request id.
 struct ReportedNetworkEvents : RefCounted<ReportedNetworkEvents> {
     GC_HOLDS_NO_CELL_EDGES;
@@ -1906,7 +1944,7 @@ TEST_CASE(a_fetch_whose_request_webdriver_bidi_blocks_ends_once_a_command_resume
     harness.run_until_step(commands, "end of fetch 1"sv);
     harness.settle();
 
-    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "end of body of 1", "end of fetch 1" }));
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "resolve network interception 1", "end of body of 1", "end of fetch 1" }));
     EXPECT(!is_rooted(controller->token()));
 }
 
@@ -1938,6 +1976,397 @@ TEST_CASE(a_fetch_whose_request_webdriver_bidi_blocks_ends_once_aborted)
     EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
     EXPECT(request_server.messages().is_empty());
     EXPECT(!is_rooted(controller->token()));
+}
+
+TEST_CASE(the_end_of_a_webdriver_bidi_session_settles_a_blocked_request_once)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    Optional<WebDriverBiDiSession> session;
+    session.emplace(Vector<String> { "network.beforeRequestSent"_string }, recording_blocked_requests(blocked));
+    block_each_request_before_it_is_sent();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/blocked-until-the-session-ends"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    run_until_blocked(harness, blocked);
+
+    // The session's end continues the request, which is then sent.
+    session.clear();
+    (void)request_server.wait_for_request("GET"sv);
+    JsonObject params;
+    params.set("request"sv, blocked->request_ids[0]);
+    harness.with_execution_context([&] {
+        auto result = Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params);
+        EXPECT(result.is_error());
+    });
+
+    // A stop after the request was continued settles nothing more.
+    harness.with_execution_context([&] { controller->stop_fetch(); });
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "resolve network interception 1", "stop 1", "end of fetch 1" }));
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /blocked-until-the-session-ends", "stop 0" }));
+}
+
+// The network interceptions that WebDriver BiDi's network events name, as blocking their request or as ended.
+struct NamedInterceptions : RefCounted<NamedInterceptions> {
+    GC_HOLDS_NO_CELL_EDGES;
+
+    Vector<u64> blocking;
+    Vector<u64> ended;
+    Vector<String> blocked_request_ids;
+};
+
+static WebDriverBiDiSession::OnEvent recording_named_interceptions(NonnullRefPtr<NamedInterceptions> const& interceptions)
+{
+    return [interceptions](Web::HTML::Navigable const&, String const&, JsonValue params) {
+        auto const& object = params.as_object();
+        auto interception = object.get_u64(Web::WebDriver::Network::network_interception_parameter);
+        if (object.get_bool("isBlocked"sv).value_or(false)) {
+            interceptions->blocking.append(interception.value());
+            interceptions->blocked_request_ids.append(*object.get_object("request"sv)->get_string("request"sv));
+        } else if (interception.has_value()) {
+            interceptions->ended.append(*interception);
+        }
+    };
+}
+
+TEST_CASE(a_stop_of_one_fetch_of_a_request_leaves_another_of_its_fetches_blocked)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto interceptions = make_ref_counted<NamedInterceptions>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string, "network.fetchError"_string }, recording_named_interceptions(interceptions) };
+    block_each_request_before_it_is_sent();
+
+    auto request = harness.create_request_for("http://127.0.0.1:8000/fetched-twice-at-once"sv);
+    auto blocked_record = make_ref_counted<AlgorithmCalls>();
+    auto blocked_controller = GC::make_root(harness.fetch(request, recording_responses(heap, blocked_record)));
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(interceptions), [](auto& interceptions) { return !interceptions->blocking.is_empty(); }));
+    VERIFY(interceptions->blocking.size() == 1);
+
+    // The request's second fetch shares its WebDriver BiDi id, so it is not blocked again, and is sent.
+    auto stopped_record = make_ref_counted<AlgorithmCalls>();
+    auto stopped_controller = GC::make_root(harness.fetch(request, recording_responses(heap, stopped_record)));
+    (void)request_server.wait_for_request("GET"sv);
+    harness.with_execution_context([&] { stopped_controller->stop_fetch(); });
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    harness.settle();
+
+    // The second fetch's error ends no interception, so the browser keeps routing the first fetch's block.
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "start fetch 2", "resolve network interception 2", "stop 2", "end of fetch 2" }));
+    EXPECT(interceptions->ended.is_empty());
+    EXPECT(blocked_record->responses.is_empty());
+
+    JsonObject params;
+    params.set("request"sv, interceptions->blocked_request_ids[0]);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params).is_error());
+    });
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 200);
+    request_server.send_finished(request_id);
+    harness.run_until_responses(blocked_record, 1);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+}
+
+TEST_CASE(a_stop_of_a_blocked_fetch_ends_its_interception_after_another_fetch_of_its_request_reported_an_error)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto interceptions = make_ref_counted<NamedInterceptions>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string, "network.fetchError"_string }, recording_named_interceptions(interceptions) };
+    block_each_request_before_it_is_sent();
+
+    auto request = harness.create_request_for("http://127.0.0.1:8000/fetched-twice-and-stopped"sv);
+    auto blocked_record = make_ref_counted<AlgorithmCalls>();
+    auto blocked_controller = GC::make_root(harness.fetch(request, recording_responses(heap, blocked_record)));
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(interceptions), [](auto& interceptions) { return !interceptions->blocking.is_empty(); }));
+    VERIFY(interceptions->blocking.size() == 1);
+
+    // The request's second fetch reports the request's error first.
+    auto stopped_record = make_ref_counted<AlgorithmCalls>();
+    auto stopped_controller = GC::make_root(harness.fetch(request, recording_responses(heap, stopped_record)));
+    (void)request_server.wait_for_request("GET"sv);
+    harness.with_execution_context([&] { stopped_controller->stop_fetch(); });
+    harness.run_until_step(commands, "end of fetch 2"sv);
+    EXPECT(interceptions->ended.is_empty());
+
+    // The stop of the fetch that holds the block still ends its interception, so the browser stops routing it.
+    harness.with_execution_context([&] { blocked_controller->stop_fetch(); });
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+    EXPECT_EQ(interceptions->ended, interceptions->blocking);
+    EXPECT(blocked_record->responses.is_empty());
+}
+
+TEST_CASE(a_fetch_of_a_request_that_another_fetch_holds_blocked_goes_on_at_a_later_phase)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string, "network.responseStarted"_string }, recording_blocked_requests(blocked) };
+    auto session_state = Web::WebDriver::BiDi::session_state();
+    session_state.enabled_event_contexts.set("network.beforeRequestSent"_string, {});
+    session_state.enabled_event_contexts.set("network.responseStarted"_string, {});
+    session_state.network_intercepts.append({ .id = "intercept"_string, .url_patterns = {}, .phases = { "beforeRequestSent"_string, "responseStarted"_string }, .browsing_contexts = {} });
+    Web::WebDriver::BiDi::set_session_state(move(session_state));
+
+    auto request = harness.create_request_for("http://127.0.0.1:8000/fetched-twice-at-two-phases"sv);
+    auto blocked_record = make_ref_counted<AlgorithmCalls>();
+    auto blocked_controller = GC::make_root(harness.fetch(request, recording_responses(heap, blocked_record)));
+    run_until_blocked(harness, blocked);
+    auto blocked_request_id = blocked->request_ids[0];
+
+    // The second fetch reaches a phase the session intercepts while the first holds the request blocked.
+    auto other_record = make_ref_counted<AlgorithmCalls>();
+    auto other_controller = GC::make_root(harness.fetch(request, recording_responses(heap, other_record)));
+    auto other_request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(other_request_id, 200);
+    request_server.send_finished(other_request_id);
+    harness.run_until_responses(other_record, 1);
+    harness.run_until_step(commands, "end of fetch 2"sv);
+
+    // The first fetch is still blocked, and goes on once it is continued.
+    JsonObject params;
+    params.set("request"sv, blocked_request_id);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params).is_error());
+    });
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 200);
+    request_server.send_finished(request_id);
+    harness.run_until_responses(blocked_record, 1);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+}
+
+TEST_CASE(a_webdriver_bidi_answer_with_credentials_also_overrides_the_response)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto started = harness.record_started_fetches();
+    StandInRequestServer request_server { harness };
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.authRequired"_string }, recording_blocked_requests(blocked) };
+    auto session_state = Web::WebDriver::BiDi::session_state();
+    session_state.enabled_event_contexts.set("network.authRequired"_string, {});
+    session_state.network_intercepts.append({ .id = "intercept"_string, .url_patterns = {}, .phases = { "authRequired"_string }, .browsing_contexts = {} });
+    Web::WebDriver::BiDi::set_session_state(move(session_state));
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/asks-for-credentials"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto request_id = request_server.wait_for_request("GET"sv);
+    VERIFY(started->fetch_params.size() == 1);
+
+    // The fetch's request reaches the phase with a response that asks for credentials.
+    auto response = Response::create();
+    response->set_status(401);
+    response->header_list()->append({ "WWW-Authenticate"sv, "Basic realm=\"test\""sv });
+    auto continued = make_ref_counted<HandedOverResponses>();
+    VERIFY(Web::Fetch::Fetching::can_wait_at_network_phase(started->fetch_params[0], Web::Fetch::Engine::NetworkPhase::AuthRequired));
+    Web::Fetch::Fetching::wait_at_network_phase(started->fetch_params[0], Web::Fetch::Engine::NetworkPhase::AuthRequired, response, nullptr, [continued](auto const&, RefPtr<Response> continued_response) {
+        continued->responses.append(continued_response.release_nonnull());
+    });
+    run_until_blocked(harness, blocked);
+
+    // One command gives the credentials and replaces the response's headers.
+    auto params = MUST(JsonValue::from_string(R"({"credentials":{"type":"password","username":"user","password":"pass"},"headers":[{"name":"X-Overridden","value":{"type":"string","value":"1"}}]})"sv)).as_object();
+    params.set("request"sv, blocked->request_ids[0]);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueResponse"sv, params).is_error());
+    });
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(continued), [](auto& continued) { return !continued->responses.is_empty(); }));
+    VERIFY(continued->responses.size() == 1);
+
+    EXPECT_EQ(continued->responses[0]->header_list()->get("X-Overridden"sv).value_or({}), "1"sv);
+    EXPECT_EQ(request->header_list()->get("Authorization"sv).value_or({}), "Basic dXNlcjpwYXNz"sv);
+
+    request_server.send_headers(request_id, 200);
+    request_server.send_finished(request_id);
+    harness.run_until_responses(record, 1);
+}
+
+TEST_CASE(a_webdriver_bidi_answer_with_credentials_fetches_the_request_again_with_them)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.authRequired"_string }, recording_blocked_requests(blocked) };
+    auto session_state = Web::WebDriver::BiDi::session_state();
+    session_state.enabled_event_contexts.set("network.authRequired"_string, {});
+    session_state.network_intercepts.append({ .id = "intercept"_string, .url_patterns = {}, .phases = { "authRequired"_string }, .browsing_contexts = {} });
+    Web::WebDriver::BiDi::set_session_state(move(session_state));
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/needs-credentials"sv);
+    request->set_credentials_mode(Request::CredentialsMode::Include);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto first_request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(first_request_id, 401, { { "WWW-Authenticate"sv, "Basic realm=\"test\""sv } });
+    run_until_blocked(harness, blocked);
+
+    auto params = MUST(JsonValue::from_string(R"({"credentials":{"type":"password","username":"user","password":"pass"},"headers":[{"name":"X-Overridden","value":{"type":"string","value":"1"}}]})"sv)).as_object();
+    params.set("request"sv, blocked->request_ids[0]);
+    harness.with_execution_context([&] {
+        EXPECT(!Web::WebDriver::BiDi::continue_network_request("network.continueResponse"sv, params).is_error());
+    });
+
+    // The request goes again with the credentials, and the fetch's response answers that, so the headers that replaced
+    // those of the 401 go with the 401.
+    auto second_request_id = request_server.wait_for_request("GET"sv);
+    EXPECT_EQ(request_server.request_header(second_request_id, "Authorization"sv).value_or({}), "Basic dXNlcjpwYXNz"sv);
+    request_server.send_headers(second_request_id, 200);
+    request_server.send_finished(second_request_id);
+    harness.run_until_responses(record, 1);
+    auto response = record->responses[0]->record()->unsafe_response();
+    EXPECT_EQ(response->status(), 200);
+    EXPECT(!response->header_list()->contains("X-Overridden"sv));
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+}
+
+TEST_CASE(a_cors_preflight_reports_its_network_events_under_a_request_id_of_its_own)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto events = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session {
+        { "network.beforeRequestSent"_string, "network.responseCompleted"_string },
+        [events](Web::HTML::Navigable const&, String const& name, JsonValue params) {
+            auto const& request = *params.as_object().get_object("request"sv);
+            events->names.append(MUST(String::formatted("{} {}", name, *request.get_string("method"sv))));
+            events->request_ids.append(*request.get_string("request"sv));
+        },
+    };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/preflighted-with-events"sv);
+    request->set_mode(Request::Mode::CORS);
+    request->set_use_cors_preflight(true);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto preflight_id = request_server.wait_for_request("OPTIONS"sv);
+    request_server.send_headers(preflight_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 200, { { "Access-Control-Allow-Origin"sv, "*"sv } });
+    request_server.send_finished(request_id);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(request), [](auto& request) { return request->done(); }));
+
+    EXPECT_EQ(events->names, (Vector<String> { "network.beforeRequestSent OPTIONS"_string, "network.responseCompleted OPTIONS"_string, "network.beforeRequestSent GET"_string, "network.responseCompleted GET"_string }));
+    VERIFY(events->request_ids.size() == 4);
+    EXPECT_EQ(events->request_ids[1], events->request_ids[0]);
+    EXPECT_EQ(events->request_ids[3], events->request_ids[2]);
+    EXPECT_NE(events->request_ids[2], events->request_ids[0]);
+}
+
+TEST_CASE(a_stop_of_a_fetch_whose_request_is_done_reports_nothing_to_webdriver_bidi)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request();
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    harness.run_tasks_until(GC::create_function(harness.realm->heap(), GC::captures(request), [](auto& request) { return request->done(); }));
+
+    // A session that starts after the fetch hears nothing of the fetch's stop.
+    auto events = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session {
+        { "network.beforeRequestSent"_string, "network.fetchError"_string },
+        [events](Web::HTML::Navigable const&, String const& name, JsonValue) { events->names.append(name); },
+    };
+    harness.with_execution_context([&] {
+        controller->abort(*harness.realm, {});
+        controller->stop_fetch();
+    });
+    harness.settle();
+    EXPECT(events->names.is_empty());
+}
+
+TEST_CASE(a_network_interception_is_offered_and_answered_on_a_thread_that_forbids_heap_access)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto& registry = Web::HTML::surrounding_agent().fetch_controller_registry;
+    auto controller = GC::make_root(FetchController::create(registry));
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto token = controller->token();
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto weak_registry = registry.make_weak_ptr();
+    IGNORE_USE_IN_ESCAPING_LAMBDA Vector<ByteString> continued;
+
+    auto thread = Threading::Thread::construct("FetchEngine"sv, [&]() -> intptr_t {
+        GC::forbid_heap_access_on_this_thread();
+        Web::Fetch::Engine::FetchEngineRecords records { make<Web::Fetch::Engine::FetchEngineRecords::Agent>() };
+        auto observers = Web::Fetch::Engine::NetworkActivityObservers::create();
+        observers->set_fetch_observation(true, Vector { Web::Fetch::Engine::NetworkPhase::BeforeRequestSent, Web::Fetch::Engine::NetworkPhase::ResponseStarted });
+        auto offered = make_ref_counted<OfferedInterceptions>();
+        auto record = records.start(Web::Fetch::Engine::FetchId { 1 }, make<InterceptionRecordingEventSink>(offered), observers).release_nonnull();
+
+        auto request = Request::create();
+        request->set_url(URL::Parser::basic_parse("https://example.com/"sv).release_value());
+        auto fetch_params = FetchParams::create(token, weak_registry, Web::Fetch::Infrastructure::FetchControlBlock::create(), request, Web::Fetch::Infrastructure::FetchTimingInfo::create(), Web::current_loader_config());
+        fetch_params->set_engine_record(record);
+
+        VERIFY(Web::Fetch::Fetching::can_wait_at_network_phase(fetch_params, Web::Fetch::Engine::NetworkPhase::BeforeRequestSent));
+        Web::Fetch::Fetching::wait_at_network_phase(fetch_params, Web::Fetch::Engine::NetworkPhase::BeforeRequestSent, nullptr, request, [&](auto const&, RefPtr<Response>) {
+            continued.append(request->header_list()->get("X-Intercepted"sv).value_or({}));
+        });
+        VERIFY(offered->ids.size() == 1);
+        Web::Fetch::Engine::ModifyRequest modified_request;
+        modified_request.headers = Vector<HTTP::Header> { { "X-Intercepted"sv, "1"sv } };
+        records.resolve_network_interception({ .fetch_id = Web::Fetch::Engine::FetchId { 1 }, .continuation_id = offered->ids[0], .decision = move(modified_request) });
+
+        auto response = Response::create();
+        response->set_status(200);
+        VERIFY(Web::Fetch::Fetching::can_wait_at_network_phase(fetch_params, Web::Fetch::Engine::NetworkPhase::ResponseStarted));
+        Web::Fetch::Fetching::wait_at_network_phase(fetch_params, Web::Fetch::Engine::NetworkPhase::ResponseStarted, response, nullptr, [&](auto const&, RefPtr<Response> continued_response) {
+            continued.append(ByteString::number(continued_response->status()));
+        });
+        VERIFY(offered->ids.size() == 2);
+        Web::Fetch::Engine::ModifyResponse modified_response;
+        modified_response.status = 204;
+        records.resolve_network_interception({ .fetch_id = Web::Fetch::Engine::FetchId { 1 }, .continuation_id = offered->ids[1], .decision = move(modified_response) });
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+
+    EXPECT_EQ(continued, (Vector<ByteString> { "1", "204" }));
 }
 
 static JS::Value run_script(FetchHarness const& harness, StringView source)
@@ -2181,12 +2610,12 @@ static GC::Ref<Web::DOM::Document> create_document_of_page(Web::Page& page)
 }
 
 // One of each network activity, of the RequestServer request with the id.
-static Vector<NetworkActivity> each_network_activity(u64 request_id)
+static Vector<TransportActivity> each_network_activity(u64 request_id)
 {
-    Vector<NetworkActivity> activities;
+    Vector<TransportActivity> activities;
     activities.append({
         .request_id = Web::Fetch::Engine::RequestId { request_id },
-        .activity = NetworkActivity::RequestStarted {
+        .activity = TransportActivity::RequestStarted {
             .url = URL::Parser::basic_parse("https://example.com/upload"sv).release_value(),
             .method = "POST",
             .headers = { { "Accept"sv, "*/*"sv } },
@@ -2199,7 +2628,7 @@ static Vector<NetworkActivity> each_network_activity(u64 request_id)
     });
     activities.append({
         .request_id = Web::Fetch::Engine::RequestId { request_id },
-        .activity = NetworkActivity::ResponseHeaders {
+        .activity = TransportActivity::ResponseHeaders {
             .status_code = 200,
             .reason_phrase = "OK"_string,
             .headers = { { "Content-Type"sv, "text/plain"sv } },
@@ -2208,11 +2637,11 @@ static Vector<NetworkActivity> each_network_activity(u64 request_id)
     });
     activities.append({
         .request_id = Web::Fetch::Engine::RequestId { request_id },
-        .activity = NetworkActivity::ResponseBodyBytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("world"sv.bytes()))) },
+        .activity = TransportActivity::ResponseBodyBytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("world"sv.bytes()))) },
     });
     activities.append({
         .request_id = Web::Fetch::Engine::RequestId { request_id },
-        .activity = NetworkActivity::RequestFinished {
+        .activity = TransportActivity::RequestFinished {
             .total_size = 5,
             .timing_info = { .encoded_body_size = 5 },
             .network_error = Requests::NetworkError::IncompleteContent,
@@ -2306,11 +2735,12 @@ TEST_CASE(a_fetch_reads_the_network_activity_observers_of_its_agent)
     FetchHarness harness;
 
     auto& heap = harness.realm->heap();
+    auto started = harness.record_fetches_started_on_the_agents_executor();
     auto request = harness.create_request();
-    auto controller = harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
-    auto fetch_params = controller->original_fetch_params();
-    VERIFY(fetch_params);
+    (void)harness.fetch(request, FetchAlgorithms::Input { Web::Fetch::Engine::BodyIntent::DrainAndDiscard });
     harness.run_tasks_until(GC::create_function(heap, GC::captures(request), [](auto& request) { return request->done(); }));
+    VERIFY(started->fetch_params.size() == 1);
+    auto fetch_params = started->fetch_params.take_first();
 
     auto& agent = Web::HTML::surrounding_agent();
     VERIFY(fetch_params->engine_record());
@@ -2564,6 +2994,7 @@ TEST_CASE(the_next_response_of_a_manual_redirect_takes_the_end_time_last_set_for
     Core::EventLoop event_loop;
     install_font_plugin();
     FetchHarness harness;
+    auto started = harness.record_started_fetches();
     StandInRequestServer request_server { harness };
     WebDriverBiDiSession session { { "network.responseCompleted"_string }, [](Web::HTML::Navigable const&, String const&, JsonValue) { } };
 
@@ -2597,9 +3028,8 @@ TEST_CASE(the_next_response_of_a_manual_redirect_takes_the_end_time_last_set_for
     VERIFY(final_timing_info);
     EXPECT_NE(final_timing_info.ptr(), redirect_timing_info.ptr());
     EXPECT_EQ(final_timing_info->end_time(), redirect_end_time);
-    auto fetch_params = controller->original_fetch_params();
-    VERIFY(fetch_params);
-    auto const& engine_timing_info = *fetch_params->timing_info();
+    VERIFY(started->fetch_params.size() == 1);
+    auto const& engine_timing_info = *started->fetch_params[0]->timing_info();
     EXPECT_NE(engine_timing_info.redirect_end_time(), redirect_timing_info->redirect_end_time());
     EXPECT_EQ(final_timing_info->redirect_start_time(), engine_timing_info.redirect_start_time());
     EXPECT_EQ(final_timing_info->redirect_end_time(), engine_timing_info.redirect_end_time());

@@ -10,6 +10,9 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
+#include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
+#include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
 using namespace Web::Fetch::Engine;
 
@@ -164,9 +167,9 @@ TEST_CASE(events_round_trip_their_payloads)
     events.append(Event::RequestBodyEndOfBody { .body_is_null = true });
     events.append(Event::ReadRequestBodyStream {});
     events.append(Event::RequestBodySentFromSource {});
-    events.append(Event::NetworkActivity {
+    events.append(Event::TransportActivity {
         .request_id = RequestId(8),
-        .activity = Event::NetworkActivity::RequestStarted {
+        .activity = Event::TransportActivity::RequestStarted {
             .url = URL::Parser::basic_parse("https://example.com/upload"sv).release_value(),
             .method = "POST",
             .headers = { { "Accept"sv, "*/*"sv } },
@@ -177,22 +180,22 @@ TEST_CASE(events_round_trip_their_payloads)
             .priority = Web::Fetch::Infrastructure::RequestPriority::High,
         },
     });
-    events.append(Event::NetworkActivity {
+    events.append(Event::TransportActivity {
         .request_id = RequestId(9),
-        .activity = Event::NetworkActivity::ResponseHeaders {
+        .activity = Event::TransportActivity::ResponseHeaders {
             .status_code = 203,
             .reason_phrase = "Non-Authoritative"_string,
             .headers = { { "Content-Type"sv, "text/plain"sv } },
             .cache_state = Requests::CacheState::Validated,
         },
     });
-    events.append(Event::NetworkActivity {
+    events.append(Event::TransportActivity {
         .request_id = RequestId(10),
-        .activity = Event::NetworkActivity::ResponseBodyBytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("response"sv.bytes()))) },
+        .activity = Event::TransportActivity::ResponseBodyBytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("response"sv.bytes()))) },
     });
-    events.append(Event::NetworkActivity {
+    events.append(Event::TransportActivity {
         .request_id = RequestId(11),
-        .activity = Event::NetworkActivity::RequestFinished {
+        .activity = Event::TransportActivity::RequestFinished {
             .total_size = 8,
             .timing_info = { .request_start_microseconds = 40, .encoded_body_size = 8 },
             .network_error = Requests::NetworkError::IncompleteContent,
@@ -219,6 +222,7 @@ TEST_CASE(events_round_trip_their_payloads)
         Web::Fetch::Infrastructure::ConnectionTimingInfo observed_connection_timing_info;
         observed_connection_timing_info.domain_lookup_start_time = 6;
         events.append(Event::FetchNetworkActivity {
+            .cors_preflight_id = CorsPreflightId(12),
             .request = {
                 .url = URL::Parser::basic_parse("https://example.com/observed"sv).release_value(),
                 .method = "PATCH",
@@ -319,9 +323,9 @@ TEST_CASE(events_round_trip_their_payloads)
             },
             [&](Event::ReadRequestBodyStream const&) { seen_request_body_events.append("read stream"sv); },
             [&](Event::RequestBodySentFromSource const&) { seen_request_body_events.append("sent from source"sv); },
-            [&](Event::NetworkActivity const& network_activity) {
+            [&](Event::TransportActivity const& network_activity) {
                 network_activity.activity.visit(
-                    [&](Event::NetworkActivity::RequestStarted const& started) {
+                    [&](Event::TransportActivity::RequestStarted const& started) {
                         EXPECT_EQ(started.url.serialize(), "https://example.com/upload"sv);
                         EXPECT_EQ(started.method, "POST"sv);
                         VERIFY(started.headers.size() == 1);
@@ -333,17 +337,17 @@ TEST_CASE(events_round_trip_their_payloads)
                         EXPECT(started.is_navigation_request);
                         EXPECT_EQ(started.priority, Web::Fetch::Infrastructure::RequestPriority::High);
                     },
-                    [&](Event::NetworkActivity::ResponseHeaders const& headers) {
+                    [&](Event::TransportActivity::ResponseHeaders const& headers) {
                         EXPECT_EQ(headers.status_code, 203u);
                         EXPECT_EQ(headers.reason_phrase, "Non-Authoritative"sv);
                         VERIFY(headers.headers.size() == 1);
                         EXPECT_EQ(headers.headers[0].value, "text/plain"sv);
                         EXPECT_EQ(headers.cache_state, Requests::CacheState::Validated);
                     },
-                    [&](Event::NetworkActivity::ResponseBodyBytes const& body_bytes) {
+                    [&](Event::TransportActivity::ResponseBodyBytes const& body_bytes) {
                         EXPECT_EQ(body_bytes.bytes.bytes(), "response"sv.bytes());
                     },
-                    [&](Event::NetworkActivity::RequestFinished const& finished) {
+                    [&](Event::TransportActivity::RequestFinished const& finished) {
                         EXPECT_EQ(finished.total_size, 8u);
                         EXPECT_EQ(finished.timing_info.request_start_microseconds, 40);
                         EXPECT_EQ(finished.timing_info.encoded_body_size, 8);
@@ -352,6 +356,7 @@ TEST_CASE(events_round_trip_their_payloads)
                 seen_network_request_ids.append(network_activity.request_id.value());
             },
             [&](Event::FetchNetworkActivity const& activity) {
+                EXPECT_EQ(activity.cors_preflight_id, CorsPreflightId(12));
                 auto const& request = activity.request;
                 EXPECT_EQ(request.url.serialize(), "https://example.com/observed"sv);
                 EXPECT_EQ(request.method, "PATCH"sv);
@@ -420,4 +425,29 @@ TEST_CASE(events_round_trip_their_payloads)
     EXPECT_EQ(seen_network_request_ids, (Vector<u64> { 8, 9, 10, 11 }));
     EXPECT_EQ(seen_fetch_activities, (Vector<StringView> { "before request sent"sv, "response started"sv, "auth required"sv, "request updated"sv, "response completed"sv, "failed"sv }));
     EXPECT_EQ(seen_interceptions, (Vector<u64> { 20, 21 }));
+}
+
+TEST_CASE(an_observed_request_keeps_the_headers_and_timing_it_was_made_with)
+{
+    auto request = Web::Fetch::Infrastructure::Request::create();
+    request->set_url(URL::Parser::basic_parse("https://example.com/observed"sv).release_value());
+    request->header_list()->append({ "X-Observed"sv, "before"sv });
+    auto timing_info = Web::Fetch::Infrastructure::FetchTimingInfo::create();
+    timing_info->set_start_time(1);
+    timing_info->set_network_phases({ .final_connection_timing_info = {}, .final_network_request_start_time = 2, .final_network_response_start_time = 3 });
+
+    auto observed = Web::Fetch::Fetching::observed_request(request, timing_info);
+    request->header_list()->set({ "X-Observed"sv, "after"sv });
+    request->set_url(URL::Parser::basic_parse("https://example.com/changed"sv).release_value());
+    timing_info->set_start_time(4);
+    timing_info->set_network_phases({ .final_connection_timing_info = {}, .final_network_request_start_time = 5, .final_network_response_start_time = 6 });
+
+    EXPECT_NE(observed.headers.data(), request->header_list()->headers().data());
+    VERIFY(observed.headers.size() == 1);
+    EXPECT_EQ(observed.headers[0].value, "before"sv);
+    EXPECT_EQ(observed.url.serialize(), "https://example.com/observed"sv);
+    EXPECT_EQ(observed.timing_seed.start_time, 1);
+    VERIFY(observed.network_phases.has_value());
+    EXPECT_EQ(observed.network_phases->final_network_request_start_time, 2);
+    EXPECT_EQ(observed.network_phases->final_network_response_start_time, 3);
 }

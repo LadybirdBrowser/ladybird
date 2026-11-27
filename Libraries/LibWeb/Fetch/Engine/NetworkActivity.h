@@ -27,7 +27,7 @@
 namespace Web::Fetch::Engine::Event {
 
 // What happened to one of a fetch's RequestServer requests, as DevTools reads it.
-struct NetworkActivity {
+struct TransportActivity {
     struct RequestStarted {
         URL::URL url;
         ByteString method;
@@ -128,6 +128,8 @@ struct FetchNetworkActivity {
             [](auto&) { VERIFY_NOT_REACHED(); });
     }
 
+    // The CORS preflight whose request this is, or none for the fetch's own request.
+    Optional<CorsPreflightId> cors_preflight_id;
     ObservedRequest request;
     Activity activity;
 };
