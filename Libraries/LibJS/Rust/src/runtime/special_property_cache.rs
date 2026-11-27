@@ -109,11 +109,18 @@ define_cell!(SpecialPropertyCache, Other);
 // SAFETY: Visits the values and the string the cache knows, and the validity it watches.
 unsafe impl Trace for SpecialPropertyCache {
     fn trace(&self, visitor: &mut Visitor) {
-        self.watched_prototype_chain_validity.trace(visitor);
-        for value in &self.values {
-            value.trace(visitor);
+        // NB: The fields are visited as slots, so that a collection that moves their cells rewrites them here rather
+        //     than keeping the cells where they are.
+        // SAFETY: Only the cache's own methods write the fields, which neither finalizers nor sweep callbacks call. A
+        //         Cell<Value> has the layout of a Value.
+        unsafe {
+            visitor.visit_owned_cell_option(&self.watched_prototype_chain_validity);
+            visitor.visit_owned_values(ak::slice_from_raw_parts(
+                self.values.as_ptr().cast::<Value>(),
+                self.values.len(),
+            ));
+            visitor.visit_owned_cell_option(&self.object_to_string);
         }
-        self.object_to_string.trace(visitor);
     }
 }
 
