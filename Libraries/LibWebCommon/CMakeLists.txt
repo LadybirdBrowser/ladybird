@@ -31,6 +31,7 @@ set(SOURCES
     HTML/PostedMessageDescriptor.cpp
     HTML/POSTResource.cpp
     HTML/PreparedNavigationDescriptor.cpp
+    HTML/RegistrableDomainSuffix.cpp
     HTML/ReplicatedNavigableState.cpp
     HTML/SameDocumentNavigationEntry.cpp
     HTML/SandboxingFlagSet.cpp
