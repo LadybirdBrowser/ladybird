@@ -3257,7 +3257,9 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
             return;
 
         if (network_transport && control_block->is_ongoing() && engine_record->network_activity_observers().has_devtools_client()) {
-            Engine::Event::TransportActivity::ResponseBodyBytes body_bytes { MUST(Core::ImmutableBytes::copy(data.bytes())) };
+            auto const* file_backed_slice = data.file_backed_slice();
+            auto bytes = file_backed_slice ? file_backed_slice->slice : MUST(Core::ImmutableBytes::copy(data.bytes()));
+            Engine::Event::TransportActivity::ResponseBodyBytes body_bytes { move(bytes) };
             engine_record->report_network_activity(network_transport->request_id(), move(body_bytes));
         }
 
