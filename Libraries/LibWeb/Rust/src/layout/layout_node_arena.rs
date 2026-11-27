@@ -5577,7 +5577,7 @@ impl LayoutNodeArena {
         );
         self.paintable_rows
             .with_committed_fragment_link(node.slot_index(), node.generation(), |link| {
-                link.and_then(|link| link.placement.abspos_layout_inputs.as_deref().copied())
+                link.and_then(|link| link.placement.abspos_layout_inputs().map(|inputs| **inputs))
             })
             .or_else(|| self.confined_abspos_layout_inputs.get(&node).copied())
     }
@@ -8261,7 +8261,8 @@ mod tests {
         let allocation = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
-        link.placement.abspos_layout_inputs = Some(std::sync::Arc::new(inputs));
+        link.placement
+            .set_abspos_layout_inputs(Some(std::sync::Arc::new(inputs)));
         arena.set_committed_fragment_link(allocation.slot, link, None);
         assert!(arena.committed_fragment_link(allocation.slot).is_some());
         assert_eq!(arena.saved_abspos_layout_inputs(allocation.slot), Some(inputs));
@@ -8287,7 +8288,8 @@ mod tests {
         let new = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(old.slot);
-        link.placement.abspos_layout_inputs = Some(std::sync::Arc::new(inputs));
+        link.placement
+            .set_abspos_layout_inputs(Some(std::sync::Arc::new(inputs)));
         let retained_fragment = link.fragment.clone();
         arena.set_committed_fragment_link(old.slot, link, None);
 

@@ -258,11 +258,7 @@ impl RootInputCells {
         frame: geometry::Frame,
     ) {
         let sides = link.fragment.sides.in_frame(geometry::Frame::PHYSICAL, frame);
-        let margins = link
-            .placement
-            .shown_as
-            .margins
-            .in_frame(geometry::Frame::PHYSICAL, frame);
+        let margins = link.placement.margins().in_frame(geometry::Frame::PHYSICAL, frame);
         self.set_content_inline_size(sides.content_size.width);
         self.set_content_block_size(sides.content_size.height);
         self.margin_left = margins.left;

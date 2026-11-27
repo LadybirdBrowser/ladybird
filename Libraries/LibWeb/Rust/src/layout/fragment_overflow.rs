@@ -399,7 +399,7 @@ pub(crate) fn scrollable_overflow_of<'link>(
         if child_position == positioning::FIXED {
             continue;
         }
-        if link.placement.shown_as.facts.is_invisible_for_line_clamp
+        if link.placement.is_invisible_for_line_clamp()
             && !hidden_content_is_scrollable_overflow(arena, fragment, child_node)
         {
             continue;
@@ -431,7 +431,7 @@ pub(crate) fn scrollable_overflow_of<'link>(
         if box_is_scroll_container && (child_is_in_flow || child_is_floating) {
             let mut normal_flow_border_box = untransformed_child_border_box;
             if child_position == positioning::RELATIVE {
-                let inset = link.placement.insets;
+                let inset = link.placement.insets();
                 normal_flow_border_box = normal_flow_border_box.translated(-inset.left, -inset.top);
             }
             // INTEROP: The edges of in-flow and floated content, after which the container's end padding comes,
@@ -466,15 +466,14 @@ pub(crate) fn scrollable_overflow_of<'link>(
                     //     what that flow collapsed there, not the box's own: The margins of the box's contents that
                     //     collapse through its block end count too, and those that collapse through the box itself
                     //     count once.
-                    let [top, right, bottom, left] =
-                        match link.placement.shown_as.facts.block_end_margin_collapsed_in_flow {
-                            Some(block_end_margin) => {
-                                let mut margins = [top, right, bottom, left];
-                                margins[container_frame.physical_side(Side::Bottom) as usize] = block_end_margin;
-                                margins
-                            }
-                            None => [top, right, bottom, left],
-                        };
+                    let [top, right, bottom, left] = match link.placement.block_end_margin_collapsed_in_flow() {
+                        Some(block_end_margin) => {
+                            let mut margins = [top, right, bottom, left];
+                            margins[container_frame.physical_side(Side::Bottom) as usize] = block_end_margin;
+                            margins
+                        }
+                        None => [top, right, bottom, left],
+                    };
                     let (left, right) = if overflow_directions.horizontal_axis_is_positive {
                         (left.max(zero), right.max(-border_box.width))
                     } else {

@@ -412,20 +412,182 @@ pub(crate) struct ShownAs {
 }
 
 /// Where and how a link places its fragment, apart from its offset. Its insets and margins are physical.
-#[derive(Clone, PartialEq)]
+///
+/// OPTIMIZATION: A fragment holds a link for each of its children, and each box's row holds the link it committed, so
+///               a link holds only what many boxes have: margins, a containing block, the block-end margin that
+///               collapsed through, and a place on a line box. What few boxes have is boxed: see
+///               [`RareLinkPlacement`].
+#[derive(Clone)]
 pub(crate) struct LinkPlacement {
-    pub(crate) insets: geometry::Sides,
-    pub(crate) shown_as: ShownAs,
-    pub(crate) containing_line_box_index: Option<u32>,
-    /// Shared, as few links place an absolutely positioned box, the inputs are larger than the rest of the link, and
-    /// layout run cache entries keep copies of links.
-    pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
-    /// The default scroll shift of a box whose anchor insets its layout resolved, which commit records for the box.
-    pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
+    margins: geometry::Sides,
+    block_end_margin_collapsed_in_flow: Option<CssPixels>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
+    /// The index of the line box the box is on, or [`NOT_ON_A_LINE_BOX`]: every box of a document of inline-level
+    /// boxes has one.
+    containing_line_box_index: u32,
+    rare: Option<Box<RareLinkPlacement>>,
+}
+
+const NOT_ON_A_LINE_BOX: u32 = u32::MAX;
+
+/// The parts of a [`LinkPlacement`] that few boxes have any of: insets (a relatively positioned or sticky box), what a
+/// table or a line clamp decided about how the box shows, and what the layout of an absolutely positioned box read.
+#[derive(Clone, Default, PartialEq)]
+struct RareLinkPlacement {
+    insets: geometry::Sides,
+    table_column_index: u32,
+    table_column_span: u32,
+    hidden_by_collapsed_columns: bool,
+    is_invisible_for_line_clamp: bool,
+    clip_decided_by_parent: Option<CssPixelRect>,
+    /// Shared, as the inputs are larger than the rest of the link, and layout run cache entries keep copies of links.
+    abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
+    /// The default scroll shift of a box whose anchor insets its layout resolved, which commit records for the box.
+    default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
+}
+
+const _: () = assert!(size_of::<FragmentLink>() == 56);
+
+impl PartialEq for LinkPlacement {
+    fn eq(&self, other: &Self) -> bool {
+        self.margins == other.margins
+            && self.block_end_margin_collapsed_in_flow == other.block_end_margin_collapsed_in_flow
+            && self.containing_block == other.containing_block
+            && self.containing_line_box_index == other.containing_line_box_index
+            && match (&self.rare, &other.rare) {
+                (None, None) => true,
+                (Some(rare), Some(other_rare)) => rare == other_rare,
+                // NB: A placement that was given a rare part and then lost it again keeps the box.
+                (Some(rare), None) | (None, Some(rare)) => **rare == RareLinkPlacement::default(),
+            }
+    }
 }
 
 impl LinkPlacement {
+    pub(crate) fn new(
+        insets: geometry::Sides,
+        shown_as: ShownAs,
+        containing_line_box_index: Option<u32>,
+        abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
+        default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
+        containing_block: crate::layout::node_data::NodeSlotId,
+    ) -> Self {
+        let rare = RareLinkPlacement {
+            insets,
+            table_column_index: shown_as.facts.table_column_index,
+            table_column_span: shown_as.facts.table_column_span,
+            hidden_by_collapsed_columns: shown_as.facts.hidden_by_collapsed_columns,
+            is_invisible_for_line_clamp: shown_as.facts.is_invisible_for_line_clamp,
+            clip_decided_by_parent: shown_as.facts.clip_decided_by_parent,
+            abspos_layout_inputs,
+            default_scroll_shift,
+        };
+        Self {
+            margins: shown_as.margins,
+            block_end_margin_collapsed_in_flow: shown_as.facts.block_end_margin_collapsed_in_flow,
+            containing_block,
+            containing_line_box_index: containing_line_box_index.unwrap_or(NOT_ON_A_LINE_BOX),
+            rare: (rare != RareLinkPlacement::default()).then(|| Box::new(rare)),
+        }
+    }
+
+    /// The placement of a box nothing placed.
+    #[cfg(test)]
+    pub(crate) fn unplaced() -> Self {
+        Self {
+            margins: geometry::Sides::default(),
+            block_end_margin_collapsed_in_flow: None,
+            containing_block: crate::layout::node_data::NodeSlotId::INVALID,
+            containing_line_box_index: NOT_ON_A_LINE_BOX,
+            rare: None,
+        }
+    }
+
+    fn rare_mut(&mut self) -> &mut RareLinkPlacement {
+        self.rare.get_or_insert_with(Box::default)
+    }
+
+    pub(crate) fn margins(&self) -> geometry::Sides {
+        self.margins
+    }
+
+    pub(crate) fn insets(&self) -> geometry::Sides {
+        self.rare
+            .as_ref()
+            .map_or_else(geometry::Sides::default, |rare| rare.insets)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_insets(&mut self, insets: geometry::Sides) {
+        self.rare_mut().insets = insets;
+    }
+
+    /// What the parent decided about how the box shows.
+    pub(crate) fn show_facts(&self) -> ParentShowFacts {
+        let rare = self.rare.as_deref();
+        ParentShowFacts {
+            table_column_index: rare.map_or(0, |rare| rare.table_column_index),
+            table_column_span: rare.map_or(0, |rare| rare.table_column_span),
+            hidden_by_collapsed_columns: rare.is_some_and(|rare| rare.hidden_by_collapsed_columns),
+            is_invisible_for_line_clamp: rare.is_some_and(|rare| rare.is_invisible_for_line_clamp),
+            clip_decided_by_parent: rare.and_then(|rare| rare.clip_decided_by_parent),
+            block_end_margin_collapsed_in_flow: self.block_end_margin_collapsed_in_flow,
+        }
+    }
+
+    pub(crate) fn shown_as(&self) -> ShownAs {
+        ShownAs {
+            margins: self.margins,
+            facts: self.show_facts(),
+        }
+    }
+
+    pub(crate) fn is_invisible_for_line_clamp(&self) -> bool {
+        self.rare.as_ref().is_some_and(|rare| rare.is_invisible_for_line_clamp)
+    }
+
+    pub(crate) fn hidden_by_collapsed_columns(&self) -> bool {
+        self.rare.as_ref().is_some_and(|rare| rare.hidden_by_collapsed_columns)
+    }
+
+    pub(crate) fn clip_decided_by_parent(&self) -> Option<CssPixelRect> {
+        self.rare.as_ref().and_then(|rare| rare.clip_decided_by_parent)
+    }
+
+    pub(crate) fn set_clip_decided_by_parent(&mut self, clip: Option<CssPixelRect>) {
+        if clip.is_some() || self.rare.is_some() {
+            self.rare_mut().clip_decided_by_parent = clip;
+        }
+    }
+
+    pub(crate) fn block_end_margin_collapsed_in_flow(&self) -> Option<CssPixels> {
+        self.block_end_margin_collapsed_in_flow
+    }
+
+    pub(crate) fn containing_line_box_index(&self) -> Option<u32> {
+        (self.containing_line_box_index != NOT_ON_A_LINE_BOX).then_some(self.containing_line_box_index)
+    }
+
+    pub(crate) fn containing_line_box_index_mut(&mut self) -> Option<&mut u32> {
+        (self.containing_line_box_index != NOT_ON_A_LINE_BOX).then_some(&mut self.containing_line_box_index)
+    }
+
+    pub(crate) fn abspos_layout_inputs(&self) -> Option<&std::sync::Arc<abspos_inputs::AbsposLayoutInputs>> {
+        self.rare.as_ref().and_then(|rare| rare.abspos_layout_inputs.as_ref())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_abspos_layout_inputs(
+        &mut self,
+        inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
+    ) {
+        self.rare_mut().abspos_layout_inputs = inputs;
+    }
+
+    pub(crate) fn default_scroll_shift(&self) -> Option<abspos_inputs::DefaultScrollShift> {
+        self.rare.as_ref().and_then(|rare| rare.default_scroll_shift)
+    }
+
     /// The placement of a box that `facts` and `cells` describe in `frame`.
     fn of_box(
         facts: &run_state::FactsDecidedByParent,
@@ -435,27 +597,27 @@ impl LinkPlacement {
         frame: geometry::Frame,
     ) -> Self {
         let insets = facts.used_insets;
-        Self {
-            insets: geometry::Sides {
+        Self::new(
+            geometry::Sides {
                 top: insets.top,
                 right: insets.right,
                 bottom: insets.bottom,
                 left: insets.left,
             }
             .in_frame(frame, geometry::Frame::PHYSICAL),
-            shown_as: ShownAs {
+            ShownAs {
                 margins: cells.margins().in_frame(frame, geometry::Frame::PHYSICAL),
                 facts: facts.fragment_facts.show,
             },
             containing_line_box_index,
             abspos_layout_inputs,
-            default_scroll_shift: facts.default_scroll_shift,
-            containing_block: facts
+            facts.default_scroll_shift,
+            facts
                 .placement
                 .map_or(crate::layout::node_data::NodeSlotId::INVALID, |placement| {
                     placement.containing_block
                 }),
-        }
+        )
     }
 }
 
@@ -751,14 +913,7 @@ impl FragmentLink {
                 children: Vec::new(),
             }),
             offset: Default::default(),
-            placement: LinkPlacement {
-                insets: geometry::Sides::default(),
-                shown_as: ShownAs::default(),
-                containing_line_box_index: None,
-                abspos_layout_inputs: None,
-                default_scroll_shift: None,
-                containing_block: crate::layout::node_data::NodeSlotId::INVALID,
-            },
+            placement: LinkPlacement::unplaced(),
         }
     }
 
@@ -821,7 +976,8 @@ impl FragmentLink {
             child_placements_changed: new_fragment_differs_in(Fragment::has_same_child_placements),
             offset_changed: previous.is_none_or(|previous| previous.offset != self.offset),
             placement_changed: previous.is_none_or(|previous| !self.has_same_placement(previous)),
-            shown_as_changed: previous.is_none_or(|previous| previous.placement.shown_as != self.placement.shown_as),
+            shown_as_changed: previous
+                .is_none_or(|previous| previous.placement.shown_as() != self.placement.shown_as()),
             content_size_change: (previous_content_size != content_size)
                 .then_some((previous_content_size, content_size)),
             scrollable_overflow_changed: previous_scrollable_overflow != fragment.scrollable_overflow,
@@ -2213,7 +2369,7 @@ impl RunFragmentBuilder {
         for mut link in contents.scoped_descendants {
             link.offset_in_frame = formatting_context::point_add(link.offset_in_frame, offset);
             if link.placement.containing_block == self.root_node
-                && let Some(line_index) = link.placement.containing_line_box_index.as_mut()
+                && let Some(line_index) = link.placement.containing_line_box_index_mut()
             {
                 *line_index += u32::try_from(root_line_index_offset).expect("a line box index fits in 32 bits");
             }

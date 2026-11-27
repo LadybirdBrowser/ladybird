@@ -430,26 +430,32 @@ mod tests {
         let node = arena.allocate_for_test().slot;
         arena.populate_paintable_row(node);
         let mut link = fragment_tree::FragmentLink::for_test(node);
-        link.placement.insets.left = CssPixels::from_integer(10);
+        link.placement.set_insets(crate::layout::geometry::Sides {
+            left: CssPixels::from_integer(10),
+            ..Default::default()
+        });
         arena.set_committed_fragment_link(node, link.clone(), None);
         arena.paintable_rows_mut().paintable_data_mut(node).node_identity = 10;
         arena.committed_side_data_mut(node).inline_content = Some(Default::default());
 
         let published = arena.publish_rows();
-        link.placement.insets.left = CssPixels::from_integer(20);
+        link.placement.set_insets(crate::layout::geometry::Sides {
+            left: CssPixels::from_integer(20),
+            ..Default::default()
+        });
         arena.set_committed_fragment_link(node, link, None);
         arena.paintable_rows_mut().paintable_data_mut(node).node_identity = 20;
         arena.committed_side_data_mut(node).inline_content = None;
 
         assert_eq!(published.paintable_data(node).node_identity, 10);
         assert_eq!(
-            published.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.left)),
+            published.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets().left)),
             Some(CssPixels::from_integer(10))
         );
         assert!(published.committed_side_data(node).inline_content.is_some());
         assert_eq!(arena.live_paintable_data(node).node_identity, 20);
         assert_eq!(
-            arena.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.left)),
+            arena.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets().left)),
             Some(CssPixels::from_integer(20))
         );
         assert!(arena.committed_side_data(node).inline_content.is_none());
@@ -483,7 +489,10 @@ mod tests {
             arena.paintable_rows_mut().paintable_data_mut(node).node_identity = index as i64;
             if index % 2 == 0 {
                 let mut link = fragment_tree::FragmentLink::for_test(node);
-                link.placement.insets.top = CssPixels::from_integer(index as i64);
+                link.placement.set_insets(crate::layout::geometry::Sides {
+                    top: CssPixels::from_integer(index as i64),
+                    ..Default::default()
+                });
                 arena.set_committed_fragment_link(node, link, None);
             }
         }
@@ -537,8 +546,8 @@ mod tests {
             }
             assert_eq!(source.paintable_data(node), arena.live_paintable_data(node));
             assert_eq!(
-                source.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.top)),
-                arena.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets.top))
+                source.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets().top)),
+                arena.with_committed_fragment_link(node, |link| link.map(|link| link.placement.insets().top))
             );
             assert!(*source.committed_side_data(node) == *arena.committed_side_data(node));
             assert_eq!(source.paint_change_stamps(node), arena.paint_change_stamps(node));

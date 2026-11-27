@@ -296,7 +296,7 @@ impl FactsDecidedByParent {
         frame: geometry::Frame,
         containing_block_size: FfiCssPixelSize,
     ) -> Self {
-        let insets = link.placement.insets.in_frame(geometry::Frame::PHYSICAL, frame);
+        let insets = link.placement.insets().in_frame(geometry::Frame::PHYSICAL, frame);
         Self {
             placement: Some(BoxPlacement {
                 content_offset_in_containing_block: link.offset_in_frame(frame, containing_block_size),
@@ -310,7 +310,7 @@ impl FactsDecidedByParent {
             },
             default_scroll_shift: None,
             fragment_facts: FragmentFactsDecidedByParent {
-                show: link.placement.shown_as.facts,
+                show: link.placement.show_facts(),
                 breaks: fragment_tree::BreakFacts::default(),
             },
         }

@@ -437,9 +437,7 @@ fn box_keeps_no_node_whatever_its_geometry(layout_arena: &impl PaintableRowsRead
         return false;
     }
     layout_arena.with_committed_fragment_link(slot, |link| {
-        link.is_some_and(|link| {
-            link.placement.shown_as.facts.clip_decided_by_parent.is_none() && link.fragment.svg().is_none()
-        })
+        link.is_some_and(|link| link.placement.clip_decided_by_parent().is_none() && link.fragment.svg().is_none())
     })
 }
 
