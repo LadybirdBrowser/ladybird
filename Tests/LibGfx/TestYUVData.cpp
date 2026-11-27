@@ -124,3 +124,24 @@ TEST_CASE(biplanar_conversion_refuses_planes_whose_last_row_is_not_padded)
     EXPECT(Gfx::biplanar_yuv_to_bitmap(size, 8, Media::Subsampling::yuv420(), {}, unpadded_luma, padded_chroma).is_error());
     EXPECT(Gfx::biplanar_yuv_to_bitmap(size, 8, Media::Subsampling::yuv420(), {}, padded_luma, unpadded_chroma).is_error());
 }
+
+// ITU-T H.273, table 4: BT.470 System B, G, which VP8 and much standard-definition video state, shares BT.601's
+// coefficients. Pure red, Y'CbCr 81, 90, 240 in their studio range, converts back to pure red with them, where BT.709's
+// would turn it orange.
+TEST_CASE(bt470bg_converts_with_the_coefficients_of_bt601)
+{
+    Gfx::IntSize size { 2, 2 };
+    for (auto matrix : { Media::MatrixCoefficients::BT470BG, Media::MatrixCoefficients::BT601 }) {
+        auto luma = MUST(ByteBuffer::create_uninitialized(4));
+        auto blue_chroma = MUST(ByteBuffer::create_uninitialized(1));
+        auto red_chroma = MUST(ByteBuffer::create_uninitialized(1));
+        luma.bytes().fill(81);
+        blue_chroma[0] = 90;
+        red_chroma[0] = 240;
+        Media::CodingIndependentCodePoints cicp { Media::ColorPrimaries::Unspecified, Media::TransferCharacteristics::Unspecified, matrix, Media::VideoFullRangeFlag::Studio };
+        auto bitmap = MUST(MUST(Gfx::YUVData::create(size, 8, Media::Subsampling::yuv420(), cicp, luma.bytes(), blue_chroma.bytes(), red_chroma.bytes())).to_bitmap());
+        auto color = bitmap->get_pixel(1, 1);
+        if (!colors_are_close(color, Gfx::Color(255, 0, 0)))
+            FAIL(ByteString::formatted("Matrix {} turned pure red into {}", to_underlying(matrix), color));
+    }
+}

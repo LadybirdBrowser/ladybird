@@ -40,7 +40,9 @@ impl From<YUVMatrix> for YuvStandardMatrix {
         match matrix {
             YUVMatrix::Bt709 => YuvStandardMatrix::Bt709,
             YUVMatrix::Fcc => YuvStandardMatrix::Fcc,
-            YUVMatrix::Bt470BG => YuvStandardMatrix::Bt470_6,
+            // ITU-T H.273, table 4: BT.470 System B, G uses the same coefficients as BT.601, KR = 0.299 and KB = 0.114.
+            // The crate's Bt470_6 is System M's, which video does not use.
+            YUVMatrix::Bt470BG => YuvStandardMatrix::Bt601,
             YUVMatrix::Bt601 => YuvStandardMatrix::Bt601,
             YUVMatrix::Smpte240 => YuvStandardMatrix::Smpte240,
             YUVMatrix::Bt2020 => YuvStandardMatrix::Bt2020,
