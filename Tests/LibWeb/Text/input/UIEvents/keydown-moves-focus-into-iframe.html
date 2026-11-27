@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<input id="input" />
+<iframe id="frame" srcdoc="<input id=child>"></iframe>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.getElementById("frame");
+        if (!frame.contentDocument.getElementById("child")) await new Promise(resolve => (frame.onload = resolve));
+
+        const input = document.getElementById("input");
+        const child = frame.contentDocument.getElementById("child");
+        let keypresses = 0;
+        child.addEventListener("keypress", () => ++keypresses);
+
+        for (const [name, key] of [["Letter", "a"], ["Space", " "]]) {
+            keypresses = 0;
+            input.addEventListener("keydown", () => child.focus(), { once: true });
+            internals.sendText(input, key);
+            println(`${name}: keypress events in the iframe after keydown moved focus there=${keypresses}`);
+        }
+    });
+</script>

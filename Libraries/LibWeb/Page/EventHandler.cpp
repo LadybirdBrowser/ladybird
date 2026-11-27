@@ -2139,6 +2139,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (native_editing_binding_resolved)
         native_command_document = m_navigable->active_document();
     GC::Ptr<DOM::Node> focused_area_before_keydown = m_navigable->active_document()->focused_area();
+    GC::Ptr<HTML::Navigable> focused_navigable_before_keydown = m_navigable->page().focused_navigable();
     auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
     if (dispatch_result != EventResult::Accepted) {
         // A page that handles Tab or Escape itself gets the key, and the writing suggestion is dropped.
@@ -2148,6 +2149,10 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
         return dispatch_result;
     }
+
+    // INTEROP: When keydown moves focus to another navigable, the key fires no keypress and has no default action.
+    if (m_navigable->page().focused_navigable() != focused_navigable_before_keydown)
+        return EventResult::Handled;
 
     // https://w3c.github.io/uievents/#event-type-keypress
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
