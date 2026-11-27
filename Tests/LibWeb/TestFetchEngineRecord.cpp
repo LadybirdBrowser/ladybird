@@ -909,3 +909,285 @@ TEST_CASE(a_handover_while_main_fetch_waits_for_a_preload_dies)
 
     EXPECT_DEATH("Handing a response over while main fetch waits for a preload", record->main_fetch_hands_over(delivery()));
 }
+
+namespace {
+
+struct ReachedNetworkPhases : RefCounted<ReachedNetworkPhases> {
+    Vector<Optional<ContinuationId>> interceptions;
+};
+
+// Records the interception each network phase event offers, and ignores every other event.
+class NetworkPhaseRecordingEventSink final : public EngineEventSink {
+public:
+    explicit NetworkPhaseRecordingEventSink(NonnullRefPtr<ReachedNetworkPhases> reached)
+        : m_reached(move(reached))
+    {
+    }
+
+    virtual void handle_event(EngineEvent event) override
+    {
+        auto const* activity = event.get_pointer<Event::FetchNetworkActivity>();
+        if (!activity)
+            return;
+        activity->activity.visit(
+            [&](OneOf<Event::FetchNetworkActivity::BeforeRequestSent, Event::FetchNetworkActivity::ResponseStarted, Event::FetchNetworkActivity::AuthRequired> auto const& phase) { m_reached->interceptions.append(phase.interception); },
+            [](auto const&) { });
+    }
+
+private:
+    NonnullRefPtr<ReachedNetworkPhases> m_reached;
+};
+
+struct NetworkDecisions : RefCounted<NetworkDecisions> {
+    Vector<NetworkDecision> decisions;
+};
+
+// Whether a record's fetch and what holds it have gone.
+struct DestructionFlag : RefCounted<DestructionFlag> {
+    explicit DestructionFlag(bool& destroyed)
+        : m_destroyed(destroyed)
+    {
+    }
+    ~DestructionFlag() { m_destroyed = true; }
+
+private:
+    bool& m_destroyed;
+};
+
+}
+
+static NonnullRefPtr<NetworkActivityObservers> observers_intercepting(Vector<NetworkPhase> const& phases)
+{
+    auto observers = NetworkActivityObservers::create();
+    observers->set_fetch_observation(true, phases);
+    return observers;
+}
+
+static NonnullRefPtr<FetchEngineRecord> start_fetch_reaching_network_phases(FetchEngineRecords& records, u64 fetch_id, NonnullRefPtr<NetworkActivityObservers const> observers, NonnullRefPtr<ReachedNetworkPhases> reached)
+{
+    return records.start(FetchId { fetch_id }, make<NetworkPhaseRecordingEventSink>(move(reached)), move(observers)).release_nonnull();
+}
+
+static Event::FetchNetworkActivity network_phase_activity(NetworkPhase phase)
+{
+    Event::ObservedRequest request {
+        .url = URL::Parser::basic_parse("https://example.com/"sv).release_value(),
+        .method = "GET",
+        .headers = {},
+        .body_size = {},
+        .destination = {},
+        .initiator_type = {},
+        .redirect_count = 0,
+        .navigable_id = {},
+        .navigation_id = {},
+        .time_origin = {},
+        .timing_seed = {},
+        .network_phases = {},
+    };
+    Event::FetchNetworkActivity::Activity activity = Event::FetchNetworkActivity::BeforeRequestSent {};
+    if (phase == NetworkPhase::ResponseStarted)
+        activity = Event::FetchNetworkActivity::ResponseStarted { .response = {}, .interception = {} };
+    else if (phase == NetworkPhase::AuthRequired)
+        activity = Event::FetchNetworkActivity::AuthRequired { .response = {}, .interception = {} };
+    return { .request = move(request), .activity = move(activity) };
+}
+
+// Has the record's fetch wait at the network phase if it can, and records each decision it continues with. Returns
+// true if it waits.
+static bool reach_network_phase(FetchEngineRecord& record, NetworkPhase phase, NonnullRefPtr<NetworkDecisions> decisions)
+{
+    if (!record.can_wait_at_network_phase(phase))
+        return false;
+    record.wait_at_network_phase(network_phase_activity(phase), [decisions](NetworkDecision decision) { decisions->decisions.append(move(decision)); });
+    return true;
+}
+
+static Command::ResolveNetworkInterception interception_answer(u64 fetch_id, ContinuationId continuation_id, NetworkDecision decision)
+{
+    return { .fetch_id = FetchId { fetch_id }, .continuation_id = continuation_id, .decision = move(decision) };
+}
+
+TEST_CASE(a_fetch_cannot_wait_at_a_network_phase_the_agent_does_not_intercept)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::ResponseStarted }), reached);
+
+    EXPECT(!record->can_wait_at_network_phase(NetworkPhase::BeforeRequestSent));
+    EXPECT(!record->can_wait_at_network_phase(NetworkPhase::AuthRequired));
+    EXPECT(record->can_wait_at_network_phase(NetworkPhase::ResponseStarted));
+}
+
+TEST_CASE(a_fetch_nothing_observes_cannot_wait_at_a_network_phase)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, NetworkActivityObservers::create(), reached);
+
+    for (auto phase : { NetworkPhase::BeforeRequestSent, NetworkPhase::ResponseStarted, NetworkPhase::AuthRequired })
+        EXPECT(!record->can_wait_at_network_phase(phase));
+}
+
+TEST_CASE(a_network_interception_waits_for_the_agents_decision)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::ResponseStarted }), reached);
+    auto decisions = make_ref_counted<NetworkDecisions>();
+
+    EXPECT(reach_network_phase(record, NetworkPhase::ResponseStarted, decisions));
+    VERIFY(reached->interceptions.size() == 1 && reached->interceptions[0].has_value());
+    EXPECT(decisions->decisions.is_empty());
+
+    ModifyResponse modified;
+    modified.status = 204;
+    records.resolve_network_interception(interception_answer(1, *reached->interceptions[0], move(modified)));
+    VERIFY(decisions->decisions.size() == 1);
+    EXPECT_EQ(decisions->decisions[0].get<ModifyResponse>().status, 204u);
+
+    // The interception is settled, so a second answer is dropped.
+    records.resolve_network_interception(interception_answer(1, *reached->interceptions[0], ContinueFetch {}));
+    EXPECT_EQ(decisions->decisions.size(), 1u);
+}
+
+TEST_CASE(a_stop_settles_a_network_interception_once_and_drops_a_later_answer)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::BeforeRequestSent }), reached);
+    auto decisions = make_ref_counted<NetworkDecisions>();
+    EXPECT(reach_network_phase(record, NetworkPhase::BeforeRequestSent, decisions));
+    auto continuation_id = reached->interceptions[0].value();
+
+    records.stop(FetchId { 1 });
+    records.stop(FetchId { 1 });
+    records.resolve_network_interception(interception_answer(1, continuation_id, ContinueFetch {}));
+
+    VERIFY(decisions->decisions.size() == 1);
+    EXPECT(decisions->decisions[0].has<FailFetch>());
+    EXPECT(misbehaviors.is_empty());
+}
+
+TEST_CASE(a_fetch_cannot_wait_at_a_network_phase_once_it_is_stopped)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::BeforeRequestSent }), reached);
+    EXPECT(record->can_wait_at_network_phase(NetworkPhase::BeforeRequestSent));
+
+    records.stop(FetchId { 1 });
+    EXPECT(!record->can_wait_at_network_phase(NetworkPhase::BeforeRequestSent));
+}
+
+TEST_CASE(an_answer_for_a_network_interception_whose_record_is_gone_is_dropped)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto decisions = make_ref_counted<NetworkDecisions>();
+    ContinuationId continuation_id { 0 };
+    {
+        auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::AuthRequired }), reached);
+        EXPECT(reach_network_phase(record, NetworkPhase::AuthRequired, decisions));
+        continuation_id = reached->interceptions[0].value();
+    }
+
+    records.resolve_network_interception(interception_answer(1, continuation_id, CancelAuthentication {}));
+    EXPECT(decisions->decisions.is_empty());
+    EXPECT(misbehaviors.is_empty());
+}
+
+TEST_CASE(an_answer_naming_another_continuation_of_the_fetch_is_dropped)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::ResponseStarted }), reached);
+    auto redirect_continuation_id = open_continuation(record);
+    record->main_fetch_hands_over(delivery());
+    EXPECT(settled(resolve_redirect(records, answer(1, redirect_continuation_id, RedirectAnswer::Follow))));
+    auto decisions = make_ref_counted<NetworkDecisions>();
+    EXPECT(reach_network_phase(record, NetworkPhase::ResponseStarted, decisions));
+
+    records.resolve_network_interception(interception_answer(1, redirect_continuation_id, ContinueFetch {}));
+    EXPECT(decisions->decisions.is_empty());
+    EXPECT(misbehaviors.is_empty());
+}
+
+TEST_CASE(an_answer_the_engine_never_offered_or_for_a_fetch_not_started_is_misbehavior)
+{
+    Vector<ByteString> misbehaviors;
+    FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+    auto reached = make_ref_counted<ReachedNetworkPhases>();
+    auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::BeforeRequestSent }), reached);
+    auto decisions = make_ref_counted<NetworkDecisions>();
+    EXPECT(reach_network_phase(record, NetworkPhase::BeforeRequestSent, decisions));
+    auto continuation_id = reached->interceptions[0].value();
+
+    records.resolve_network_interception(interception_answer(1, ContinuationId { continuation_id.value() + 1 }, ContinueFetch {}));
+    records.resolve_network_interception(interception_answer(2, continuation_id, ContinueFetch {}));
+
+    EXPECT(decisions->decisions.is_empty());
+    EXPECT_EQ(misbehaviors, (Vector<ByteString> {
+                                "The agent answered a network interception the engine never offered",
+                                "The agent answered a network interception of a fetch it has not started",
+                            }));
+}
+
+TEST_CASE(a_network_decision_its_phase_does_not_take_is_misbehavior)
+{
+    struct Case {
+        NetworkPhase phase;
+        NetworkDecision decision;
+        bool is_taken;
+    };
+    Vector<Case> cases;
+    for (auto phase : { NetworkPhase::BeforeRequestSent, NetworkPhase::ResponseStarted, NetworkPhase::AuthRequired }) {
+        cases.append({ phase, ContinueFetch {}, true });
+        cases.append({ phase, FailFetch {}, true });
+        cases.append({ phase, ProvideResponse {}, true });
+        cases.append({ phase, ModifyRequest {}, phase == NetworkPhase::BeforeRequestSent });
+        cases.append({ phase, ModifyResponse {}, phase != NetworkPhase::BeforeRequestSent });
+        cases.append({ phase, Authenticate {}, phase == NetworkPhase::AuthRequired });
+        cases.append({ phase, CancelAuthentication {}, phase == NetworkPhase::AuthRequired });
+    }
+
+    for (auto& test_case : cases) {
+        Vector<ByteString> misbehaviors;
+        FetchEngineRecords records { make<MisbehaviorRecordingAgent>(misbehaviors) };
+        auto reached = make_ref_counted<ReachedNetworkPhases>();
+        auto record = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ test_case.phase }), reached);
+        auto decisions = make_ref_counted<NetworkDecisions>();
+        EXPECT(reach_network_phase(record, test_case.phase, decisions));
+
+        records.resolve_network_interception(interception_answer(1, reached->interceptions[0].value(), move(test_case.decision)));
+        if (test_case.is_taken) {
+            EXPECT_EQ(decisions->decisions.size(), 1u);
+            EXPECT(misbehaviors.is_empty());
+        } else {
+            EXPECT(decisions->decisions.is_empty());
+            EXPECT_EQ(misbehaviors, (Vector<ByteString> { "The agent answered a network interception with a decision its phase does not take" }));
+        }
+    }
+}
+
+TEST_CASE(the_records_destruction_drops_the_continuations_that_hold_their_records)
+{
+    bool interception_destroyed = false;
+    bool preload_wait_destroyed = false;
+    {
+        FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+        auto reached = make_ref_counted<ReachedNetworkPhases>();
+        auto intercepted = start_fetch_reaching_network_phases(records, 1, observers_intercepting({ NetworkPhase::ResponseStarted }), reached);
+        auto flag = make_ref_counted<DestructionFlag>(interception_destroyed);
+        VERIFY(intercepted->can_wait_at_network_phase(NetworkPhase::ResponseStarted));
+        intercepted->wait_at_network_phase(network_phase_activity(NetworkPhase::ResponseStarted), [intercepted, flag](NetworkDecision) { });
+
+        auto waiting = start_fetch(records, 2);
+        auto preload_flag = make_ref_counted<DestructionFlag>(preload_wait_destroyed);
+        waiting->wait_for_preload([waiting, preload_flag](RefPtr<Web::Fetch::Infrastructure::Response>) { });
+    }
+    EXPECT(interception_destroyed);
+    EXPECT(preload_wait_destroyed);
+}

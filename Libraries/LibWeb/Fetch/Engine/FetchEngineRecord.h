@@ -59,6 +59,25 @@ public:
         m_event_sink->handle_event(Event::NetworkActivity { .request_id = request_id, .activity = move(activity) });
     }
 
+    void report_network_activity(Event::FetchNetworkActivity activity)
+    {
+        ASSERT(is_on_owner_thread());
+        m_event_sink->handle_event(move(activity));
+    }
+
+    [[nodiscard]] bool can_wait_at_network_phase(NetworkPhase) const;
+
+    void wait_at_network_phase(Event::FetchNetworkActivity, Function<void(NetworkDecision)> resume);
+
+    enum class NetworkInterceptionAnswerResult : u8 {
+        Settled,
+        // The interception was settled before, or the id names another continuation, so the answer is dropped.
+        NotOpen,
+        // The decision does not apply to the interception's phase.
+        Invalid,
+    };
+    [[nodiscard]] NetworkInterceptionAnswerResult resolve_network_interception(ContinuationId, NetworkDecision);
+
     void report_violation(ContentSecurityPolicy::RequestViolation violation)
     {
         ASSERT(is_on_owner_thread());
@@ -78,7 +97,8 @@ public:
     void stop_cors_preflight_body_transport();
 
     // For a stop, abort or termination of the fetch: ends main fetch's wait for a preload, abandons the redirect
-    // continuation that is open, and any opened later, and stops the fetch's body transport.
+    // continuation that is open, and any opened later, settles the network interception that is open with FailFetch,
+    // and stops the fetch's body transport.
     void stop();
 
     void add_network_transport(NetworkTransportHandle&, FetchBodyDeliveryGate&);
@@ -169,6 +189,13 @@ private:
     };
     Optional<RedirectContinuation> m_redirect_continuation;
 
+    struct NetworkInterception {
+        ContinuationId id;
+        NetworkPhase phase;
+        Function<void(NetworkDecision)> resume;
+    };
+    Optional<NetworkInterception> m_network_interception;
+
     bool m_stopped { false };
 
     struct MainFetchRunning { };
@@ -231,6 +258,7 @@ public:
     };
 
     explicit FetchEngineRecords(NonnullOwnPtr<Agent>);
+    ~FetchEngineRecords();
 
     // Reports to the agent a command no honest agent could have posted.
     void agent_misbehaved(StringView reason) { m_agent->misbehaved(reason); }
@@ -255,7 +283,12 @@ public:
     // Settles the open continuation the answer names, returning the fetch's record. Reports to the agent a fetch id
     // above every start, a continuation id above every offer, or an answer before the redirect's handover.
     [[nodiscard]] RedirectAnswerOutcome resolve_redirect(FetchId, ContinuationId, RedirectAnswer);
-    void did_offer_redirect_continuation(Badge<FetchEngineRecord>, ContinuationId);
+    void did_offer_continuation(Badge<FetchEngineRecord>, ContinuationId);
+
+    // Settles the network interception the answer names. Drops an answer for a fetch whose record is gone. Reports to
+    // the agent a fetch id above every start, a continuation id above every offer, or a decision its phase does not
+    // take.
+    void resolve_network_interception(Command::ResolveNetworkInterception);
 
     // Resolves the preload wait of a started fetch's main fetch. Reports to the agent a fetch id above every start, then,
     // unless the record is gone, a response that is neither a network error nor one whose body is all its bytes, then,

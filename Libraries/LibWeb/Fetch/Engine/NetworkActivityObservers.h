@@ -11,7 +11,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RWLockProtected.h>
 #include <AK/RefPtr.h>
+#include <AK/Span.h>
 #include <LibWeb/Fetch/Engine/NetworkConfiguration.h>
+#include <LibWeb/Fetch/Engine/NetworkInterception.h>
 
 namespace Web::Fetch::Engine {
 
@@ -30,6 +32,16 @@ public:
         VERIFY(previous_count > 0);
     }
 
+    [[nodiscard]] bool observes_fetches() const { return m_fetch_observation.load() & observes_fetches_bit; }
+    [[nodiscard]] bool intercepts(NetworkPhase phase) const { return m_fetch_observation.load() & intercepts_bit(phase); }
+    void set_fetch_observation(bool observes_fetches, ReadonlySpan<NetworkPhase> intercepted_phases)
+    {
+        u8 fetch_observation = observes_fetches ? observes_fetches_bit : 0;
+        for (auto phase : intercepted_phases)
+            fetch_observation |= intercepts_bit(phase);
+        m_fetch_observation.store(fetch_observation);
+    }
+
     [[nodiscard]] RefPtr<NetworkConfiguration const> network_configuration() const
     {
         return m_network_configuration.with_read_locked([](auto const& configuration) { return configuration; });
@@ -42,7 +54,11 @@ public:
 private:
     NetworkActivityObservers() = default;
 
+    static constexpr u8 observes_fetches_bit = 1;
+    static constexpr u8 intercepts_bit(NetworkPhase phase) { return 2 << to_underlying(phase); }
+
     Atomic<size_t, AK::MemoryOrder::memory_order_relaxed> m_pages_with_devtools_client { 0 };
+    Atomic<u8> m_fetch_observation { 0 };
     RWLockProtected<RefPtr<NetworkConfiguration const>> m_network_configuration;
 };
 

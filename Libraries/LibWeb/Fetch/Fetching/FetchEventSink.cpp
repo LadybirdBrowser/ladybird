@@ -171,6 +171,7 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
         [&](Engine::Event::NetworkActivity const& network_activity) {
             controller->page()->did_receive_network_activity(network_activity);
         },
+        [](Engine::Event::FetchNetworkActivity const&) { VERIFY_NOT_REACHED(); },
         [&](Engine::Event::ViolationReport const& report) {
             ContentSecurityPolicy::report_a_violation_of_a_request(controller->realm(), report.violation);
         },
