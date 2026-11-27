@@ -1,0 +1,3 @@
+Ladybird’s crash handler runs with every signal but SIGSYS blocked
+on Linux, so the sandbox’s traps still work inside it. A libc
+difference, with no other engine’s behavior involved.
