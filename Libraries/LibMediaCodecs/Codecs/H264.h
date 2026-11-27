@@ -69,6 +69,9 @@ public:
         u8 chroma_format_idc { 1 };
         u8 bit_depth_luma { 8 };
         CodingIndependentCodePoints cicp;
+        // The size of the decoded frames, after cropping.
+        u32 width { 0 };
+        u32 height { 0 };
     };
 
     struct PictureParameterSet {

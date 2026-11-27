@@ -845,6 +845,30 @@ TEST_CASE(h264_sequence_parameter_set_reads_its_chroma_format_and_colour_descrip
     EXPECT_EQ(parameter_set->cicp.video_full_range_flag(), Media::VideoFullRangeFlag::Full);
 }
 
+// x264 sequence parameter sets for 4:2:0 streams cropped to sizes that are not whole macroblocks.
+static constexpr Array<u8, 26> avc_640x360_sequence_parameter_set {
+    0x67, 0x64, 0x00, 0x1e, 0xac, 0xd9, 0x40, 0xa0, 0x2f, 0xf9, 0x70, 0x11, 0x00, 0x00, 0x03, 0x00,
+    0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x16, 0x2d, 0x96
+};
+static constexpr Array<u8, 27> avc_1918x1080_sequence_parameter_set {
+    0x67, 0x64, 0x00, 0x28, 0xac, 0xd9, 0x40, 0x78, 0x02, 0x27, 0xa9, 0x70, 0x11, 0x00, 0x00, 0x03,
+    0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18, 0x31, 0x96
+};
+
+TEST_CASE(h264_sequence_parameter_set_reads_its_cropped_size)
+{
+    auto check = [](ReadonlyBytes sequence_parameter_set, u32 width, u32 height) {
+        auto parameter_set = Media::Codecs::H264::parse_sequence_parameter_set(sequence_parameter_set);
+        EXPECT(parameter_set.has_value());
+        if (!parameter_set.has_value())
+            return;
+        EXPECT_EQ(parameter_set->width, width);
+        EXPECT_EQ(parameter_set->height, height);
+    };
+    check(avc_640x360_sequence_parameter_set, 640, 360);
+    check(avc_1918x1080_sequence_parameter_set, 1918, 1080);
+}
+
 TEST_CASE(h265_video_and_picture_parameter_sets_return_their_ids)
 {
     auto video_parameter_set = Media::Codecs::H265::parse_video_parameter_set(hevc_video_parameter_set);

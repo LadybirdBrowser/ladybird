@@ -269,11 +269,12 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
 
     // ITU-T H.264 (08/2024), 7.4.2.1.1: absent chroma_format_idc is inferred as 1 (4:2:0), and absent bit depths as 8.
     u32 chroma_format_idc = 1;
+    bool separate_colour_plane_flag = false;
     u32 bit_depth_luma_minus8 = 0;
     if (profile_has_chroma_format_fields(profile_idc)) {
         chroma_format_idc = reader.read_unsigned_exp_golomb();
         if (chroma_format_idc == 3)
-            reader.skip_bits(1); // separate_colour_plane_flag
+            separate_colour_plane_flag = reader.read_bit();
         bit_depth_luma_minus8 = reader.read_unsigned_exp_golomb();
         reader.read_unsigned_exp_golomb(); // bit_depth_chroma_minus8
         reader.skip_bits(1);               // qpprime_y_zero_transform_bypass_flag
@@ -308,13 +309,17 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
     auto height_in_map_units = reader.read_unsigned_exp_golomb() + 1;
     auto is_frame_only = reader.read_bit();
     if (!is_frame_only)
-        reader.skip_bits(1);               // mb_adaptive_frame_field_flag
-    reader.skip_bits(1);                   // direct_8x8_inference_flag
-    if (reader.read_bit()) {               // frame_cropping_flag
-        reader.read_unsigned_exp_golomb(); // frame_crop_left_offset
-        reader.read_unsigned_exp_golomb(); // frame_crop_right_offset
-        reader.read_unsigned_exp_golomb(); // frame_crop_top_offset
-        reader.read_unsigned_exp_golomb(); // frame_crop_bottom_offset
+        reader.skip_bits(1); // mb_adaptive_frame_field_flag
+    reader.skip_bits(1);     // direct_8x8_inference_flag
+    u32 frame_crop_left_offset = 0;
+    u32 frame_crop_right_offset = 0;
+    u32 frame_crop_top_offset = 0;
+    u32 frame_crop_bottom_offset = 0;
+    if (reader.read_bit()) { // frame_cropping_flag
+        frame_crop_left_offset = reader.read_unsigned_exp_golomb();
+        frame_crop_right_offset = reader.read_unsigned_exp_golomb();
+        frame_crop_top_offset = reader.read_unsigned_exp_golomb();
+        frame_crop_bottom_offset = reader.read_unsigned_exp_golomb();
     }
 
     VideoUsabilityInformation video_usability_information;
@@ -325,6 +330,25 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
     // ITU-T H.264 (08/2024), 7.4.2.1.1: chroma_format_idc is in 0 to 3, bit_depth_luma_minus8 in 0 to 6.
     if (reader.has_overrun() || chroma_format_idc > 3 || bit_depth_luma_minus8 > 6)
         return {};
+
+    // ITU-T H.264 (08/2024), 7.4.2.1.1: The frame is PicWidthInMbs * 16 luma samples wide and FrameHeightInMbs * 16
+    // high, where FrameHeightInMbs = (2 - frame_mbs_only_flag) * PicHeightInMapUnits, less the cropping rectangle's
+    // offsets in units of CropUnitX and CropUnitY. With ChromaArrayType equal to 0, CropUnitX = 1 and
+    // CropUnitY = 2 - frame_mbs_only_flag; otherwise, CropUnitX = SubWidthC and
+    // CropUnitY = SubHeightC * (2 - frame_mbs_only_flag).
+    auto chroma_array_type = separate_colour_plane_flag ? 0 : chroma_format_idc;
+    u64 sub_width_c = chroma_array_type == 1 || chroma_array_type == 2 ? 2 : 1;
+    u64 sub_height_c = chroma_array_type == 1 ? 2 : 1;
+    u64 field_factor = is_frame_only ? 1 : 2;
+    u64 crop_unit_x = chroma_array_type == 0 ? 1 : sub_width_c;
+    u64 crop_unit_y = (chroma_array_type == 0 ? 1 : sub_height_c) * field_factor;
+    u64 uncropped_width = static_cast<u64>(width_in_macroblocks) * 16;
+    u64 uncropped_height = static_cast<u64>(height_in_map_units) * field_factor * 16;
+    u64 crop_width = crop_unit_x * (static_cast<u64>(frame_crop_left_offset) + frame_crop_right_offset);
+    u64 crop_height = crop_unit_y * (static_cast<u64>(frame_crop_top_offset) + frame_crop_bottom_offset);
+    // NB: The size is left unknown, rather than the parameter set rejected, when the cropping is out of range.
+    auto has_size = crop_width < uncropped_width && crop_height < uncropped_height
+        && uncropped_width <= NumericLimits<u32>::max() && uncropped_height <= NumericLimits<u32>::max();
     // ITU-T H.264 (08/2024), E.2.1: Infer absent max_num_reorder_frames as zero for these
     // profiles with constraint_set3_flag set, and as MaxDpbFrames otherwise.
     SequenceParameterSet parameter_set {
@@ -334,6 +358,8 @@ Optional<H264::SequenceParameterSet> H264::parse_sequence_parameter_set(Readonly
         .chroma_format_idc = static_cast<u8>(chroma_format_idc),
         .bit_depth_luma = static_cast<u8>(bit_depth_luma_minus8 + 8),
         .cicp = video_usability_information.cicp,
+        .width = has_size ? static_cast<u32>(uncropped_width - crop_width) : 0,
+        .height = has_size ? static_cast<u32>(uncropped_height - crop_height) : 0,
     };
     if (stated_count.has_value()) {
         parameter_set.max_num_reorder_frames = static_cast<u8>(min(*stated_count, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT)));
