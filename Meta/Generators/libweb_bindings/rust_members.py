@@ -39,6 +39,7 @@ SUPPORTED_ATTRIBUTE_EXTENDED_ATTRIBUTES = {
     "AttributeCallbackName",
     "CachedAccessor",
     "CEReactions",
+    "Experimental",
     "Exposed",
     "FIXME",
     "ImplementedAs",
@@ -54,6 +55,7 @@ SUPPORTED_OPERATION_EXTENDED_ATTRIBUTES = {
     "CreatesPromise",
     "CEReactions",
     "Default",
+    "Experimental",
     "Exposed",
     "FIXME",
     "ImplementedAs",
@@ -78,6 +80,13 @@ def member_exposure_condition(extended_attributes: dict) -> Optional[str]:
     if exposure is None:
         return None
     return MEMBER_EXPOSURE_CONDITIONS.get(exposure.replace(" ", ""))
+
+
+def experimental_member_name(interface: Interface, member_name: str, extended_attributes: dict) -> Optional[str]:
+    """The name of an [Experimental] member, which must match the name the C++ bindings give it."""
+    if "Experimental" not in extended_attributes:
+        return None
+    return f"{interface.name}.{member_name}"
 
 
 def generated_function_stem(method: str) -> str:
@@ -419,7 +428,7 @@ def rust_members(interface: Interface) -> RustMembers:
         if attribute.readonly or not attribute.name.startswith("on"):
             fail(f"its event handler IDL attribute {attribute.name} is not a plain attribute named on<event type>")
         check_extended_attributes(
-            attribute.name, attribute.extended_attributes, {"Exposed", "ImplementedAs", "SecureContext"}
+            attribute.name, attribute.extended_attributes, {"Experimental", "Exposed", "ImplementedAs", "SecureContext"}
         )
         check_exposure(attribute.name, attribute.extended_attributes)
         setter_method = None
@@ -644,7 +653,11 @@ def rust_members(interface: Interface) -> RustMembers:
                 if len({operation.return_type_is_promise() for operation in operations}) > 1:
                     fail(f"some overloads of its operation {name} return a promise type and others do not")
                 exposure = {
-                    (operation.extended_attributes.get("Exposed"), "SecureContext" in operation.extended_attributes)
+                    (
+                        operation.extended_attributes.get("Exposed"),
+                        "SecureContext" in operation.extended_attributes,
+                        "Experimental" in operation.extended_attributes,
+                    )
                     for operation in operations
                 }
                 if len(exposure) > 1:
