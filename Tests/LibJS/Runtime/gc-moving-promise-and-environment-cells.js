@@ -20,6 +20,10 @@ holder.all.then(values => settled.push(["all", values]));
 
 holder.revocable = Proxy.revocable({ value: 1 }, {});
 
+// Converting objects of one shape to primitives fills the special property cache of the shape.
+holder.convertible = { toString: () => "converted" };
+for (let i = 0; i < 4; ++i) String(holder.convertible);
+
 // The prototype chain of `reader` is watched by the cache of `readMethod()`, so changing the prototype afterwards fires
 // a watchpoint set that moved.
 holder.prototype = { method: () => "before" };
@@ -88,6 +92,16 @@ runAfterMovingCollection(() => {
         expect(addressOf(holder.revocable.revoke)).not.toBe(before.revoke);
         expect(valueBeforeRevoke()).toBe(1);
         expect(() => holder.revocable.proxy.value).toThrow(TypeError);
+    });
+
+    const conversionBeforeChange = once(() => {
+        const converted = String(holder.convertible);
+        holder.convertible.toString = () => "changed";
+        return converted;
+    });
+    test("special property caches keep what they know when it moves", () => {
+        expect(conversionBeforeChange()).toBe("converted");
+        expect(String(holder.convertible)).toBe("changed");
     });
 
     const methodBeforeChange = once(() => {

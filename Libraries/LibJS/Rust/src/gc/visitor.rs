@@ -213,6 +213,17 @@ impl Visitor {
         }
     }
 
+    /// Like visit_owned_option(), for a slot in a Cell: in the cell being visited, whose slots a collection that moves
+    /// cells rewrites before it copies the cells, or in memory that cell owns.
+    ///
+    /// # Safety
+    ///
+    /// As for visit_owned_values().
+    pub unsafe fn visit_owned_cell_option<T>(&mut self, slot: &Cell<Option<Gc<T>>>) {
+        // SAFETY: A Cell has the layout of what it holds, and the caller vouches for the memory.
+        unsafe { self.visit_owned_option(&*slot.as_ptr()) };
+    }
+
     /// Visits a value that is reachable only while `key` is. A collection that moves cells keeps both where they are.
     pub fn visit_ephemeron<T>(&mut self, key: Gc<T>, value: &Value) {
         // SAFETY: The visitor is live, a Gc points to a live cell, and Value is a NaN-boxed u64.
