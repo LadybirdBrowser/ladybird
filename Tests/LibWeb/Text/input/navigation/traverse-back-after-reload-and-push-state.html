@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        const pageBody = `<!DOCTYPE html>
+            <script>
+                window.addEventListener("pagehide", () => history.replaceState({ fromPagehide: true }, ""));
+                window.addEventListener("load", () => {
+                    if (window.name !== "reloaded") {
+                        window.name = "reloaded";
+                        location.reload();
+                        return;
+                    }
+                    window.addEventListener("popstate", () => {
+                        parent.postMessage(\`current entry index after back: \${navigation.currentEntry.index}\`, "*");
+                    });
+                    history.pushState({}, "", "#pushed");
+                    history.back();
+                });
+            <\/script>`;
+        const pageUrl = await server.createEcho("GET", "/traverse-back-after-reload-and-push-state-page", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const result = await new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            window.addEventListener("message", e => {
+                if (e.source === iframe.contentWindow) {
+                    iframe.remove();
+                    resolve(e.data);
+                }
+            });
+            document.body.appendChild(iframe);
+            iframe.src = pageUrl;
+        });
+        println(result);
+    });
+</script>

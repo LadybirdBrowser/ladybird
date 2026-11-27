@@ -448,6 +448,7 @@ TEST_CASE(queued_same_document_entries_are_addressed_by_identity)
     auto enqueue_push = [&](Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor entry) {
         Web::FinalizeSameDocumentNavigationHistoryOperationParameters parameters {
             .navigable_id = traversable.id(),
+            .document_id = {},
             .target_entry = same_document_entry(move(entry)),
             .entry_to_replace = {},
             .previous_entry_persisted_state = {},
