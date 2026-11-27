@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/JsonArray.h>
 #include <AK/StringBuilder.h>
+#include <LibHTTP/Method.h>
 #include <LibHTTP/Status.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/WebDriver/BiDi.h>
@@ -482,8 +483,13 @@ ErrorOr<InterceptionOverrides, Error> deserialize_interception_overrides(StringV
         // 7. If command parameters contains "method":
         if (auto method = params.get_string("method"sv); method.has_value()) {
             // 2. If method does not match the method token production, return error with error code "invalid argument".
-            if (!HTTP::is_header_name(method->bytes_as_string_view()))
+            if (!HTTP::is_method(method->bytes_as_string_view()))
                 return invalid_argument("Invalid method token"sv);
+
+            // AD-HOC: A forbidden method is invalid too, as RequestServer refuses to send a request with one.
+            if (HTTP::is_forbidden_method(method->bytes_as_string_view()))
+                return invalid_argument("Forbidden method"sv);
+
             result.method = method->to_byte_string();
         }
     }
