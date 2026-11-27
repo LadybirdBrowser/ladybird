@@ -36,7 +36,7 @@ use crate::runtime::temporal::iso8601::{SubMinutePrecision, TimeZoneOffset, pars
 use crate::runtime::temporal::time_zone::parse_time_zone_identifier;
 use crate::runtime::value_conversions::to_integer_or_infinity;
 use crate::unicode::time_zone::{
-    self as unicode_time_zone, TimeZoneOffset as UnicodeTimeZoneOffset, TimeZoneTime, UnixDateTime,
+    self as unicode_time_zone, InDST, TimeZoneOffset as UnicodeTimeZoneOffset, TimeZoneTime, UnixDateTime,
 };
 use crate::utf16::Utf16View;
 
@@ -509,6 +509,21 @@ pub fn get_named_time_zone_epoch_nanoseconds(
         .collect()
 }
 
+// A named time zone's offsets come from ICU's data. When that data can't be loaded, as from a broken installation, there
+// is no offset to find, so the time zone is treated as UTC rather than failing every computation with a date.
+fn named_time_zone_offset_or_utc(offset: Option<UnicodeTimeZoneOffset>) -> UnicodeTimeZoneOffset {
+    static HAS_REPORTED_MISSING_OFFSET: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    offset.unwrap_or_else(|| {
+        if !HAS_REPORTED_MISSING_OFFSET.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            eprintln!("Unable to find a time zone's offset in ICU's data, so it is treated as UTC");
+        }
+        UnicodeTimeZoneOffset {
+            offset_nanoseconds: 0,
+            in_dst: InDST::No,
+        }
+    })
+}
+
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
 pub fn get_named_time_zone_offset_nanoseconds(
     time_zone_identifier: Utf16View<'_>,
@@ -518,7 +533,11 @@ pub fn get_named_time_zone_offset_nanoseconds(
     let seconds = epoch_nanoseconds.div_floor(&NANOSECONDS_PER_SECOND.clone());
     let time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(&seconds));
 
-    unicode_time_zone::time_zone_offset(time_zone_identifier, time, TimeZoneTime::Utc).expect("offset.has_value()")
+    named_time_zone_offset_or_utc(unicode_time_zone::time_zone_offset(
+        time_zone_identifier,
+        time,
+        TimeZoneTime::Utc,
+    ))
 }
 
 // 21.4.1.21 GetNamedTimeZoneOffsetNanoseconds ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/ecma262/#sec-getnamedtimezoneoffsetnanoseconds
@@ -530,7 +549,11 @@ pub fn get_named_time_zone_offset_milliseconds(
     let seconds = epoch_milliseconds / 1000.0;
     let time = UnixDateTime::from_seconds_since_epoch(clip_double_to_sane_time(seconds));
 
-    unicode_time_zone::time_zone_offset(time_zone_identifier, time, TimeZoneTime::Utc).expect("offset.has_value()")
+    named_time_zone_offset_or_utc(unicode_time_zone::time_zone_offset(
+        time_zone_identifier,
+        time,
+        TimeZoneTime::Utc,
+    ))
 }
 
 /// The cached SystemTimeZoneIdentifier(), as code units, so that it can be shared by the threads of the agents.
