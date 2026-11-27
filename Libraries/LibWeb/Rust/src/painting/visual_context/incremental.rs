@@ -557,7 +557,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
 
     let viewport_output = layout_arena
         .paintable_visual_context_record(viewport)
-        .map(|record| record.output_for_descendants);
+        .map(|record| *record.output_for_descendants);
     let Some(viewport_output) = viewport_output else {
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextUpdateScope::FreshTree);
     };
@@ -629,13 +629,13 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
         } else {
             let record = layout_arena.paintable_visual_context_record(slot);
             let rebuild = work_bits.is_some_and(|bits| !bits.is_move_only())
-                || record.is_none_or(|record| record.inherited_input != input)
+                || record.is_none_or(|record| *record.inherited_input != input)
                 || (moved && record.is_some_and(|record| record.owns_geometry_dependent_nodes));
             // OPTIMIZATION: A relayout changes the geometry of most boxes of a document, and most of them own no node:
             //               a box like that whose style has its geometry give it none keeps what it has.
             let keeps_no_node = rebuild
                 && work_bits.is_some_and(|bits| bits.changes_geometry_only())
-                && record.is_some_and(|record| record.inherited_input == input)
+                && record.is_some_and(|record| *record.inherited_input == input)
                 && box_keeps_no_node_whatever_its_geometry(&*layout_arena, slot);
             (
                 rebuild,
@@ -658,7 +658,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
                 let existing_record = layout_arena.paintable_visual_context_record(slot);
                 (
                     existing_record.is_some(),
-                    existing_record.as_ref().map(|record| record.output_for_descendants),
+                    existing_record.as_ref().map(|record| *record.output_for_descendants),
                     existing_record.as_ref().map(|record| record.stacking_context),
                 )
             };
@@ -694,7 +694,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
                         && handles.spatial.is_empty()
                         && handles.clip_handles().next().is_none()
                         && handles.effects.is_empty()
-                        && assignment.record.output_for_descendants == record.output_for_descendants
+                        && assignment.record.output_for_descendants == *record.output_for_descendants
                         && assignment.accumulated_visual_context == data.accumulated_visual_context
                         && assignment.accumulated_visual_context_for_descendants
                             == data.accumulated_visual_context_for_descendants
@@ -798,7 +798,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
         let visit_every_child = scope.rebuilds_every_box() || child_cascade.visits_every_child() || revalidate_children;
         if visit_every_child || plan.ancestors_of_work.contains(&slot) {
             let output_for_children = output_for_children.unwrap_or_else(|| {
-                layout_arena
+                *layout_arena
                     .paintable_visual_context_record(slot)
                     .expect("a box that was not rebuilt keeps its record")
                     .output_for_descendants
