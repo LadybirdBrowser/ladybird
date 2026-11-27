@@ -1,0 +1,5 @@
+Ladybird bounds the main thread’s stack under musl by RLIMIT_STACK,
+in AK::StackInfo and now in ak::stack too, which the WebAssembly
+interpreter, the JavaScript parser, and LibRegex use. No other engine
+is involved in this libc-specific fix, which was written without
+reference to Alpine’s downstream patch for the same report.
