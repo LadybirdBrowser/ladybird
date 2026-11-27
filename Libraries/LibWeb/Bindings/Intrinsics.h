@@ -131,10 +131,11 @@ private:
     void create_web_constructor(JS::Realm& realm, InterfaceObjectMetadata const&, JS::Object& prototype);
     void create_legacy_factory_function(JS::Realm& realm, InterfaceObjectMetadata const&);
 
-    HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_namespaces;
-    HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_prototypes;
-    HashMap<Utf16FlyString, GC::Ptr<JS::NativeFunction>> m_constructors;
-    HashMap<UnforgeableKey, GC::Ref<JS::NativeFunction>> m_unforgeable_functions;
+    // NB: The maps hold members, which visit_edges() visits as owned slots, so that collections can move the objects.
+    HashMap<Utf16FlyString, GC::NonnullMember<JS::Object>> m_namespaces;
+    HashMap<Utf16FlyString, GC::NonnullMember<JS::Object>> m_prototypes;
+    HashMap<Utf16FlyString, GC::Member<JS::NativeFunction>> m_constructors;
+    HashMap<UnforgeableKey, GC::NonnullMember<JS::NativeFunction>> m_unforgeable_functions;
     GC::Ref<JS::Realm> m_realm;
 };
 
