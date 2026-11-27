@@ -43,6 +43,9 @@ asyncTest(async done => {
             peak = samples.reduce((max, sample) => Math.max(max, Math.abs(sample)), 0);
         }
         println(`remote track carries audio: ${peak >= 0.1}`);
+        // NB: Audio output starts the playback clock, which may lag behind audio arriving on the track.
+        for (let attempt = 0; attempt < 100 && audio.currentTime === 0; ++attempt)
+            await new Promise(resolve => setTimeout(resolve, 50));
         println(`currentTime advanced: ${audio.currentTime > 0}`);
 
         audio.volume = 0.5;
