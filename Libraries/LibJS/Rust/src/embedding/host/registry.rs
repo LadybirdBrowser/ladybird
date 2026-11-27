@@ -37,7 +37,8 @@ pub struct RegisteredHostClass {
 pub type HostClassRegistry = HashMap<usize, RegisteredHostClass, foldhash::fast::RandomState>;
 
 /// The classes derived for host class tables so far, by the address of their JSHostClass. A class lives as long as the
-/// process, and LibGC keeps the blocks of a type apart by its class, so each table must have one class in all VMs.
+/// process, and a cell may outlive the VM that allocated it in a block that another VM reuses, so each table must have
+/// one class in all VMs.
 static DERIVED_CLASSES: LazyLock<Mutex<HashMap<usize, &'static Class, foldhash::fast::RandomState>>> =
     LazyLock::new(Mutex::default);
 
@@ -84,9 +85,9 @@ pub fn runtime_class_of_host_class(vm: &Vm, table: &'static JSHostClass) -> &'st
     class
 }
 
-/// The runtime class of `table`, which must be of `kind`, and the allocator its objects come from: the class's own,
-/// or with JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT, the one that the classes sharing the allocator of its nearest
-/// ancestor without the flag share.
+/// The runtime class of `table`, which must be of `kind`, and the allocator its cells come from: the one that all
+/// the host classes of the kind share. Their cells have one layout, that of the root class of the kind, and each cell
+/// keeps its class, so no cell can be taken for one with another layout.
 pub fn runtime_class_and_allocator_of_host_class(
     vm: &Vm,
     table: &'static JSHostClass,
@@ -108,13 +109,9 @@ pub fn runtime_class_and_allocator_of_host_class(
     }
 
     let class = runtime_class_of_host_class(vm, table);
-    let allocating_class = table.allocating_class();
-    let allocator = if core::ptr::eq(allocating_class, table) {
-        vm.heap().runtime_class_allocator(class)
-    } else {
-        vm.heap()
-            .shared_runtime_class_allocator(runtime_class_of_host_class(vm, allocating_class), class)
-    };
+    let allocator = vm
+        .heap()
+        .shared_runtime_class_allocator(root_class_of_kind(kind), class);
     vm.host_classes()
         .borrow_mut()
         .get_mut(&table.identity())

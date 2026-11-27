@@ -19,10 +19,9 @@ use crate::layout::host_class::{
     JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS, JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE,
     JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE,
     JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH, JS_HOST_CLASS_OBJECT,
-    JS_HOST_CLASS_REQUIRES_SLOW_ADD_OWN_PROPERTY, JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT,
-    JS_PROPERTY_LOOKUP_PHASE_OWN_PROPERTY, JS_PROPERTY_LOOKUP_PHASE_PROTOTYPE_CHAIN, JSCompletion, JSGetCacheMetadata,
-    JSHostArrayHooks, JSHostClass, JSHostFunctionHooks, JSHostModuleHooks, JSHostObjectHooks, JSObject,
-    JSSetCacheMetadata,
+    JS_HOST_CLASS_REQUIRES_SLOW_ADD_OWN_PROPERTY, JS_PROPERTY_LOOKUP_PHASE_OWN_PROPERTY,
+    JS_PROPERTY_LOOKUP_PHASE_PROTOTYPE_CHAIN, JSCompletion, JSGetCacheMetadata, JSHostArrayHooks, JSHostClass,
+    JSHostFunctionHooks, JSHostModuleHooks, JSHostObjectHooks, JSObject, JSSetCacheMetadata,
 };
 use crate::layout::object::Object;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -148,19 +147,6 @@ impl JSHostClass {
         false
     }
 
-    /// The class whose allocator the cells of this class come from: the nearest one, starting with this class, that
-    /// does not share its parent's.
-    pub fn allocating_class(&'static self) -> &'static JSHostClass {
-        let mut class = self;
-        while class.has_flag(JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT) {
-            class = class
-                .parent_class()
-                .filter(|parent| parent.kind == class.kind)
-                .expect("a host class that shares its parent's allocator has a parent of its kind");
-        }
-        class
-    }
-
     /// The hooks of a class of kind JS_HOST_CLASS_OBJECT. A table without a hook struct has only ordinary ones.
     pub fn host_object_hooks(&'static self) -> &'static JSHostObjectHooks {
         debug_assert!(self.kind == JS_HOST_CLASS_OBJECT);
@@ -183,8 +169,7 @@ impl JSHostClass {
     }
 
     /// Checks what LibJS/HostObjectABI.h requires of a table of `kind`, which the engine then relies on: its kind,
-    /// flags that apply to the kind, a parent of the same kind to share an allocator with, and the hooks the kind
-    /// cannot do without.
+    /// flags that apply to the kind, and the hooks the kind cannot do without.
     pub fn validate(&'static self, kind: u8) {
         assert!(
             self.kind == kind,
@@ -200,12 +185,11 @@ impl JSHostClass {
             kind => panic!("{kind} is not a kind of host class"),
         };
         assert!(
-            self.flags & !(flags_of_the_kind | JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT) == 0,
+            self.flags & !flags_of_the_kind == 0,
             "the host class {} has flags {:#x} that its kind does not have",
             self.class_name(),
             self.flags
         );
-        self.allocating_class();
         if kind == JS_HOST_CLASS_FUNCTION {
             let hooks = self.host_function_hooks();
             assert!(hooks.call.is_some(), "a host function class has a call hook");

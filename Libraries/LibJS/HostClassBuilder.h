@@ -535,7 +535,7 @@ consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass cons
         | JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS
         | JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH;
 
-    u32 allowed_flags = JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT;
+    u32 allowed_flags = 0;
     switch (kind) {
     case JS_HOST_CLASS_OBJECT:
         allowed_flags |= flags_copied_into_objects | host_object_flags;
@@ -552,7 +552,6 @@ consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass cons
         VERIFY_NOT_REACHED();
     }
     VERIFY(!(flags & ~allowed_flags));
-    VERIFY(!(flags & JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT) || parent);
 
     return JSHostClass {
         .kind = kind,
