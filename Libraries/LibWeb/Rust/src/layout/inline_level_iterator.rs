@@ -1568,7 +1568,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         let can_memoize_independent_chunks =
             self.is_unidirectional_left_to_right && style.writing_mode() == writing_mode::HORIZONTAL_TB;
         let independent_chunks_until = if can_memoize_independent_chunks
-            && chunks.independent_chunks_for_spacing.get() == Some(&(letter_spacing.to_bits(), word_spacing.to_bits()))
+            && chunks.has_independent_chunks_for_spacing(letter_spacing, word_spacing)
         {
             usize::MAX
         } else {
@@ -1675,7 +1675,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         } else if synthesize_zero_length_chunk || synthesize_chunk_after_trailing_newline {
             text_context.next_chunk_index = chunks.len() + 1;
             let chunk = text_chunker::TextChunk {
-                start: text_context.text.len(),
+                start: text_chunker::TextChunk::code_units(text_context.text.len()),
                 length: 0,
                 font_index: text_chunker::TextChunk::FONT_INDEX_OUTSIDE_ANY_CHUNKED_TEXT,
                 has_breaking_newline: false,
@@ -1692,10 +1692,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             (chunk, first_available_font)
         } else {
             if text_context.can_memoize_independent_chunks {
-                let _ = chunks.independent_chunks_for_spacing.set((
-                    text_context.letter_spacing.to_bits(),
-                    text_context.word_spacing.to_bits(),
-                ));
+                chunks.note_independent_chunks_for_spacing(text_context.letter_spacing, text_context.word_spacing);
             }
             if !text_context.text.is_empty() {
                 let regional_indicators = text_chunker::trailing_regional_indicator_count(text_context.text);
@@ -1740,12 +1737,12 @@ impl<'pass> InlineContentPreparer<'pass> {
                 || text_is_set_upright(
                     text_context.writing_mode,
                     text_context.text_orientation,
-                    text_chunker::code_point_at(text_context.text, chunk.start),
+                    text_chunker::code_point_at(text_context.text, chunk.start()),
                 )
                 || text_is_set_upright(
                     text_context.writing_mode,
                     text_context.text_orientation,
-                    text_chunker::code_point_at(text_context.text, next.start),
+                    text_chunker::code_point_at(text_context.text, next.start()),
                 )
             {
                 break;
@@ -1753,7 +1750,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             if chunk.can_break_after {
                 self.buffers.soft_wraps.push((
                     u32::try_from(self.buffers.items.len()).expect("item indices fit in 32 bits"),
-                    u32::try_from(next.start).expect("text offsets fit in 32 bits"),
+                    next.start,
                 ));
                 has_soft_wraps = true;
             }
@@ -1781,7 +1778,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         } else if text_type == line_box_fragment::GLYPH_TEXT_TYPE_COMMON
             && let Some(direction) = self.direction_of_strong_text_around(
                 &text_context,
-                &text_context.text[chunk.start..chunk.start + chunk.length],
+                &text_context.text[chunk.start()..chunk.start() + chunk.length()],
             )
         {
             text_type = direction;
@@ -1791,12 +1788,12 @@ impl<'pass> InlineContentPreparer<'pass> {
             text_context.last_known_direction = None;
             text_context.open_bracket_directions.borrow_mut().clear();
             self.text_node_context = Some(text_context);
-            return Some(PreparedItem::newline(text_node, chunk.start));
+            return Some(PreparedItem::newline(text_node, chunk.start()));
         }
 
         let full_text = text_context.text;
-        let mut shaped_start = chunk.start;
-        let mut shaped_length = chunk.length;
+        let mut shaped_start = chunk.start();
+        let mut shaped_length = chunk.length();
         let mut tab_stop = None;
         if chunk.has_breaking_tab {
             let style = text_context.style;
@@ -1819,7 +1816,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             } else {
                 style.tab_size()
             };
-            let tab_count = full_text[chunk.start..chunk.start + chunk.length]
+            let tab_count = full_text[chunk.start()..chunk.start() + chunk.length()]
                 .iter()
                 .take_while(|unit| **unit == b'\t' as u16)
                 .count();
@@ -1866,14 +1863,14 @@ impl<'pass> InlineContentPreparer<'pass> {
             is_last_chunk = next_chunk_index >= chunks.len();
             self.buffers.soft_wraps.truncate(first_soft_wrap);
             has_soft_wraps = false;
-            shaped_text = &full_text[chunk.start..chunk.start + chunk.length];
+            shaped_text = &full_text[chunk.start()..chunk.start() + chunk.length()];
             shape = libgfx_rust::text_layout::shape_text_shared(
                 font,
                 shaped_text,
                 libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
                 text_context.letter_spacing,
                 text_context.word_spacing,
-                text_chunker::joining_context(full_text, chunk.start..chunk.start + chunk.length),
+                text_chunker::joining_context(full_text, chunk.start()..chunk.start() + chunk.length()),
                 is_set_upright(shaped_text),
             );
         }
@@ -1937,7 +1934,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                 let facts = self.facts(node);
                 !facts.is_text_node() && !facts.is_word_break_opportunity_node()
             }) {
-                can_break_before = text_chunker::soft_wrap_opportunity_after_atomic_inline(&full_text[chunk.start..]);
+                can_break_before = text_chunker::soft_wrap_opportunity_after_atomic_inline(&full_text[chunk.start()..]);
             } else {
                 let style = text_context.style;
                 let line_break_language = if style.line_break() == line_break::LOOSE {
@@ -1951,7 +1948,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                 let opportunity_with = |word_break| {
                     text_chunker::soft_wrap_opportunity_between(
                         previous_text,
-                        &full_text[chunk.start..],
+                        &full_text[chunk.start()..],
                         self.code_unit_before_previous_text,
                         self.regional_indicators_before_text,
                         word_break,
@@ -1987,7 +1984,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         let font_index = self.buffers.index_of_font(font);
         let item = PreparedItem::text(
             text_node,
-            chunk.start..chunk.start + chunk.length,
+            chunk.start()..chunk.start() + chunk.length(),
             shape,
             text_type,
             font_index,

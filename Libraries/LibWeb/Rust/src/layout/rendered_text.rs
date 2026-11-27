@@ -172,11 +172,42 @@ pub(crate) struct TextChunkCacheKey {
 pub(crate) struct CachedTextChunks {
     key: TextChunkCacheKey,
     chunks: super::text_chunker::ChunkedText,
-    /// Spacing for which horizontal LTR preparation kept every original chunk separate.
-    pub(super) independent_chunks_for_spacing: std::sync::OnceLock<(u32, u32)>,
+    /// The letter and word spacing, as their bits, for which horizontal LTR preparation kept every original chunk
+    /// separate, or `NO_SPACING_NOTED`. The first spacing noted stays.
+    independent_chunks_for_spacing: std::sync::atomic::AtomicU64,
 }
 
+// OPTIMIZATION: Every text node has one of these, which this size fits in an allocation of 96 bytes with its counts.
+const _: () = assert!(size_of::<CachedTextChunks>() <= 80);
+
 impl CachedTextChunks {
+    /// What no spacing reads as: both are NaNs with every bit set, and a spacing that did read so would only go
+    /// unnoted.
+    const NO_SPACING_NOTED: u64 = u64::MAX;
+
+    fn spacing_bits(letter_spacing: f32, word_spacing: f32) -> u64 {
+        u64::from(letter_spacing.to_bits()) << 32 | u64::from(word_spacing.to_bits())
+    }
+
+    /// Whether horizontal LTR preparation kept every original chunk separate for this spacing.
+    pub(super) fn has_independent_chunks_for_spacing(&self, letter_spacing: f32, word_spacing: f32) -> bool {
+        let noted = self
+            .independent_chunks_for_spacing
+            .load(std::sync::atomic::Ordering::Relaxed);
+        noted != Self::NO_SPACING_NOTED && noted == Self::spacing_bits(letter_spacing, word_spacing)
+    }
+
+    /// Notes that horizontal LTR preparation kept every original chunk separate for this spacing.
+    pub(super) fn note_independent_chunks_for_spacing(&self, letter_spacing: f32, word_spacing: f32) {
+        use std::sync::atomic::Ordering;
+        let _ = self.independent_chunks_for_spacing.compare_exchange(
+            Self::NO_SPACING_NOTED,
+            Self::spacing_bits(letter_spacing, word_spacing),
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        );
+    }
+
     pub(crate) fn font_of(&self, chunk: &super::text_chunker::TextChunk) -> &libgfx_rust::font::FontHandle {
         self.chunks.font_of(chunk)
     }
@@ -262,7 +293,7 @@ impl TextMemos {
                 if chunks == 0 {
                     return 0;
                 }
-                chunks + crate::heap_size::vec_bytes(&row.chunks.chunks.chunks) + size_of_val(&*row.chunks.chunks.fonts)
+                chunks + size_of_val(&*row.chunks.chunks.chunks) + size_of_val(&*row.chunks.chunks.fonts)
             })
         }) + self.grapheme_segmenters.heap_size(|_| 0)
     }
@@ -301,7 +332,7 @@ impl TextMemos {
         let entry = Arc::new(CachedTextChunks {
             key: key.clone(),
             chunks: compute(),
-            independent_chunks_for_spacing: Default::default(),
+            independent_chunks_for_spacing: std::sync::atomic::AtomicU64::new(CachedTextChunks::NO_SPACING_NOTED),
         });
         self.chunks.with_row_mut(index, |memo| {
             *memo = Some(ChunksOfText {
@@ -701,7 +732,7 @@ mod tests {
         };
         let font = unsafe { libgfx_rust::font::FontHandle::intern(std::ptr::dangling()) };
         let chunked_hello = || ChunkedText {
-            chunks: vec![chunk],
+            chunks: Box::new([chunk]),
             fonts: Box::new([font.clone()]),
             frozen_font_list_held_for_memo_key: None,
         };
