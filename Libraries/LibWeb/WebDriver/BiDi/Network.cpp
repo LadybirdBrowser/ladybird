@@ -22,6 +22,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
+#include <LibWebCommon/Fetch/Infrastructure/URL.h>
 
 namespace Web::WebDriver::BiDi {
 
@@ -675,6 +676,10 @@ static ErrorOr<JsonValue, Error> continue_network_request_impl(StringView method
     auto overrides = TRY(Network::deserialize_interception_overrides(method, params));
     Fetch::Engine::NetworkDecision decision = Fetch::Engine::ContinueFetch {};
     if (method == "network.continueRequest"sv) {
+        // AD-HOC: The intercepted request goes on to HTTP-network fetch, so it keeps an HTTP(S) URL.
+        if (overrides.url.has_value() && !Fetch::Infrastructure::is_http_or_https_scheme(overrides.url->scheme()))
+            return Error::from_code(ErrorCode::InvalidArgument, "An intercepted HTTP request requires an HTTP(S) URL"sv);
+
         if (params.has("url"sv) || params.has("method"sv) || params.has("headers"sv) || params.has("body"sv) || params.has("cookies"sv))
             decision = Fetch::Engine::ModifyRequest { move(overrides.url), move(overrides.method), move(overrides.headers), move(overrides.cookie_header), move(overrides.body) };
     } else if (method == "network.failRequest"sv) {

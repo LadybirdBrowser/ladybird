@@ -2012,6 +2012,40 @@ TEST_CASE(a_webdriver_bidi_command_cannot_give_a_blocked_request_a_forbidden_met
     EXPECT(request_server.messages().is_empty());
 }
 
+TEST_CASE(a_webdriver_bidi_command_cannot_give_a_blocked_request_a_url_that_is_not_http)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto blocked = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string }, recording_blocked_requests(blocked) };
+    block_each_request_before_it_is_sent();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/not-http-url"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    run_until_blocked(harness, blocked);
+
+    JsonObject params;
+    params.set("request"sv, blocked->request_ids[0]);
+    params.set("url"sv, "file:///"sv);
+    harness.with_execution_context([&] {
+        auto result = Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params);
+        VERIFY(result.is_error());
+        EXPECT_EQ(result.error().error, "invalid argument"sv);
+    });
+
+    // The request stays blocked, unsent, until the fetch is aborted.
+    harness.with_execution_context([&] { controller->abort(*harness.realm, {}); });
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
+    EXPECT(request_server.messages().is_empty());
+}
+
 TEST_CASE(the_end_of_a_webdriver_bidi_session_settles_a_blocked_request_once)
 {
     Core::EventLoop event_loop;
