@@ -17,6 +17,6 @@ interface Screen : EventTarget {
     [SameObject] readonly attribute ScreenOrientation orientation;
 
     // https://w3c.github.io/window-management/#api-extensions-to-screen
-    [SecureContext] readonly attribute boolean isExtended;
-    [SecureContext] attribute EventHandler onchange;
+    [SecureContext, Experimental] readonly attribute boolean isExtended;
+    [SecureContext, Experimental] attribute EventHandler onchange;
 };
