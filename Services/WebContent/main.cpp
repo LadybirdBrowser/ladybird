@@ -234,7 +234,7 @@ NEVER_INLINE static ErrorOr<ProcessState> initialize_process(Main::Arguments arg
 
     args_parser.parse(arguments);
 
-    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "WebContent"sv));
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird-render"sv));
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())

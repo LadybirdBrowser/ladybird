@@ -56,7 +56,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(drm_format_modifiers, "The DRM format modifiers the presentation can import from that GPU", "drm-format-modifiers", 0, "hex,...");
     args_parser.parse(arguments);
 
-    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Compositor"sv));
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird-gpu"sv));
 
     if (resource_root.is_empty())
         return Error::from_string_literal("--resource-root is required");

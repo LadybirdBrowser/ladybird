@@ -24,7 +24,7 @@ using WebView::CrashReportReview;
 using WebView::ReportSubmission;
 
 static constexpr auto report_text = "Ladybird crash report, format 1\n"
-                                    "Process: WebContent\n"
+                                    "Process: ladybird-render\n"
                                     "Crashed at: 2026-10-01T12:34:56Z\n"
                                     "Version: 1.0\n"
                                     "Platform: macOS 26.0\n"
@@ -56,7 +56,7 @@ static void cleanup()
 
 static ByteString write_report(StringView timestamp, StringView text = report_text)
 {
-    auto name = ByteString::formatted("{}-WebContent-abc123.txt", timestamp);
+    auto name = ByteString::formatted("{}-ladybird-render-abc123.txt", timestamp);
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::Yes));
     auto file = MUST(directory.open(name, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
     MUST(file->write_until_depleted(text.bytes()));
@@ -97,7 +97,7 @@ TEST_CASE(opening_a_report_shows_what_crashed)
         { "Termination signal"sv, "SIGTRAP (5)"sv, false },
         { "Ladybird version"sv, "1.0"sv, true },
         { "Platform"sv, "macOS 26.0"sv, false },
-        { "Process"sv, "WebContent"sv, false },
+        { "Process"sv, "ladybird-render"sv, false },
         { "Architecture"sv, "arm64"sv, false },
         { "Git commit"sv, "9458821e43baaede478000e6e4ab472cc8b98d92"sv, true },
     } };
@@ -138,7 +138,7 @@ TEST_CASE(a_report_that_does_not_say_when_it_crashed_has_no_crash_date)
     cleanup();
     ScopeGuard guard = cleanup;
 
-    auto name = write_report("2026-10-02T00-00-00Z"sv, "Ladybird crash report, format 1\nProcess: WebContent\nCrashed at: yesterday\n"sv);
+    auto name = write_report("2026-10-02T00-00-00Z"sv, "Ladybird crash report, format 1\nProcess: ladybird-render\nCrashed at: yesterday\n"sv);
     WebView::CrashReportStore store { test_directory() };
     CrashReportReview review { store };
     auto report = MUST(review.open(name));
@@ -282,7 +282,7 @@ TEST_CASE(a_report_changed_after_it_was_reviewed_is_not_sent)
     CrashReportReview review { store };
     MUST(review.open(name));
 
-    write_named_report(name, "Ladybird crash report, format 1\nProcess: Browser\n"sv);
+    write_named_report(name, "Ladybird crash report, format 1\nProcess: ladybird\n"sv);
 
     Optional<ReportSubmission::Failure> failure;
     String reason;

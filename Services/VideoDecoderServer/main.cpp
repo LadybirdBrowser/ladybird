@@ -87,7 +87,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         warnln("Could not set main thread QoS: {}", result.error());
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
-    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "VideoDecoderServer"sv));
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird-video"sv));
 
     Optional<Gfx::GpuDeviceIdentity> gpu_device_identity;
     if (!gpu_device.is_empty() && features.is_enabled(PlatformFeatures::Feature::VulkanVideo)) {

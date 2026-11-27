@@ -24,11 +24,11 @@ static ErrorOr<Core::Process> spawn_probe(Optional<Gfx::GpuDeviceIdentity> const
         arguments.append(presentation_device->to_byte_string());
     }
 
-    Core::ProcessSpawnOptions options { .name = "SystemProbe"sv };
+    Core::ProcessSpawnOptions options { .name = "ladybird-probe"sv };
     options.arguments = arguments;
     options.file_actions.append(Core::FileAction::DupFd { .write_fd = output_fd, .fd = STDOUT_FILENO });
 
-    for (auto const& path : TRY(get_paths_for_helper_process("SystemProbe"sv))) {
+    for (auto const& path : TRY(get_paths_for_helper_process("ladybird-probe"sv))) {
         if (!FileSystem::exists(path))
             continue;
         options.executable = path;

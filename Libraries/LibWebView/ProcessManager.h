@@ -24,7 +24,7 @@
 
 namespace WebView {
 
-WEBVIEW_API ProcessType process_type_from_name(StringView);
+WEBVIEW_API Optional<ProcessType> process_type_from_name(StringView);
 WEBVIEW_API StringView process_name_from_type(ProcessType type);
 
 class WEBVIEW_API ProcessManager {

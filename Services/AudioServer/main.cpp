@@ -44,7 +44,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(is_headless, "Discard the mixed output instead of playing it", "headless");
     args_parser.parse(arguments);
 
-    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "AudioServer"sv));
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird-audio"sv));
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())

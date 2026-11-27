@@ -190,7 +190,7 @@ static Optional<PlatformFeatures::FeatureProcess> feature_process_for(ProcessTyp
 template<typename SpawnFunction>
 static ErrorOr<ChildIdentity> launch_helper_process(StringView server_name, Vector<ByteString> arguments, IsPrivate is_private, SpawnFunction&& spawn)
 {
-    auto process_type = WebView::process_type_from_name(server_name);
+    auto process_type = WebView::process_type_from_name(server_name).value();
     auto const& browser_options = WebView::Application::browser_options();
 
     auto candidate_server_paths = TRY(get_paths_for_helper_process(server_name));
@@ -313,7 +313,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 {
     RefPtr<ClientType> client;
     auto identity = TRY(launch_helper_process(server_name, move(arguments), is_private, [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
-        auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name), options, capture_output, forward<ClientArguments>(client_arguments)...));
+        auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name).value(), options, capture_output, forward<ClientArguments>(client_arguments)...));
         client = move(new_client);
         return move(process);
     }));
@@ -329,7 +329,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process_for(u64 owner_ch
 {
     RefPtr<ClientType> client;
     auto identity = TRY(launch_helper_process(server_name, move(arguments), is_private, [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
-        auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name), options, capture_output));
+        auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name).value(), options, capture_output));
         process.set_owner_child_id(owner_child_id);
         if (site.has_value())
             process.set_site_url(URL::Parser::basic_parse(*site));
@@ -403,7 +403,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(Bro
         arguments.append(server.value());
     }
 
-    auto client = TRY(launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), session.is_private(), session, initial_page_id, root_navigable_id));
+    auto client = TRY(launch_server_process<WebView::WebContentClient>("ladybird-render"sv, move(arguments), session.is_private(), session, initial_page_id, root_navigable_id));
     TRY(connect_to_font_service(*client));
 
     // The test-only messages live on their own endpoint pair, over a transport that only exists in test mode.
@@ -430,7 +430,7 @@ ErrorOr<NonnullRefPtr<ImageDecoderControlClient>> launch_image_decoder_process(u
         arguments.append(server.value());
     }
 
-    return launch_server_process_for<ImageDecoderControlClient>(owner_child_id, is_private, "ImageDecoder"sv, move(arguments), site);
+    return launch_server_process_for<ImageDecoderControlClient>(owner_child_id, is_private, "ladybird-image"sv, move(arguments), site);
 }
 
 ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& client)
@@ -460,7 +460,7 @@ ErrorOr<IPC::TransportHandle> launch_webrtc_client_process(WebContentClient& cli
     // NB: The renderer's sandbox does not let it spawn processes, so the Browser launches the helper and hands its end
     //     of the transport over.
     OwnPtr<IPC::Transport> transport;
-    TRY(launch_helper_process("WebRTCClient"sv, move(arguments), client.is_private(), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+    TRY(launch_helper_process("ladybird-webrtc"sv, move(arguments), client.is_private(), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
         auto [process, new_transport] = TRY(WebView::Process::spawn_with_transport(ProcessType::WebRTCClient, options, capture_output));
         process.set_owner_child_id(client.child_id());
         transport = move(new_transport);
@@ -484,7 +484,7 @@ ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64
         arguments.append(server.value());
     }
 
-    return launch_server_process_for<AudioServerControlClient>(owner_child_id, is_private, "AudioServer"sv, arguments);
+    return launch_server_process_for<AudioServerControlClient>(owner_child_id, is_private, "ladybird-audio"sv, arguments);
 }
 
 ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owner_child_id, IsPrivate is_private)
@@ -499,7 +499,7 @@ ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owne
         arguments.append(server.value());
     }
 
-    return launch_server_process_for<MediaClient::Client>(owner_child_id, is_private, "MediaServer"sv, arguments);
+    return launch_server_process_for<MediaClient::Client>(owner_child_id, is_private, "ladybird-media"sv, arguments);
 }
 
 static NeverDestroyed<Vector<WeakPtr<VideoDecoderServerControlClient>>> s_video_decoder_servers;
@@ -547,7 +547,7 @@ ErrorOr<NonnullRefPtr<VideoDecoderServerControlClient>> launch_video_decoder_ser
         arguments.append(server.value());
     }
 
-    auto server = TRY(launch_server_process_for<VideoDecoderServerControlClient>(owner_child_id, is_private, "VideoDecoderServer"sv, arguments));
+    auto server = TRY(launch_server_process_for<VideoDecoderServerControlClient>(owner_child_id, is_private, "ladybird-video"sv, arguments));
     s_launch_epochs_of_video_decoder_servers->set(server->child_id(), s_recent_video_decoder_server_losses->current_epoch());
     s_video_decoder_servers->remove_all_matching([](auto const& weak_server) { return !weak_server; });
     s_video_decoder_servers->append(server->make_weak_ptr<VideoDecoderServerControlClient>());
@@ -602,7 +602,7 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process(Byte
         arguments.append(server.value());
     }
 
-    auto client = TRY(launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments), IsPrivate::No));
+    auto client = TRY(launch_server_process<WebView::CompositorClient>("ladybird-gpu"sv, move(arguments), IsPrivate::No));
     TRY(connect_to_font_service(*client));
     return client;
 }
@@ -669,7 +669,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
         arguments.append("--test-mode"sv);
 
     RefPtr<Requests::RequestControlClient> client;
-    TRY(launch_helper_process("RequestServer"sv, move(arguments), is_private, [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<Process> {
+    TRY(launch_helper_process("ladybird-net"sv, move(arguments), is_private, [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<Process> {
         auto [process, new_client] = TRY(Process::spawn<Requests::RequestControlClient>(ProcessType::RequestServer, options, capture_output));
         if (site.has_value())
             process.set_site_url(URL::Parser::basic_parse(*site));

@@ -85,42 +85,8 @@ void platform_init(Optional<ByteString> ladybird_binary_path)
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(s_ladybird_resource_root))));
 }
 
-// NB: The executables share a prefix, so that tools like pgrep find all of them together. Each name fits in the 15
-//     characters that Linux keeps of a process name, so that no tool shows it cut short.
-static StringView executable_name_for_process(StringView process_name)
-{
-    struct ExecutableName {
-        StringView process_name;
-        StringView executable_name;
-    };
-    static constexpr ExecutableName executable_names[] = {
-        { "AudioServer"sv, "ladybird-audio"sv },
-        { "Compositor"sv, "ladybird-gpu"sv },
-        { "Hub"sv, "ladybird-hub"sv },
-        { "ImageDecoder"sv, "ladybird-image"sv },
-#if !defined(AK_OS_MACOS)
-        // NB: On macOS, the executable keeps the capitalized name of the application bundle.
-        { "Ladybird"sv, "ladybird"sv },
-#endif
-        { "MediaServer"sv, "ladybird-media"sv },
-        { "ProcessReaper"sv, "ladybird-reaper"sv },
-        { "RequestServer"sv, "ladybird-net"sv },
-        { "SystemProbe"sv, "ladybird-probe"sv },
-        { "VideoDecoderServer"sv, "ladybird-video"sv },
-        { "WebContent"sv, "ladybird-render"sv },
-        { "WebDriver"sv, "ladybird-driver"sv },
-        { "WebRTCClient"sv, "ladybird-webrtc"sv },
-    };
-    for (auto const& entry : executable_names) {
-        if (entry.process_name == process_name)
-            return entry.executable_name;
-    }
-    return process_name;
-}
-
 ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name)
 {
-    process_name = executable_name_for_process(process_name);
     auto application_path = TRY(application_directory());
     Vector<ByteString> paths;
 

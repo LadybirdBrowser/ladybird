@@ -24,14 +24,14 @@ Every record has these fields:
 | --- | --- |
 | `type` | `sample` or `event` |
 | `time_ns` | Integer nanoseconds from `CLOCK_MONOTONIC`, shared across processes on a host |
-| `process` | `Ladybird`, `WebDriver`, `WebContent`, `RequestServer`, `Compositor`, `ImageDecoder`, `AudioServer`, `MediaServer`, or `VideoDecoderServer` |
+| `process` | `ladybird`, `ladybird-driver`, `ladybird-render`, `ladybird-net`, `ladybird-gpu`, `ladybird-image`, `ladybird-audio`, `ladybird-media`, or `ladybird-video` |
 | `pid` | Integer operating system process ID |
 
 For example:
 
 ```json
-{"type":"sample","time_ns":1234567890,"process":"WebContent","pid":123,"values":{"gc.heap_blocks":42}}
-{"type":"event","time_ns":1234567891,"process":"WebContent","pid":123,"name":"load","data":{"page_id":1,"navigable_id":"1:1","document_id":"1:1","url":"https://example.com/"}}
+{"type":"sample","time_ns":1234567890,"process":"ladybird-render","pid":123,"values":{"gc.heap_blocks":42}}
+{"type":"event","time_ns":1234567891,"process":"ladybird-render","pid":123,"name":"load","data":{"page_id":1,"navigable_id":"1:1","document_id":"1:1","url":"https://example.com/"}}
 ```
 
 Samples have a `values` object containing only numbers with dotted keys. Each process takes an
@@ -112,12 +112,12 @@ form `namespace:local`, preserving their exact values in floating-point JSON con
 
 | Name | Process | Data |
 | --- | --- | --- |
-| `navigation_start` | Ladybird | `navigable_id` (cross-process ID string), `navigation_id` (string), `url` (string) |
-| `DOMContentLoaded` | WebContent | `page_id` (integer), `navigable_id` (cross-process ID string), `document_id` (cross-process ID string), `url` (string) |
-| `load` | WebContent | Same fields as `DOMContentLoaded` |
-| `frame` | Compositor | `page_id` (integer), `changed` (boolean), `damage_x`, `damage_y`, `damage_width`, `damage_height` (integer device pixels) |
-| `rendering_pending` | WebContent | `page_id` (integer), `navigable_id` (cross-process ID string), `pending` (boolean), `reasons` (object of integer counts) |
-| `gc` | WebContent | `collection`, `duration_ns`, `pause_duration_ns`, `sweep_duration_ns`, `bytes_before`, `bytes_after`, `live_cell_bytes`, `live_external_bytes` (integers) |
+| `navigation_start` | `ladybird` | `navigable_id` (cross-process ID string), `navigation_id` (string), `url` (string) |
+| `DOMContentLoaded` | `ladybird-render` | `page_id` (integer), `navigable_id` (cross-process ID string), `document_id` (cross-process ID string), `url` (string) |
+| `load` | `ladybird-render` | Same fields as `DOMContentLoaded` |
+| `frame` | `ladybird-gpu` | `page_id` (integer), `changed` (boolean), `damage_x`, `damage_y`, `damage_width`, `damage_height` (integer device pixels) |
+| `rendering_pending` | `ladybird-render` | `page_id` (integer), `navigable_id` (cross-process ID string), `pending` (boolean), `reasons` (object of integer counts) |
+| `gc` | `ladybird-render` | `collection`, `duration_ns`, `pause_duration_ns`, `sweep_duration_ns`, `bytes_before`, `bytes_after`, `live_cell_bytes`, `live_external_bytes` (integers) |
 
 Navigation starts are recorded when the browser admits a navigation. Lifecycle markers are recorded
 immediately before DOM event dispatch, excluding event handlers. Match them by `navigable_id`.

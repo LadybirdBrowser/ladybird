@@ -18,21 +18,22 @@ namespace WebView {
 
 static StringView plain_process_name(StringView process)
 {
-    if (process == "Compositor"sv)
+    // NB: Reports saved before the processes were named after their executables use the former names.
+    if (process == "ladybird-gpu"sv || process == "Compositor"sv)
         return "Graphics process"sv;
-    if (process == "WebContent"sv)
+    if (process == "ladybird-render"sv || process == "WebContent"sv)
         return "Page"sv;
-    if (process == "RequestServer"sv)
+    if (process == "ladybird-net"sv || process == "RequestServer"sv)
         return "Network process"sv;
-    if (process == "ImageDecoder"sv)
+    if (process == "ladybird-image"sv || process == "ImageDecoder"sv)
         return "Image decoder"sv;
-    if (process == "MediaServer"sv)
+    if (process == "ladybird-media"sv || process == "MediaServer"sv)
         return "Media process"sv;
-    if (process == "AudioServer"sv)
+    if (process == "ladybird-audio"sv || process == "AudioServer"sv)
         return "Audio process"sv;
-    if (process == "VideoDecoderServer"sv)
+    if (process == "ladybird-video"sv || process == "VideoDecoderServer"sv)
         return "Video decoder"sv;
-    if (process == "WebRTCClient"sv)
+    if (process == "ladybird-webrtc"sv || process == "WebRTCClient"sv)
         return "WebRTC process"sv;
     return "Ladybird"sv;
 }

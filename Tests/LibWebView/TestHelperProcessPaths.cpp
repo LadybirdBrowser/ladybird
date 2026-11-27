@@ -14,7 +14,7 @@
 #if !defined(AK_OS_MACOS)
 TEST_CASE(each_helper_process_is_at_one_of_its_paths)
 {
-    for (auto process_name : { "Compositor"sv, "ImageDecoder"sv, "RequestServer"sv, "SystemProbe"sv, "WebContent"sv }) {
+    for (auto process_name : { "ladybird-gpu"sv, "ladybird-image"sv, "ladybird-net"sv, "ladybird-probe"sv, "ladybird-render"sv }) {
         auto paths = TRY_OR_FAIL(WebView::get_paths_for_helper_process(process_name));
         if (!any_of(paths, [](auto const& path) { return FileSystem::exists(path); }))
             FAIL(ByteString::formatted("No file at any path for {}: {}", process_name, paths));

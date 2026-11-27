@@ -52,7 +52,7 @@ static void write_file(StringView name, StringView contents, UnixDateTime modifi
 }
 
 // A name the store accepts: a UTC timestamp, a known process, and a six character suffix.
-static ByteString report_name(StringView timestamp, StringView process = "WebContent"sv)
+static ByteString report_name(StringView timestamp, StringView process = "ladybird-render"sv)
 {
     return ByteString::formatted("{}-{}-abc123.txt", timestamp, process);
 }
@@ -78,7 +78,7 @@ TEST_CASE(a_stored_report_is_named_after_the_time_of_the_crash)
 
     auto crashed_at = UnixDateTime::from_seconds_since_epoch(1772000767);
     auto name = MUST(test_store().store_report(WebView::ProcessType::WebContent, "A report\n"sv, crashed_at));
-    EXPECT(name.starts_with("2026-02-25T06-26-07Z-WebContent-"sv));
+    EXPECT(name.starts_with("2026-02-25T06-26-07Z-ladybird-render-"sv));
     EXPECT(name.ends_with(".txt"sv));
     EXPECT(WebView::CrashReportStore::is_saved_report_name(name));
 
@@ -90,18 +90,25 @@ TEST_CASE(a_stored_report_is_named_after_the_time_of_the_crash)
 TEST_CASE(unrelated_files_are_not_reports)
 {
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("notes.txt"sv));
-    EXPECT(!WebView::CrashReportStore::is_saved_report_name("WebContent-abc123.txt"sv));
-    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04X05-06-07Z-WebContent-abc123.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("ladybird-render-abc123.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04X05-06-07Z-ladybird-render-abc123.txt"sv));
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-Firefox-abc123.txt"sv));
-    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-abc123.log"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-render-abc123.log"sv));
+    EXPECT(WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-render-abc123.txt"sv));
+}
+
+TEST_CASE(reports_saved_under_former_process_names_are_still_reports)
+{
     EXPECT(WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-abc123.txt"sv));
+    EXPECT(WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-Browser-abc123.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-ab/c12.txt"sv));
 }
 
 TEST_CASE(a_name_cannot_reach_outside_the_store)
 {
-    EXPECT(!WebView::CrashReportStore::is_saved_report_name("WebContent-x/../a.txt"sv));
-    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-ab/c12.txt"sv));
-    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-WebContent-abc.12.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("ladybird-render-x/../a.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-render-ab/c12.txt"sv));
+    EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-render-abc.12.txt"sv));
 }
 
 TEST_CASE(a_website_left_without_its_report_is_removed)
@@ -178,7 +185,7 @@ TEST_CASE(a_report_older_than_30_days_is_not_pending)
     ScopeGuard guard = cleanup;
 
     auto stale = report_name("2026-10-05T11-59-59Z"sv);
-    auto fresh = report_name("2026-10-05T12-00-00Z"sv, "Browser"sv);
+    auto fresh = report_name("2026-10-05T12-00-00Z"sv, "ladybird"sv);
     write_file(stale, "Too old\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 5, 11, 59, 59, 0));
     write_file(fresh, "Recent enough\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 5, 12, 0, 0, 0));
     auto store = test_store();
@@ -199,7 +206,7 @@ TEST_CASE(unsent_reports_are_deleted_after_30_days)
 
     auto stale = report_name("2026-10-05T11-59-59Z"sv);
     auto stale_and_seen = report_name("2026-10-05T11-59-58Z"sv);
-    auto fresh = report_name("2026-10-05T12-00-00Z"sv, "Browser"sv);
+    auto fresh = report_name("2026-10-05T12-00-00Z"sv, "ladybird"sv);
     auto fresh_and_seen = report_name("2026-10-05T12-00-01Z"sv);
     write_file(stale, "Too old\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 5, 11, 59, 59, 0));
     write_file(stale_and_seen, "Too old\n"sv, UnixDateTime::from_unix_time_parts(2026, 10, 5, 11, 59, 58, 0));
@@ -370,7 +377,7 @@ TEST_CASE(a_recovered_browser_crash_keeps_the_time_it_crashed)
     auto entries = directory_entries();
     EXPECT_EQ(entries.size(), 1u);
     // Not the time of this launch, which is what a report named after "now" would record.
-    EXPECT(entries[0].starts_with("2026-02-25T06-26-07Z-Browser-"sv));
+    EXPECT(entries[0].starts_with("2026-02-25T06-26-07Z-ladybird-"sv));
 
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::No));
     auto text = ByteString::copy(MUST(MUST(directory.open(entries[0], Core::File::OpenMode::Read))->read_until_eof()));
@@ -475,11 +482,11 @@ TEST_CASE(a_browser_that_crashes_is_recovered_by_the_next_launch)
     EXPECT_EQ(MUST(store.recover_pending_reports()), 1u);
     auto entries = directory_entries();
     EXPECT_EQ(entries.size(), 1u);
-    EXPECT(entries[0].contains("-Browser-"sv));
+    EXPECT(entries[0].contains("-ladybird-"sv));
 
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::No));
     auto text = ByteString::copy(MUST(MUST(directory.open(entries[0], Core::File::OpenMode::Read))->read_until_eof()));
-    EXPECT(text.contains("Process: Browser\n"sv));
+    EXPECT(text.contains("Process: ladybird\n"sv));
     EXPECT(text.contains(WebView::CrashReport::describe_current_build(WebView::ProcessType::Browser)));
     EXPECT(text.contains("Termination signal: SIGSEGV\nTermination signal number: 11\n"sv));
     EXPECT(text.contains("Native stack"sv));

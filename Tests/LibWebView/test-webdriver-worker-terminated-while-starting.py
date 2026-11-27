@@ -73,7 +73,7 @@ def run_test(webdriver_binary):
 
             # A worker that crashes on its way out takes the WebContent process that hosts it along.
             time.sleep(CRASH_REPORT_GRACE_SECONDS)
-            reports = list((profile / "data/CrashReports").glob("*-WebContent-*.txt"))
+            reports = list((profile / "data/CrashReports").glob("*-ladybird-render-*.txt"))
             assert not reports, reports[0].read_text()
 
             webdriver_helpers.request(port, "DELETE", f"/session/{session}")

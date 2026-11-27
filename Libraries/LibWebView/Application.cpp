@@ -450,7 +450,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)",
+        .help_string = "Wait for a debugger to attach to the given process name (ladybird-render, ladybird-net, etc.)",
         .long_name = "debug-process",
         .value_name = "process-name",
         .accept_value = [&](StringView value) {
@@ -460,7 +460,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
             debug_processes.append(value);
             return true;
         } });
-    args_parser.add_option(profile_process, "Profile the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
+    args_parser.add_option(profile_process, "Profile the given process name (ladybird-render, ladybird-net, etc.)", "profile-process", 0, "process-name");
     args_parser.add_option(profile_tool, "Select the profiler to use: 'callgrind' (default) or 'cpu'", "profile-tool", 0, "tool");
     args_parser.add_option(profile_output, "Write CPU profiler output to the given path", "profile-output", 0, "path");
 #if defined(AK_OS_MACOS)
@@ -550,7 +550,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     create_platform_arguments(args_parser);
     args_parser.parse(m_arguments);
 
-    m_stats_log = TRY(Core::StatsLog::create(stats_log_directory, "Ladybird"sv));
+    m_stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird"sv));
 
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
@@ -561,10 +561,19 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     for (auto& process_name : debug_processes) {
         auto type = process_type_from_name(process_name);
-        debug_process_types.append(type);
+        if (!type.has_value()) {
+            warnln("Unknown process name '{}'. Processes are named after their executables, such as ladybird-render.", process_name);
+            return Error::from_string_literal("--debug-process was given an unknown process name");
+        }
+        debug_process_types.append(*type);
     }
-    if (profile_process.has_value())
+    if (profile_process.has_value()) {
         profile_process_type = process_type_from_name(*profile_process);
+        if (!profile_process_type.has_value()) {
+            warnln("Unknown process name '{}'. Processes are named after their executables, such as ladybird-render.", *profile_process);
+            return Error::from_string_literal("--profile-process was given an unknown process name");
+        }
+    }
     if (profile_tool.has_value()) {
         if (*profile_tool == "callgrind"sv)
             selected_profile_tool = ProfileTool::Callgrind;

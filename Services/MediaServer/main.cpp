@@ -45,7 +45,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.parse(arguments);
 
-    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "MediaServer"sv));
+    auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "ladybird-media"sv));
 
     if (crash_report_fd >= 0) {
         if (auto result = Core::CrashHandler::initialize(crash_report_fd); result.is_error())

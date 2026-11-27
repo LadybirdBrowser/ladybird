@@ -58,13 +58,23 @@ bool CrashReportStore::is_saved_report_name(StringView name)
             return false;
     }
     auto suffix = name.substring_view(timestamp_pattern.length());
-    for (auto type : { ProcessType::Browser, ProcessType::WebContent,
-             ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor }) {
-        auto prefix = ByteString::formatted("{}-", process_name_from_type(type));
+    auto has_process_name = [&](StringView process_name) {
+        auto prefix = ByteString::formatted("{}-", process_name);
         if (!suffix.starts_with(prefix) || suffix.length() != prefix.length() + 10)
-            continue;
+            return false;
         // Only the characters the store names files with, so a name never reaches outside its directory.
         return all_of(suffix.substring_view(prefix.length(), 6), is_ascii_alphanumeric);
+    };
+    for (auto type : { ProcessType::Browser, ProcessType::WebContent,
+             ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor }) {
+        if (has_process_name(process_name_from_type(type)))
+            return true;
+    }
+    // NB: Reports saved before the processes were named after their executables may hold private data too, so they
+    //     are listed, pruned and removed like any other.
+    for (auto process_name : { "Browser"sv, "WebContent"sv, "RequestServer"sv, "ImageDecoder"sv, "MediaServer"sv, "AudioServer"sv, "VideoDecoderServer"sv, "Compositor"sv }) {
+        if (has_process_name(process_name))
+            return true;
     }
     return false;
 }
