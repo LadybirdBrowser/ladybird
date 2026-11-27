@@ -315,8 +315,10 @@ static ByteString update_check_header(SystemDescription const& system, StringVie
         append_string_member(builder, "os-version"sv, system.macos_version->bytes_as_string_view().find_first_split_view('.'));
 #    elif defined(AK_OS_LINUX)
     append_member(builder, "os"sv, "linux"sv);
-    if (system.os_release.version_id.has_value())
-        append_string_member(builder, "os-version"sv, *system.os_release.version_id);
+    if (system.os_release.version_id.has_value()) {
+        if (auto version = version_number_from(*system.os_release.version_id); !version.is_empty())
+            append_string_member(builder, "os-version"sv, version);
+    }
     if (system.os_release.id.has_value())
         append_string_member(builder, "distro"sv, *system.os_release.id);
 #    elif defined(AK_OS_WINDOWS)
