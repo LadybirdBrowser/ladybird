@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Each case is drawn two times: with a color, and with a gradient that has that color at both ends. Only the
+    // shadow of the color can be drawn as the path moved by the offset, so the two must give the same pixels.
+    const WIDTH = 200;
+    const HEIGHT = 150;
+
+    function render(color, setUp, draw) {
+        const canvas = document.createElement("canvas");
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+        const context = canvas.getContext("2d");
+        let style = color;
+        if (color instanceof Array) {
+            style = context.createLinearGradient(0, 0, WIDTH, 0);
+            style.addColorStop(0, color[0]);
+            style.addColorStop(1, color[0]);
+        }
+        context.fillStyle = style;
+        context.strokeStyle = style;
+        setUp(context);
+        draw(context);
+        return context.getImageData(0, 0, WIDTH, HEIGHT).data;
+    }
+
+    // The largest difference of a premultiplied channel between two renderings.
+    function largestDifference(a, b) {
+        let largest = 0;
+        for (let i = 0; i < a.length; i += 4) {
+            largest = Math.max(largest, Math.abs(a[i + 3] - b[i + 3]));
+            for (let channel = 0; channel < 3; ++channel)
+                largest = Math.max(largest, Math.abs(a[i + channel] * a[i + 3] - b[i + channel] * b[i + 3]) / 255);
+        }
+        return largest;
+    }
+
+    function pixel(data, x, y) {
+        const i = (y * WIDTH + x) * 4;
+        return `${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`;
+    }
+
+    function check(name, color, setUp, draw, probes = []) {
+        const withColor = render(color, setUp, draw);
+        const withGradient = render([color], setUp, draw);
+        const difference = largestDifference(withColor, withGradient);
+        const drawn = withColor.some(value => value !== 0);
+        const samples = probes.map(([x, y]) => `(${x},${y})=${pixel(withColor, x, y)}`).join(" ");
+        println(`${name}: ${drawn && difference <= 2 ? "same" : `DIFFERENT by ${difference}`}${samples ? " " + samples : ""}`);
+    }
+
+    function shadow(context, color, x, y) {
+        context.shadowColor = color;
+        context.shadowOffsetX = x;
+        context.shadowOffsetY = y;
+    }
+
+    test(() => {
+        check("fill", "orange",
+            context => shadow(context, "rgb(0 0 255)", 20, 30),
+            context => context.fillRect(40, 20, 80, 60),
+            [[50, 30], [130, 100], [30, 100], [150, 30]]);
+
+        check("fill off the canvas", "black",
+            context => shadow(context, "rgb(255 0 0)", 300, 0),
+            context => context.fillRect(-250, 40, 100, 60),
+            [[100, 70], [30, 70], [100, 20]]);
+
+        check("shadow with alpha", "rgb(0 128 0)",
+            context => shadow(context, "rgb(0 0 0 / 0.5)", -10, 12),
+            context => context.fillRect(60, 30, 80, 60),
+            [[55, 60], [100, 96]]);
+
+        check("fill with alpha and global alpha", "rgb(255 0 0 / 0.5)",
+            context => {
+                shadow(context, "rgb(0 0 255)", 40, 40);
+                context.globalAlpha = 0.5;
+            },
+            context => context.fillRect(20, 20, 60, 60));
+
+        check("shadow over content", "white",
+            context => {
+                context.save();
+                context.fillStyle = "rgb(0 128 0)";
+                context.fillRect(0, 0, WIDTH, HEIGHT);
+                context.restore();
+                shadow(context, "rgb(0 0 0 / 0.25)", 6, 6);
+            },
+            context => {
+                context.beginPath();
+                context.roundRect(40, 30, 100, 70, 12);
+                context.fill();
+            });
+
+        check("transform does not move the offset", "purple",
+            context => {
+                shadow(context, "rgb(0 0 0 / 0.75)", 15, -10);
+                context.translate(100, 75);
+                context.rotate(0.5);
+                context.scale(2, 0.75);
+            },
+            context => {
+                context.beginPath();
+                context.arc(0, 0, 25, 0, Math.PI * 2);
+                context.fill();
+            });
+
+        check("stroke", "teal",
+            context => {
+                shadow(context, "rgb(255 0 255)", 12, 9);
+                context.lineWidth = 11;
+                context.lineJoin = "miter";
+                context.miterLimit = 20;
+            },
+            context => {
+                context.beginPath();
+                context.moveTo(30, 110);
+                context.lineTo(90, 20);
+                context.lineTo(120, 110);
+                context.stroke();
+            });
+
+        check("dashed stroke with square caps", "navy",
+            context => {
+                shadow(context, "rgb(255 128 0)", -8, 14);
+                context.lineWidth = 9;
+                context.lineCap = "square";
+                context.setLineDash([20, 15]);
+            },
+            context => {
+                context.beginPath();
+                context.moveTo(20, 60);
+                context.lineTo(180, 90);
+                context.stroke();
+            });
+
+        check("clip", "orange",
+            context => {
+                context.beginPath();
+                context.arc(100, 75, 50, 0, Math.PI * 2);
+                context.clip();
+                shadow(context, "rgb(0 0 255)", 25, 25);
+            },
+            context => context.fillRect(60, 40, 60, 50),
+            [[130, 105], [144, 114]]);
+
+        check("even-odd fill", "crimson",
+            context => shadow(context, "rgb(0 0 0)", 9, 9),
+            context => {
+                context.beginPath();
+                context.rect(30, 20, 130, 100);
+                context.rect(60, 45, 70, 50);
+                context.fill("evenodd");
+            },
+            [[100, 70], [65, 50]]);
+
+        check("offset of a part of a pixel", "orange",
+            context => shadow(context, "rgb(0 0 255)", 10.5, 7.25),
+            context => context.fillRect(40, 20, 80, 60));
+    });
+</script>
