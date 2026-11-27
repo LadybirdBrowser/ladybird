@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/clip-path-url-pseudo-element-boxes-ref.html" />
+<style>
+    .case {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+    }
+    .case::before,
+    #text::after {
+        content: "";
+        display: block;
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+    #static::before {
+        clip-path: url(#left-half);
+    }
+    #text::before {
+        display: none;
+    }
+    #text::after {
+        content: "text";
+        color: green;
+        clip-path: url(#left-half);
+    }
+    #late::before {
+        clip-path: url(#late-clip-path);
+    }
+    #changed::before {
+        clip-path: url(#missing);
+    }
+    #changed.clipped::before {
+        clip-path: url(#left-half);
+    }
+    #spaced::before {
+        content: "a";
+        display: inline-block;
+        clip-path: url(#everything);
+    }
+</style>
+<svg width="0" height="0" style="position: absolute">
+    <clipPath id="left-half" clipPathUnits="objectBoundingBox">
+        <rect width="0.5" height="1" />
+    </clipPath>
+    <clipPath id="everything" style="display: block">
+        <rect x="-100" y="-100" width="1000" height="1000" />
+    </clipPath>
+</svg>
+<div class="case" id="static"></div>
+<div class="case" id="text"></div>
+<div class="case" id="late"></div>
+<div class="case" id="changed"></div>
+<div id="spaced"> <span>b</span></div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", "0");
+            svg.setAttribute("height", "0");
+            svg.innerHTML = '<clipPath id="late-clip-path" clipPathUnits="objectBoundingBox"><rect width="0.5" height="1" /></clipPath>';
+            document.body.appendChild(svg);
+            document.getElementById("changed").classList.add("clipped");
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

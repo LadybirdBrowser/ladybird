@@ -107,6 +107,11 @@ pub(crate) enum LayoutChange {
         element: StyleNodeID,
         references: [u32; 4],
     },
+    /// The clip paths the styles of an element's `::before` and `::after` name.
+    PseudoElementClipPathReferences {
+        element: StyleNodeID,
+        references: [u32; 2],
+    },
     /// Whether the document is an SVG file decoded as an image, which the layout of its SVG roots reads.
     SetDocumentIsDecodedSvg(bool),
     /// A fact of the node's DOM node the host stamps into its row.
@@ -208,6 +213,7 @@ impl LayoutChange {
             | Self::SvgAttributeFacts { .. }
             | Self::MathAttributeFacts { .. }
             | Self::SvgStyleReferences { .. }
+            | Self::PseudoElementClipPathReferences { .. }
             | Self::SetDocumentIsDecodedSvg(_)
             | Self::SetNodeFlag { .. }
             | Self::HandOverOwnedProvider { .. }
@@ -314,6 +320,9 @@ impl LayoutChange {
             Self::MathAttributeFacts { element, facts } => arena.set_style_node_math_attribute_facts(element, *facts),
             Self::SvgStyleReferences { element, references } => {
                 arena.set_style_node_svg_style_references(element, references);
+            }
+            Self::PseudoElementClipPathReferences { element, references } => {
+                arena.set_style_node_pseudo_element_clip_path_references(element, references);
             }
             Self::SetDocumentIsDecodedSvg(is_decoded_svg) => arena.set_document_is_decoded_svg(is_decoded_svg),
             Self::SetNodeFlag { node, flag, value } => {
@@ -700,6 +709,24 @@ pub extern "C" fn render_state_set_svg_style_references(
     let change = LayoutChange::SvgStyleReferences {
         element,
         references: [mask, clip_path, fill, stroke],
+    };
+    queue(host, change);
+}
+
+/// Publishes the clip paths the styles of an element's `::before` and `::after` name.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_set_pseudo_element_clip_path_references(
+    host: &DocumentHost,
+    element: u32,
+    before: u32,
+    after: u32,
+) {
+    let Some(element) = StyleNodeID::from_raw(element) else {
+        return;
+    };
+    let change = LayoutChange::PseudoElementClipPathReferences {
+        element,
+        references: [before, after],
     };
     queue(host, change);
 }

@@ -377,6 +377,8 @@ pub struct FfiSvgAttributeFacts {
     pub clip_path_reference_atom: u32,
     pub fill_reference_atom: u32,
     pub stroke_reference_atom: u32,
+    pub before_clip_path_reference_atom: u32,
+    pub after_clip_path_reference_atom: u32,
     /// The `startOffset` of a `<textPath>`, against the length of the path it follows.
     pub text_path_start_offset: FfiSvgNumberPercentage,
     /// An `<svg>`'s `width` and `height` where they are a `<length>`, which its natural size is

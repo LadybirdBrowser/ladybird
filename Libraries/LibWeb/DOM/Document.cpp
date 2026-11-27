@@ -11207,7 +11207,7 @@ static void remove_stale_css_box_clip_path_referrers(Utf16FlyString const& id, G
 {
     GC::RootVector<GC::Ref<Element>> stale_referrers;
     for (auto& referrer : referrers) {
-        if (Layout::css_box_clip_path_fragment(referrer) != id)
+        if (!Layout::css_box_references_clip_path(referrer, id))
             stale_referrers.append(referrer);
     }
     for (auto& referrer : stale_referrers)

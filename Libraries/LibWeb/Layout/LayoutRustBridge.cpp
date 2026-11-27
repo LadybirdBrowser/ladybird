@@ -170,9 +170,9 @@ static Optional<CSS::URL> clip_path_url(CSS::ComputedValuesFFI::StyleRecordGroup
     return CSS::style_record_group<CSS::ComputedValues::MaskValues>(record_groups).clip_path_value();
 }
 
-static Optional<CSS::URL> css_box_clip_path_url(DOM::Element const& element)
+static Optional<CSS::URL> css_box_clip_path_url(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element = {})
 {
-    auto url = clip_path_url(element.style_record_groups());
+    auto url = clip_path_url(element.style_record_groups(pseudo_element));
     if (!url.has_value() || url->url().starts_with('#'))
         return url;
     auto resolved_url = element.document().encoding_parse_url(url->url());
@@ -209,9 +209,16 @@ bool clip_path_is_url(CSS::InstalledStyle const& style)
     return clip_path_url(style.groups()).has_value();
 }
 
-Optional<Utf16FlyString> css_box_clip_path_fragment(DOM::Element const& element)
+static Optional<Utf16FlyString> css_box_clip_path_fragment(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element = {})
 {
-    return svg_style_reference_fragment(css_box_clip_path_url(element));
+    return svg_style_reference_fragment(css_box_clip_path_url(element, pseudo_element));
+}
+
+bool css_box_references_clip_path(DOM::Element const& element, Utf16FlyString const& id)
+{
+    return css_box_clip_path_fragment(element) == id
+        || css_box_clip_path_fragment(element, CSS::PseudoElement::Before) == id
+        || css_box_clip_path_fragment(element, CSS::PseudoElement::After) == id;
 }
 
 bool svg_style_references_differ(DOM::Element const& element, CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
@@ -398,6 +405,8 @@ static RustFFI::FfiSvgAttributeFacts build_svg_attribute_facts(DOM::Element& dom
         .clip_path_reference_atom = style_references[1].value(),
         .fill_reference_atom = style_references[2].value(),
         .stroke_reference_atom = style_references[3].value(),
+        .before_clip_path_reference_atom = 0,
+        .after_clip_path_reference_atom = 0,
         .text_path_start_offset = to_ffi_number_percentage(start_offset),
         .natural_width = natural_width,
         .natural_height = natural_height,
@@ -616,6 +625,25 @@ void publish_svg_style_references(DOM::Element& element)
         references[1].value(),
         references[2].value(),
         references[3].value());
+}
+
+void publish_pseudo_element_clip_path_references(DOM::Element& element)
+{
+    VERIFY(element.style_node_id() != 0);
+    Array<CSS::StyleAtomID, 2> references {};
+    Array pseudo_elements { CSS::PseudoElement::Before, CSS::PseudoElement::After };
+    for (size_t i = 0; i < pseudo_elements.size(); ++i) {
+        auto fragment = css_box_clip_path_fragment(element, pseudo_elements[i]);
+        if (!fragment.has_value())
+            continue;
+        element.document().register_css_box_clip_path_referrer(*fragment, element);
+        references[i] = element.document().style_computer().style_engine().intern_atom(*fragment);
+    }
+    RustFFI::render_state_set_pseudo_element_clip_path_references(
+        element.document().layout_node_arena().host(),
+        element.style_node_id().value(),
+        references[0].value(),
+        references[1].value());
 }
 
 void register_layout_host(NodeArena& arena, DOM::Document& document)

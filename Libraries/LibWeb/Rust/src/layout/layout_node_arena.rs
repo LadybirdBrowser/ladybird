@@ -1031,7 +1031,7 @@ pub(crate) struct StaleWalkFacts {
 }
 
 /// How many interned names one SVG element's attribute publication can name.
-const PUBLISHED_REFERENCE_ATOM_COUNT: usize = 5;
+const PUBLISHED_REFERENCE_ATOM_COUNT: usize = 7;
 
 /// The counters sets and the generated content of the elements, while a resolution of counters or generated content
 /// holds them apart from the arena.
@@ -3694,6 +3694,26 @@ impl LayoutNodeArena {
         self.retain_published_reference_atoms(retained, replaced);
     }
 
+    /// Replace only the clip paths the styles of an element's `::before` and `::after` name.
+    pub(crate) fn set_style_node_pseudo_element_clip_path_references(
+        &mut self,
+        style_node: StyleNodeID,
+        references: [u32; 2],
+    ) {
+        let published = &mut self.style_node_tables.svg_attribute_facts;
+        if references == [0; 2] && !published.contains_key(&style_node) {
+            return;
+        }
+        let facts = published.get_or_insert_with(style_node, Default::default);
+        let replaced = Self::published_reference_atoms(facts);
+        [
+            facts.before_clip_path_reference_atom,
+            facts.after_clip_path_reference_atom,
+        ] = references;
+        let retained = Self::published_reference_atoms(facts);
+        self.retain_published_reference_atoms(retained, replaced);
+    }
+
     /// The element the document's id index holds for the atom `name`, which is what
     /// `Document::get_element_by_id` answers with. A reference that resolves in the document scope
     /// alone, an SVG `href` chain, asks for this rather than for `element_by_svg_reference`.
@@ -3711,8 +3731,8 @@ impl LayoutNodeArena {
             && self.with_style_store(|engine| engine.first_element_child(style_node).is_some())
     }
 
-    /// The names a publication holds a sweep retention on: the one an `href` names, and the four
-    /// a graphics element's style names.
+    /// The names a publication holds a sweep retention on: the one an `href` names, the four
+    /// a graphics element's style names, and the two the styles of its `::before` and `::after` name.
     fn published_reference_atoms(
         facts: &super::svg_formatting_context::FfiSvgAttributeFacts,
     ) -> [u32; PUBLISHED_REFERENCE_ATOM_COUNT] {
@@ -3722,6 +3742,8 @@ impl LayoutNodeArena {
             facts.clip_path_reference_atom,
             facts.fill_reference_atom,
             facts.stroke_reference_atom,
+            facts.before_clip_path_reference_atom,
+            facts.after_clip_path_reference_atom,
         ]
     }
 

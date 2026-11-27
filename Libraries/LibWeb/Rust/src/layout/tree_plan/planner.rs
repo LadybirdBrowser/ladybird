@@ -2739,7 +2739,11 @@ impl<'a> Planner<'a> {
             self.wrap_button_contents_if_needed(node);
         }
         if may_reference_clip_path {
-            self.plan_css_box_clip_path(element, node);
+            let atom = self
+                .arena
+                .style_node_svg_attribute_facts(element)
+                .clip_path_reference_atom;
+            self.plan_css_box_clip_path(element, node, atom);
         }
         if has_style_containment {
             self.content.note_quote_step(QuoteStep::Restore, None);
@@ -2993,20 +2997,18 @@ impl<'a> Planner<'a> {
         self.layout_svg_mask_or_clip_path = enclosing_mode;
     }
 
-    /// Plans the box of the `<clipPath>` that the `clip-path` of `element` references, as a child of `node`, the CSS
-    /// box of `element`.
-    fn plan_css_box_clip_path(&mut self, element: StyleNodeID, node: NodeSlotId) {
-        let atom = self
-            .arena
-            .style_node_svg_attribute_facts(element)
-            .clip_path_reference_atom;
+    /// Plans the box of the `<clipPath>` that `atom` names, which the `clip-path` of `element` or of one of its
+    /// pseudo-elements references, as a child of `node`, the CSS box that references it.
+    fn plan_css_box_clip_path(&mut self, element: StyleNodeID, node: NodeSlotId, atom: u32) {
         let Some(clip_path) = self.arena.element_by_svg_reference(element, atom).filter(|&resolved| {
             self.engine.element_adjustment_facts(resolved) & element_adjustment_fact::IS_SVG_CLIP_PATH_ELEMENT != 0
         }) else {
             return;
         };
         let in_unit_list = std::mem::take(&mut self.in_unit_list);
+        let preceding_content_length = self.preceding_content.len();
         self.plan_svg_mask_or_clip_path(element, node, clip_path);
+        self.preceding_content.truncate(preceding_content_length);
         self.in_unit_list = in_unit_list;
     }
 
@@ -3247,6 +3249,20 @@ impl<'a> Planner<'a> {
                 first_pending,
                 end_pending: self.content.pending.len() as u32,
             });
+        }
+        if matches!(generated_for, GENERATED_FOR_BEFORE | GENERATED_FOR_AFTER)
+            && kind_can_have_children(kind, flags)
+            && kind != NodeKind::InlineNode
+            && box_facts & (box_fact::TABLE_INSIDE | box_fact::TABLE_NON_ROOT) == 0
+            && style_view.is_some_and(|style| crate::painting::style_queries::clip_path_is_url(style.mask()))
+        {
+            let references = self.arena.style_node_svg_attribute_facts(element);
+            let atom = if generated_for == GENERATED_FOR_BEFORE {
+                references.before_clip_path_reference_atom
+            } else {
+                references.after_clip_path_reference_atom
+            };
+            self.plan_css_box_clip_path(element, node, atom);
         }
     }
 
