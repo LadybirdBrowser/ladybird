@@ -302,10 +302,9 @@ ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteS
             return result_or_error.release_error();
         }
         auto result = result_or_error.release_value();
-        // NB: A socket that is missing, or that nothing listens on, does not tell whether the process in the PID file
-        //     is gone. That process has to be gone before its files are taken to be left over, unless we know that it
-        //     is some other process that got the PID of a browser that is gone.
 #    if !defined(AK_OS_WINDOWS)
+        // NB: A browser that closed the connection may still be exiting. If we could not identify the peer,
+        //     fall back to the PID file when it names a process that could be a browser.
         if (result.handover == Handover::BrowserIsGone && !result.browser_pid.has_value() && process_may_be_a_browser(*pid))
             result.browser_pid = *pid;
 #    endif
@@ -313,12 +312,17 @@ ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteS
         if (result.handover == Handover::Done)
             return ProcessDisposition::ExitProcess;
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_LINUX)
+        // NB: A PID left over after this crash may have the same value as this launcher's PID. With no handover socket
+        //     listener and the startup lock held, start without waiting for that PID to exit.
+        if (result.handover == Handover::NoServer && has_startup_lock)
+            break;
+#elif defined(AK_OS_MACOS)
         // NB: A browser that is ending lets go of its Mach server a while before it removes its PID file. So a process
         //     that is in the PID file without a server may be that browser, and it gets a moment to end. One that is
         //     still there after that has the profile and cannot be reached, like an unresponsive browser. A process
         //     that started after the file was written is some other process that got the PID of a browser that is gone.
-        if (result.handover == Handover::BrowserIsGone && !result.browser_pid.has_value() && process_may_have_written_file(*pid, pid_path)) {
+        if (result.handover == Handover::NoServer && process_may_have_written_file(*pid, pid_path)) {
             auto deadline = MonotonicTime::now() + browser_exit_timeout;
             while (read_pid_file(pid_path) == pid && !process_is_gone(*pid) && MonotonicTime::now() < deadline)
                 usleep(10'000);
@@ -326,6 +330,9 @@ ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteS
             if (read_pid_file(pid_path) == pid && !process_is_gone(*pid) && process_may_have_written_file(*pid, pid_path))
                 result = { Handover::BrowserIsUnresponsive, *pid };
         }
+#elif !defined(AK_OS_WINDOWS)
+        if (result.handover == Handover::NoServer)
+            result = { Handover::BrowserIsGone, *pid };
 #endif
 
         if (result.handover == Handover::BrowserIsUnresponsive) {
@@ -416,7 +423,7 @@ ErrorOr<BrowserProcess::HandoverResult> BrowserProcess::connect_as_client(pid_t 
     auto process_name = ByteString::formatted("Ladybird-{}", profile_identity);
     auto server_port = Core::MachPort::look_up_from_bootstrap_server(mach_server_name_for_process(process_name, pid));
     if (server_port.is_error())
-        return HandoverResult { Handover::BrowserIsGone };
+        return HandoverResult { Handover::NoServer };
 
     auto transport_ports = IPC::bootstrap_transport_from_server_port(server_port.value(), min(handover_timeout, AK::Duration::from_seconds(5)));
     if (transport_ports.is_error())
@@ -433,7 +440,7 @@ ErrorOr<BrowserProcess::HandoverResult> BrowserProcess::connect_as_client(ByteSt
         // Nothing listens on a socket that a browser left behind. A browser makes its socket before its PID file and
         // removes it after, so a PID file without a socket is left behind as well.
         if (socket.error().is_errno() && (socket.error().code() == ECONNREFUSED || socket.error().code() == ENOENT))
-            return HandoverResult { Handover::BrowserIsGone };
+            return HandoverResult { Handover::NoServer };
         return socket.release_error();
     }
 

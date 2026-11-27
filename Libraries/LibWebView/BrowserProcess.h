@@ -58,6 +58,9 @@ public:
     // How handing what this process was asked to open to the browser that is already running went.
     enum class Handover : u8 {
         Done,
+        // No listening socket or Mach service was found.
+        NoServer,
+        // Handover was interrupted. The browser process may still be exiting.
         BrowserIsGone,
         BrowserIsUnresponsive,
     };

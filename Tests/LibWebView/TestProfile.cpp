@@ -7,6 +7,8 @@
 #include <AK/LexicalPath.h>
 #include <AK/Time.h>
 #include <LibCore/Directory.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibDatabase/Database.h>
@@ -18,8 +20,10 @@
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibHTTP/NetworkIsolationKey.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
+#include <LibWebView/BrowserProcess.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HSTSStore.h>
@@ -73,6 +77,23 @@ TEST_CASE(routing_identity)
     EXPECT_NE(WebView::Profile::routing_identifier("/profiles/default"sv), WebView::Profile::routing_identifier("/profiles/work"sv));
     EXPECT_EQ(WebView::Profile::routing_identifier("/profiles/default"sv).length(), 32u);
 }
+
+#if defined(AK_OS_LINUX)
+TEST_CASE(startup_recovers_when_stale_pid_matches_current_process)
+{
+    Test::TemporaryDirectory runtime { "TestProfile"sv };
+    {
+        // An earlier browser in another PID namespace can leave behind a PID file that matches ours.
+        auto pid_file = TRY_OR_FAIL(Core::File::open(runtime.path().append("Ladybird.pid"sv).string(), Core::File::OpenMode::Write));
+        TRY_OR_FAIL(pid_file->write_until_depleted(ByteString::number(Core::System::getpid())));
+    }
+
+    Core::EventLoop loop;
+    WebView::BrowserProcess browser_process;
+    auto disposition = TRY_OR_FAIL(browser_process.connect({}, WebView::NewWindow::No, runtime.path().string(), "test-profile"sv, {}, {}));
+    EXPECT_EQ(disposition, WebView::BrowserProcess::ProcessDisposition::ContinueMainProcess);
+}
+#endif
 
 TEST_CASE(named_and_default_layouts)
 {
