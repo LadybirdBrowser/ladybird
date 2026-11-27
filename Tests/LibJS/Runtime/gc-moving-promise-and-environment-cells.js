@@ -20,6 +20,15 @@ holder.all.then(values => settled.push(["all", values]));
 
 holder.revocable = Proxy.revocable({ value: 1 }, {});
 
+// The list of values of Promise.all holds the values that came in so far.
+holder.allWithObject = Promise.all([
+    new Promise(resolve => (holder.resolveWithObject = resolve)),
+    new Promise(resolve => (holder.resolveLast = resolve)),
+]);
+holder.allWithObject.then(values => settled.push(["all with object", values]));
+holder.resolveWithObject({ came: "first" });
+runQueuedPromiseJobs();
+
 // Converting objects of one shape to primitives fills the special property cache of the shape.
 holder.convertible = { toString: () => "converted" };
 for (let i = 0; i < 4; ++i) String(holder.convertible);
@@ -92,6 +101,16 @@ runAfterMovingCollection(() => {
         expect(addressOf(holder.revocable.revoke)).not.toBe(before.revoke);
         expect(valueBeforeRevoke()).toBe(1);
         expect(() => holder.revocable.proxy.value).toThrow(TypeError);
+    });
+
+    const allWithObjectSettled = once(() => {
+        settled.length = 0;
+        holder.resolveLast(2);
+        runQueuedPromiseJobs();
+        return [...settled];
+    });
+    test("the values of Promise.all move, and end up in its result", () => {
+        expect(allWithObjectSettled()).toEqual([["all with object", [{ came: "first" }, 2]]]);
     });
 
     const conversionBeforeChange = once(() => {

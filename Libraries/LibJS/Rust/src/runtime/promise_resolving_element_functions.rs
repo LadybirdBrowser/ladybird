@@ -13,6 +13,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{Class, Finalize, GcCell, cast_ref, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
+use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;
@@ -65,10 +66,22 @@ impl RemainingElements {
 }
 
 #[repr(C)]
-#[derive(Trace)]
 pub struct PromiseValueList {
     header: CellHeader,
     values: GcRefCell<Vec<Value>>,
+}
+
+// SAFETY: Visits the values.
+unsafe impl Trace for PromiseValueList {
+    fn trace(&self, visitor: &mut Visitor) {
+        // SAFETY: Nothing writes the values while a collection traces them.
+        let values = unsafe { self.values.borrow_for_trace() };
+        // NB: The values are visited as owned slots, so that a collection that moves their cells rewrites them here
+        //     rather than keeping the cells where they are.
+        // SAFETY: Only the element functions of the list write the values, and only the list's finalizer frees them,
+        //         which runs once the list is dead.
+        unsafe { visitor.visit_owned_values(values) };
+    }
 }
 
 define_cell!(PromiseValueList, Other, finalize: finalize);
