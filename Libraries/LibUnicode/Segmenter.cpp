@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/CharacterTypes.h>
 #include <AK/GenericShorthands.h>
 #include <AK/OwnPtr.h>
 #include <AK/Utf16View.h>
+#include <AK/Utf8View.h>
 #include <AK/kmalloc.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
@@ -15,6 +17,7 @@
 #include <LibUnicode/Segmenter.h>
 
 #include <unicode/brkiter.h>
+#include <unicode/uchar.h>
 #include <unicode/utext.h>
 #include <unicode/utf8.h>
 
@@ -63,6 +66,179 @@ Utf16String segmenter_granularity_to_string(SegmenterGranularity segmenter_granu
 
 // Fast path segmenter for ASCII text where every character is its own grapheme.
 // This avoids all ICU overhead for the common case of ASCII-only text.
+// ICU's break rules come from its data. When that data can't be loaded, as from a broken installation, or one whose
+// data doesn't match its ICU, text is segmented without them, if crudely: A grapheme is a code point, a word is a run
+// of letters and digits, a line may break after white space, and a sentence runs to the end of the text.
+class FallbackSegmenter : public Segmenter {
+public:
+    explicit FallbackSegmenter(SegmenterGranularity segmenter_granularity)
+        : Segmenter(segmenter_granularity)
+    {
+    }
+
+    virtual ~FallbackSegmenter() override = default;
+
+    virtual NonnullOwnPtr<Segmenter> clone() const override
+    {
+        return make<FallbackSegmenter>(m_segmenter_granularity);
+    }
+
+    virtual void set_segmented_text(String text) override
+    {
+        Vector<CodePointAt> code_points;
+        Utf8View view { text.bytes_as_string_view() };
+        for (auto it = view.begin(); it != view.end(); ++it)
+            code_points.append({ view.byte_offset_of(it), *it });
+        find_boundaries(code_points, text.byte_count());
+    }
+
+    virtual void set_segmented_text(Utf16View const& text) override
+    {
+        Vector<CodePointAt> code_points;
+        for (auto it = text.begin(); it != text.end(); ++it)
+            code_points.append({ text.iterator_offset(it), *it });
+        find_boundaries(code_points, text.length_in_code_units());
+    }
+
+    virtual size_t current_boundary() override
+    {
+        return m_boundaries[m_current].offset;
+    }
+
+    virtual Optional<size_t> previous_boundary(size_t index, Inclusive inclusive) override
+    {
+        index = min(index, m_length);
+        auto end = inclusive == Inclusive::Yes ? first_boundary_after(index) : first_boundary_at_or_after(index);
+        if (end == 0)
+            return {};
+        m_current = end - 1;
+        return m_boundaries[m_current].offset;
+    }
+
+    virtual Optional<size_t> next_boundary(size_t index, Inclusive inclusive) override
+    {
+        index = min(index, m_length);
+        auto next = inclusive == Inclusive::Yes ? first_boundary_at_or_after(index) : first_boundary_after(index);
+        if (next == m_boundaries.size())
+            return {};
+        m_current = next;
+        return m_boundaries[m_current].offset;
+    }
+
+    virtual void for_each_boundary(String text, SegmentationCallback callback) override
+    {
+        if (text.is_empty())
+            return;
+        set_segmented_text(move(text));
+        for_each_boundary(move(callback));
+    }
+
+    virtual void for_each_boundary(Utf16View const& text, SegmentationCallback callback) override
+    {
+        if (text.is_empty())
+            return;
+        set_segmented_text(text);
+        for_each_boundary(move(callback));
+    }
+
+    virtual bool is_current_boundary_word_like() const override
+    {
+        return m_boundaries[m_current].ends_word_like_segment;
+    }
+
+private:
+    struct CodePointAt {
+        size_t offset { 0 };
+        u32 code_point { 0 };
+    };
+
+    struct Boundary {
+        size_t offset { 0 };
+        bool ends_word_like_segment { false };
+    };
+
+    static bool is_word_character(u32 code_point) { return u_isalnum(static_cast<UChar32>(code_point)); }
+    static bool is_white_space(u32 code_point) { return u_isUWhiteSpace(static_cast<UChar32>(code_point)); }
+
+    bool is_boundary_between(u32 before, u32 after) const
+    {
+        switch (m_segmenter_granularity) {
+        case SegmenterGranularity::Grapheme:
+            return true;
+        case SegmenterGranularity::Line:
+            return is_white_space(before) && !is_white_space(after);
+        case SegmenterGranularity::Sentence:
+            return false;
+        case SegmenterGranularity::Word:
+            if (is_word_character(before) || is_word_character(after))
+                return is_word_character(before) != is_word_character(after);
+            return !(is_white_space(before) && is_white_space(after));
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    void find_boundaries(Vector<CodePointAt> const& code_points, size_t length)
+    {
+        m_boundaries.clear();
+        m_boundaries.append({});
+        m_current = 0;
+        m_length = length;
+
+        size_t segment_start = 0;
+        auto ends_word_like_segment = [&](size_t segment_end) {
+            return m_segmenter_granularity == SegmenterGranularity::Word && segment_end > segment_start
+                && is_word_character(code_points[segment_start].code_point);
+        };
+
+        for (size_t i = 1; i < code_points.size(); ++i) {
+            if (!is_boundary_between(code_points[i - 1].code_point, code_points[i].code_point))
+                continue;
+            m_boundaries.append({ code_points[i].offset, ends_word_like_segment(i) });
+            segment_start = i;
+        }
+        if (length > 0)
+            m_boundaries.append({ length, ends_word_like_segment(code_points.size()) });
+    }
+
+    // The index of the first boundary at or after the offset, or after it, or the number of boundaries if none is.
+    size_t first_boundary_at_or_after(size_t offset) const
+    {
+        return find_first_boundary([&](size_t boundary) { return boundary >= offset; });
+    }
+
+    size_t first_boundary_after(size_t offset) const
+    {
+        return find_first_boundary([&](size_t boundary) { return boundary > offset; });
+    }
+
+    size_t find_first_boundary(auto const& is_at_or_past) const
+    {
+        size_t low = 0;
+        size_t high = m_boundaries.size();
+        while (low < high) {
+            auto middle = low + (high - low) / 2;
+            if (is_at_or_past(m_boundaries[middle].offset))
+                high = middle;
+            else
+                low = middle + 1;
+        }
+        return low;
+    }
+
+    void for_each_boundary(SegmentationCallback callback)
+    {
+        for (size_t i = 0; i < m_boundaries.size(); ++i) {
+            m_current = i;
+            if (callback(m_boundaries[i].offset) == IterationDecision::Break)
+                return;
+        }
+    }
+
+    Vector<Boundary> m_boundaries { Boundary {} };
+    size_t m_current { 0 };
+    size_t m_length { 0 };
+};
+
 class AsciiGraphemeSegmenter : public Segmenter {
 public:
     explicit AsciiGraphemeSegmenter(size_t length)
@@ -716,9 +892,19 @@ NonnullOwnPtr<Segmenter> Segmenter::create(Utf16View locale, SegmenterGranularit
         VERIFY_NOT_REACHED();
     }());
 
-    verify_icu_success(status);
+    if (icu_failure(status)) {
+        static Atomic<bool> s_has_reported_failure { false };
+        if (!s_has_reported_failure.exchange(true))
+            dbgln("Unable to load ICU's break rules ({}), so text is segmented without them", u_errorName(status));
+        return create_without_icu_data(segmenter_granularity);
+    }
 
     return make<SegmenterImpl>(segmenter.release_nonnull(), segmenter_granularity);
+}
+
+NonnullOwnPtr<Segmenter> Segmenter::create_without_icu_data(SegmenterGranularity segmenter_granularity)
+{
+    return make<FallbackSegmenter>(segmenter_granularity);
 }
 
 NonnullOwnPtr<Segmenter> Segmenter::create_for_ascii_grapheme(size_t length)

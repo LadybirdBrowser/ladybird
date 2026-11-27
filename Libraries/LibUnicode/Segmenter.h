@@ -32,6 +32,8 @@ public:
 
     static NonnullOwnPtr<Segmenter> create(SegmenterGranularity segmenter_granularity);
     static NonnullOwnPtr<Segmenter> create(Utf16View locale, SegmenterGranularity segmenter_granularity);
+    // The segmenter that create() falls back to when ICU's break rules can't be loaded.
+    static NonnullOwnPtr<Segmenter> create_without_icu_data(SegmenterGranularity segmenter_granularity);
     static NonnullOwnPtr<Segmenter> create_for_ascii_grapheme(size_t length);
     static OwnPtr<Segmenter> try_create_for_ascii_line(Utf16View const&);
     virtual ~Segmenter() = default;

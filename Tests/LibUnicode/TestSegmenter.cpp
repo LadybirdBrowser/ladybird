@@ -450,3 +450,50 @@ TEST_CASE(out_of_bounds)
         EXPECT(!result.has_value());
     }
 }
+
+static Vector<size_t> boundaries_without_icu_data(Unicode::SegmenterGranularity granularity, StringView string)
+{
+    Vector<size_t> boundaries;
+    auto segmenter = Unicode::Segmenter::create_without_icu_data(granularity);
+    segmenter->for_each_boundary(MUST(String::from_utf8(string)), [&](auto boundary) {
+        boundaries.append(boundary);
+        return IterationDecision::Continue;
+    });
+    return boundaries;
+}
+
+TEST_CASE(segmentation_without_icu_data)
+{
+    using Unicode::SegmenterGranularity;
+
+    EXPECT(boundaries_without_icu_data(SegmenterGranularity::Grapheme, ""sv).is_empty());
+    EXPECT_EQ(boundaries_without_icu_data(SegmenterGranularity::Grapheme, "a\xc3\xa9z"sv), (Vector<size_t> { 0, 1, 3, 4 }));
+    EXPECT_EQ(boundaries_without_icu_data(SegmenterGranularity::Word, "hello, world"sv), (Vector<size_t> { 0, 5, 6, 7, 12 }));
+    EXPECT_EQ(boundaries_without_icu_data(SegmenterGranularity::Word, "a  b"sv), (Vector<size_t> { 0, 1, 3, 4 }));
+    EXPECT_EQ(boundaries_without_icu_data(SegmenterGranularity::Line, "hello, world"sv), (Vector<size_t> { 0, 7, 12 }));
+    EXPECT_EQ(boundaries_without_icu_data(SegmenterGranularity::Sentence, "Hi. Bye."sv), (Vector<size_t> { 0, 8 }));
+
+    auto grapheme = Unicode::Segmenter::create_without_icu_data(SegmenterGranularity::Grapheme);
+    Vector<size_t> utf16_boundaries;
+    grapheme->for_each_boundary(u"a\U0001F600b"_utf16, [&](auto boundary) {
+        utf16_boundaries.append(boundary);
+        return IterationDecision::Continue;
+    });
+    EXPECT_EQ(utf16_boundaries, (Vector<size_t> { 0, 1, 3, 4 }));
+
+    auto word = Unicode::Segmenter::create_without_icu_data(SegmenterGranularity::Word);
+    word->set_segmented_text("hello, world"_string);
+    EXPECT_EQ(word->next_boundary(2), 5u);
+    EXPECT(word->is_current_boundary_word_like());
+    EXPECT_EQ(word->next_boundary(5), 6u);
+    EXPECT(!word->is_current_boundary_word_like());
+    EXPECT_EQ(word->next_boundary(5, Unicode::Segmenter::Inclusive::Yes), 5u);
+    EXPECT_EQ(word->previous_boundary(6), 5u);
+    EXPECT_EQ(word->previous_boundary(5, Unicode::Segmenter::Inclusive::Yes), 5u);
+    EXPECT_EQ(word->previous_boundary(0, Unicode::Segmenter::Inclusive::Yes), 0u);
+    EXPECT_EQ(word->previous_boundary(100), 7u);
+    EXPECT_EQ(word->previous_boundary(0), OptionalNone {});
+    EXPECT_EQ(word->next_boundary(12), OptionalNone {});
+    EXPECT_EQ(word->next_boundary(100, Unicode::Segmenter::Inclusive::Yes), 12u);
+    EXPECT_EQ(word->next_boundary(3, Unicode::Segmenter::Inclusive::Yes), 5u);
+}
