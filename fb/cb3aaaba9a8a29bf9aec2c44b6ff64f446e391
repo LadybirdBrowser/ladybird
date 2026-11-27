@@ -1,0 +1,24 @@
+When a canvas 2D filter refers to an SVG filter, Ladybird resolves the
+reference at each draw, applies the list’s functions and references in
+order, and draws with no filtering for an external document, a missing
+element, a non-filter element, a filter in a display:none subtree, or
+an OffscreenCanvas. That matches Chrome 158 in each of those cases but
+one: Blink’s CanvasRenderingContext2DState::GetFilter() returns the
+filter it resolved first until the filter state is invalidated, so a
+filter changed between two draws doesn’t apply in Chrome, as it does
+in the spec. And Chrome applies the functions of a list whose external
+reference isn’t loaded, where the spec has no filtering at all.
+
+Firefox 151 resolves the filter when it’s set, so a filter changed or
+inserted after the assignment doesn’t apply there: Gecko resolves it in
+CanvasRenderingContext2D::UpdateFilter(). WebKit 26.5 draws unfiltered
+for every reference, in every case the test page covers.
+
+A loaded cross-origin feImage image taints the canvas in Ladybird, in
+Chrome 158 (whose SVGFEImageElement::TaintsOrigin() decides), and in
+Firefox 151; an image that hasn’t loaded yet draws nothing and leaves
+the canvas readable in Ladybird and in Chrome. Firefox taints even a
+pending same-origin image. And Ladybird caps the primitives of all the
+filters a canvas filter list refers to, together, at 256, as it caps a
+CSS filter’s one resolved filter, where Chrome 158 and Firefox 151 still
+apply two references to a filter with 200 primitives.
