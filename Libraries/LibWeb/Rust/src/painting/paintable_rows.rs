@@ -211,12 +211,21 @@ impl UniqueNodeIdColumn {
     }
 
     /// Publishes the names of the nodes the rows of a chunk new to the arena carry, from its first slot
-    /// `first_slot_index` on, each in its first generation, `generation`; a row whose name is 0 carries none.
-    pub(crate) fn publish_new_chunk(&mut self, first_slot_index: usize, generation: u8, ids: &[i64]) {
+    /// `first_slot_index` on, each in its first generation, `generation`; a row whose name is 0 carries none. The
+    /// chunks adopted with it end at the slot `end_slot_index`.
+    pub(crate) fn publish_new_chunk(
+        &mut self,
+        first_slot_index: usize,
+        end_slot_index: usize,
+        generation: u8,
+        ids: &[i64],
+    ) {
         if ids.iter().all(|&id| id == 0) {
             return;
         }
         debug_assert!(self.ids.len() <= first_slot_index);
+        // OPTIMIZATION: The column makes room for every chunk adopted with this one at once, and for no more.
+        self.ids.reserve_for_len(end_slot_index);
         self.ids.resize_with_default(first_slot_index);
         let block: Vec<(NodeSlotId, i64)> = ids
             .iter()
