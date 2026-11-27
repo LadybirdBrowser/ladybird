@@ -1,0 +1,4 @@
+Ladybird’s LibThreading gives a thread 8 MiB of stack under musl when
+its caller doesn’t ask for a size, as glibc does under the usual stack
+size limit. This is a libc difference, and no other engine’s behavior
+is involved.
