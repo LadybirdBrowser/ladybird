@@ -2154,6 +2154,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (m_navigable->page().focused_navigable() != focused_navigable_before_keydown)
         return EventResult::Handled;
 
+    // INTEROP: Space opens the picker of a date or time input on keydown, so it fires no keypress.
+    if (key == UIEvents::Key_Space && !(modifiers & (UIEvents::Mod_Ctrl | UIEvents::Mod_Alt | UIEvents::Mod_Super))) {
+        if (auto* input = as_if<HTML::HTMLInputElement>(m_navigable->active_document()->focused_area().ptr()); input && input->has_date_picker() && input->is_mutable()) {
+            input->show_the_picker_if_applicable();
+            return EventResult::Handled;
+        }
+    }
+
     // https://w3c.github.io/uievents/#event-type-keypress
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
     // normally produces a character value.

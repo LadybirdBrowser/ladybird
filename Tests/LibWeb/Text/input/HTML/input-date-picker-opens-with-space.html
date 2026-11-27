@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<input id="date" type="date">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const input = document.getElementById("date");
+        let keypresses = 0;
+        input.addEventListener("keypress", () => ++keypresses);
+        internals.sendText(input, " ");
+        println(`picker open after Space=${input.matches(":open")}, keypress events=${keypresses}`);
+    });
+</script>

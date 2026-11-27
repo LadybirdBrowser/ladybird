@@ -406,30 +406,30 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
-static void show_the_picker_if_applicable(HTMLInputElement& element)
+void HTMLInputElement::show_the_picker_if_applicable()
 {
     // To show the picker, if applicable for an input element element:
 
     // 1. If element's relevant global object does not have transient activation, then return.
-    auto* relevant_window = window_from_global_object(relevant_global_object(element));
+    auto* relevant_window = window_from_global_object(relevant_global_object(*this));
     if (!relevant_window)
         return;
     if (!relevant_window->has_transient_activation())
         return;
 
     // 2. If element is not mutable, then return.
-    if (!element.is_mutable())
+    if (!is_mutable())
         return;
 
     // 3. Consume user activation given element's relevant global object.
     relevant_window->consume_user_activation();
 
     // 4. If element does not support a picker, then return.
-    if (!element.supports_a_picker())
+    if (!supports_a_picker())
         return;
 
     // 5. If element is an input element and element's type attribute is in the File Upload state, then run these steps in parallel:
-    if (element.type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
+    if (type_state() == TypeAttributeState::FileUpload) {
         // NOTE: These steps cannot be fully implemented here, and must be done in the PageClient when the response comes back from the PageHost
         //       See: ViewImplementation::on_request_file_picker, Page::did_request_file_picker(), Page::file_picker_closed()
 
@@ -444,12 +444,12 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
             //    Files can be from the filesystem or created on the fly, e.g., a picture taken from a camera connected
             //    to the user's device.
             // 2. Wait for the user to have made their selection.
-            auto accepted_file_types = element.parse_accept_attribute();
-            auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
-            auto weak_element = GC::Weak<HTMLInputElement> { element };
+            auto accepted_file_types = parse_accept_attribute();
+            auto allow_multiple_files = has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
+            auto weak_element = GC::Weak<HTMLInputElement> { *this };
 
-            element.set_is_open(true);
-            element.document().page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
+            set_is_open(true);
+            document().page().did_request_file_picker(weak_element, accepted_file_types, allow_multiple_files);
         }
         // 4. If dismissed is true or if the user dismissed the prompt without changing their selection,
         //    then queue an element task on the user interaction task source given element to fire an event named cancel at element,
@@ -469,15 +469,15 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     //    (If this closes a file selection picker, then per the above that will lead to firing either input and change
     //    events, or a cancel event.)
     else {
-        if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
-            auto weak_element = GC::Weak<HTMLInputElement> { element };
-            element.set_is_open(true);
-            element.document().page().did_request_color_picker(weak_element, element.value_as_color());
-        } else if (element.has_date_picker()) {
-            auto weak_element = GC::Weak<HTMLInputElement> { element };
-            element.set_is_open(true);
-            element.document().page().did_request_date_picker(weak_element, element.type().to_utf16_string(), element.value(),
-                element.get_attribute(AttributeNames::min).value_or({}), element.get_attribute(AttributeNames::max).value_or({}));
+        if (type_state() == TypeAttributeState::Color) {
+            auto weak_element = GC::Weak<HTMLInputElement> { *this };
+            set_is_open(true);
+            document().page().did_request_color_picker(weak_element, value_as_color());
+        } else if (has_date_picker()) {
+            auto weak_element = GC::Weak<HTMLInputElement> { *this };
+            set_is_open(true);
+            document().page().did_request_date_picker(weak_element, type().to_utf16_string(), value(),
+                get_attribute(AttributeNames::min).value_or({}), get_attribute(AttributeNames::max).value_or({}));
         }
     }
 }
@@ -507,7 +507,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
     }
 
     // 4. Show the picker, if applicable, for this.
-    show_the_picker_if_applicable(*this);
+    show_the_picker_if_applicable();
     return {};
 }
 
@@ -554,7 +554,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
         // 3. Submit the element's form owner from the element with userInvolvement set to event's user navigation involvement.
         TRY(form->submit_form(*this, { .user_involvement = user_navigation_involvement(event) }));
     } else if (type_state() == TypeAttributeState::FileUpload || type_state() == TypeAttributeState::Color) {
-        show_the_picker_if_applicable(*this);
+        show_the_picker_if_applicable();
     }
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):input-activation-behavior
     else if (type_state() == TypeAttributeState::ImageButton) {
@@ -1445,7 +1445,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
         auto open_picker_function = JS::NativeFunction::create(
             HTML::relevant_realm(*this), GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](auto& self, JS::VM&) {
-                show_the_picker_if_applicable(self);
+                self.show_the_picker_if_applicable();
                 return JS::js_undefined();
             }),
             0, Utf16FlyString {}, &HTML::relevant_realm(*this));
@@ -1498,7 +1498,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
     m_file_label->set_attribute_value(HTML::AttributeNames::style, "padding-left: 4px;"_utf16);
 
     auto on_button_click = GC::create_function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>(GC::Heap::the(), GC::captures(*this), [](auto& self, JS::VM&) {
-        show_the_picker_if_applicable(self);
+        self.show_the_picker_if_applicable();
         return JS::js_undefined();
     });
 
