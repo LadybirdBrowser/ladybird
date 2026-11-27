@@ -159,6 +159,13 @@ impl Class {
                 | ClassId::Set
                 | ClassId::SetIterator
                 | ClassId::Promise
+                | ClassId::PromiseResolvingFunction
+                | ClassId::PromiseCapability
+                | ClassId::PromiseReaction
+                | ClassId::JobCallback
+                | ClassId::CapturingNativeFunction
+                | ClassId::WatchpointSet
+                | ClassId::DeclarativeEnvironmentRareData
         )
     }
 
