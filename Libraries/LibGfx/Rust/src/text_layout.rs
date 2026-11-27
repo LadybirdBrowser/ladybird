@@ -503,6 +503,16 @@ impl GlyphBuffer {
         glyphs + placements
     }
 
+    /// Lets go of the room the buffer keeps for glyphs appended later, for a buffer that is done growing.
+    pub fn shrink_to_fit(&mut self) {
+        if let GlyphStorage::Owned(glyphs) = &mut self.glyphs {
+            glyphs.shrink_to_fit();
+        }
+        if let Some(GlyphStorage::Owned(placements)) = self.placements.as_deref_mut() {
+            placements.shrink_to_fit();
+        }
+    }
+
     /// The same glyphs in the form that clones without copying them.
     #[must_use]
     pub fn into_shared(self) -> Self {
@@ -930,7 +940,9 @@ impl FontShapeCache {
                 Box::from(text),
                 ShapesForText {
                     last_used_tick: tick,
-                    shapes: Vec::new(),
+                    // OPTIMIZATION: Almost every text is shaped with one set of parameters, and a vector that grows
+                    //               from nothing makes room for four.
+                    shapes: Vec::with_capacity(1),
                 },
             ),
         };

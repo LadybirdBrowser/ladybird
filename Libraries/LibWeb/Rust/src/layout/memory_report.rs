@@ -94,6 +94,13 @@ impl LayoutMemoryReport {
             if shallow == 0 {
                 continue;
             }
+            let mut placements = 0;
+            for link in &fragment.children {
+                placements += link.placement.heap_bytes();
+                if let Some(inputs) = link.placement.abspos_layout_inputs() {
+                    placements += self.sizer.arc_shallow(inputs);
+                }
+            }
             // NB: A payload counts as its own allocation. What its kind holds beyond that is not walked.
             let payload = fragment
                 .payload
@@ -101,7 +108,7 @@ impl LayoutMemoryReport {
                 .map_or(0, |payload| self.sizer.arc_shallow(payload));
             self.add(
                 LayoutMemoryOwner::Fragments,
-                shallow + crate::heap_size::vec_bytes(&fragment.children) + payload,
+                shallow + crate::heap_size::vec_bytes(&fragment.children) + placements + payload,
             );
             if let Some(content) = &fragment.line_data {
                 self.add_inline_content(content);
@@ -135,6 +142,10 @@ impl LayoutMemoryReport {
             if shallow != 0 {
                 let sizer = &mut self.sizer;
                 bytes += shallow + run.glyphs.heap_bytes(|glyphs| sizer.first_sight(glyphs));
+                bytes += run
+                    .cluster_geometry
+                    .get()
+                    .map_or(0, |geometry| size_of_val(&**geometry) + geometry.heap_bytes());
             }
         }
         self.add(LayoutMemoryOwner::InlineContent, bytes);
