@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/JsonArray.h>
 #include <AK/StringBuilder.h>
+#include <LibHTTP/Status.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/WebDriver/BiDi.h>
 #include <LibWebCommon/WebDriver/Network.h>
@@ -492,7 +493,7 @@ ErrorOr<InterceptionOverrides, Error> deserialize_interception_overrides(StringV
         result.body = TRY(deserialize_protocol_bytes(*body));
     if (auto status = params.get("statusCode"sv); status.has_value() && command != "network.continueRequest"sv) {
         result.status = as_js_uint(*status);
-        if (!result.status.has_value() || *result.status < 100 || *result.status > 599)
+        if (!result.status.has_value() || !HTTP::is_valid_status_code(*result.status))
             return invalid_argument("Invalid HTTP status code"sv);
     }
     if (auto reason = params.get_string("reasonPhrase"sv); reason.has_value() && command != "network.continueRequest"sv) {

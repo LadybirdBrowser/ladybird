@@ -11,9 +11,16 @@
 
 namespace HTTP {
 
+// https://www.rfc-editor.org/rfc/rfc9110#section-15
+// All valid status codes are within the range of 100 to 599, inclusive.
+constexpr bool is_valid_status_code(u64 code)
+{
+    return code >= 100 && code <= 599;
+}
+
 constexpr StringView reason_phrase_for_code(u32 code)
 {
-    VERIFY(code >= 100 && code <= 599);
+    VERIFY(is_valid_status_code(code));
 
     // clang-format off
     switch (code) {
