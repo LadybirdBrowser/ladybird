@@ -11,6 +11,7 @@ use crate::css::css_pixels::CssPixels;
 use crate::painting::host::FfiVectorImageRenderRequest;
 use crate::painting::vector_image_records::VectorImageRecords;
 use crate::render_state::DocumentHost;
+use libgfx_rust::FloatSize;
 use std::sync::Arc;
 
 /// What an SVG image is rendered for, as C++ names it.
@@ -117,11 +118,17 @@ pub unsafe extern "C" fn render_state_keep_last_recording_as_vector_image(
     read: &crate::render_state::BegunRead,
     key: &FfiVectorImageKey,
 ) {
-    let vector_image = crate::painting::ffi::read_arena(host, read, (), |arena, ()| {
+    // The document records in device pixels, at the raster scale.
+    let viewport_size = FloatSize {
+        width: key.css_width.to_float() * key.raster_scale,
+        height: key.css_height.to_float() * key.raster_scale,
+    };
+    let vector_image = crate::painting::ffi::read_arena(host, read, viewport_size, |arena, viewport_size| {
         let recording = arena.paint_state().last_recording.clone()?;
         Some(VectorImageRecords::recorded(
             &recording.display_list,
             &recording.resources,
+            viewport_size,
         ))
     });
     host.vector_images().keep(
