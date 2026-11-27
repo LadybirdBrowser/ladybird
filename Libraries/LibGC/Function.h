@@ -15,6 +15,7 @@
 #include <LibGC/DeferGC.h>
 #include <LibGC/FunctionTable.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapAccess.h>
 #include <LibGC/Member.h>
 #include <LibGC/Ptr.h>
 #include <typeinfo>
@@ -352,6 +353,8 @@ public:
 
     R operator()(Args... args) const
     {
+        ASSERT(!heap_access_is_forbidden_on_this_thread());
+        ASSERT(heap().is_on_owner_thread());
         auto const& slot = heap().function_table().slot(m_handle);
         VERIFY(*slot.operations->signature == Detail::function_signature<R(Args...)>);
         // NB: The box is outside the heap, so nothing the callable holds points into this cell. This pointer is kept
