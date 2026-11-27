@@ -356,9 +356,9 @@ impl RetainedState {
         self.computed_group_sets.holds_no_records_affecting_generated_content()
     }
 
-    /// What the node and its DOM descendants do to the two pieces of generated-content state that run
-    /// along the whole tree rather than staying inside one box, themselves or through a `::before`,
-    /// `::after` or `::marker`. Inserting such a subtree can change what the boxes after it show.
+    /// What the node and its descendants, those in the shadow trees below it among them, do to the two pieces of
+    /// generated-content state that run along the whole tree rather than staying inside one box, themselves or through
+    /// a `::before`, `::after` or `::marker`. Inserting such a subtree can change what the boxes after it show.
     #[must_use]
     pub(crate) fn subtree_generated_content_effects(&self, root: StyleNodeID) -> SubtreeGeneratedContentEffects {
         let mut effects = SubtreeGeneratedContentEffects::default();
@@ -443,7 +443,18 @@ impl RetainedState {
                 }
             }
             pending.push(Step::Leave(counters_in_reach_before));
-            pending.extend(self.tree.dom_children(node).map(Step::Enter));
+            // NB: The boxes of a shadow tree go in the box of its host, so the tree is walked beside the host's own
+            //     children.
+            pending.extend(self.projection.shadow_root_of(node).map(Step::Enter));
+            // NB: A slot's box holds the boxes of the nodes it shows, which may stand outside the subtree.
+            pending.extend(self.projection.assigned_nodes_of(node).iter().copied().map(Step::Enter));
+            // NB: A child that a slot shows is reached through the slot alone, so no node is walked twice.
+            pending.extend(
+                self.tree
+                    .dom_children(node)
+                    .filter(|child| self.projection.assigned_slot_of(*child).is_none())
+                    .map(Step::Enter),
+            );
         }
         effects
     }
