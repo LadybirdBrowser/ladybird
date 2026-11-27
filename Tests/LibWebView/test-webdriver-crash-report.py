@@ -19,14 +19,6 @@ from pathlib import Path
 webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
 
 
-EXECUTABLE_NAMES = {
-    "Compositor": "ladybird-gpu",
-    "ImageDecoder": "ladybird-image",
-    "RequestServer": "ladybird-net",
-    "WebContent": "ladybird-render",
-}
-
-
 def crash_helper(webdriver_pid, process_name):
     rows = subprocess.check_output(["ps", "-axo", "pid=,ppid=,command="], text=True).splitlines()
     children = {}
@@ -41,7 +33,7 @@ def crash_helper(webdriver_pid, process_name):
         for pid, command in children.get(pending.pop(), []):
             arguments = shlex.split(command)
             # A helper's own children, such as its file broker, carry the helper's command line but are not the helper.
-            if arguments and Path(arguments[0]).name == EXECUTABLE_NAMES[process_name]:
+            if arguments and Path(arguments[0]).name == process_name:
                 assert "--crash-report-fd" in arguments, f"{process_name} has no capture descriptor"
                 assert "--disable-sandbox" not in arguments, f"{process_name} is not sandboxed"
                 targets.append(pid)
@@ -80,13 +72,13 @@ def run_test(webdriver_binary, process_name):
                 {"url": "data:text/html,<title>PRIVATE_CRASH_TITLE</title>PRIVATE_CRASH_CONTENT"},
             )
             assert status == 200, body
-            if process_name == "WebContent":
+            if process_name == "ladybird-render":
                 status, _, body = webdriver_helpers.request(
                     port, "POST", f"/session/{session}/ladybird/crash-current-page", {}
                 )
                 assert status == 200, body
             else:
-                if process_name == "ImageDecoder":
+                if process_name == "ladybird-image":
                     # A process gets its decoder when it first has an image to decode.
                     status, payload, body = webdriver_helpers.request(
                         port,
@@ -104,7 +96,7 @@ def run_test(webdriver_binary, process_name):
                         },
                     )
                     assert status == 200 and payload == {"value": None}, body
-                elif process_name == "Compositor":
+                elif process_name == "ladybird-gpu":
                     webdriver_helpers.wait_for_compositor(port, session)
                 crash_helper(webdriver.pid, process_name)
             directory = profile / "data/CrashReports"
@@ -127,7 +119,7 @@ def run_test(webdriver_binary, process_name):
             captured_signal = re.search(r"^Captured signal: (.+)$", text, re.MULTILINE)
             assert captured_signal is not None, text
             assert f"Termination signal: {captured_signal.group(1)}\n" in text, text
-            if process_name == "WebContent":
+            if process_name == "ladybird-render":
                 assert "Verification failed: false at Services/WebContent/WebDriverConnection.cpp:" in text, text
             else:
                 assert "Verification failed:" not in text and "Assertion failed:" not in text, text
@@ -159,8 +151,8 @@ if __name__ == "__main__":
     parser.add_argument("webdriver_binary")
     parser.add_argument(
         "--process",
-        default="WebContent",
-        choices=["WebContent", "RequestServer", "ImageDecoder", "Compositor"],
+        default="ladybird-render",
+        choices=["ladybird-render", "ladybird-net", "ladybird-image", "ladybird-gpu"],
     )
     args = parser.parse_args()
     run_test(args.webdriver_binary, args.process)

@@ -24,7 +24,7 @@ using namespace ReportServerTest;
 namespace {
 
 constexpr auto report_text = "Ladybird crash report, format 1\n"
-                             "Process: WebContent\n"
+                             "Process: ladybird-render\n"
                              "Version: 1.0\n"
                              "Build configuration: Release\n"
                              "Platform features: [{\"id\":\"gpu_painting\",\"state\":\"Enabled\"}]\n"
@@ -90,7 +90,7 @@ TEST_CASE(crash_report_submission)
     track(review, outcome);
 
     // A server that is briefly unavailable, or asks for time, gets another attempt after the delay it asks for.
-    auto name = write_report(reports_directory, "2026-10-01T12-00-00Z-WebContent-abc123.txt"sv);
+    auto name = write_report(reports_directory, "2026-10-01T12-00-00Z-ladybird-render-abc123.txt"sv);
     MUST(review.open(name));
     server.respond_with({ 503, "{}", {} });
     server.respond_with(challenge("first"sv));
@@ -135,7 +135,7 @@ TEST_CASE(crash_report_submission)
     VERIFY(manifest_field(manifest, "description"sv)->as_string() == "I clicked a link"sv);
     VERIFY(manifest_field(manifest, "url"sv)->as_string() == "https://example.com/"sv);
     VERIFY(manifest_field(manifest, "signal"sv)->as_string() == "SIGSEGV"sv);
-    VERIFY(manifest_field(manifest, "process"sv)->as_string() == "WebContent"sv);
+    VERIFY(manifest_field(manifest, "process"sv)->as_string() == "ladybird-render"sv);
     auto features = manifest_field(manifest, "platform_features"sv)->as_array();
     VERIFY(features.size() == 1);
     VERIFY(features.at(0).as_object().get_string("id"sv) == "gpu_painting"sv);
@@ -159,7 +159,7 @@ TEST_CASE(crash_report_submission)
     // A request the server rejects would be rejected again, so it ends the submission until the user tries again.
     server.requests.clear();
     track(review, outcome);
-    name = write_report(reports_directory, "2026-10-01T13-00-00Z-WebContent-abc123.txt"sv);
+    name = write_report(reports_directory, "2026-10-01T13-00-00Z-ladybird-render-abc123.txt"sv);
     MUST(review.open(name));
     server.respond_with({ 400, "{}", {} });
 
@@ -186,7 +186,7 @@ TEST_CASE(crash_report_submission)
     // Other choices than those of a failed or canceled attempt make a new submission, which carries only those.
     server.requests.clear();
     track(review, outcome);
-    name = write_report(reports_directory, "2026-10-01T13-30-00Z-WebContent-abc123.txt"sv);
+    name = write_report(reports_directory, "2026-10-01T13-30-00Z-ladybird-render-abc123.txt"sv);
     MUST(review.open(name));
     server.respond_with({ 400, "{}", {} });
     VERIFY(!review.send("I clicked a link"_string, "https://example.com/"_string).has_value());
@@ -209,7 +209,7 @@ TEST_CASE(crash_report_submission)
     // A report on its way keeps going when the screen that showed its review goes away, along with the store it was
     // given.
     server.requests.clear();
-    name = write_report(reports_directory, "2026-10-01T14-00-00Z-Compositor-abc123.txt"sv);
+    name = write_report(reports_directory, "2026-10-01T14-00-00Z-ladybird-gpu-abc123.txt"sv);
     {
         WebView::CrashReportStore departing_store { reports_directory };
         WebView::CrashReportReview departing_review { departing_store };
@@ -225,7 +225,7 @@ TEST_CASE(crash_report_submission)
     // Only one place sends a report at a time, and a report sent from a review counts as on its way until it has gone,
     // even when the review goes first.
     WebView::CrashReportOutbox outbox { store };
-    name = write_report(reports_directory, "2026-10-01T15-00-00Z-WebContent-abc123.txt"sv);
+    name = write_report(reports_directory, "2026-10-01T15-00-00Z-ladybird-render-abc123.txt"sv);
     {
         WebView::CrashReportReview first_review { store };
         WebView::CrashReportReview second_review { store };
@@ -241,7 +241,7 @@ TEST_CASE(crash_report_submission)
     VERIFY(MUST(store.pending_report_names()).is_empty());
 
     // Choosing to keep nothing stops what a review has started.
-    name = write_report(reports_directory, "2026-10-01T16-00-00Z-WebContent-abc123.txt"sv);
+    name = write_report(reports_directory, "2026-10-01T16-00-00Z-ladybird-render-abc123.txt"sv);
     {
         WebView::CrashReportReview review_to_stop { store };
         MUST(review_to_stop.open(name));
@@ -257,8 +257,8 @@ TEST_CASE(crash_report_submission)
     VERIFY(MUST(store.pending_report_names()).is_empty());
 
     // Reports still waiting behind one that failed after retries keep what the user chose for them.
-    auto first_name = write_report(reports_directory, "2026-10-01T17-00-00Z-WebContent-abc123.txt"sv);
-    auto second_name = write_report(reports_directory, "2026-10-01T18-00-00Z-WebContent-abc123.txt"sv);
+    auto first_name = write_report(reports_directory, "2026-10-01T17-00-00Z-ladybird-render-abc123.txt"sv);
+    auto second_name = write_report(reports_directory, "2026-10-01T18-00-00Z-ladybird-render-abc123.txt"sv);
     server.respond_with({ 503, "{}", {} });
     server.respond_with({ 400, "{}", {} });
     Vector<WebView::CrashReportOutbox::Report> reports;
@@ -271,7 +271,7 @@ TEST_CASE(crash_report_submission)
     VERIFY(outbox.failed_attempt(second_name)->url == "https://example.com/other"sv);
 
     // A report that fails after its review went away keeps what the user chose, and its submission ID.
-    name = write_report(reports_directory, "2026-10-01T19-00-00Z-WebContent-abc123.txt"sv);
+    name = write_report(reports_directory, "2026-10-01T19-00-00Z-ladybird-render-abc123.txt"sv);
     {
         WebView::CrashReportReview departing_review { store };
         MUST(departing_review.open(name));

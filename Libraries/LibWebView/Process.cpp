@@ -179,7 +179,7 @@ static void watch_with_process_reaper(pid_t pid)
 
     if (!s_tried_to_start_process_reaper) {
         s_tried_to_start_process_reaper = true;
-        auto candidate_paths = get_paths_for_helper_process("ProcessReaper"sv);
+        auto candidate_paths = get_paths_for_helper_process("ladybird-reaper"sv);
         if (!candidate_paths.is_error()) {
             for (auto const& path : candidate_paths.value()) {
                 if (!FileSystem::exists(path))

@@ -181,8 +181,8 @@ print_help() {
           Run the Web Platform Tests in the 'css' and 'dom' directories; save the output in wptreport format to expectations.json and save screenshots to expectations.db.
       $NAME run --parallel-instances 0 --log-wptreport expectations.json --log-wptscreenshot expectations.db css dom
           Run the Web Platform Tests in the 'css' and 'dom' directories in chunked mode; save the output in wptreport format to expectations.json and save screenshots to expectations.db.
-      $NAME run --debug-process WebContent http://wpt.live/dom/historical.html
-          Run the 'dom/historical.html' test, attaching the debugger to the WebContent process when the browser is launched.
+      $NAME run --debug-process ladybird-render http://wpt.live/dom/historical.html
+          Run the 'dom/historical.html' test, attaching the debugger to the ladybird-render process when the browser is launched.
       $NAME compare expectations.log
           Run all of the Web Platform Tests comparing the results to the expectations in before.log.
       $NAME compare --log results.log expectations.log css/CSS2

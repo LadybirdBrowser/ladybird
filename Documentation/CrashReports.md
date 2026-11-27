@@ -13,7 +13,7 @@ with mode `0400`.
 Reports awaiting review are always kept; of the reports that have already been
 offered, the newest 20 are kept. Filenames start with a UTC date and time,
 for example
-`2026-09-06T12-34-56Z-WebContent-a1B2c3.txt`, so they sort chronologically.
+`2026-09-06T12-34-56Z-ladybird-render-a1B2c3.txt`, so they sort chronologically.
 Hyphens in the time keep filenames compatible with Windows; the random suffix
 avoids collisions. Retention includes reports saved with the older filenames.
 Nothing is uploaded automatically.

@@ -168,7 +168,7 @@ startup polling interval only waits for the WebDriver listening socket.
 
 To inspect a visible browser, remove `--headless` and set `ladybird:headless` to
 `false`. For a browser process waiting for a debugger, add, for example,
-`--debug-process WebContent` and allow enough request time to attach. Use
+`--debug-process ladybird-render` and allow enough request time to attach. Use
 `--force-cpu-painting` when investigating differences involving GPU painting.
 
 For authenticated investigations, `--profile-path /absolute/path/to/profile`

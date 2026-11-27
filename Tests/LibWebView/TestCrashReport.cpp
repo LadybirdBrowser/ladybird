@@ -361,7 +361,8 @@ TEST_CASE(helper_process_names)
         auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
         auto contents = MUST(file->read_until_eof());
         auto basename = LexicalPath::basename(path);
-        auto name = basename.substring_view(21).split_view('-')[0];
+        // NB: A name is the timestamp, a dash, the process name, a dash, six characters and the extension.
+        auto name = basename.substring_view(21, basename.length() - 21 - 11);
         EXPECT(StringView { contents }.contains(ByteString::formatted("Process: {}\n", name)));
     }
 }

@@ -39,7 +39,7 @@ ErrorOr<NonnullOwnPtr<ProcessReaper>> ProcessReaper::start(ByteString const& exe
 
     Vector<ByteString> arguments;
     auto process = TRY(Core::Process::spawn({
-        .name = "ProcessReaper"sv,
+        .name = "ladybird-reaper"sv,
         .executable = executable_path,
         // The reaper has to outlive the Browser, so a Ctrl+C meant for the Browser must not end it first.
         .new_process_group = true,

@@ -33,7 +33,7 @@ using Ladybird::CrashReportReviewWidget;
 using WebView::ReportSubmission;
 
 static constexpr auto report_text = "Ladybird crash report, format 1\n"
-                                    "Process: WebContent\n"
+                                    "Process: ladybird-render\n"
                                     "Version: 1.0\n"
                                     "Termination signal: SIGSEGV\n"
                                     "Termination signal number: 11\n"
@@ -55,7 +55,7 @@ static void cleanup()
 
 static ByteString write_report(StringView timestamp)
 {
-    auto name = ByteString::formatted("{}-WebContent-abc123.txt", timestamp);
+    auto name = ByteString::formatted("{}-ladybird-render-abc123.txt", timestamp);
     auto directory = MUST(Core::Directory::create(test_directory(), Core::Directory::CreateDirectories::Yes));
     auto file = MUST(directory.open(name, Core::File::OpenMode::Write));
     MUST(file->write_until_depleted(report_text.bytes()));
@@ -114,7 +114,7 @@ TEST_CASE(the_details_of_a_report_take_the_dark_interface_theme_where_qt_keeps_a
 
     QLabel* process = nullptr;
     for (auto* label : widget.findChildren<QLabel*>()) {
-        if (label->text() == QStringLiteral("WebContent"))
+        if (label->text() == QStringLiteral("ladybird-render"))
             process = label;
     }
     VERIFY(process);

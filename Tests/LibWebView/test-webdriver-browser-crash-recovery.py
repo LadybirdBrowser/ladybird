@@ -32,10 +32,10 @@ def write_browser_report(reports_directory):
     # covers. Crashing the browser application itself would have the operating system report it to the user.
     reports_directory.mkdir(parents=True)
     reports_directory.chmod(0o700)
-    report = reports_directory / "2026-09-29T10-00-00Z-Browser-abc123.txt"
+    report = reports_directory / "2026-09-29T10-00-00Z-ladybird-abc123.txt"
     report.write_text(
         "Ladybird crash report\n"
-        "Process: Browser\n"
+        "Process: ladybird\n"
         "Termination signal: SIGSEGV\n"
         "Termination signal number: 11\n"
         "\n"

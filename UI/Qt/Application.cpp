@@ -768,7 +768,7 @@ struct HubBootstrap : public AtomicRefCounted<HubBootstrap> {
 
 ErrorOr<ByteString> Application::hub_executable_path()
 {
-    for (auto const& path : TRY(WebView::get_paths_for_helper_process("Hub"sv))) {
+    for (auto const& path : TRY(WebView::get_paths_for_helper_process("ladybird-hub"sv))) {
         if (!Core::System::access(path, X_OK).is_error())
             return path;
     }
@@ -898,7 +898,7 @@ ErrorOr<void> Application::connect_to_hub(Main::Arguments const& arguments)
         [[maybe_unused]] auto time_before_round = UnixDateTime::now();
 
         Core::ProcessSpawnOptions spawn_options {
-            .name = "Hub"sv,
+            .name = "ladybird-hub"sv,
             .executable = hub_path,
             .arguments = round_arguments,
         };

@@ -154,15 +154,15 @@ TEST_CASE(sites_group_processes_by_privacy)
             names.append(row.child(i)->text(0));
         return names;
     };
-    EXPECT_EQ(child_names(*regular_site), (QStringList { "RequestServer", "WebContent" }));
-    EXPECT_EQ(child_names(*private_site), (QStringList { "ImageDecoder", "RequestServer", "WebContent" }));
+    EXPECT_EQ(child_names(*regular_site), (QStringList { "ladybird-net", "ladybird-render" }));
+    EXPECT_EQ(child_names(*private_site), (QStringList { "ladybird-image", "ladybird-net", "ladybird-render" }));
 
     private_site->setExpanded(true);
     processes->setCurrentItem(private_site);
     EXPECT(QMetaObject::invokeMethod(window.findChild<QTimer*>(), "timeout", Qt::DirectConnection));
     regular_site = find_row("example.com");
     private_site = find_row("example.com (Private)");
-    auto* ungrouped_request_server = find_row("RequestServer (Private)");
+    auto* ungrouped_request_server = find_row("ladybird-net (Private)");
     EXPECT_EQ(processes->currentItem(), private_site);
     EXPECT(!regular_site->isExpanded());
     EXPECT(private_site->isExpanded());
@@ -187,7 +187,7 @@ TEST_CASE(browser_is_not_terminable_and_can_be_copied)
     EXPECT(!button->isEnabled());
     EXPECT_EQ(processes->topLevelItemCount(), 1);
     auto* browser = processes->topLevelItem(0);
-    EXPECT_EQ(browser->text(0), QString("Browser"));
+    EXPECT_EQ(browser->text(0), QString("ladybird"));
     processes->setCurrentItem(browser);
     EXPECT(!button->isEnabled());
     bool inspected_menu = false;

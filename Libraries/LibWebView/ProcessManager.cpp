@@ -15,60 +15,59 @@
 
 namespace WebView {
 
-ProcessType process_type_from_name(StringView name)
+Optional<ProcessType> process_type_from_name(StringView name)
 {
-    if (name == "Browser"sv)
-        return ProcessType::Browser;
-    if (name == "UI"sv)
+    if (name == "ladybird"sv)
         return ProcessType::UI;
-    if (name == "Hub"sv)
+    if (name == "ladybird-hub"sv)
         return ProcessType::Hub;
-    if (name == "Compositor"sv)
+    if (name == "ladybird-gpu"sv)
         return ProcessType::Compositor;
-    if (name == "WebContent"sv)
+    if (name == "ladybird-render"sv)
         return ProcessType::WebContent;
-    if (name == "RequestServer"sv)
+    if (name == "ladybird-net"sv)
         return ProcessType::RequestServer;
-    if (name == "ImageDecoder"sv)
+    if (name == "ladybird-image"sv)
         return ProcessType::ImageDecoder;
-    if (name == "MediaServer"sv)
+    if (name == "ladybird-media"sv)
         return ProcessType::MediaServer;
-    if (name == "AudioServer"sv)
+    if (name == "ladybird-audio"sv)
         return ProcessType::AudioServer;
-    if (name == "VideoDecoderServer"sv)
+    if (name == "ladybird-video"sv)
         return ProcessType::VideoDecoderServer;
-    if (name == "WebRTCClient"sv)
+    if (name == "ladybird-webrtc"sv)
         return ProcessType::WebRTCClient;
 
-    dbgln("Unknown process type: '{}'", name);
-    VERIFY_NOT_REACHED();
+    return {};
 }
 
+// NB: Processes are named after their executables, so that these names match the ones that ps and top show. The one
+//     exception is the Browser type, which has no executable of its own. The Hub reports its crashes as the Browser,
+//     which is named ladybird like the UI.
 StringView process_name_from_type(ProcessType type)
 {
     switch (type) {
     case ProcessType::Browser:
-        return "Browser"sv;
     case ProcessType::UI:
-        return "UI"sv;
+        return "ladybird"sv;
     case ProcessType::Hub:
-        return "Hub"sv;
+        return "ladybird-hub"sv;
     case ProcessType::Compositor:
-        return "Compositor"sv;
+        return "ladybird-gpu"sv;
     case ProcessType::WebContent:
-        return "WebContent"sv;
+        return "ladybird-render"sv;
     case ProcessType::RequestServer:
-        return "RequestServer"sv;
+        return "ladybird-net"sv;
     case ProcessType::ImageDecoder:
-        return "ImageDecoder"sv;
+        return "ladybird-image"sv;
     case ProcessType::MediaServer:
-        return "MediaServer"sv;
+        return "ladybird-media"sv;
     case ProcessType::AudioServer:
-        return "AudioServer"sv;
+        return "ladybird-audio"sv;
     case ProcessType::VideoDecoderServer:
-        return "VideoDecoderServer"sv;
+        return "ladybird-video"sv;
     case ProcessType::WebRTCClient:
-        return "WebRTCClient"sv;
+        return "ladybird-webrtc"sv;
     }
     VERIFY_NOT_REACHED();
 }

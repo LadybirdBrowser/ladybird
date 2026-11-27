@@ -99,9 +99,9 @@ StringView process_name(FeatureProcess process)
 {
     switch (process) {
     case FeatureProcess::Compositor:
-        return "Compositor"sv;
+        return "ladybird-gpu"sv;
     case FeatureProcess::VideoDecoderServer:
-        return "VideoDecoderServer"sv;
+        return "ladybird-video"sv;
     }
     VERIFY_NOT_REACHED();
 }

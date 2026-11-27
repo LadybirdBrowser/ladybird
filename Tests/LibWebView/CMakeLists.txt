@@ -16,10 +16,13 @@ if (BUILD_TESTING AND NOT WIN32)
         ladybird_python_test(test-window-size-reaches-every-page.py ARGS $<TARGET_FILE:ladybird>)
         ladybird_python_test(test-worker-error-console.py ARGS $<TARGET_FILE:ladybird>)
 
-        foreach(helper IN ITEMS Compositor ImageDecoder RequestServer)
+        foreach(helper IN ITEMS Compositor:ladybird-gpu ImageDecoder:ladybird-image RequestServer:ladybird-net)
+            string(REPLACE ":" ";" helper "${helper}")
+            list(GET helper 0 test_name)
+            list(GET helper 1 process_name)
             ladybird_python_test(test-webdriver-crash-report.py
-                NAME Test${helper}CrashReport
-                ARGS $<TARGET_FILE:WebDriver> --process ${helper}
+                NAME Test${test_name}CrashReport
+                ARGS $<TARGET_FILE:WebDriver> --process ${process_name}
             )
         endforeach()
     endif()

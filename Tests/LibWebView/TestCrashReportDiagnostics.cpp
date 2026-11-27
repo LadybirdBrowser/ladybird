@@ -14,13 +14,13 @@ static constexpr auto stack_heading = "Native stack (binary build ID, object add
 TEST_CASE(named_lines_are_read_in_order)
 {
     auto diagnostics = CrashReportDiagnostics::parse("Ladybird crash report, format 1\n"
-                                                     "Process: WebContent\n"
+                                                     "Process: ladybird-render\n"
                                                      "Version: 1.0\n"
                                                      "Platform: macOS\n"sv);
 
     EXPECT_EQ(diagnostics.headers.size(), 3u);
     EXPECT_EQ(diagnostics.headers[0].name, "Process"sv);
-    EXPECT_EQ(diagnostics.headers[0].value, "WebContent"sv);
+    EXPECT_EQ(diagnostics.headers[0].value, "ladybird-render"sv);
     EXPECT_EQ(diagnostics.headers[2].name, "Platform"sv);
     EXPECT_EQ(diagnostics.header("Version"sv), "1.0"sv);
 
@@ -43,11 +43,11 @@ TEST_CASE(a_wrapped_value_belongs_to_the_field_above_it)
     auto diagnostics = CrashReportDiagnostics::parse("Ladybird crash report, format 1\n"
                                                      "Build options: first\n"
                                                      "    second\n"
-                                                     "Process: WebContent\n"sv);
+                                                     "Process: ladybird-render\n"sv);
 
     EXPECT_EQ(diagnostics.headers.size(), 2u);
     EXPECT_EQ(diagnostics.header("Build options"sv), "first\n    second"sv);
-    EXPECT_EQ(diagnostics.header("Process"sv), "WebContent"sv);
+    EXPECT_EQ(diagnostics.header("Process"sv), "ladybird-render"sv);
 }
 
 TEST_CASE(a_signal_has_a_name_and_a_number)
@@ -96,7 +96,7 @@ TEST_CASE(a_termination_signal_is_preferred_over_a_captured_one)
 TEST_CASE(a_line_below_the_stack_heading_is_part_of_the_stack_and_not_a_field)
 {
     auto diagnostics = CrashReportDiagnostics::parse(ByteString::formatted("Ladybird crash report, format 1\n"
-                                                                           "Process: WebContent\n"
+                                                                           "Process: ladybird-render\n"
                                                                            "\n{}\n"
                                                                            "#0 a1b2c3 0x1000 first_symbol + 0x10\n"
                                                                            "#1 d4e5f6 0x2000\n",
@@ -123,13 +123,13 @@ TEST_CASE(a_time_of_the_crash_that_cannot_be_read_is_left_out)
         EXPECT(!diagnostics.crashed_at.has_value());
     }
 
-    EXPECT(!CrashReportDiagnostics::parse("Ladybird crash report, format 1\nProcess: WebContent\n"sv).crashed_at.has_value());
+    EXPECT(!CrashReportDiagnostics::parse("Ladybird crash report, format 1\nProcess: ladybird-render\n"sv).crashed_at.has_value());
 }
 
 TEST_CASE(the_stack_keeps_its_heading_and_drops_the_note_about_partial_stacks)
 {
     auto diagnostics = CrashReportDiagnostics::parse(ByteString::formatted("Ladybird crash report, format 1\n"
-                                                                           "Process: WebContent\n"
+                                                                           "Process: ladybird-render\n"
                                                                            "\n{}\n"
                                                                            "#0 a1b2c3 0x1000 symbol\n"
                                                                            "\nStacks may be partial.\n",
@@ -138,16 +138,16 @@ TEST_CASE(the_stack_keeps_its_heading_and_drops_the_note_about_partial_stacks)
     EXPECT(diagnostics.stack.starts_with(stack_heading));
     EXPECT(diagnostics.stack.contains("#0 a1b2c3 0x1000 symbol"sv));
     EXPECT(!diagnostics.stack.contains("Stacks may be partial."sv));
-    EXPECT(!diagnostics.stack.contains("Process: WebContent"sv));
+    EXPECT(!diagnostics.stack.contains("Process: ladybird-render"sv));
 }
 
 TEST_CASE(a_report_without_a_stack_section_still_reads_its_fields)
 {
     auto diagnostics = CrashReportDiagnostics::parse("Ladybird crash report, format 1\n"
-                                                     "Process: WebContent\n"
+                                                     "Process: ladybird-render\n"
                                                      "Unavailable: the process exited without a captured native stack.\n"sv);
 
-    EXPECT_EQ(diagnostics.header("Process"sv), "WebContent"sv);
+    EXPECT_EQ(diagnostics.header("Process"sv), "ladybird-render"sv);
     EXPECT(diagnostics.stack.is_empty());
 }
 
@@ -164,5 +164,5 @@ TEST_CASE(only_frames_with_addresses_count_as_a_native_stack)
     EXPECT(CrashReportDiagnostics::parse("Native stack (binary build ID, object address):\n#0 abcdef 0x1234\n"sv).has_native_stack());
     EXPECT(!CrashReportDiagnostics::parse("Native stack (binary build ID, object address):\n#0 unavailable\n"sv).has_native_stack());
     EXPECT(!CrashReportDiagnostics::parse("Native stack (binary build ID, object address):\nUnavailable: the process exited without a captured native stack.\n"sv).has_native_stack());
-    EXPECT(!CrashReportDiagnostics::parse("Process: WebContent\n"sv).has_native_stack());
+    EXPECT(!CrashReportDiagnostics::parse("Process: ladybird-render\n"sv).has_native_stack());
 }
