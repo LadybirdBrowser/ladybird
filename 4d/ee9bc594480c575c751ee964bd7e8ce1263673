@@ -1,0 +1,12 @@
+Ladybird now hands a per-site RequestServer its site over IPC, before
+any client connects, and none of its processes names a site on its
+command line. Chrome 158, Firefox 161 and Safari 26.6.2 (WebKit) were
+each run in a macOS 26.6.2 VM with example.com and wikipedia.org open,
+and ps showed no site in the arguments of any helper or content process
+of theirs. Chrome’s single network.mojom.NetworkService utility serves
+every site, and its renderers carry only flags (--renderer-client-id,
+e.g.). Firefox’s content processes carry only flags and their “tab”
+process type; Gecko’s ContentParent sends the remote type, which names
+the site of a Fission process, in a SetRemoteType message once the
+process is up. And WebKit’s com.apple.WebKit.Networking and WebContent
+XPC services run with no arguments at all.
