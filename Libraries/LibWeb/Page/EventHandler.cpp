@@ -1736,18 +1736,6 @@ void EventHandler::update_hover_after_scroll(HoverUpdateCause cause, CSSPixelPoi
     clear_hover.disarm();
 }
 
-// https://w3c.github.io/uievents/#unicode-character-categories
-static bool produces_character_value(u32 code_point)
-{
-    // A subset of the General Category values that are defined for each Unicode code point. This subset contains all
-    // the Letter (Ll, Lm, Lo, Lt, Lu), Number (Nd, Nl, No), Punctuation (Pc, Pd, Pe, Pf, Pi, Po, Ps) and Symbol (Sc,
-    // Sk, Sm, So) category values.
-    return Unicode::code_point_has_letter_general_category(code_point)
-        || Unicode::code_point_has_number_general_category(code_point)
-        || Unicode::code_point_has_punctuation_general_category(code_point)
-        || Unicode::code_point_has_symbol_general_category(code_point);
-}
-
 // https://github.com/w3c/uievents/issues/183#issuecomment-448091687
 static constexpr bool is_enter_key_or_interoperable_enter_key_combo(UIEvents::KeyCode key, u32 modifiers)
 {
@@ -2120,10 +2108,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     // https://w3c.github.io/uievents/#event-type-keypress
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
     // normally produces a character value.
+    // AD-HOC: The spec's character values cover only letters, numbers, punctuation and symbols. We fire keypress for
+    //         any key that produces a non-control character in the BMP, matching other engines.
     // AD-HOC: For web compat and for interop with other engines, we make an exception here for the Enter key. See:
     //         https://github.com/w3c/uievents/issues/183#issuecomment-448091687 and
     //         https://github.com/w3c/uievents/issues/266#issuecomment-1887917756
-    if ((produces_character_value(code_point) && !should_ignore_keydown_event(code_point, modifiers, should_insert_text))
+    if ((UIEvents::KeyboardEvent::produces_keypress(code_point) && !should_ignore_keydown_event(code_point, modifiers, should_insert_text))
         || is_enter_key_or_interoperable_enter_key_combo(key, modifiers)) {
         dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point, repeat);
         if (dispatch_result != EventResult::Accepted)

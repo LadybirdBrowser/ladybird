@@ -39,6 +39,8 @@ public:
     [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
+    static bool produces_keypress(u32 code_point);
+
     virtual ~KeyboardEvent() override;
 
     u32 key_code() const { return m_key_code; }

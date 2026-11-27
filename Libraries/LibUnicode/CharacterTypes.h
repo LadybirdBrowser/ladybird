@@ -19,7 +19,6 @@ namespace Unicode {
 Optional<GeneralCategory> general_category_from_string(StringView);
 bool code_point_has_general_category(u32 code_point, GeneralCategory general_category, CaseSensitivity case_sensitivity = CaseSensitivity::CaseSensitive);
 
-bool code_point_is_printable(u32 code_point);
 bool code_point_has_control_general_category(u32 code_point);
 bool code_point_has_letter_general_category(u32 code_point);
 bool code_point_has_mark_general_category(u32 code_point);

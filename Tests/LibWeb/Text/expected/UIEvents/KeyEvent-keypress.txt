@@ -3,6 +3,13 @@ keypress key=A charCode=65
 keydown key=Shift charCode=0
 keydown key=B charCode=0
 keypress key=B charCode=66
+keydown key=  charCode=0
+keypress key=  charCode=32
+keydown key=े charCode=0
+keypress key=े charCode=2375
+keydown key=‌ charCode=0
+keypress key=‌ charCode=8204
+keydown key=😀 charCode=0
 keydown key=Enter charCode=0
 keypress key=Enter charCode=0
 keydown key=Enter charCode=0 modifiers=Alt
