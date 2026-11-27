@@ -27,6 +27,7 @@ void report_paint_timing(DOM::Document&, Utf16String const& paint_type, PaintTim
 
 // NB: The client rect of the given box, which for a text box is the union of the rects of its fragments.
 CSSPixelRect client_rect_of_box(Layout::Node const&, Layout::RustFFI::FfiViewportMapping const&);
+CSSPixelRect client_rect_of_text_row(Layout::RustFFI::DocumentHost*, Compositing::RustFFI::NodeSlotId, Layout::RustFFI::FfiViewportMapping const&);
 
 // https://w3c.github.io/paint-timing/#exposed-for-paint-timing
 bool is_exposed_for_paint_timing(DOM::Element const&, GC::Ptr<DOM::Document const>);

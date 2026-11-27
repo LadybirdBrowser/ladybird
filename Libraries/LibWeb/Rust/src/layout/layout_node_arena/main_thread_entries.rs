@@ -69,6 +69,26 @@ mod tests {
     }
 }
 
+/// A live row, as its layout node where the host holds one, or as what the shell factory makes one from.
+enum LiveRow {
+    Shell(*mut c_void),
+    Facts(super::super::host_tables::ShellFacts),
+}
+
+/// The row, if it is live.
+fn live_row(host: &DocumentHost, read: &crate::render_state::BegunRead, id: NodeSlotId) -> Option<LiveRow> {
+    if let Some(shell) = host.held_shell(id) {
+        return Some(LiveRow::Shell(shell));
+    }
+    if let Some(identities) = host.known_row_identities() {
+        return identities.shell_facts(id).map(LiveRow::Facts);
+    }
+    read_arena(host, read, id, |arena, id| {
+        let kind = arena.node_kind_if_live(id)?;
+        (kind != NodeKind::Unset).then_some(LiveRow::Facts(super::super::host_tables::ShellFacts { id, kind }))
+    })
+}
+
 /// The row's layout node, which the host's shell factory makes the first time it is asked for, or null for a row that
 /// is not live.
 #[unsafe(no_mangle)]
@@ -77,21 +97,21 @@ pub extern "C" fn render_state_node_shell_if_live(
     read: &crate::render_state::BegunRead,
     id: NodeSlotId,
 ) -> *mut c_void {
-    if let Some(shell) = host.held_shell(id) {
-        return shell;
+    match live_row(host, read, id) {
+        Some(LiveRow::Shell(shell)) => shell,
+        Some(LiveRow::Facts(facts)) => host.host_tables().shell_of(facts),
+        None => std::ptr::null_mut(),
     }
-    if let Some(identities) = host.known_row_identities() {
-        return identities
-            .shell_facts(id)
-            .map_or(std::ptr::null_mut(), |facts| host.host_tables().shell_of(facts));
-    }
-    let facts = {
-        read_arena(host, read, id, |arena, id| {
-            let kind = arena.node_kind_if_live(id)?;
-            (kind != NodeKind::Unset).then_some(super::super::host_tables::ShellFacts { id, kind })
-        })
-    };
-    facts.map_or(std::ptr::null_mut(), |facts| host.host_tables().shell_of(facts))
+}
+
+/// Whether the row is live, as [`render_state_node_shell_if_live`] finds it. It makes no layout node.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_node_is_live(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    id: NodeSlotId,
+) -> bool {
+    live_row(host, read, id).is_some()
 }
 
 /// The row takes the derived style record `record` its layout node made.

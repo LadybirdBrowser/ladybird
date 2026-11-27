@@ -71,6 +71,12 @@ pub extern "C" fn layout_row_link_shell(host: &DocumentHost, id: NodeSlotId, lin
     shell_of(host, node_read(), (!linked.is_invalid()).then_some(linked))
 }
 
+/// The row `id` links to, or the invalid slot. It makes no layout node.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_row_link(host: &DocumentHost, id: NodeSlotId, link: FfiNodeLink) -> NodeSlotId {
+    rows(host, node_read()).link(id, link)
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn layout_row_generated_for(host: &DocumentHost, id: NodeSlotId) -> u8 {
     identities(host, node_read()).generated_for(id)
@@ -164,6 +170,20 @@ pub extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &BegunRead, 
         return std::ptr::null_mut();
     };
     bound_shell(host, read, |identities| identities.bound_row(style_node))
+}
+
+/// The row the element or text node with `style_node` is bound to, or the invalid slot if the node has no row. It makes
+/// no layout node.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_row_bound_to_style_node(host: &DocumentHost, read: &BegunRead, style_node: u32) -> NodeSlotId {
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return NodeSlotId::INVALID;
+    };
+    let identities = identities(host, read);
+    identities
+        .bound_row(style_node)
+        .filter(|&id| identities.shell_facts(id).is_some())
+        .unwrap_or(NodeSlotId::INVALID)
 }
 
 /// Whether a row of `host`'s document may make an element contentful, as paint timing defines it: by holding text that
@@ -283,6 +303,12 @@ pub extern "C" fn layout_row_is_bound_to(host: &DocumentHost, id: NodeSlotId, st
 pub extern "C" fn layout_row_containing_block_shell_if_live(host: &DocumentHost, id: NodeSlotId) -> *mut c_void {
     let containing_block = read_rows(host, |rows| rows.node_containing_block_if_live(id));
     shell_of(host, node_read(), containing_block)
+}
+
+/// The row of the box whose content box the row is laid out against, or the invalid slot. It makes no layout node.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_row_containing_block_if_live(host: &DocumentHost, id: NodeSlotId) -> NodeSlotId {
+    read_rows(host, |rows| rows.node_containing_block_if_live(id)).unwrap_or(NodeSlotId::INVALID)
 }
 
 #[unsafe(no_mangle)]
