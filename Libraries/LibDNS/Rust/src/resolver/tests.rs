@@ -891,6 +891,36 @@ fn validated_lookup_with_the_wrong_trust_anchor_fails() {
 }
 
 #[test]
+fn validated_lookup_whose_fetch_times_out_fails_with_the_timeout() {
+    let mut server = crate::dnssec::tests::make_server(false);
+    server.start();
+    let mut harness = dnssec_harness(&server);
+    let lookup = harness.lookup_with("www.example", &[ResourceType::A], VALIDATE);
+    harness.connected(harness.connects[0].connection);
+
+    // The server answers the lookup's own query, and then stops answering, as when the network changed under it.
+    let (connection, query) = harness.take_writes().remove(0);
+    let query = Message::from_wire(&query).unwrap();
+    let mut response = server.answer(&query.questions[0]);
+    response.header.id = query.header.id;
+    harness.receive(connection, &response.to_wire().unwrap());
+    let mut connected = harness.connects.len();
+    for _ in 0..20 {
+        harness.take_writes();
+        harness.advance(QUERY_RETRY_INTERVAL);
+        let new: Vec<_> = harness.connects[connected..]
+            .iter()
+            .map(|connect| connect.connection)
+            .collect();
+        connected = harness.connects.len();
+        for connection in new {
+            harness.connected(connection);
+        }
+    }
+    assert_eq!(harness.error(lookup), "DNS lookup timed out");
+}
+
+#[test]
 fn unvalidated_cache_entries_do_not_serve_validated_lookups() {
     let mut server = crate::dnssec::tests::make_server(false);
     server.start();

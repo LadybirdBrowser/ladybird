@@ -707,7 +707,7 @@ impl Resolver {
             ),
             Step::Failed(_) => {
                 let validation = self.validations.remove(&id).expect("validation");
-                self.fail_validated_lookup(&validation.lookup_key, now);
+                self.fail_validated_lookup(&validation.lookup_key, Error::new("DNSSEC validation failed"), now);
             }
             Step::Done(result) => {
                 let validation = self.validations.remove(&id).expect("validation");
@@ -738,16 +738,18 @@ impl Resolver {
                 }
                 self.run_validation(id, now);
             }
-            Err(_) => {
+            Err(error) => {
+                // A fetch that failed, as one does once the server stops answering, says nothing of the records it was
+                // for: The lookup fails with the fetch's own error, rather than as if validation had found them bogus.
                 let validation = self.validations.remove(&id).expect("validation");
-                self.fail_validated_lookup(&validation.lookup_key, now);
+                self.fail_validated_lookup(&validation.lookup_key, error, now);
             }
         }
     }
 
-    fn fail_validated_lookup(&mut self, key: &str, now: Instant) {
+    fn fail_validated_lookup(&mut self, key: &str, error: Error, now: Instant) {
         self.validations.retain(|_, validation| validation.lookup_key != key);
-        self.settle_pending_lookup(key, Err(Error::new("DNSSEC validation failed")), now);
+        self.settle_pending_lookup(key, Err(error), now);
     }
 
     fn finish_validated_lookup(&mut self, key: &str, now: Instant) -> Result<Arc<LookupResult>, Error> {
