@@ -22,11 +22,16 @@ GC_DEFINE_ALLOCATOR(Intrinsics);
 void Intrinsics::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_namespaces);
-    visitor.visit(m_prototypes);
-    visitor.visit(m_constructors);
+    // NB: The maps are this cell's own, which only ensure_web_*() change, and only its destructor frees.
+    for (auto const& it : m_namespaces)
+        visitor.visit_owned(it.value);
+    for (auto const& it : m_prototypes)
+        visitor.visit_owned(it.value);
+    for (auto const& it : m_constructors)
+        visitor.visit_owned(it.value);
     visitor.visit(m_realm);
-    visitor.visit(m_unforgeable_functions);
+    for (auto const& it : m_unforgeable_functions)
+        visitor.visit_owned(it.value);
 }
 
 Intrinsics& host_defined_intrinsics(JS::Realm& realm)

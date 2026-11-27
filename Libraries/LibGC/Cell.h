@@ -171,6 +171,32 @@ public:
                 visit_member_cell(slot.ptr());
         }
 
+        // Visits a member in memory that the cell being visited owns outside the heap, such as the storage of a HashMap,
+        // which a collection that moves cells rewrites where it is rather than keeping the cell where it is. Nothing may
+        // free, move or write the slot until the collection is over: no finalizer, destructor or sweep callback.
+        template<typename T>
+        void visit_owned(Member<T> const& slot)
+        {
+            static_assert(sizeof(slot) == sizeof(u32));
+            if (m_marker) {
+                gc_marker_visit_owned_member(m_marker, reinterpret_cast<u32 const*>(&slot));
+                return;
+            }
+            if (slot)
+                visit_member_cell(slot.ptr());
+        }
+
+        template<typename T>
+        void visit_owned(NonnullMember<T> const& slot)
+        {
+            static_assert(sizeof(slot) == sizeof(u32));
+            if (m_marker) {
+                gc_marker_visit_owned_member(m_marker, reinterpret_cast<u32 const*>(&slot));
+                return;
+            }
+            visit_member_cell(slot.ptr());
+        }
+
         template<typename T>
         void visit(NonnullMember<T> const& slot)
         {
