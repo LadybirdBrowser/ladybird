@@ -1,0 +1,19 @@
+Ladybird keeps a disc, circle or square marker as generated text (its
+symbol and a space), and now ends an outside one 5px further from its
+list item. Blink and WebKit draw these bullets as shapes instead, with
+a gap that Blink’s ListMarker and WebKit’s RenderListOutsideMarker::
+updateInlineMargins() derive from the font’s integer ascent A: the gap
+is T + 7 - D, where T = floor(2A/3) and D = floor((T + 1)/2). Gecko
+keeps them as text, but sets them in its bundled -moz-bullet-font, in
+which a symbol and a space advance about 0.51em. Measured on this Mac
+from the marker’s right edge to the text, at 16px Times, 19px Arial
+and 32px Helvetica, then circle and square at 19px Arial: Chrome 158
+gave 13, 14, 19, 14 and 14px, Firefox 151 gave 10, 12, 18, 16 and 12px,
+and Ladybird had 7, 8, 13, 8 and 9px, and now has 12, 13, 18, 13 and
+14px. Chrome’s gap was 6px ahead of Ladybird’s at every size, since
+both grow with the font, and Firefox’s was 3px to 5px ahead for discs
+and squares (8px for circles), so a fixed 5px lands between the two.
+Decimal markers already matched at 9px in all three, and keep their
+place. The bullets themselves stay a little smaller than the other
+browsers’, at the size of the font’s own U+2022 glyph; matching that
+would take a bullet that doesn’t come from the page’s font.
