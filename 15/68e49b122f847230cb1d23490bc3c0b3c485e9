@@ -1,0 +1,9 @@
+Ladybird’s seccomp policy allows the TCGETS and TIOCGWINSZ ioctls,
+which glibc’s and musl’s isatty() use. Gecko’s SandboxFilter.cpp
+names the same split between the two libcs, but answers both requests
+with ENOTTY, so isatty() is always false there. Chromium’s
+RestrictIoctl() allows TCGETS and FIONREAD and kills the process for
+anything else, TIOCGWINSZ included; Chromium doesn’t support musl.
+Ladybird already allows TCGETS, and logs in color to a terminal, so
+allowing TIOCGWINSZ too keeps that the same under musl. From reading
+the sources.
