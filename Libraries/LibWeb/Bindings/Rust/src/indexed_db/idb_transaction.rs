@@ -374,8 +374,11 @@ impl IDBTransaction {
             log.revert(vm, *store, database, self.connection);
         }
 
-        database.set_version(self.original_version.get());
-        self.connection.set_version(self.original_version.get());
+        // NB: Only an upgrade changes the version, and only one sets the version it had before.
+        if self.is_upgrade_transaction() {
+            database.set_version(self.original_version.get());
+            self.connection.set_version(self.original_version.get());
+        }
     }
 
     pub(crate) fn discard_mutation_logs(&self, vm: &Vm) {

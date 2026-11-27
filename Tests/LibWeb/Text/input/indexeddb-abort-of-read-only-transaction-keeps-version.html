@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    // Aborting a transaction that isn't an upgrade leaves the database's version as it is.
+    const dbName = "test-abort-keeps-version-" + Date.now() + Math.random();
+    const open = indexedDB.open(dbName, 3);
+    open.onupgradeneeded = () => open.result.createObjectStore("store");
+    open.onsuccess = () => {
+        const db = open.result;
+        const transaction = db.transaction("store", "readonly");
+        transaction.abort();
+        transaction.onabort = () => {
+            println(`version after aborting a read-only transaction: ${db.version}`);
+            db.close();
+            const again = indexedDB.open(dbName);
+            again.onsuccess = () => {
+                println(`version when opened again: ${again.result.version}`);
+                again.result.close();
+                indexedDB.deleteDatabase(dbName).onsuccess = () => done();
+            };
+        };
+    };
+});
+</script>
