@@ -220,6 +220,7 @@ void HistoryExecutor::finalize_same_document_navigation(GC::Ref<LocalNavigable> 
 
     auto parameters = FinalizeSameDocumentNavigationHistoryOperationParameters {
         .navigable_id = target_navigable->id(),
+        .document_id = target_navigable->active_document()->id(),
         .target_entry = create_same_document_navigation_entry(target_entry),
         .entry_to_replace = move(entry_to_replace_identity),
         .previous_entry_persisted_state = move(previous_entry_persisted_state),
