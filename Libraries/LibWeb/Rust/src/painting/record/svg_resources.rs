@@ -379,10 +379,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         self.recorder.set_accumulated_visual_context(walk.enclosing_context);
 
-        let effects_group = facts
-            .effects_data()
-            .map(|effects| (self.recorder.begin_isolated_group(), effects));
-
         let mut to_enclosing_space = parent_to_enclosing_space;
         if include_element_transform && let Some(transform) = facts.transform {
             to_enclosing_space = multiply_affine(
@@ -390,6 +386,23 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 affine_of_matrix(transform.matrix_including_origin()),
             );
         }
+
+        let clip_path_depth = self.recorder.ambient_inline_clip_depth();
+        if let Some((path, _, winding_rule)) = &facts.clip_path
+            && !self
+                .source
+                .node_kind_if_live(svg_box)
+                .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
+        {
+            self.recorder
+                .push_ambient_inline_clips(&[PendingInlineClip::intersecting_path(
+                    &path.copy_transformed(to_enclosing_space.values),
+                    *winding_rule,
+                )]);
+        }
+        let effects_group = facts
+            .effects_data()
+            .map(|effects| (self.recorder.begin_isolated_group(), effects));
 
         let mut mask_groups: Vec<(OpenRecorderGroup, MaskData, usize)> = Vec::new();
         for mask in facts
@@ -486,6 +499,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 },
             );
         }
+        self.recorder.truncate_ambient_inline_clips(clip_path_depth);
     }
 
     fn paint_svg_box_own_content_inside_resource(

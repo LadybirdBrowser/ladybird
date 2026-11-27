@@ -199,9 +199,10 @@ fn lone_shape_of_clip_path(arena: &impl PaintRead, clip_box: NodeSlotId) -> Opti
         return None;
     };
     (arena.node_kind_if_live(shape) == Some(NodeKind::SVGGeometryBox)
-        && first_child_paintable_of_kind(arena, shape, NodeKind::SVGClipBox).is_none()
         && paintable_geometry::committed_svg_path(arena, shape).is_some()
-        && arena.node_style_if_live(shape).is_some())
+        && arena
+            .node_style_if_live(shape)
+            .is_some_and(|style| !style_queries::clip_path_has_value(style.mask())))
     .then_some(shape)
 }
 
