@@ -40,7 +40,7 @@ pub(crate) fn committed_content_size(arena: &impl GeometryRead, slot: NodeSlotId
 
 pub(crate) fn committed_margin(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(FfiPixelBox::default, |link| link.placement.shown_as.margins.into())
+        link.map_or_else(FfiPixelBox::default, |link| link.placement.margins().into())
     })
 }
 
@@ -58,7 +58,7 @@ pub(crate) fn committed_padding(arena: &impl GeometryRead, slot: NodeSlotId) -> 
 
 pub(crate) fn committed_inset(arena: &impl GeometryRead, slot: NodeSlotId) -> FfiPixelBox {
     arena.with_committed_fragment_link(slot, |link| {
-        link.map_or_else(FfiPixelBox::default, |link| link.placement.insets.into())
+        link.map_or_else(FfiPixelBox::default, |link| link.placement.insets().into())
     })
 }
 
@@ -72,7 +72,7 @@ pub(crate) fn committed_uses_collapsing_borders_model(arena: &impl GeometryRead,
 /// along with the columns (CSS 2.2 §17.5.5).
 pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
     arena.with_committed_fragment_link(slot, |link| {
-        link.is_some_and(|link| link.placement.shown_as.facts.hidden_by_collapsed_columns)
+        link.is_some_and(|link| link.placement.hidden_by_collapsed_columns())
     })
 }
 
@@ -81,10 +81,8 @@ pub(crate) fn committed_hidden_by_collapsed_columns(arena: &impl GeometryRead, s
 pub(crate) fn committed_table_column_range(arena: &impl GeometryRead, slot: NodeSlotId) -> (u32, u32) {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or((0, 0), |link| {
-            (
-                link.placement.shown_as.facts.table_column_index,
-                link.placement.shown_as.facts.table_column_span,
-            )
+            let facts = link.placement.show_facts();
+            (facts.table_column_index, facts.table_column_span)
         })
     })
 }
@@ -388,7 +386,7 @@ pub(crate) fn unbroken_box_model(
     );
     if let Some(last) = arena.committed_side_data(slot).box_fragments().last() {
         let fragment = &last.link.fragment;
-        margin.bottom = last.link.placement.shown_as.margins.bottom;
+        margin.bottom = last.link.placement.margins().bottom;
         padding.bottom = fragment.sides.padding.bottom;
         border.bottom = fragment.sides.border.bottom;
     }

@@ -323,7 +323,7 @@ impl<'tree> Commit<'_, 'tree> {
         if holder.node.is_invalid() && !keeps_its_holder && (self.is_full_commit || !was_at_pass_level) {
             self.pass_level_links.push(node);
         }
-        if let Some(inputs) = &link.placement.abspos_layout_inputs {
+        if let Some(inputs) = link.placement.abspos_layout_inputs() {
             self.out_of_flow_boxes.push((node, inputs.clone()));
         }
         let (containing_block_fragment, line_index_offset) = holder.placement_of(link);
@@ -463,10 +463,10 @@ impl<'tree> Commit<'_, 'tree> {
         let first = fragments.first().expect("a committed box has a fragment");
         let link_with_merged_line_index;
         let link = if first.containing_block_line_index_offset != 0
-            && first.link.placement.containing_line_box_index.is_some()
+            && first.link.placement.containing_line_box_index().is_some()
         {
             let mut link = first.link.clone();
-            if let Some(index) = link.placement.containing_line_box_index.as_mut() {
+            if let Some(index) = link.placement.containing_line_box_index_mut() {
                 *index +=
                     u32::try_from(first.containing_block_line_index_offset).expect("a line box index fits in 32 bits");
             }
@@ -502,7 +502,7 @@ impl<'tree> Commit<'_, 'tree> {
                 })
             })
             .flatten();
-        if let Some(shift) = link.placement.default_scroll_shift {
+        if let Some(shift) = link.placement.default_scroll_shift() {
             self.arena_mut().set_default_scroll_shift(
                 node,
                 shift.anchor,

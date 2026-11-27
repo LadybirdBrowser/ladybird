@@ -781,7 +781,7 @@ pub fn layout_script_anchor_resolved_size(
         }
         arena.with_committed_fragment_link(slot, |link| {
             let link = link?;
-            let inputs = link.placement.abspos_layout_inputs.as_ref()?;
+            let inputs = link.placement.abspos_layout_inputs()?;
             let sizes = inputs.resolved_anchor_sizes;
             // NB: The sizes lie in the frame the box was laid out in, whose axes a vertical writing mode transposes.
             let (physical_width, physical_height) = if inputs.frame.is_transposed() {

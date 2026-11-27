@@ -397,13 +397,13 @@ fn describe_placement(link: &fragment_tree::FragmentLink) -> String {
         "offset ({:?}, {:?}) insets ({:?} {:?} {:?} {:?}) line box {:?} in {:?}, abspos inputs {}",
         link.offset.x,
         link.offset.y,
-        link.placement.insets.top,
-        link.placement.insets.right,
-        link.placement.insets.bottom,
-        link.placement.insets.left,
-        link.placement.containing_line_box_index,
+        link.placement.insets().top,
+        link.placement.insets().right,
+        link.placement.insets().bottom,
+        link.placement.insets().left,
+        link.placement.containing_line_box_index(),
         link.placement.containing_block,
-        if link.placement.abspos_layout_inputs.is_some() {
+        if link.placement.abspos_layout_inputs().is_some() {
             "present"
         } else {
             "absent"

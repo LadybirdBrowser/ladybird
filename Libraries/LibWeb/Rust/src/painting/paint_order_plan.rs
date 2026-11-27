@@ -278,7 +278,7 @@ impl PaintOrderInputs {
                 link.map_or((false, false, NodeSlotId::INVALID), |link| {
                     (
                         link.fragment.collapsed_table_borders().is_some(),
-                        link.placement.shown_as.facts.hidden_by_collapsed_columns,
+                        link.placement.hidden_by_collapsed_columns(),
                         link.placement.containing_block,
                     )
                 })

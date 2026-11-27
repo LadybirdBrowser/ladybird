@@ -84,7 +84,7 @@ impl ClampEdgeWalk<'_, '_> {
         let Some(&containing_block) = self.content_boxes.get(&link.placement.containing_block) else {
             return LinkOutcome::ContainingBlockNotEntered;
         };
-        if link.placement.shown_as.facts.is_invisible_for_line_clamp {
+        if link.placement.is_invisible_for_line_clamp() {
             return LinkOutcome::Unchanged;
         }
         let fragment = &link.fragment;
@@ -96,11 +96,11 @@ impl ClampEdgeWalk<'_, '_> {
         if node_facts::node_is_floating(data, style) {
             let border_box = fragment_overflow::physical_border_box_around(content_box, fragment);
             let clip = Some(self.area_before_block_end_edge.translated(-border_box.x, -border_box.y));
-            if link.placement.shown_as.facts.clip_decided_by_parent == clip {
+            if link.placement.clip_decided_by_parent() == clip {
                 return LinkOutcome::Unchanged;
             }
             let mut link = link.clone();
-            link.placement.shown_as.facts.clip_decided_by_parent = clip;
+            link.placement.set_clip_decided_by_parent(clip);
             return LinkOutcome::Changed(link);
         }
 
