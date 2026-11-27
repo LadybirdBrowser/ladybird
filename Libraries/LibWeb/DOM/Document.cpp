@@ -2742,15 +2742,33 @@ bool Document::layout_is_up_to_date() const
 // Whether the document's layout is not up to date, as far as the host knows without reading the render state.
 bool Document::layout_is_known_stale() const
 {
+    return known_layout_staleness() != KnownLayoutStaleness::NoneKnown;
+}
+
+// What keeps the document's layout from being up to date, as far as the host knows without reading the render state.
+KnownLayoutStaleness Document::known_layout_staleness() const
+{
     if (!navigable() || navigable()->active_document().ptr() != this)
-        return false;
+        return KnownLayoutStaleness::NoneKnown;
     if (m_reads_layout_as_it_flew)
-        return false;
-    if (has_flown_style_update() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
-        return true;
+        return KnownLayoutStaleness::NoneKnown;
+    if (has_flown_style_update())
+        return KnownLayoutStaleness::FlownStyleUpdate;
     if (!m_layout_node_arena)
-        return true;
-    return Layout::RustFFI::render_state_layout_is_known_stale(m_layout_node_arena->host());
+        return KnownLayoutStaleness::NoLayoutNodeArena;
+    if (m_layout_node_arena->render_document().waits_for_frame())
+        return KnownLayoutStaleness::FrameInFlight;
+    switch (Layout::RustFFI::render_state_known_layout_staleness(m_layout_node_arena->host())) {
+    case Layout::RustFFI::FfiKnownLayoutStaleness::NoneKnown:
+        return KnownLayoutStaleness::NoneKnown;
+    case Layout::RustFFI::FfiKnownLayoutStaleness::FrameInFlight:
+        return KnownLayoutStaleness::FrameInFlight;
+    case Layout::RustFFI::FfiKnownLayoutStaleness::LayoutOutOfDate:
+        return KnownLayoutStaleness::LayoutOutOfDate;
+    case Layout::RustFFI::FfiKnownLayoutStaleness::TreeNeedsBuild:
+        return KnownLayoutStaleness::LayoutTreeNeedsBuild;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void Document::update_style_computer_viewport_rect()
