@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body>
+<div id="host"><iframe id="frame" srcdoc="<p>child</p>"></iframe><iframe id="hidden" srcdoc="<p>a</p> <p>b</p>"></iframe></div>
+<script>
+    // DevTools serializes the target of each DOM mutation, and with it the documents of the iframes below the target.
+    // A mutation above an iframe whose layout is stale must not read that iframe's stale layout, whether the iframe is
+    // rendered or not.
+    internals.setListenForDOMMutations();
+    const host = document.getElementById("host");
+    const frame = document.getElementById("frame");
+    const hidden = document.getElementById("hidden");
+    const loaded = iframe => new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    const mutate = (iframe, n) => {
+        iframe.contentDocument.body.append(iframe.contentDocument.createElement("span"));
+        host.setAttribute("data-step", String(n));
+    };
+    Promise.all([loaded(frame), loaded(hidden)]).then(async () => {
+        // A rendered iframe, whose layout the next rendering update brings up to date.
+        mutate(frame, 0);
+        host.append(document.createElement("span"));
+        for (let n = 1; n < 20; ++n) {
+            await nextFrame();
+            mutate(frame, n);
+        }
+
+        // An iframe hidden after it was laid out, which no rendering update lays out again.
+        hidden.contentDocument.body.offsetWidth;
+        hidden.style.display = "none";
+        for (let n = 20; n < 30; ++n) {
+            await nextFrame();
+            mutate(hidden, n);
+        }
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>

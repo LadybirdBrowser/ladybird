@@ -3340,7 +3340,8 @@ bool Element::has_synthetic_pseudo_elements(Layout::BegunRead const& read) const
 
 void Element::serialize_children_as_json(Layout::BegunRead const& read, JsonObjectSerializer<Utf16StringBuilder>& element_object) const
 {
-    bool has_pseudo_elements = this->has_synthetic_pseudo_elements(read);
+    // Pseudo-elements are known only by their boxes, which a document whose layout is known to be stale doesn't have.
+    bool has_pseudo_elements = !document().layout_is_known_stale() && this->has_synthetic_pseudo_elements(read);
     if (!is_shadow_host() && !has_child_nodes() && !has_pseudo_elements)
         return;
 

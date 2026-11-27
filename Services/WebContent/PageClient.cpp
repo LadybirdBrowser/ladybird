@@ -124,6 +124,42 @@ static Optional<Web::Geolocation::CoordinatesData> geolocation_coordinates_from_
     };
 }
 
+// Whether the rendering update lays `document` out: It lays out every document but one whose navigable container, or
+// one of whose containers' further up, isn't rendered (a display: none iframe, e.g.).
+static bool rendering_lays_out(Web::DOM::Document const& document)
+{
+    auto navigable = document.navigable();
+    if (!navigable)
+        return false;
+    auto container = navigable->container();
+    if (!container)
+        return true;
+    return container->has_layout_box() && rendering_lays_out(container->document());
+}
+
+// Serializing a mutation's target reads the layout of each document it reaches: the target's own, and the document of
+// every navigable container in the target's shadow-including subtree, nested ones included. A document no rendering
+// update lays out is never waited for, which would hold back every mutation behind it; the serializer leaves out its
+// layout instead.
+static bool layout_read_by_serialization_is_up_to_date(Web::DOM::Node const& target)
+{
+    if (rendering_lays_out(target.document()) && !target.document().layout_is_up_to_date())
+        return false;
+    bool up_to_date = true;
+    const_cast<Web::DOM::Node&>(target).for_each_shadow_including_inclusive_descendant([&](Web::DOM::Node& node) {
+        auto* element = as_if<Web::DOM::Element>(node);
+        if (!element || !element->is_navigable_container())
+            return Web::TraversalDecision::Continue;
+        auto const* content_document = static_cast<Web::HTML::NavigableContainer const*>(element)->content_document_without_origin_check();
+        if (content_document && !layout_read_by_serialization_is_up_to_date(*content_document)) {
+            up_to_date = false;
+            return Web::TraversalDecision::Break;
+        }
+        return Web::TraversalDecision::Continue;
+    });
+    return up_to_date;
+}
+
 static String serialize_dom_mutation_target(Web::DOM::Node const& target)
 {
     Utf16StringBuilder builder;
@@ -2508,7 +2544,7 @@ void PageClient::page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node 
     }
 
     auto mutation_message = WebView::Mutation { type.to_utf16_string().to_utf8(), target.unique_id(), {}, mutation.release_value() };
-    if (m_pending_dom_mutations.is_empty() && target.document().layout_is_up_to_date()) {
+    if (m_pending_dom_mutations.is_empty() && layout_read_by_serialization_is_up_to_date(target)) {
         send_dom_mutation(target, move(mutation_message));
         return;
     }
@@ -2524,7 +2560,7 @@ void PageClient::flush_pending_dom_mutations()
     }
 
     while (!m_pending_dom_mutations.is_empty()) {
-        if (!m_pending_dom_mutations.head().target->document().layout_is_up_to_date())
+        if (!layout_read_by_serialization_is_up_to_date(*m_pending_dom_mutations.head().target))
             break;
 
         auto pending_mutation = m_pending_dom_mutations.dequeue();

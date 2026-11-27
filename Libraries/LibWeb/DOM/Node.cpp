@@ -3235,7 +3235,12 @@ bool Node::is_uninteresting_whitespace_node() const
 
 IterationDecision Node::serialize_child_as_json(JsonArraySerializer<Utf16StringBuilder>& children_array, Node const& child) const
 {
-    if (child.is_uninteresting_whitespace_node())
+    // In a document whose layout is known to be stale, no box says if whitespace renders, so it's left out, as the
+    // whitespace of a text node without a box is.
+    auto is_uninteresting_whitespace = child.document().layout_is_known_stale()
+        ? is<Text>(child) && static_cast<Text const&>(child).data().is_ascii_whitespace()
+        : child.is_uninteresting_whitespace_node();
+    if (is_uninteresting_whitespace)
         return IterationDecision::Continue;
     JsonObjectSerializer<Utf16StringBuilder> child_object = MUST(children_array.add_object());
     child.serialize_tree_as_json(child_object);
@@ -3246,6 +3251,9 @@ IterationDecision Node::serialize_child_as_json(JsonArraySerializer<Utf16StringB
 void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object) const
 {
     Layout::ForcedReadScope read { document() };
+    // A document whose layout is known to be stale, as that of a display: none iframe is (no rendering update lays it
+    // out), is serialized without what its boxes say: They aren't the boxes its nodes would get.
+    auto const* box = document().layout_is_known_stale() ? nullptr : this->layout_node(read);
     MUST(object.add("name"sv, node_name().view()));
     MUST(object.add("id"sv, unique_id().value()));
     bool serialized_content_document = false;
@@ -3281,16 +3289,15 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
             }
         }
 
-        auto const* layout_node = this->layout_node(read);
-        if (layout_node && Painting::has_committed_box(*layout_node)) {
-            MUST(object.add("display"sv, Painting::display(*layout_node).to_string()));
-            if (Painting::could_be_scrolled_by_wheel_event(*layout_node)) {
+        if (box && Painting::has_committed_box(*box)) {
+            MUST(object.add("display"sv, Painting::display(*box).to_string()));
+            if (Painting::could_be_scrolled_by_wheel_event(*box)) {
                 MUST(object.add("scrollable"sv, true));
             }
-            if (!Painting::is_visible(*layout_node)) {
+            if (!Painting::is_visible(*box)) {
                 MUST(object.add("invisible"sv, true));
             }
-            if (Painting::has_stacking_context(*layout_node)) {
+            if (Painting::has_stacking_context(*box)) {
                 MUST(object.add("stackingContext"sv, true));
             }
         }
@@ -3307,7 +3314,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
         MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == ShadowRootMode::Open ? "open"sv : "closed"sv));
     }
 
-    MUST((object.add("visible"sv, !!layout_node(read))));
+    MUST((object.add("visible"sv, box != nullptr)));
 
     if (auto const* element = as_if<Element>(this)) {
         if (!serialized_content_document)
