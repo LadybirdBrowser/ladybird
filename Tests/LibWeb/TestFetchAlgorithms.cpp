@@ -3204,6 +3204,34 @@ struct CompletedResponses : RefCounted<CompletedResponses> {
 
 }
 
+TEST_CASE(a_redirect_of_a_request_whose_redirect_mode_is_error_reports_a_fetch_error_to_webdriver_bidi)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    StandInRequestServer request_server { harness };
+
+    auto events = make_ref_counted<ReportedNetworkEvents>();
+    WebDriverBiDiSession session {
+        { "network.fetchError"_string },
+        [events](Web::HTML::Navigable const&, String const& name, JsonValue) { events->names.append(name); },
+    };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/redirects"sv);
+    request->set_mode(Request::Mode::CORS);
+    request->set_redirect_mode(Request::RedirectMode::Error);
+    (void)harness.fetch(request, recording_responses(harness.realm->heap(), record));
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(request_id, 302, { { "Location"sv, "/final"sv }, { "Access-Control-Allow-Origin"sv, "*"sv } });
+    request_server.send_finished(request_id);
+    harness.run_until_responses(record, 1);
+    harness.settle();
+
+    EXPECT(record->responses[0]->is_network_error());
+    EXPECT_EQ(events->names, (Vector<String> { "network.fetchError"_string }));
+}
+
 TEST_CASE(a_redirected_fetch_reports_the_end_time_of_its_final_body_to_webdriver_bidi_and_resource_timing)
 {
     Core::EventLoop event_loop;

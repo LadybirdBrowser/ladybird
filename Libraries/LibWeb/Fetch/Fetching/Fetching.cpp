@@ -2103,9 +2103,6 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
 
         // 6. If internalResponse’s status is a redirect status:
         if (Infrastructure::is_redirect_status(internal_response->status())) {
-            // AD-HOC: The WebDriver BiDi response completed steps run for a redirect in every redirect mode.
-            report_response_completed(fetch_params, *internal_response);
-
             // 1. If request is a navigation request, then append to request's navigation timing allow values list
             //    given request and internalResponse.
             if (request->is_navigation_request())
@@ -2127,6 +2124,10 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
                 // 1. If request’s mode is "navigate", then set fetchParams’s controller’s next manual redirect steps
                 //    to run HTTP-redirect fetch given fetchParams and response.
                 if (request->mode() == Infrastructure::Request::Mode::Navigate) {
+                    // AD-HOC: The WebDriver BiDi response completed steps run here for a navigation's redirect, before
+                    //         main fetch hands it over, as only a navigation's final response reports them later.
+                    report_response_completed(fetch_params, *internal_response);
+
                     auto* engine_record = fetch_params->engine_record();
                     VERIFY(engine_record);
                     auto const& network_transport = internal_response->network_transport();
@@ -2147,7 +2148,10 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
                 break;
             // -> "follow"
             case Infrastructure::Request::RedirectMode::Follow:
-                // 1. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
+                // 1. Run the WebDriver BiDi response completed steps with request and response.
+                report_response_completed(fetch_params, *internal_response);
+
+                // 2. Set response to the result of running HTTP-redirect fetch given fetchParams and response.
                 inner_pending_response = http_redirect_fetch(*fetch_params, *response);
                 break;
             default:
