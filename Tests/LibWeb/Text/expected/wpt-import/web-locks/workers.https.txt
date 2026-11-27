@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Window and Worker - shared mode
+Pass	Window and Worker - exclusive mode
+Pass	Worker and Worker - exclusive mode
+Pass	Terminated Worker - exclusive mode

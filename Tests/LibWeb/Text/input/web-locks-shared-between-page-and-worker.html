@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    const workerSource = `
+        const names = ["held-by-page", "held-by-worker", "released-by-page", "stolen-from-worker", "stolen-from-page", "held-by-terminated-worker"];
+        const describe = list => list
+            .filter(info => names.includes(info.name))
+            .map(info => info.name + " (" + info.mode + ")")
+            .sort()
+            .join(", ");
+        onmessage = async ({ data: { command, name } }) => {
+            if (command === "try") {
+                await navigator.locks.request(name, { ifAvailable: true }, lock => {
+                    postMessage(lock ? "worker: got " + name : "worker: " + name + " is not available");
+                });
+            } else if (command === "query") {
+                const { held, pending } = await navigator.locks.query();
+                postMessage("worker: held [" + describe(held) + "], pending [" + describe(pending) + "]");
+            } else if (command === "hold") {
+                navigator.locks.request(name, { mode: "shared" }, () => {
+                    postMessage("worker: holds " + name);
+                    return new Promise(() => {});
+                });
+            } else if (command === "wait") {
+                navigator.locks.request(name, () => postMessage("worker: granted " + name));
+            } else if (command === "hold until stolen") {
+                navigator.locks.request(name, () => {
+                    postMessage("worker: holds " + name);
+                    return new Promise(() => {});
+                }).catch(error => postMessage("worker: the released promise of " + name + " was rejected with " + error.name));
+            } else if (command === "steal") {
+                navigator.locks.request(name, { steal: true }, () => postMessage("worker: stole " + name));
+            } else if (command === "hold and spin") {
+                navigator.locks.request(name, () => {
+                    postMessage("worker: holds " + name + " and spins");
+                    const end = Date.now() + 30000;
+                    while (Date.now() < end) {}
+                });
+            }
+        };
+    `;
+
+    function startWorker() {
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        const messages = [];
+        const waiters = [];
+        worker.onmessage = ({ data }) => {
+            if (waiters.length)
+                waiters.shift()(data);
+            else
+                messages.push(data);
+        };
+        worker.onerror = event => println(`worker error: ${event.message}`);
+        worker.nextMessage = () => messages.length ? Promise.resolve(messages.shift()) : new Promise(resolve => waiters.push(resolve));
+        return worker;
+    }
+
+    function describe(list) {
+        return list.map(info => `${info.name} (${info.mode})`).sort().join(", ");
+    }
+
+    function holdUntilReleased(name, options = {}) {
+        let release;
+        const released = new Promise(resolve => (release = resolve));
+        const granted = new Promise(resolve => {
+            navigator.locks.request(name, options, () => {
+                resolve();
+                return released;
+            });
+        });
+        return granted.then(() => release);
+    }
+
+    asyncTest(async done => {
+        const worker = startWorker();
+
+        println("== A worker cannot take a lock that its page holds");
+        const releaseHeldByPage = await holdUntilReleased("held-by-page");
+        worker.postMessage({ command: "try", name: "held-by-page" });
+        println(await worker.nextMessage());
+
+        println("== query() in the worker lists the page's lock");
+        worker.postMessage({ command: "query" });
+        println(await worker.nextMessage());
+        releaseHeldByPage();
+
+        println("== query() in the page lists the worker's lock");
+        worker.postMessage({ command: "hold", name: "held-by-worker" });
+        println(await worker.nextMessage());
+        const pageSnapshot = await navigator.locks.query();
+        println(`page: held [${describe(pageSnapshot.held.filter(info => info.name === "held-by-worker"))}]`);
+
+        println("== A request of the worker waits until the page releases the lock");
+        const releaseReleasedByPage = await holdUntilReleased("released-by-page");
+        worker.postMessage({ command: "wait", name: "released-by-page" });
+        let snapshot;
+        do {
+            snapshot = await navigator.locks.query();
+        } while (!snapshot.pending.some(info => info.name === "released-by-page"));
+        println(`page: pending [${describe(snapshot.pending.filter(info => info.name === "released-by-page"))}]`);
+        println("page: releases released-by-page");
+        releaseReleasedByPage();
+        println(await worker.nextMessage());
+
+        println("== The page steals a lock from the worker");
+        worker.postMessage({ command: "hold until stolen", name: "stolen-from-worker" });
+        println(await worker.nextMessage());
+        await navigator.locks.request("stolen-from-worker", { steal: true }, () => println("page: stole stolen-from-worker"));
+        println(await worker.nextMessage());
+
+        println("== The worker steals a lock from the page");
+        let pageHolds;
+        const holding = new Promise(resolve => (pageHolds = resolve));
+        const pageReleased = navigator.locks.request("stolen-from-page", () => {
+            pageHolds();
+            return new Promise(() => {});
+        });
+        await holding;
+        worker.postMessage({ command: "steal", name: "stolen-from-page" });
+        try {
+            await pageReleased;
+            println("page: the released promise was resolved");
+        } catch (error) {
+            println(`page: the released promise was rejected with ${error.name}`);
+        }
+        println(await worker.nextMessage());
+
+        println("== Terminating the worker releases its lock");
+        worker.postMessage({ command: "hold and spin", name: "held-by-terminated-worker" });
+        println(await worker.nextMessage());
+        const granted = navigator.locks.request("held-by-terminated-worker", () => println("page: granted held-by-terminated-worker"));
+        worker.terminate();
+        await granted;
+
+        done();
+    });
+</script>

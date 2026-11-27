@@ -337,6 +337,7 @@ pub extern "C" fn web_rust_shut_down_agent(vm: &Vm) {
     crate::web_assembly::Agent::shut_down();
     crate::indexed_db::internal::storage::shut_down_storage();
     crate::permissions_api::permission_store::forget_statuses_of_this_agent();
+    crate::web_locks::agent::shut_down();
 }
 
 /// Steps 6 to 9 of BroadcastChannel's postMessage(), for a message that another process posted, whose channel name

@@ -971,23 +971,28 @@ unsafe extern "C" fn run_channel_read_hook(id: u64) {
 }
 
 /// The event loop of a thread as any thread may reach it: Core::WeakEventLoopReference.
-struct EventLoopReference(NonNull<c_void>);
+pub(crate) struct EventLoopReference(NonNull<c_void>);
 
 // SAFETY: The reference counts atomically, and it finds out under a lock whether its event loop is still there.
 unsafe impl Send for EventLoopReference {}
 unsafe impl Sync for EventLoopReference {}
 
 impl EventLoopReference {
-    fn current() -> Self {
+    pub(crate) fn current() -> Self {
         // SAFETY: The call hands over a reference.
         let reference = unsafe { web_bindings_message_port_current_event_loop() };
-        Self(NonNull::new(reference).expect("the thread of a port has an event loop"))
+        Self(NonNull::new(reference).expect("the thread has an event loop"))
+    }
+
+    /// Has the event loop run the steps with the argument, if the event loop is still there.
+    pub(crate) fn post(&self, steps: unsafe extern "C" fn(u64), argument: u64) {
+        // SAFETY: This holds a reference.
+        unsafe { web_bindings_message_port_post_to_event_loop(self.0.as_ptr(), steps, argument) };
     }
 
     /// Has the event loop run the read hook with the id, if the event loop is still there.
     fn post_read_hook(&self, id: u64) {
-        // SAFETY: This holds a reference.
-        unsafe { web_bindings_message_port_post_to_event_loop(self.0.as_ptr(), run_channel_read_hook, id) };
+        self.post(run_channel_read_hook, id);
     }
 }
 

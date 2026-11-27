@@ -5,21 +5,18 @@
  */
 
 use core::ffi::c_void;
-use std::collections::{HashMap, VecDeque};
-use std::hash::{BuildHasherDefault, DefaultHasher};
 
 use ak::Utf16String;
-use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, Realm, Trace, Visitor, Vm};
+use libjs_rust::api::{Gc, Realm, Trace, Vm};
 
 use crate::bindings::callback::PromiseCallbackFunction;
 use crate::bindings::environment_settings_object::CppEnvironmentSettingsObject;
-use crate::bindings::interface::{Ref, cell_from_abi};
 use crate::bindings::promise::{pending_steps, run_pending_steps};
-use crate::web_locks::lock_manager::LockManager;
-use crate::web_locks::lock_request::LockRequestRef;
+use crate::storage_api::storage_key::obtain_a_storage_key;
+use crate::web_locks::agent;
+use crate::web_locks::lock_table::{self, LockManagerKey};
 
 unsafe extern "C" {
-    fn web_locks_environment_lock_manager(environment: *mut c_void) -> *mut c_void;
     fn web_locks_queue_task(
         realm: *mut c_void,
         cell: *mut c_void,
@@ -32,58 +29,19 @@ unsafe extern "C" {
     );
 }
 
-#[derive(Trace)]
-#[gc(crate = libjs_rust)]
-pub(crate) struct LockRequestQueue(pub(crate) GcRefCell<VecDeque<LockRequestRef>>);
-
-static LOCK_REQUEST_QUEUE_CLASS: EmbedderClass<LockRequestQueue> = EmbedderClass::new("LockRequestQueue");
-
-impl EmbedderValue for LockRequestQueue {
-    const CLASS: &'static EmbedderClass<Self> = &LOCK_REQUEST_QUEUE_CLASS;
-}
-
-pub(crate) type LockRequestQueueRef = Gc<EmbedderCell<LockRequestQueue>>;
-
-// NB: A fixed hasher keeps the order of query()'s pending list the same from run to run.
-#[derive(Default)]
-pub(crate) struct LockRequestQueueMap(
-    pub(crate) HashMap<Utf16String, LockRequestQueueRef, BuildHasherDefault<DefaultHasher>>,
-);
-
-// SAFETY: Only the map's values contain cells.
-unsafe impl Trace for LockRequestQueueMap {
-    fn trace(&self, visitor: &mut Visitor) {
-        for queue in self.0.values() {
-            queue.trace(visitor);
-        }
-    }
-}
-
-impl LockRequestQueueMap {
-    // https://w3c.github.io/web-locks/#get-the-lock-request-queue
-    pub(crate) fn get_lock_request_queue(&mut self, vm: &Vm, name: &Utf16String) -> LockRequestQueueRef {
-        // 1. If queueMap[name] does not exist, set queueMap[name] to a new empty lock request queue.
-        let queue = *self.0.entry(name.clone()).or_insert_with(|| {
-            LOCK_REQUEST_QUEUE_CLASS.allocate(vm, |_| LockRequestQueue(GcRefCell::new(VecDeque::new())))
-        });
-
-        // 2. Return queueMap[name].
-        queue
-    }
-}
-
 // https://w3c.github.io/web-locks/#obtain-a-lock-manager
-pub(crate) fn obtain_lock_manager(environment: &CppEnvironmentSettingsObject) -> Ref<LockManager> {
+pub(crate) fn obtain_lock_manager(environment: &CppEnvironmentSettingsObject) -> Option<LockManagerKey> {
     // 1. Let map be the result of obtaining a local storage bottle map given environment and "web-locks".
     // 2. If map is failure, then return failure.
+    // NB: Obtaining the map fails when obtaining a storage key for environment fails.
+    let storage_key = obtain_a_storage_key(environment)?;
+
     // 3. Let bottle be map’s associated storage bottle.
     // 4. Return bottle’s associated lock manager.
-
-    // FIXME: Spec issue: Storing and obtaining a lock manager in the environment's storage is currently not well
-    //        defined. So we store a single instance per environment for now. See:
-    //        https://w3c.github.io/web-locks/#issue-73644ca1
-    // SAFETY: The environment is live, and its settings object keeps its manager alive.
-    unsafe { cell_from_abi(web_locks_environment_lock_manager(environment.as_ptr())) }
+    // NB: The lock table has the lock manager of each storage key, which all agents of this process share.
+    // FIXME: Agents of the same storage key in other WebContent processes, such as those of other tabs or a shared
+    //        worker that another process hosts, have lock managers of their own.
+    Some(LockManagerKey::new(storage_key))
 }
 
 pub(crate) fn queue_web_locks_task<C: Trace + Clone + 'static>(
@@ -106,4 +64,38 @@ pub(crate) fn queue_web_locks_callback_task<C: Trace + Clone + 'static>(
     let cell = pending_steps(vm, captures, steps);
     // SAFETY: LibWeb retains the callback and the traced captures until the task runs.
     unsafe { web_locks_queue_callback_task(callback.as_ptr(), cell, run_pending_steps) };
+}
+
+/// The id under which the lock table knows the agent of this thread.
+#[unsafe(no_mangle)]
+pub extern "C" fn web_rust_web_locks_agent_id() -> u64 {
+    agent::agent_id()
+}
+
+/// Terminates the remaining locks and requests of the agent, from any thread.
+#[unsafe(no_mangle)]
+pub extern "C" fn web_rust_web_locks_terminate_remaining_locks_and_requests_of_agent(agent_id: u64) {
+    lock_table::terminate_remaining_locks_and_requests_of_agent(agent_id);
+}
+
+/// Terminates the remaining locks and requests of the client, an environment of the agent of this thread.
+///
+/// # Safety
+///
+/// `environment` must be a live environment settings object.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_web_locks_terminate_remaining_locks_and_requests_of_client(
+    vm: &Vm,
+    environment: *mut c_void,
+) {
+    // NB: An agent that never used Web Locks has nothing in the lock table.
+    if !agent::has_agent_id() {
+        return;
+    }
+    // SAFETY: The caller passes a live environment settings object.
+    let environment = unsafe { CppEnvironmentSettingsObject::from_raw(environment) };
+    let client_id = Utf16String::from_utf8(&environment.id());
+    queue_web_locks_task(vm, environment.realm(), client_id, |vm, client_id| {
+        agent::terminate_remaining_locks_and_requests_of_client(vm, &client_id);
+    });
 }

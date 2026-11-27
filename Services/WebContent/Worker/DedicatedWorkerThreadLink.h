@@ -59,6 +59,7 @@ private:
     Mutex m_mutex;
     RefPtr<Core::WeakEventLoopReference> m_worker_event_loop;
     RefPtr<Web::HTML::ScriptAbortHandle> m_worker_script_abort_handle;
+    u64 m_worker_lock_agent_id { 0 };
     Vector<WorkerConnectionTask> m_tasks_posted_before_worker_attached;
 
     ConnectionFromClient* m_worker_connection { nullptr };

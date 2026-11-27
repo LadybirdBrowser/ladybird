@@ -1,0 +1,21 @@
+== A worker cannot take a lock that its page holds
+worker: held-by-page is not available
+== query() in the worker lists the page's lock
+worker: held [held-by-page (exclusive)], pending []
+== query() in the page lists the worker's lock
+worker: holds held-by-worker
+page: held [held-by-worker (shared)]
+== A request of the worker waits until the page releases the lock
+page: pending [released-by-page (exclusive)]
+page: releases released-by-page
+worker: granted released-by-page
+== The page steals a lock from the worker
+worker: holds stolen-from-worker
+page: stole stolen-from-worker
+worker: the released promise of stolen-from-worker was rejected with AbortError
+== The worker steals a lock from the page
+page: the released promise was rejected with AbortError
+worker: stole stolen-from-page
+== Terminating the worker releases its lock
+worker: holds held-by-terminated-worker and spins
+page: granted held-by-terminated-worker

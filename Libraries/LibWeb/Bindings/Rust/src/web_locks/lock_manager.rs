@@ -8,7 +8,7 @@ use core::cell::Cell;
 use core::ffi::c_void;
 
 use ak::{Utf16String, Utf16StringUnits};
-use libjs_rust::api::{Gc, GcRefCell, NativeFunction, PropertyKey, Realm, Trace, Value, Vm};
+use libjs_rust::api::{Gc, NativeFunction, PropertyKey, Realm, Trace, Value, Vm};
 
 use crate::bindings::callback::PromiseCallbackFunction;
 #[cfg(web_idl_bindings)]
@@ -17,16 +17,17 @@ use crate::bindings::environment_settings_object::{CppEnvironmentSettingsObject,
 use crate::bindings::global_object::window_from_global_object;
 use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi, wrap};
 use crate::bindings::promise::{
-    WebIdlPromise, create_promise, create_rejected_promise, create_rejected_promise_from_exception, react_to_promise,
-    reject_promise_with_exception, resolve_promise,
+    WebIdlPromise, create_promise, create_rejected_promise, create_rejected_promise_from_exception, promise_realm,
+    react_to_promise, resolve_promise,
 };
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::dom::abort_signal::{AbortAlgorithm, AbortSignal};
-use crate::web_locks::abstract_operations::{
-    LockRequestQueueMap, LockRequestQueueRef, obtain_lock_manager, queue_web_locks_callback_task, queue_web_locks_task,
-};
-use crate::web_locks::lock::{LOCK_DATA_CLASS, Lock, LockData, LockDataRef};
+use crate::indexed_db::internal::function::NoCells;
+use crate::web_locks::abstract_operations::{obtain_lock_manager, queue_web_locks_callback_task, queue_web_locks_task};
+use crate::web_locks::agent::{act_on_notices, agent_id, keep_lock, keep_request, next_entry_id, take_request};
+use crate::web_locks::lock::{LOCK_DATA_CLASS, Lock, LockData};
 use crate::web_locks::lock_request::{LOCK_REQUEST_CLASS, LockRequest, LockRequestRef};
+use crate::web_locks::lock_table::{self, AgentId, LockManagerKey, RequestOutcome};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum LockMode {
@@ -67,11 +68,11 @@ pub(crate) struct LockInfo {
     pub(crate) client_id: Option<Utf16String>,
 }
 
+// https://w3c.github.io/web-locks/#lockmanager
+// NB: This is the LockManager object of an environment. The lock managers themselves are in the lock table.
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct LockManager {
-    pub(crate) held_lock_set: GcRefCell<Vec<LockDataRef>>,
-    pub(crate) lock_request_queue_map: GcRefCell<LockRequestQueueMap>,
     environment: CppEnvironmentSettingsObject,
     pub(crate) realm: Gc<Realm>,
 }
@@ -85,8 +86,6 @@ impl Wrappable for LockManager {
 impl LockManager {
     pub(crate) fn create(vm: &Vm, realm: Gc<Realm>) -> Ref<Self> {
         allocate(vm, |_| Self {
-            held_lock_set: GcRefCell::default(),
-            lock_request_queue_map: GcRefCell::default(),
             environment: relevant_settings_object(realm.global_object()),
             realm,
         })
@@ -127,7 +126,16 @@ impl LockManager {
 
         // 4. Let manager be the result of obtaining a lock manager given environment. If that returned failure, then
         //    return a promise rejected with a "SecurityError" DOMException.
-        let manager = obtain_lock_manager(environment);
+        let Some(manager) = obtain_lock_manager(environment) else {
+            return Ok(create_rejected_promise_from_exception(
+                vm,
+                realm,
+                Exception::Dom(
+                    "SecurityError",
+                    Utf16String::from_utf8("This environment has no storage key for locks"),
+                ),
+            ));
+        };
 
         // 5. If name starts with U+002D HYPHEN-MINUS (-), then return a promise rejected with a "NotSupportedError"
         //    DOMException.
@@ -199,9 +207,12 @@ impl LockManager {
         // 11. Request a lock with promise, the current agent, environment’s id, manager, callback, name,
         //     options["mode"], options["ifAvailable"], options["steal"], and options["signal"].
         Self::request_lock(
-            manager,
             vm,
+            realm,
             promise,
+            agent_id(),
+            Utf16String::from_utf8(&environment.id()),
+            manager,
             callback,
             name,
             options.mode,
@@ -238,14 +249,23 @@ impl LockManager {
 
         // 3. Let manager be the result of obtaining a lock manager given environment. If that returned failure, then
         //    return a promise rejected with a "SecurityError" DOMException.
-        let manager = obtain_lock_manager(environment);
+        let Some(manager) = obtain_lock_manager(environment) else {
+            return Ok(create_rejected_promise_from_exception(
+                vm,
+                self.realm,
+                Exception::Dom(
+                    "SecurityError",
+                    Utf16String::from_utf8("This environment has no storage key for locks"),
+                ),
+            ));
+        };
 
         // 4. Let promise be a new promise.
         let promise = create_promise(vm, self.realm);
 
         // 5. Enqueue the steps to snapshot the lock state for manager with promise to the lock task queue.
-        queue_web_locks_task(vm, self.realm, (manager, promise), |vm, (manager, promise)| {
-            manager.snapshot_lock_state(vm, promise);
+        queue_web_locks_task(vm, self.realm, (NoCells(manager), promise), |vm, (manager, promise)| {
+            Self::snapshot_lock_state(vm, &manager.0, promise);
         });
 
         // 6. Return promise.
@@ -258,9 +278,12 @@ impl LockManager {
         reason = "the specification gives the algorithm these parameters"
     )]
     fn request_lock(
-        manager: Ref<Self>,
         vm: &Vm,
+        realm: Gc<Realm>,
         promise: WebIdlPromise,
+        agent: AgentId,
+        client_id: Utf16String,
+        manager: LockManagerKey,
         callback: PromiseCallbackFunction,
         name: Utf16String,
         mode: LockMode,
@@ -270,8 +293,11 @@ impl LockManager {
     ) -> LockRequestRef {
         // 1. Let request be a new lock request (agent, clientId, manager, name, mode, callback, promise, signal).
         let request = LOCK_REQUEST_CLASS.allocate(vm, |_| LockRequest {
-            client_id: Utf16String::from_utf8(&manager.environment.id()),
-            manager,
+            id: next_entry_id(),
+            agent,
+            client_id,
+            manager_key: manager,
+            realm,
             name,
             mode,
             callback,
@@ -291,7 +317,7 @@ impl LockManager {
                 },
                 0,
                 &PropertyKey::from_utf8(""),
-                Some(manager.realm),
+                Some(realm),
                 None,
                 None,
             );
@@ -303,49 +329,23 @@ impl LockManager {
         // 3. Enqueue the following steps to the lock task queue:
         queue_web_locks_task(
             vm,
-            manager.realm,
-            (manager, request, if_available, steal),
-            |vm, (manager, request, if_available, steal)| {
-                // 1. Let queueMap be manager’s lock request queue map.
-                let queue_map = &manager.lock_request_queue_map;
+            realm,
+            (request, if_available, steal),
+            |vm, (request, if_available, steal)| {
+                // NB: The agent keeps the request's objects before its entry is in the lock table, where a grant can
+                //     come from any thread.
+                keep_request(vm, request.id, request);
 
-                // 2. Let queue be the result of getting the lock request queue from queueMap for name.
-                let queue = queue_map.borrow_mut(vm).get_lock_request_queue(vm, &request.name);
-
-                // 3. Let held be manager’s held lock set.
-                let held = &manager.held_lock_set;
-
-                // 4. If steal is true, then run these steps:
-                if steal {
-                    // 1. For each lock of held:
-                    let mut i = 0;
-                    while i < held.borrow().len() {
-                        let lock = held.borrow()[i];
-
-                        // 1. If lock’s name is name, then run these steps:
-                        if lock.name == request.name {
-                            // 1. Remove lock from held.
-                            held.borrow_mut(vm).remove(i);
-
-                            // 2. Reject lock’s released promise with an "AbortError" DOMException.
-                            reject_promise_with_exception(
-                                vm,
-                                lock.released_promise,
-                                Exception::Dom("AbortError", Utf16String::from_utf8("Lock was stolen")),
-                            );
-                        } else {
-                            i += 1;
-                        }
-                    }
-
-                    // 2. Prepend request in queue.
-                    queue.0.borrow_mut(vm).push_front(request);
-                }
-                // 5. Otherwise, run these steps:
-                else {
-                    // 1. If ifAvailable is true and request is not grantable, then enqueue the following steps on
-                    //    callback’s relevant settings object’s responsible event loop:
-                    if if_available && !LockRequest::is_grantable(request, vm) {
+                // 1. to 6.
+                // NB: The lock table does these steps, and leaves a notice for the agent of each request that it
+                //     grants and of each lock that it steals.
+                match lock_table::request_lock(&request.manager_key, request.entry(), if_available, steal) {
+                    RequestOutcome::Enqueued => {}
+                    // 5. Otherwise, run these steps:
+                    //    1. If ifAvailable is true and request is not grantable, then enqueue the following steps on
+                    //       callback’s relevant settings object’s responsible event loop:
+                    RequestOutcome::NotGrantable => {
+                        take_request(vm, request.id);
                         queue_web_locks_callback_task(vm, &request.callback, request, |vm, request| {
                             // 1. Let r be the result of invoking callback with null as the only argument.
                             let r = request.callback.invoke(None, &[Value::NULL]);
@@ -357,13 +357,13 @@ impl LockManager {
                         // AD-HOC: Abort the enclosing queue steps so an unavailable request is not also granted later.
                         return;
                     }
-
-                    // 2. Enqueue request in queue.
-                    queue.0.borrow_mut(vm).push_back(request);
+                    // NB: The agent of the request has ended, and nothing will act on a grant to it.
+                    RequestOutcome::AgentEnded => {
+                        take_request(vm, request.id);
+                        return;
+                    }
                 }
-
-                // 6. Process the lock request queue queue.
-                Self::process_lock_request_queue(vm, queue);
+                act_on_notices(vm);
             },
         );
 
@@ -371,148 +371,112 @@ impl LockManager {
         request
     }
 
-    // https://w3c.github.io/web-locks/#process-the-lock-request-queue
-    pub(crate) fn process_lock_request_queue(vm: &Vm, queue: LockRequestQueueRef) {
-        // 1. Assert: these steps are running on the lock task queue.
+    /// Steps 3 to 12 and 14 of processing the lock request queue, https://w3c.github.io/web-locks/#process-the-lock-request-queue,
+    /// which the agent of a request that the lock table granted does on its own lock task queue.
+    pub(crate) fn grant_request(vm: &Vm, request: LockRequestRef) {
+        // 3. Let agent be request’s agent.
+        // NB: This is the current agent.
 
-        // 2. For each request of queue:
-        while let Some(request) = { queue.0.borrow().front().copied() } {
-            // 1. If request is not grantable, then return.
-            // NOTE: Only the first item in a queue is grantable. Therefore, if something is not grantable then all the
-            //       following items are automatically not grantable.
-            if !LockRequest::is_grantable(request, vm) {
-                return;
-            }
+        // 4. Let manager be request’s manager.
+        let manager = request.manager_key.clone();
 
-            // 2. Remove request from queue.
-            queue.0.borrow_mut(vm).pop_front();
+        // 5. Let clientId be request’s clientId.
+        let client_id = request.client_id.clone();
 
-            // FIXME: 3. Let agent be request’s agent.
+        // 6. Let name be request’s name.
+        let name = request.name.clone();
 
-            // 4. Let manager be request’s manager.
-            let manager = request.manager;
+        // 7. Let mode be request’s mode.
+        let mode = request.mode;
 
-            // 5. Let clientId be request’s clientId.
-            let client_id = request.client_id.clone();
+        // 8. Let callback be request’s callback.
+        let callback = request.callback.clone();
 
-            // 6. Let name be request’s name.
-            let name = request.name.clone();
+        // 9. Let p be request’s promise.
+        let p = request.promise;
 
-            // 7. Let mode be request’s mode.
-            let mode = request.mode;
+        // 10. Let signal be request’s signal.
+        let signal = request.signal;
 
-            // 8. Let callback be request’s callback.
-            let callback = request.callback.clone();
+        // 11. Let waiting be a new promise.
+        let realm = request.realm;
+        let waiting = create_promise(vm, realm);
 
-            // 9. Let p be request’s promise.
-            let p = request.promise;
+        // 12. Let lock be a new lock with agent agent, clientId clientId, manager manager, mode mode, name name,
+        //     released promise p, and waiting promise waiting.
+        let lock = LOCK_DATA_CLASS.allocate(vm, |_| LockData {
+            id: request.id,
+            client_id,
+            manager_key: manager,
+            realm,
+            name,
+            mode,
+            released_promise: p,
+            waiting_promise: waiting,
+        });
+        keep_lock(vm, lock.id, lock);
 
-            // 10. Let signal be request’s signal.
-            let signal = request.signal;
+        // 13. Append lock to manager’s held lock set.
+        // NB: The lock table did this as it granted the request.
 
-            // 11. Let waiting be a new promise.
-            let waiting = create_promise(vm, manager.realm);
+        // 14. Enqueue the following steps on callback’s relevant settings object’s responsible event loop:
+        queue_web_locks_callback_task(
+            vm,
+            &callback,
+            (request, lock, signal, callback.clone(), waiting),
+            |vm, (request, lock, signal, callback, waiting)| {
+                // 1. If signal is present, then run these steps:
+                if let Some(signal) = &signal {
+                    // 1. If signal is aborted, then run these steps:
+                    if signal.aborted() {
+                        // 1. Enqueue the following step to the lock task queue:
+                        queue_web_locks_task(vm, lock.realm, lock, |vm, lock| {
+                            // 1. Release the lock lock.
+                            LockData::release_lock(lock, vm);
+                        });
 
-            // 12. Let lock be a new lock with agent agent, clientId clientId, manager manager, mode mode, name name,
-            //     released promise p, and waiting promise waiting.
-            let lock = LOCK_DATA_CLASS.allocate(vm, |_| LockData {
-                client_id,
-                manager,
-                name,
-                mode,
-                released_promise: p,
-                waiting_promise: waiting,
-            });
-
-            // 13. Append lock to manager’s held lock set.
-            manager.held_lock_set.borrow_mut(vm).push(lock);
-
-            // 14. Enqueue the following steps on callback’s relevant settings object’s responsible event loop:
-            queue_web_locks_callback_task(
-                vm,
-                &callback,
-                (manager, request, lock, signal, callback.clone(), waiting),
-                |vm, (manager, request, lock, signal, callback, waiting)| {
-                    // 1. If signal is present, then run these steps:
-                    if let Some(signal) = &signal {
-                        // 1. If signal is aborted, then run these steps:
-                        if signal.aborted() {
-                            // 1. Enqueue the following step to the lock task queue:
-                            queue_web_locks_task(vm, manager.realm, lock, |vm, lock| {
-                                // 1. Release the lock lock.
-                                LockData::release_lock(lock, vm);
-                            });
-
-                            // 2. Return.
-                            return;
-                        }
-
-                        // 2. Remove the algorithm signal to abort the request request from signal.
-                        if let Some(id) = request.abort_algorithm_id.get() {
-                            signal.remove_abort_algorithm(vm, id);
-                        }
+                        // 2. Return.
+                        return;
                     }
 
-                    // 2. Let r be the result of invoking callback with a new Lock object associated with lock as the
-                    //    only argument.
-                    let cx = CallContext::new(vm, manager.realm);
-                    let r = callback.invoke(None, &[Value::from_object(wrap(&cx, Lock::create(vm, lock)))]);
+                    // 2. Remove the algorithm signal to abort the request request from signal.
+                    if let Some(id) = request.abort_algorithm_id.get() {
+                        signal.remove_abort_algorithm(vm, id);
+                    }
+                }
 
-                    // 3. Resolve waiting with r.
-                    resolve_promise(vm, waiting, Value::from_object(r.promise()));
-                },
-            );
+                // 2. Let r be the result of invoking callback with a new Lock object associated with lock as the only
+                //    argument.
+                let cx = CallContext::new(vm, lock.realm);
+                let r = callback.invoke(None, &[Value::from_object(wrap(&cx, Lock::create(vm, lock)))]);
 
-            react_to_promise(
-                vm,
-                waiting,
-                lock,
-                Some(LockData::waiting_promise_settled),
-                Some(LockData::waiting_promise_settled),
-            );
-        }
+                // 3. Resolve waiting with r.
+                resolve_promise(vm, waiting, Value::from_object(r.promise()));
+            },
+        );
+
+        react_to_promise(
+            vm,
+            waiting,
+            lock,
+            Some(LockData::waiting_promise_settled),
+            Some(LockData::waiting_promise_settled),
+        );
     }
 
     // https://w3c.github.io/web-locks/#snapshot-the-lock-state
-    fn snapshot_lock_state(&self, vm: &Vm, promise: WebIdlPromise) {
+    fn snapshot_lock_state(vm: &Vm, manager: &LockManagerKey, promise: WebIdlPromise) {
         // 1. Assert: these steps are running on the lock task queue.
 
-        // 2. Let pending be a new list.
-        let mut pending = Vec::new();
-
-        // 3. For each queue of manager’s lock request queue map’s values:
-        for queue in self.lock_request_queue_map.borrow().0.values() {
-            // 1. For each request of queue:
-            for request in queue.0.borrow().iter() {
-                // 1. Append «[ "name" → request’s name, "mode" → request’s mode, "clientId" → request’s clientId ]»
-                //    to pending.
-                pending.push(LockInfo {
-                    name: Some(request.name.clone()),
-                    mode: Some(request.mode),
-                    client_id: Some(request.client_id.clone()),
-                });
-            }
-        }
-
-        // 4. Let held be a new list.
-        let mut held = Vec::new();
-
-        // 5. For each lock of manager’s held lock set:
-        for lock in self.held_lock_set.borrow().iter() {
-            // 1. Append «[ "name" → lock’s name, "mode" → lock’s mode, "clientId" → lock’s clientId ]» to held.
-            held.push(LockInfo {
-                name: Some(lock.name.clone()),
-                mode: Some(lock.mode),
-                client_id: Some(lock.client_id.clone()),
-            });
-        }
+        // 2. to 5.
+        let (held, pending) = lock_table::snapshot_lock_state(manager);
 
         // 6. Resolve promise with «[ "held" → held, "pending" → pending ]».
         let snapshot = LockManagerSnapshot {
             held: Some(held),
             pending: Some(pending),
         };
-        let cx = CallContext::new(vm, self.realm);
+        let cx = CallContext::new(vm, promise_realm(promise));
         resolve_promise(vm, promise, snapshot.into_js(&cx));
     }
 }
