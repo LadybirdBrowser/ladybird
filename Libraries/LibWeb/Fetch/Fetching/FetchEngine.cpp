@@ -81,6 +81,7 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
             else
                 (*record)->main_fetch_cannot_hand_over();
         },
+        [this](Engine::Command::ResolveNetworkInterception& answer) { m_records.resolve_network_interception(move(answer)); },
         [this](Engine::Command::PreloadResponseResolved& resolved) { m_records.resolve_preload_wait(resolved.fetch_id, move(resolved.response)); },
         [this](Engine::Command::TransportControl const& control) { m_records.control_network_transport(control); },
         [this](Engine::Command::NavigationBodyAdopted const& adopted) { m_records.add_network_transport(*adopted.handle, *adopted.delivery_gate); },

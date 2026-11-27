@@ -11,6 +11,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
+#include <LibWeb/Fetch/Engine/NetworkInterception.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/StartFetchInput.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -54,6 +55,13 @@ struct PreloadResponseResolved {
     RefPtr<Infrastructure::Response> response;
 };
 
+// The decision of the agent that started the fetch for a network interception the engine offered it.
+struct ResolveNetworkInterception {
+    FetchId fetch_id;
+    ContinuationId continuation_id;
+    NetworkDecision decision;
+};
+
 struct TransportControl {
     struct StopTransport { };
     struct ReleaseNavigationHold { };
@@ -89,6 +97,7 @@ using EngineCommand = Variant<
     Command::Stop,
     Command::ResolveRedirect,
     Command::PreloadResponseResolved,
+    Command::ResolveNetworkInterception,
     Command::TransportControl,
     Command::NavigationBodyAdopted,
     Command::AdoptNetworkTransport>;

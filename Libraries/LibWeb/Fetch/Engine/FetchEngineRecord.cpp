@@ -64,7 +64,51 @@ void FetchEngineRecord::stop()
         end_main_fetch();
     if (m_redirect_continuation.has_value())
         abandon_redirect();
+    if (m_network_interception.has_value())
+        m_network_interception.release_value().resume(FailFetch {});
     stop_body_transport();
+}
+
+static bool phase_takes(NetworkPhase phase, NetworkDecision const& decision)
+{
+    return decision.visit(
+        [&](ModifyRequest const&) { return phase == NetworkPhase::BeforeRequestSent; },
+        [&](ModifyResponse const&) { return phase != NetworkPhase::BeforeRequestSent; },
+        [&](OneOf<Authenticate, CancelAuthentication> auto const&) { return phase == NetworkPhase::AuthRequired; },
+        [](auto const&) { return true; });
+}
+
+bool FetchEngineRecord::can_wait_at_network_phase(NetworkPhase phase) const
+{
+    ASSERT(is_on_owner_thread());
+    return !m_stopped && m_network_activity_observers->intercepts(phase);
+}
+
+void FetchEngineRecord::wait_at_network_phase(Event::FetchNetworkActivity activity, Function<void(NetworkDecision)> resume)
+{
+    ASSERT(is_on_owner_thread());
+    auto phase = activity.phase();
+    VERIFY(phase.has_value());
+    VERIFY(!m_stopped);
+    VERIFY(!m_network_interception.has_value());
+    ContinuationId continuation_id { s_next_continuation_id.fetch_add(1) };
+    if (auto* records = m_records.ptr())
+        records->did_offer_continuation({}, continuation_id);
+    m_network_interception = NetworkInterception { continuation_id, *phase, move(resume) };
+    activity.offer_interception(continuation_id);
+    report_network_activity(move(activity));
+}
+
+FetchEngineRecord::NetworkInterceptionAnswerResult FetchEngineRecord::resolve_network_interception(ContinuationId continuation_id, NetworkDecision decision)
+{
+    ASSERT(is_on_owner_thread());
+    if (!m_network_interception.has_value() || m_network_interception->id != continuation_id)
+        return NetworkInterceptionAnswerResult::NotOpen;
+    if (!phase_takes(m_network_interception->phase, decision))
+        return NetworkInterceptionAnswerResult::Invalid;
+
+    m_network_interception.release_value().resume(move(decision));
+    return NetworkInterceptionAnswerResult::Settled;
 }
 
 void FetchEngineRecord::add_network_transport(NetworkTransportHandle& handle, FetchBodyDeliveryGate& delivery_gate)
@@ -87,7 +131,7 @@ void FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* netwo
 
     ContinuationId continuation_id { s_next_continuation_id.fetch_add(1) };
     if (auto* records = m_records.ptr())
-        records->did_offer_redirect_continuation({}, continuation_id);
+        records->did_offer_continuation({}, continuation_id);
     m_redirect_continuation = RedirectContinuation { continuation_id, network_transport };
     if (m_stopped)
         abandon_redirect();
@@ -288,6 +332,22 @@ FetchEngineRecords::FetchEngineRecords(NonnullOwnPtr<Agent> agent)
 {
 }
 
+FetchEngineRecords::~FetchEngineRecords()
+{
+    // NB: A continuation that waits for the agent can hold the last reference to its own record, so the records drop
+    //     those continuations, which never run.
+    Vector<NonnullRefPtr<FetchEngineRecord>> waiting_records;
+    for (auto& [fetch_id, record] : m_records) {
+        if (record->m_network_interception.has_value() || record->m_main_fetch.has<FetchEngineRecord::MainFetchWaitsForPreload>())
+            waiting_records.append(*record);
+    }
+    for (auto& record : waiting_records) {
+        record->m_network_interception.clear();
+        if (auto* waiting_for_preload = record->m_main_fetch.get_pointer<FetchEngineRecord::MainFetchWaitsForPreload>())
+            waiting_for_preload->resume = nullptr;
+    }
+}
+
 void FetchEngineRecords::attach_to_executor(FetchExecutor& executor)
 {
     VERIFY(!m_executor);
@@ -364,10 +424,37 @@ FetchEngineRecords::RedirectAnswerOutcome FetchEngineRecords::resolve_redirect(F
     VERIFY_NOT_REACHED();
 }
 
-void FetchEngineRecords::did_offer_redirect_continuation(Badge<FetchEngineRecord>, ContinuationId continuation_id)
+void FetchEngineRecords::did_offer_continuation(Badge<FetchEngineRecord>, ContinuationId continuation_id)
 {
     ASSERT(is_on_owner_thread());
     m_last_offered_continuation_id = continuation_id;
+}
+
+void FetchEngineRecords::resolve_network_interception(Command::ResolveNetworkInterception answer)
+{
+    ASSERT(is_on_owner_thread());
+    if (answer.fetch_id > m_last_started_fetch_id) {
+        m_agent->misbehaved("The agent answered a network interception of a fetch it has not started"sv);
+        return;
+    }
+    if (answer.continuation_id > m_last_offered_continuation_id) {
+        m_agent->misbehaved("The agent answered a network interception the engine never offered"sv);
+        return;
+    }
+
+    auto found_record = m_records.get(answer.fetch_id);
+    if (!found_record.has_value())
+        return;
+    NonnullRefPtr record = **found_record;
+    switch (record->resolve_network_interception(answer.continuation_id, move(answer.decision))) {
+    case FetchEngineRecord::NetworkInterceptionAnswerResult::Settled:
+    case FetchEngineRecord::NetworkInterceptionAnswerResult::NotOpen:
+        return;
+    case FetchEngineRecord::NetworkInterceptionAnswerResult::Invalid:
+        m_agent->misbehaved("The agent answered a network interception with a decision its phase does not take"sv);
+        return;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void FetchEngineRecords::resolve_preload_wait(FetchId fetch_id, RefPtr<Infrastructure::Response> response)
