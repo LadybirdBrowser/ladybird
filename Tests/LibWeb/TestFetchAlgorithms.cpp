@@ -2494,7 +2494,7 @@ TEST_CASE(only_the_event_of_the_phase_a_late_session_blocks_at_reports_the_block
     harness.settle();
 }
 
-TEST_CASE(a_cors_preflight_reports_its_network_events_under_a_request_id_of_its_own)
+TEST_CASE(a_cors_preflight_reports_its_network_events_under_the_request_id_of_its_fetch)
 {
     Core::EventLoop event_loop;
     install_font_plugin();
@@ -2529,7 +2529,45 @@ TEST_CASE(a_cors_preflight_reports_its_network_events_under_a_request_id_of_its_
     VERIFY(events->request_ids.size() == 4);
     EXPECT_EQ(events->request_ids[1], events->request_ids[0]);
     EXPECT_EQ(events->request_ids[3], events->request_ids[2]);
-    EXPECT_NE(events->request_ids[2], events->request_ids[0]);
+    EXPECT_EQ(events->request_ids[2], events->request_ids[0]);
+}
+
+TEST_CASE(a_stop_of_a_fetch_whose_cors_preflight_is_blocked_ends_the_preflight_s_interception)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    auto& heap = harness.realm->heap();
+
+    auto interceptions = make_ref_counted<NamedInterceptions>();
+    WebDriverBiDiSession session { { "network.beforeRequestSent"_string, "network.fetchError"_string }, recording_named_interceptions(interceptions) };
+    block_each_request_before_it_is_sent();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/preflight-blocked"sv);
+    request->set_mode(Request::Mode::CORS);
+    request->set_use_cors_preflight(true);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(heap, record)));
+    harness.run_tasks_until(GC::create_function(heap, GC::captures(interceptions), [](auto& interceptions) { return !interceptions->blocking.is_empty(); }));
+    VERIFY(interceptions->blocking.size() == 1);
+
+    // The stop names the interception that blocks the preflight, so the browser stops routing the request to it.
+    harness.with_execution_context([&] { controller->stop_fetch(); });
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+    EXPECT_EQ(interceptions->ended, interceptions->blocking);
+
+    // A late answer for the request finds no block, so no fetch gets it.
+    JsonObject params;
+    params.set("request"sv, interceptions->blocked_request_ids[0]);
+    harness.with_execution_context([&] {
+        EXPECT(Web::WebDriver::BiDi::continue_network_request("network.continueRequest"sv, params).is_error());
+    });
+    harness.settle();
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "stop 1", "end of fetch 1" }));
+    EXPECT(request_server.messages().is_empty());
 }
 
 TEST_CASE(a_stop_of_a_fetch_whose_request_is_done_reports_nothing_to_webdriver_bidi)

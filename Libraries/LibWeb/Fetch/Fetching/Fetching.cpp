@@ -3418,7 +3418,9 @@ NonnullRefPtr<PendingResponse> cors_preflight_fetch(Infrastructure::FetchParams 
 
     // 1. Let preflight be a new request whose method is `OPTIONS`, URL list is a clone of request’s URL list, initiator is
     //    request’s initiator, destination is request’s destination, origin is request’s origin, referrer is request’s referrer,
-    //    referrer policy is request’s referrer policy, mode is "cors", and response tainting is "cors".
+    //    referrer policy is request’s referrer policy, mode is "cors", response tainting is "cors", and WebDriver id is
+    //    request’s WebDriver id.
+    // NB: WebDriver BiDi keeps a request's WebDriver id, and gives the preflight's network events that of request.
     auto preflight = Fetch::Infrastructure::Request::create();
     preflight->set_method("OPTIONS"sv);
     preflight->set_url_list(request.url_list());
