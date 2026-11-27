@@ -119,7 +119,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     /// Puts the address of property lookup cache `cache_index` of
     /// executable `executable` (an index into `Snapshot::executables`) in
     /// `dst`. The compiled function's is the running frame's; inlined
-    /// callees' are constants.
+    /// callees' are embedded constants.
     pub(super) fn property_cache_address(
         &mut self,
         dst: Gpr,
@@ -130,8 +130,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
             let running = self.frame_field(self.runtime.offsets.execution_context_executable);
             self.masm.load64(dst, &running);
         } else {
-            self.masm
-                .move_imm64(dst, self.snapshot.executables[executable as usize].cell.0);
+            // NB: Collections move executables, so the code must embed the ones it holds, whose constants are patched
+            //     where they moved.
+            let cell = self.snapshot.executables[executable as usize].cell;
+            if self.embedded.index_of(cell).is_none() {
+                return Err(CompileFailure::CodeGeneration);
+            }
+            self.masm.move_cell(dst, CellConstant::address(cell));
         }
         self.masm.load64(
             dst,

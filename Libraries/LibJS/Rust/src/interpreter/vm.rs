@@ -1795,6 +1795,16 @@ impl Vm {
             idle_collection_count.set(idle_collection_count.get().saturating_add(1));
             true
         });
+        // NB: The list and the JIT entry table keep the executables by address, without visiting them, so a collection
+        //     that moves executables rewrites the addresses of those that survived.
+        if sweep.moves_cells() {
+            for executable in self.executables.borrow().iter() {
+                // SAFETY: Only creating an executable changes the list, which nothing does until the collection is
+                //         over, and the executable survived.
+                unsafe { sweep.record_slot(executable) };
+                executable.record_jit_entry_slot_owner(self, sweep);
+            }
+        }
         self.static_property_lookup_caches.remove_dead_entries(sweep);
         self.keyed_property_lookup_cache.remove_dead_entries(sweep);
         self.prototype_transition_cache.remove_dead_entries(sweep);

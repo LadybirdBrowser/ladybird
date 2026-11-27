@@ -10,7 +10,7 @@
 use core::cell::{Cell, RefCell};
 use core::marker::PhantomData;
 use core::ops::ControlFlow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use ak::{ScopeGuard, Utf16FlyString};
@@ -24,7 +24,7 @@ use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
-use crate::gc::weak::GcWeak;
+use crate::gc::weak::SweptAfterCollection;
 use crate::interpreter::vm::{EvalMode, StackTraceElement, Vm};
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
@@ -126,9 +126,9 @@ pub struct Debugger {
     pause_callback: RefCell<Option<PauseCallback>>,
     /// The embedder's cell that its pause callback passes back to it, which the debugger keeps alive.
     pause_callback_context: ForeignCellSlot,
-    /// GC::WeakHashSet<Executable>, by the address of each executable, which a new one may take over once the old
-    /// one died. The VM forgets the ones that die after each collection.
-    executables: RefCell<HashMap<usize, GcWeak<Executable>, foldhash::fast::RandomState>>,
+    /// GC::WeakHashSet<Executable>, by the identity of each executable, which moves do not change. The VM forgets the
+    /// ones that die after each collection, and a collection that moves an executable rewrites its entry.
+    executables: RefCell<ExecutableSet>,
     breakpoints: RefCell<Vec<Breakpoint>>,
     next_breakpoint_id: Cell<BreakpointID>,
     step_state: RefCell<Option<StepState>>,
@@ -144,6 +144,28 @@ pub struct Debugger {
     did_pause_before_current_instruction: Cell<bool>,
 }
 
+/// The executables the debugger knows of, by identity, which does not keep them alive.
+#[derive(Default)]
+struct ExecutableSet(HashSet<Gc<Executable>, foldhash::fast::RandomState>);
+
+// SAFETY: The VM's sweep callback calls Debugger::remove_dead_executables() after each collection, which forgets the
+//         executables that died.
+unsafe impl SweptAfterCollection for ExecutableSet {}
+
+impl core::ops::Deref for ExecutableSet {
+    type Target = HashSet<Gc<Executable>, foldhash::fast::RandomState>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for ExecutableSet {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl Default for Debugger {
     fn default() -> Self {
         Self::new()
@@ -155,7 +177,7 @@ impl Debugger {
         Self {
             pause_callback: RefCell::new(None),
             pause_callback_context: ForeignCellSlot::empty(),
-            executables: RefCell::new(HashMap::default()),
+            executables: RefCell::new(ExecutableSet::default()),
             breakpoints: RefCell::new(Vec::new()),
             next_breakpoint_id: Cell::new(1),
             step_state: RefCell::new(None),
@@ -617,7 +639,7 @@ impl Debugger {
         breakpoints.remove(index);
         drop(breakpoints);
 
-        for executable in self.executables.borrow().values().filter_map(GcWeak::get) {
+        for executable in self.executables.borrow().iter() {
             executable.remove_debugger_breakpoint(breakpoint_id);
         }
         true
@@ -630,20 +652,15 @@ impl Debugger {
     pub fn is_breakpoint_resolved(&self, breakpoint_id: BreakpointID) -> bool {
         self.executables
             .borrow()
-            .values()
-            .filter_map(GcWeak::get)
+            .iter()
+            .copied()
             .any(|executable| executable.has_debugger_breakpoint(breakpoint_id))
     }
 
-    pub fn register_executable(&self, vm: &Vm, executable: Gc<Executable>) {
-        let key = executable.as_ptr().addr();
-        if self.executables.borrow().get(&key).and_then(GcWeak::get) == Some(executable) {
+    pub fn register_executable(&self, executable: Gc<Executable>) {
+        if !self.executables.borrow_mut().insert(executable) {
             return;
         }
-
-        self.executables
-            .borrow_mut()
-            .insert(key, GcWeak::new(vm.heap(), executable));
         for breakpoint in self.breakpoints.borrow().iter() {
             self.resolve_breakpoint_in_executable(breakpoint, &executable);
         }
@@ -651,18 +668,24 @@ impl Debugger {
 
     /// Forgets the executables that died in this collection, as LibGC prunes a WeakHashSet.
     pub fn remove_dead_executables(&self, sweep: &Sweep<'_>) {
-        self.executables
-            .borrow_mut()
-            .retain(|_, executable| executable.get().is_some_and(|executable| !sweep.is_dead(executable)));
+        let mut executables = self.executables.borrow_mut();
+        executables.retain(|executable| !sweep.is_dead(*executable));
+        if sweep.moves_cells() {
+            for executable in executables.iter() {
+                // SAFETY: Only running and creating executables changes the set, which nothing does until the
+                //         collection is over.
+                unsafe { sweep.record_slot(executable) };
+            }
+        }
     }
 
     fn resolve_breakpoint(&self, breakpoint: &Breakpoint) {
         let executables = self.executables.borrow();
         let mut resolved_positions: HashMap<*const SourceCode, Position> = HashMap::new();
 
-        for executable in executables.values().filter_map(GcWeak::get) {
+        for executable in executables.iter() {
             executable.remove_debugger_breakpoint(breakpoint.id);
-            let Some(candidate) = breakpoint_candidate_for_executable(breakpoint, &executable) else {
+            let Some(candidate) = breakpoint_candidate_for_executable(breakpoint, executable) else {
                 continue;
             };
 
@@ -671,18 +694,18 @@ impl Debugger {
                 column: candidate.column,
             };
             let resolved_position = resolved_positions
-                .entry(source_code_pointer(&executable))
+                .entry(source_code_pointer(executable))
                 .or_insert(candidate_position);
             if candidate_position < *resolved_position {
                 *resolved_position = candidate_position;
             }
         }
 
-        for executable in executables.values().filter_map(GcWeak::get) {
-            let Some(candidate) = breakpoint_candidate_for_executable(breakpoint, &executable) else {
+        for executable in executables.iter() {
+            let Some(candidate) = breakpoint_candidate_for_executable(breakpoint, executable) else {
                 continue;
             };
-            let Some(resolved_position) = resolved_positions.get(&source_code_pointer(&executable)) else {
+            let Some(resolved_position) = resolved_positions.get(&source_code_pointer(executable)) else {
                 continue;
             };
 
@@ -699,12 +722,12 @@ impl Debugger {
 
         let executables = self.executables.borrow();
         let mut resolved_candidate = None;
-        for existing_executable in executables.values().filter_map(GcWeak::get) {
-            if source_code_pointer(&existing_executable) != source_code_pointer(executable) {
+        for existing_executable in executables.iter() {
+            if source_code_pointer(existing_executable) != source_code_pointer(executable) {
                 continue;
             }
             if existing_executable.has_debugger_breakpoint(breakpoint.id) {
-                resolved_candidate = breakpoint_candidate_for_executable(breakpoint, &existing_executable);
+                resolved_candidate = breakpoint_candidate_for_executable(breakpoint, existing_executable);
                 break;
             }
         }
@@ -717,8 +740,8 @@ impl Debugger {
             }
 
             if position_is_before(&candidate, resolved_candidate) {
-                for existing_executable in executables.values().filter_map(GcWeak::get) {
-                    if source_code_pointer(&existing_executable) == source_code_pointer(executable) {
+                for existing_executable in executables.iter() {
+                    if source_code_pointer(existing_executable) == source_code_pointer(executable) {
                         existing_executable.remove_debugger_breakpoint(breakpoint.id);
                     }
                 }
@@ -729,7 +752,7 @@ impl Debugger {
     }
 
     fn clear_executable_breakpoints(&self) {
-        for executable in self.executables.borrow().values().filter_map(GcWeak::get) {
+        for executable in self.executables.borrow().iter() {
             executable.clear_debugger_breakpoints();
         }
     }

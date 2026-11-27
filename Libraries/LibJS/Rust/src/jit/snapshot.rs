@@ -1364,12 +1364,8 @@ impl SnapshotBuilder<'_> {
             })),
             exit_sites: self.snapshot.add(&executable.jit_exit_sites_for_recompile()),
             builtin_exit_sites: if entry.function.is_none() {
-                self.list(
-                    executable
-                        .jit_builtin_exit_sites()
-                        .into_iter()
-                        .map(|(builtin, pc, kind)| (CellId(builtin), pc, kind)),
-                )
+                let sites = executable.map_jit_builtin_exit_sites(|builtin, pc, kind| (self.cell(builtin), pc, kind));
+                self.list(sites)
             } else {
                 List::empty()
             },

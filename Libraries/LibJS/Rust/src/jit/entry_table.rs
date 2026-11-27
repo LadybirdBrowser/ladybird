@@ -21,6 +21,7 @@ use core::ptr::NonNull;
 use super::code::{DetachedJitCode, JitCode};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::sweep::Sweep;
+use crate::layout::cell::{CellHeader, Gc};
 
 #[cfg(all(feature = "address-sanitizer", not(windows)))]
 unsafe extern "C" {
@@ -204,6 +205,16 @@ impl JitEntryTable {
         self.owner_cell(slot).set(0);
         self.free_slots.borrow_mut().push(slot);
         self.code_cell(slot).take().map(|code| *code)
+    }
+
+    /// Has a collection that moves the executable that owns the slot, which survived it, point the slot at the copy.
+    pub fn record_owner_slot(&self, slot: u32, sweep: &Sweep<'_>) {
+        let owner = self.owner_cell(slot);
+        assert_ne!(owner.get(), 0, "a slot that an executable owns has an owner");
+        // SAFETY: The owner is the address of the head of a live executable, which is at the start of its cell, so the
+        //         word is laid out as a Gc to it. Only allocate() and free() write it, which nothing calls until the
+        //         collection is over, and the table lives as long as the VM.
+        unsafe { sweep.record_slot(&*owner.as_ptr().cast::<Gc<CellHeader>>()) };
     }
 
     /// Whether the slot belongs to the executable whose head is at `owner`.
