@@ -279,13 +279,48 @@ struct FunctionOperationsFor : FunctionOperations {
     R (*invoke)(void* box, Args...) { nullptr };
 };
 
+// The cell of every GC::Function. It holds only the handle to its entry in the heap's function table, whatever the
+// signature of the function, and an entry is checked against the signature before it is invoked. So the functions of
+// all signatures share one allocator: no cell of it can be taken for one with another layout.
+class GC_API FunctionCell : public Cell {
+    GC_CELL(FunctionCell, Cell);
+    GC_DECLARE_ALLOCATOR(FunctionCell);
+
+public:
+    // NB: The captured values die when the cell is swept, not when it is finalized, so that the finalizer of another dead
+    //     cell can still call this function.
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~FunctionCell() override
+    {
+        if (!m_handle.is_valid())
+            return;
+        auto& table = heap().function_table();
+        auto const& slot = table.slot(m_handle);
+        slot.operations->destroy(slot.box);
+        table.free(m_handle);
+        m_handle = {};
+    }
+
+protected:
+    FunctionCell() = default;
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        if (!m_handle.is_valid())
+            return;
+        auto const& slot = heap().function_table().slot(m_handle);
+        slot.operations->visit_edges(slot.box, visitor);
+    }
+
+    FunctionTableHandle m_handle;
+};
+
 template<typename T>
 class Function;
 
 template<typename R, typename... Args>
-class Function<R(Args...)> final : public Cell {
-    GC_CELL(Function, Cell);
-    GC_DECLARE_ALLOCATOR(Function);
+class Function<R(Args...)> final : public FunctionCell {
+    GC_CELL(Function, FunctionCell);
 
 public:
     using Operations = FunctionOperationsFor<R, Args...>;
@@ -300,14 +335,14 @@ public:
         static_assert(alignof(Box) <= FunctionTable::box_alignment);
 
         if constexpr (sizeof...(Values) == 0) {
-            auto cell = heap.allocate<Function>();
+            auto cell = heap.allocate_from_allocator_of_base<Function>();
             cell->m_handle = heap.function_table().allocate(CaptureOperations<Callback, Box>::operations, 0).handle;
             return cell;
         } else {
             // NB: A collection waits until the function holds its box. Until then, the captured values may be where a
             //     conservative scan of the stack doesn't look, such as the storage of a temporary Vector of cells.
             DeferGC defer_gc { heap };
-            auto cell = heap.allocate<Function>();
+            auto cell = heap.allocate_from_allocator_of_base<Function>();
             auto allocation = heap.function_table().allocate(CaptureOperations<Callback, Box>::operations, sizeof(Box));
             captures.template make_box<Box>(allocation.box);
             cell->m_handle = allocation.handle;
@@ -328,30 +363,8 @@ public:
 
     Function const& function() const { return *this; }
 
-    // NB: The captured values die when the cell is swept, not when it is finalized, so that the finalizer of another dead
-    //     cell can still call this function.
-    GC_ALLOW_CELL_DESTRUCTOR virtual ~Function() override
-    {
-        if (!m_handle.is_valid())
-            return;
-        auto& table = heap().function_table();
-        auto const& slot = table.slot(m_handle);
-        slot.operations->destroy(slot.box);
-        table.free(m_handle);
-        m_handle = {};
-    }
-
 private:
     Function() = default;
-
-    virtual void visit_edges(Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        if (!m_handle.is_valid())
-            return;
-        auto const& slot = heap().function_table().slot(m_handle);
-        slot.operations->visit_edges(slot.box, visitor);
-    }
 
     template<typename Callback, typename Box>
     struct CaptureOperations {
@@ -373,8 +386,6 @@ private:
             },
         };
     };
-
-    FunctionTableHandle m_handle;
 };
 
 // Makes a function of a callable that takes everything it uses from its captures. The values named by GC::captures()
@@ -402,8 +413,5 @@ static Ref<Function<T>> create_function(Heap& heap, Callable&& function)
     static_assert(Detail::CapturesNothing<RemoveCVReference<Callable>>, "A GC::Function callable captures nothing; name what it uses with GC::captures() and take it as parameters");
     return Function<T>::create(heap, CaptureList<> {}, forward<Callable>(function));
 }
-
-template<typename R, typename... Args>
-GC_DEFINE_ALLOCATOR(Function<R(Args...)>);
 
 }
