@@ -1708,9 +1708,16 @@ def write_rust_namespace(out: TextIO, context: GenerationContext, interface: Int
 """
     )
     for attribute in members.attributes:
+        definition = (
+            f'define_attribute(vm, realm, object, "{attribute.attribute.name}", '
+            f"raw_native!({attribute.getter_function}), None);"
+        )
         out.write(
-            f'        define_attribute(vm, realm, object, "{attribute.attribute.name}", '
-            f"raw_native!({attribute.getter_function}), None);\n"
+            member_exposure_definition(
+                definition,
+                secure_context_only="SecureContext" in attribute.attribute.extended_attributes,
+                exposure_condition=attribute.exposure_condition,
+            )
         )
     for operation_set in members.operation_sets:
         definition = (
