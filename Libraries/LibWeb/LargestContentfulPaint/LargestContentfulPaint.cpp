@@ -211,21 +211,31 @@ static Optional<PaintTiming::LargestContentfulPaintCandidate> compute_a_new_larg
 
     // 5. For each textNode of paintedTextNodes,
     Layout::ForcedReadScope read { document };
+    auto* host = document.layout_node_arena().host();
+    Layout::BegunRead const& begun_read = read;
     auto viewport_mapping = Painting::viewport_mapping(document);
+    // NB: The rows are read without going through a layout node, which would check this.
+    VERIFY(!document.layout_is_known_stale());
     for (auto const& [text_node, owned_text_nodes] : painted_text_nodes) {
         // 1. If textNode is not exposed for paint timing, given document, continue.
         if (!PaintTiming::is_exposed_for_paint_timing(*text_node, document))
             continue;
 
         // 2. If textNode has alpha channel value <=0 or opacity value <=0:
-        auto const* layout_node = text_node->layout_node(read);
-        if (!layout_node)
+        // OPTIMIZATION: Every element with text and every text node of a document comes through here once, so their
+        //               rows are read, and no layout node is made for them.
+        auto row = Layout::RustFFI::layout_row_bound_to_style_node(host, &begun_read, text_node->style_node_id().value());
+        if (row.index == Compositing::RustFFI::NodeSlotId_INVALID.index)
             continue;
-        if (layout_node->color().alpha() == 0 || layout_node->opacity() <= 0) {
+        auto const* style = Layout::RustFFI::layout_row_style(host, row);
+        if (!style)
+            continue;
+        auto const& text_values = CSS::style_record_group<CSS::ComputedValues::InheritedTextValues>(style);
+        if (text_values.color_value().alpha() == 0 || CSS::style_record_group<CSS::ComputedValues::EffectsValues>(style).opacity <= 0) {
             // 1. If textNode's text-shadow value is none, textNode's stroke-color value is transparent and textNode's
             //    stroke-image value is none, continue.
             // FIXME: Check stroke-color and stroke-image once we support text strokes.
-            if (layout_node->text_shadow().is_empty())
+            if (text_values.text_shadow_span().is_empty())
                 continue;
         }
 
@@ -233,10 +243,10 @@ static Optional<PaintTiming::LargestContentfulPaintCandidate> compute_a_new_larg
         //    nodes, intersected with the visual viewport.
         CSSPixelRect text_rect;
         for (auto const& text : owned_text_nodes) {
-            auto const* text_layout_node = text->layout_node(read);
-            if (!text_layout_node)
+            auto text_row = Layout::RustFFI::layout_row_bound_to_style_node(host, &begun_read, text->style_node_id().value());
+            if (text_row.index == Compositing::RustFFI::NodeSlotId_INVALID.index)
                 continue;
-            auto rect = PaintTiming::client_rect_of_box(*text_layout_node, viewport_mapping);
+            auto rect = PaintTiming::client_rect_of_text_row(host, text_row, viewport_mapping);
             if (rect.is_empty())
                 continue;
             text_rect = text_rect.is_empty() ? rect : text_rect.united(rect);

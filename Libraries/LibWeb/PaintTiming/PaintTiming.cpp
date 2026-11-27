@@ -247,15 +247,12 @@ static bool paints_non_default_content(Layout::Node const& node)
     return border_is_painted(node_with_style->border_left()) || border_is_painted(node_with_style->border_top()) || border_is_painted(node_with_style->border_right()) || border_is_painted(node_with_style->border_bottom());
 }
 
-CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiViewportMapping const& viewport_mapping)
+// NB: The client rect of a text box is the union of the rects of its fragments.
+CSSPixelRect client_rect_of_text_row(Layout::RustFFI::DocumentHost* host, Compositing::RustFFI::NodeSlotId text_row, Layout::RustFFI::FfiViewportMapping const& viewport_mapping)
 {
-    if (!node.is_text_node())
-        return Painting::bounding_client_rect(node, viewport_mapping);
-
-    // NB: The client rect of a text box is the union of the rects of its fragments.
     CSSPixelRect united_rect;
     Layout::RustFFI::layout_script_text_range_rects(
-        node.document_host(), Layout::Node::slot_id(&node),
+        host, text_row,
         to_underlying(Painting::SelectionState::Full), 0, 0, 0, NumericLimits<size_t>::max(),
         viewport_mapping, &united_rect, [](void* context, CSSPixelRect rect) {
             auto& united_rect = *static_cast<CSSPixelRect*>(context);
@@ -264,6 +261,13 @@ CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiVi
             united_rect = united_rect.is_empty() ? rect : united_rect.united(rect);
         });
     return united_rect;
+}
+
+CSSPixelRect client_rect_of_box(Layout::Node const& node, Layout::RustFFI::FfiViewportMapping const& viewport_mapping)
+{
+    if (!node.is_text_node())
+        return Painting::bounding_client_rect(node, viewport_mapping);
+    return client_rect_of_text_row(node.document_host(), Layout::Node::slot_id(&node), viewport_mapping);
 }
 
 // NB: This answers whether boxes of the document are paintable, from the state the document has after layout.
@@ -330,6 +334,34 @@ public:
         // 2. Clip boundingRect with the document's scrolling area.
         // 3. Return boundingRect.
         // NB: The clipped rect is not empty only if the rect intersects with the scrolling area.
+        return bounding_rect.intersects(*m_scrolling_area);
+    }
+
+    // OPTIMIZATION: A document has about as many text boxes as it has other boxes, and each is asked about once, so
+    //               this reads the rows of a text box and of its ancestors, and no layout node is made for them.
+    bool text_row_is_paintable(Layout::RustFFI::DocumentHost* host, Compositing::RustFFI::NodeSlotId text_row) const
+    {
+        if (!viewport())
+            return false;
+
+        // - el's used visibility is visible.
+        // NB: A text box has the visibility of the box it is in.
+        auto parent = Layout::RustFFI::layout_row_link(host, text_row, Layout::RustFFI::FfiNodeLink::Parent);
+        if (parent.index == Compositing::RustFFI::NodeSlotId_INVALID.index)
+            return false;
+        auto const* parent_style = Layout::RustFFI::layout_row_style(host, parent);
+        if (!parent_style || CSS::visibility_from_inherited_bits(CSS::style_record_inherited_values(parent_style).bits) != CSS::Visibility::Visible)
+            return false;
+
+        // - el and all of its ancestors' used opacity is greater than zero.
+        for (auto ancestor = parent; ancestor.index != Compositing::RustFFI::NodeSlotId_INVALID.index; ancestor = Layout::RustFFI::layout_row_link(host, ancestor, Layout::RustFFI::FfiNodeLink::Parent)) {
+            auto const* style = Layout::RustFFI::layout_row_style(host, ancestor);
+            if (style && CSS::style_record_group<CSS::ComputedValues::EffectsValues>(style).opacity <= 0)
+                return false;
+        }
+
+        // - el's paintable bounding rect intersects with the scrolling area of the document.
+        auto bounding_rect = client_rect_of_text_row(host, text_row, m_viewport_mapping).translated(m_scroll_offset);
         return bounding_rect.intersects(*m_scrolling_area);
     }
 
@@ -424,15 +456,25 @@ void process_an_image_that_finished_loading(DOM::Element& element, ImageRequestI
     });
 }
 
-// NB: The element whose box is the containing block of the given text box.
-static GC::Ptr<DOM::Element> element_which_determines_the_containing_block_of(Layout::Node const& text_box)
+// NB: The DOM node the row belongs to, which is none for an anonymous row and for a row whose node left the tree.
+static GC::Ptr<DOM::Node> dom_node_of_row(DOM::Document& document, Layout::RustFFI::DocumentHost* host, Compositing::RustFFI::NodeSlotId row)
 {
-    for (auto const* box = static_cast<Layout::Node const*>(text_box.containing_block()); box; box = box->parent_ptr()) {
-        if (auto const* element = as_if<DOM::Element>(box->dom_node()))
-            return const_cast<DOM::Element*>(element);
-        if (box->is_generated_for_pseudo_element()) {
-            if (auto generator = box->pseudo_element_generator())
-                return const_cast<DOM::Element*>(generator.ptr());
+    if (Layout::RustFFI::layout_row_identity_flags(host, row) & to_underlying(Layout::RustFFI::NodeFlag::Anonymous))
+        return nullptr;
+    return DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { Layout::RustFFI::layout_row_style_node(host, row) }).resolve(document);
+}
+
+// NB: The element whose box is the containing block of the text box of the given row. The viewport's row names no
+//     element.
+static GC::Ptr<DOM::Element> element_which_determines_the_containing_block_of(DOM::Document& document, Layout::RustFFI::DocumentHost* host, Compositing::RustFFI::NodeSlotId text_row)
+{
+    for (auto box = Layout::RustFFI::layout_row_containing_block_if_live(host, text_row); box.index != Compositing::RustFFI::NodeSlotId_INVALID.index; box = Layout::RustFFI::layout_row_link(host, box, Layout::RustFFI::FfiNodeLink::Parent)) {
+        if (auto* element = as_if<DOM::Element>(dom_node_of_row(document, host, box).ptr()))
+            return element;
+        if (Layout::RustFFI::layout_row_generated_for(host, box) != 0) {
+            auto generator = DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { Layout::RustFFI::layout_row_style_node(host, box) }).resolve(document);
+            if (auto* element = as_if<DOM::Element>(generator.ptr()))
+                return element;
         }
     }
     return nullptr;
@@ -534,21 +576,20 @@ void mark_paint_timing(DOM::Document& document)
     // NB: This is when the user agent paints a Text node for the first time.
     text_boxes.remove_all_matching([&](Compositing::RustFFI::NodeSlotId slot) {
         // NB: A text node whose layout node is gone has its new layout node noted once it gets one.
-        auto const* text_box = document.layout_node_arena().node_if_live(checker.read(), slot);
-        if (!text_box)
+        if (!Layout::RustFFI::render_state_node_is_live(host, &checker.read(), slot))
             return true;
-        auto* text = as_if<DOM::Text>(const_cast<DOM::Node*>(text_box->dom_node()));
+        auto* text = as_if<DOM::Text>(dom_node_of_row(document, host, slot).ptr());
         if (!text || !text->is_connected() || &text->document() != &document)
             return true;
 
         // OPTIMIZATION: Once an element is in the set of elements with rendered text, the text nodes it owns are never
         //               read, so a text node whose element is in it already is not looked at again. Its layout node
         //               is noted again if its text changes, or if it is rebuilt, as it is when the node moves.
-        auto element = element_which_determines_the_containing_block_of(*text_box);
+        auto element = element_which_determines_the_containing_block_of(document, host, slot);
         if (!element || element->is_in_set_of_elements_with_rendered_text())
             return true;
 
-        if (!checker.is_paintable(*text_box, PaintableChecker::CheckAncestorOpacity::Yes)) {
+        if (!checker.text_row_is_paintable(host, slot)) {
             // OPTIMIZATION: Text that is all white space and paints nothing, often in a box without fragments, is not
             //               looked at again until its data changes to something else.
             return !is_non_empty(text->data().utf16_view());
