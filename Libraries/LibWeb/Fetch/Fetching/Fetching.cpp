@@ -12,7 +12,6 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
-#include <AK/ScopeGuard.h>
 #include <AK/kmalloc.h>
 #include <LibGC/Heap.h>
 #include <LibHTTP/Cache/MemoryCache.h>
@@ -2335,16 +2334,16 @@ enum class AuthenticationHandled {
 static void process_http_network_or_cache_response(Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::Request> http_request, NonnullRefPtr<Infrastructure::Response> response, NonnullRefPtr<PendingResponse> returned_pending_response, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials, AuthenticationHandled authentication_handled = AuthenticationHandled::No)
 {
     auto request = fetch_params.request();
-    // 12. If httpRequest’s header list contains `Range`, then set response’s range-requested flag.
+    // 13. If httpRequest’s header list contains `Range`, then set response’s range-requested flag.
     if (http_request->header_list()->contains("Range"sv))
         response->set_range_requested(true);
 
-    // 13. Set response’s request-includes-credentials to includeCredentials.
+    // 14. Set response’s request-includes-credentials to includeCredentials.
     response->set_request_includes_credentials(include_credentials == HTTP::Cookie::IncludeCredentials::Yes);
 
     auto inner_pending_response = PendingResponse::create(fetch_params, *response);
 
-    // 14. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
+    // 15. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
     //     and request’s traversable for user prompts is a traversable navigable:
     // AD-HOC: Only enter the 401 handling path if the server is requesting an authentication
     //         scheme we can handle with a username/password prompt (Basic or Digest).
@@ -2435,7 +2434,7 @@ static void process_http_network_or_cache_response(Infrastructure::FetchParams c
 
     inner_pending_response->when_loaded([fetch_params = NonnullRefPtr { fetch_params }, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](NonnullRefPtr<Infrastructure::Response> response) {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP network-or-cache fetch' inner_pending_response load callback");
-        // 15. If response’s status is 407, then:
+        // 16. If response’s status is 407, then:
         if (response->status() == 407) {
             // 1. If request’s traversable for user prompts is "no-traversable", then return a network error.
             if (request->traversable_for_user_prompts().has<Infrastructure::Request::TraversableForUserPrompts>()
@@ -2463,7 +2462,7 @@ static void process_http_network_or_cache_response(Infrastructure::FetchParams c
 
         auto inner_pending_response = PendingResponse::create(*fetch_params, *response);
 
-        // 16. If all of the following are true
+        // 17. If all of the following are true
         if (
             // - response’s status is 421
             response->status() == 421
@@ -2484,7 +2483,7 @@ static void process_http_network_or_cache_response(Infrastructure::FetchParams c
         }
 
         inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](NonnullRefPtr<Infrastructure::Response> response) {
-            // 17. If isAuthenticationFetch is true, then create an authentication entry for request and the given
+            // 18. If isAuthenticationFetch is true, then create an authentication entry for request and the given
             //     realm.
             if (is_authentication_fetch == IsAuthenticationFetch::Yes) {
                 // FIXME: "create an authentication entry for request and the given realm"
@@ -2495,95 +2494,7 @@ static void process_http_network_or_cache_response(Infrastructure::FetchParams c
     });
 }
 
-// https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
-static NonnullRefPtr<PendingResponse> continue_http_network_or_cache_fetch(Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::FetchParams const> http_fetch_params, RefPtr<Infrastructure::Response> response, RefPtr<Infrastructure::Response> stored_response, RefPtr<HTTP::MemoryCache> http_cache, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials)
-{
-    auto request = fetch_params.request();
-    auto http_request = http_fetch_params->request();
-
-    RefPtr<PendingResponse> pending_forward_response;
-
-    // 10. If response is null, then:
-    if (!response) {
-        // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
-        // NB: We skip this step in order to allow the disk cache in RequestServer to handle this request. If a disk
-        //     cache entry does not exist, it will return a network error itself.
-
-        // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
-        //    and isNewConnectionFetch.
-        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(*http_fetch_params, include_credentials, is_new_connection_fetch, http_cache);
-    } else {
-        pending_forward_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
-    }
-
-    // AD-HOC: If the controller is already in the non-spec Stopped state, we should report the stop for this request and
-    //         cancel the network request immediately.
-    if (http_fetch_params->control_block().is_stopped()) {
-        report_fetch_error(fetch_params, "Fetch was stopped"_string);
-        http_fetch_params->stop_body_transport();
-    }
-
-    auto returned_pending_response = PendingResponse::create(fetch_params);
-
-    pending_forward_response->when_loaded([fetch_params = NonnullRefPtr { fetch_params }, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](NonnullRefPtr<Infrastructure::Response> resolved_forward_response) mutable {
-        dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
-        if (response_was_null) {
-            auto forward_response = resolved_forward_response;
-
-            // NOTE: TRACE is omitted as it is a forbidden method in Fetch.
-            auto method_is_unsafe = !http_request->method().is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv);
-
-            // 3. If httpRequest’s method is unsafe and forwardResponse’s status is in the range 200 to 399, inclusive,
-            //    invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP
-            //    Caching, and set storedResponse to null.
-            if (method_is_unsafe && forward_response->status() >= 200 && forward_response->status() <= 399) {
-                if (http_cache)
-                    http_cache->invalidate(http_request->current_url());
-                stored_response = nullptr;
-            }
-
-            // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
-            //     1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
-            //        Stored Responses upon Validation" chapter of HTTP Caching.
-            //     2. Set response to storedResponse.
-            //     3. Set response’s cache state to "validated".
-            // NB: We only cache fresh responses in WebContent. Revalidation is handled by RequestServer.
-
-            // 5. If response is null, then:
-            if (!response) {
-                // 1. Set response to forwardResponse.
-                response = forward_response;
-
-                // 2. Store httpRequest and forwardResponse in httpCache, as per the "Storing Responses in Caches" chapter of HTTP Caching.
-                // NOTE: If forwardResponse is a network error, this effectively caches the network error, which is
-                //       sometimes known as "negative caching".
-                // NOTE: The associated body info is stored in the cache alongside the response.
-                // NB: The network fetch stores forwardResponse as its headers arrive, before the end of its body can
-                //     finalize the entry.
-            }
-        }
-
-        // 11. Set response’s URL list to a clone of httpRequest’s URL list.
-        response->set_url_list(http_request->url_list());
-
-        // AD-HOC: The WebDriver BiDi response started steps run here, for a stored response and for a response from
-        //         HTTP-network fetch alike.
-        if (!response->is_network_error()) {
-            if (can_wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::ResponseStarted)) {
-                wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::ResponseStarted, response, nullptr, [fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](Engine::NetworkDecision const&, RefPtr<Infrastructure::Response> continued_response) {
-                    process_http_network_or_cache_response(*fetch_params, *http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
-                });
-                return;
-            }
-            report_network_phase(*http_fetch_params, Engine::NetworkPhase::ResponseStarted, response.ptr());
-        }
-        process_http_network_or_cache_response(*fetch_params, *http_request, *response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
-    });
-
-    // 18. Return response.
-    // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
-    return returned_pending_response;
-}
+static NonnullRefPtr<PendingResponse> continue_http_network_or_cache_fetch(Infrastructure::FetchParams const&, NonnullRefPtr<Infrastructure::FetchParams const> http_fetch_params, RefPtr<Infrastructure::Response> response, RefPtr<Infrastructure::Response> stored_response, RefPtr<HTTP::MemoryCache> http_cache, IsAuthenticationFetch, IsNewConnectionFetch, HTTP::Cookie::IncludeCredentials);
 
 // https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
 NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::FetchParams const& fetch_params, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch)
@@ -2619,15 +2530,7 @@ NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::Fetch
     auto include_credentials = HTTP::Cookie::IncludeCredentials::No;
 
     // 8. Run these steps, but abort when fetchParams is canceled:
-    // NOTE: There's an 'if aborted' check after this anyway, so not doing this is fine and only incurs a small delay.
-    //       For now, support for aborting fetch requests is limited anyway as ResourceLoader doesn't support it.
-    auto aborted = false;
     {
-        ScopeGuard set_aborted = [&] {
-            if (fetch_params.is_canceled())
-                aborted = true;
-        };
-
         // 1. If request’s traversable for user prompts is "no-traversable" and request’s redirect mode is "error",
         //    then set httpFetchParams to fetchParams and httpRequest to request.
         if (request->traversable_for_user_prompts().has<Infrastructure::Request::TraversableForUserPrompts>()
@@ -2850,18 +2753,46 @@ NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::Fetch
 
         apply_generated_header_overrides(*http_request);
 
-        // AD-HOC: The part of the WebDriver BiDi before request sent steps that updates the request's headers runs
-        //         here, on httpRequest.
+        // 23. Run the WebDriver BiDi before request sent steps with request.
+        // AD-HOC: Their update of the request's headers applies to httpRequest, which is the request Fetch sends.
         update_request_headers_for_webdriver_bidi(*http_fetch_params);
+        if (can_wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::BeforeRequestSent)) {
+            auto returned_pending_response = PendingResponse::create(fetch_params);
+            wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::BeforeRequestSent, nullptr, request, [fetch_params = NonnullRefPtr { fetch_params }, http_fetch_params, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response](Engine::NetworkDecision const&, RefPtr<Infrastructure::Response> continued_response) {
+                // NB: Step 8 aborts once fetchParams is canceled, as it can be while the request is blocked.
+                if (fetch_params->is_canceled()) {
+                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(*fetch_params));
+                    return;
+                }
+                auto pending_response = continue_http_network_or_cache_fetch(*fetch_params, *http_fetch_params, continued_response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+                pending_response->when_loaded([returned_pending_response](NonnullRefPtr<Infrastructure::Response> response) { returned_pending_response->resolve(response); });
+            });
+            return returned_pending_response;
+        }
+        report_network_phase(*http_fetch_params, Engine::NetworkPhase::BeforeRequestSent, nullptr);
+    }
 
-        // 23. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
+    return continue_http_network_or_cache_fetch(fetch_params, *http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+}
+
+// https://fetch.spec.whatwg.org/#concept-http-network-or-cache-fetch
+// An intercepted request resumes at step 8.24.
+static NonnullRefPtr<PendingResponse> continue_http_network_or_cache_fetch(Infrastructure::FetchParams const& fetch_params, NonnullRefPtr<Infrastructure::FetchParams const> http_fetch_params, RefPtr<Infrastructure::Response> response, RefPtr<Infrastructure::Response> stored_response, RefPtr<HTTP::MemoryCache> http_cache, IsAuthenticationFetch is_authentication_fetch, IsNewConnectionFetch is_new_connection_fetch, HTTP::Cookie::IncludeCredentials include_credentials)
+{
+    auto request = fetch_params.request();
+    auto http_request = http_fetch_params->request();
+
+    // AD-HOC: A response the WebDriver BiDi before request sent steps give the fetch is its response, so no stored
+    //         response replaces it.
+    if (!response) {
+        // 24. Set httpCache to the result of determining the HTTP cache partition, given httpRequest.
         http_cache = determine_the_http_cache_partition(*http_request);
 
-        // 24. If httpCache is null, then set httpRequest’s cache mode to "no-store".
+        // 25. If httpCache is null, then set httpRequest’s cache mode to "no-store".
         if (!http_cache)
             http_request->set_cache_mode(HTTP::CacheMode::NoStore);
 
-        // 25. If httpRequest’s cache mode is neither "no-store" nor "reload", then:
+        // 26. If httpRequest’s cache mode is neither "no-store" nor "reload", then:
         if (http_request->cache_mode() != HTTP::CacheMode::NoStore
             && http_request->cache_mode() != HTTP::CacheMode::Reload) {
             // 1. Set storedResponse to the result of selecting a response from the httpCache, possibly needing
@@ -2892,26 +2823,94 @@ NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::Fetch
     }
 
     // 9. If aborted, then return the appropriate network error for fetchParams.
-    if (aborted)
+    if (fetch_params.is_canceled())
         return PendingResponse::create(fetch_params, Infrastructure::Response::appropriate_network_error(fetch_params));
 
-    // AD-HOC: The rest of the WebDriver BiDi before request sent steps run here, once a stored response is selected.
-    if (can_wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::BeforeRequestSent)) {
-        auto returned_pending_response = PendingResponse::create(fetch_params);
-        wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::BeforeRequestSent, nullptr, request, [fetch_params = NonnullRefPtr { fetch_params }, http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials, returned_pending_response](Engine::NetworkDecision const& decision, RefPtr<Infrastructure::Response> continued_response) {
-            // AD-HOC: The fetch can be canceled while its request is blocked.
-            if (fetch_params->is_canceled()) {
-                returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(*fetch_params));
+    // 10. If response is not null, then run the WebDriver BiDi response started steps with request and response.
+    // NB: They run once response's URL list is set, for a stored response as for one from HTTP-network fetch.
+
+    RefPtr<PendingResponse> pending_forward_response;
+
+    // 11. If response is null, then:
+    if (!response) {
+        // 1. If httpRequest’s cache mode is "only-if-cached", then return a network error.
+        // NB: We skip this step in order to allow the disk cache in RequestServer to handle this request. If a disk
+        //     cache entry does not exist, it will return a network error itself.
+
+        // 2. Let forwardResponse be the result of running HTTP-network fetch given httpFetchParams, includeCredentials,
+        //    and isNewConnectionFetch.
+        pending_forward_response = nonstandard_resource_loader_file_or_http_network_fetch(*http_fetch_params, include_credentials, is_new_connection_fetch, http_cache);
+    } else {
+        pending_forward_response = PendingResponse::create(fetch_params, Infrastructure::Response::create());
+    }
+
+    // AD-HOC: If the controller is already in the non-spec Stopped state, we should report the stop for this request and
+    //         cancel the network request immediately.
+    if (http_fetch_params->control_block().is_stopped()) {
+        report_fetch_error(fetch_params, "Fetch was stopped"_string);
+        http_fetch_params->stop_body_transport();
+    }
+
+    auto returned_pending_response = PendingResponse::create(fetch_params);
+
+    pending_forward_response->when_loaded([fetch_params = NonnullRefPtr { fetch_params }, response, stored_response, http_request, http_fetch_params, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials, response_was_null = !response, http_cache](NonnullRefPtr<Infrastructure::Response> resolved_forward_response) mutable {
+        dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
+        if (response_was_null) {
+            auto forward_response = resolved_forward_response;
+
+            // NOTE: TRACE is omitted as it is a forbidden method in Fetch.
+            auto method_is_unsafe = !http_request->method().is_one_of("GET"sv, "HEAD"sv, "OPTIONS"sv);
+
+            // 3. If httpRequest’s method is unsafe and forwardResponse’s status is in the range 200 to 399, inclusive,
+            //    invalidate appropriate stored responses in httpCache, as per the "Invalidation" chapter of HTTP
+            //    Caching, and set storedResponse to null.
+            if (method_is_unsafe && forward_response->status() >= 200 && forward_response->status() <= 399) {
+                if (http_cache)
+                    http_cache->invalidate(http_request->current_url());
+                stored_response = nullptr;
+            }
+
+            // 4. If the revalidatingFlag is set and forwardResponse’s status is 304, then:
+            //     1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
+            //        Stored Responses upon Validation" chapter of HTTP Caching.
+            //     2. Set response to storedResponse.
+            //     3. Set response’s cache state to "validated".
+            // NB: We only cache fresh responses in WebContent. Revalidation is handled by RequestServer.
+
+            // 5. If response is null, then:
+            if (!response) {
+                // 1. Set response to forwardResponse.
+                response = forward_response;
+
+                // 2. Store httpRequest and forwardResponse in httpCache, as per the "Storing Responses in Caches" chapter of HTTP Caching.
+                // NOTE: If forwardResponse is a network error, this effectively caches the network error, which is
+                //       sometimes known as "negative caching".
+                // NOTE: The associated body info is stored in the cache alongside the response.
+                // NB: The network fetch stores forwardResponse as its headers arrive, before the end of its body can
+                //     finalize the entry.
+            }
+        }
+
+        // 12. Set response’s URL list to a clone of httpRequest’s URL list.
+        response->set_url_list(http_request->url_list());
+
+        // AD-HOC: The WebDriver BiDi response started steps run here, for a stored response and for a response from
+        //         HTTP-network fetch alike.
+        if (!response->is_network_error()) {
+            if (can_wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::ResponseStarted)) {
+                wait_at_network_phase(*http_fetch_params, Engine::NetworkPhase::ResponseStarted, response, nullptr, [fetch_params, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials](Engine::NetworkDecision const&, RefPtr<Infrastructure::Response> continued_response) {
+                    process_http_network_or_cache_response(*fetch_params, *http_request, *continued_response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+                });
                 return;
             }
-            auto pending_response = continue_http_network_or_cache_fetch(*fetch_params, *http_fetch_params, decision.has<Engine::ContinueFetch>() ? response : continued_response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
-            pending_response->when_loaded([returned_pending_response](NonnullRefPtr<Infrastructure::Response> response) { returned_pending_response->resolve(response); });
-        });
-        return returned_pending_response;
-    }
-    report_network_phase(*http_fetch_params, Engine::NetworkPhase::BeforeRequestSent, nullptr);
+            report_network_phase(*http_fetch_params, Engine::NetworkPhase::ResponseStarted, response.ptr());
+        }
+        process_http_network_or_cache_response(*fetch_params, *http_request, *response, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+    });
 
-    return continue_http_network_or_cache_fetch(fetch_params, *http_fetch_params, response, stored_response, http_cache, is_authentication_fetch, is_new_connection_fetch, include_credentials);
+    // 19. Return response.
+    // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
+    return returned_pending_response;
 }
 
 #if defined(WEB_FETCH_DEBUG)
@@ -3194,7 +3193,7 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
 
         // AD-HOC: RequestServer selects responses from the HTTP cache on WebContent's behalf, so it reports whether
         //         this response was served from a stored response ("local") or from a stored response that the
-        //         server has confirmed is still fresh ("validated"). This stands in for steps 8.25.2 and 10.4 of
+        //         server has confirmed is still fresh ("validated"). This stands in for steps 8.26.2 and 11.4 of
         //         HTTP-network-or-cache fetch, which set the cache state on the stored response.
         switch (cache_state) {
         case Requests::CacheState::NotCached:
