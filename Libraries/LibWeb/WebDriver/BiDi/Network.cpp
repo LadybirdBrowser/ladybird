@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
 #include <LibWeb/WebDriver/BiDi/Network.h>
@@ -131,11 +132,30 @@ void cancel_network_interception(FetchParams const& fetch_params)
     cancel_network_interception_impl(fetch_params, "Intercepted fetch was stopped"sv);
 }
 
+static RefPtr<Fetch::Engine::NetworkConfiguration const> network_configuration(BiDiSessionState const& state)
+{
+    if (!state.is_active)
+        return nullptr;
+    if (state.network_default_headers.is_empty() && state.network_user_context_headers.is_empty() && state.network_navigable_headers.is_empty() && state.network_default_cache_behavior == "default"sv && state.network_navigable_cache_behavior.is_empty())
+        return nullptr;
+
+    auto configuration = make_ref_counted<Fetch::Engine::NetworkConfiguration>();
+    configuration->bypass_cache_by_default = state.network_default_cache_behavior == "bypass"sv;
+    for (auto const& [traversable, behavior] : state.network_navigable_cache_behavior)
+        configuration->bypass_cache_by_traversable.set(traversable, behavior == "bypass"sv);
+    configuration->default_headers = state.network_default_headers;
+    if (auto headers = state.network_user_context_headers.get("default"_string); headers.has_value())
+        configuration->default_user_context_headers = *headers;
+    configuration->traversable_headers = state.network_navigable_headers;
+    return configuration;
+}
+
 void network_session_state_changed()
 {
     auto const& state = session_state();
     g_network_events_enabled = state.is_active && any_of(state.enabled_events, [](auto const& name) { return name.starts_with_bytes("network."sv); });
     g_network_configuration_enabled = state.is_active && (!state.network_default_headers.is_empty() || !state.network_user_context_headers.is_empty() || !state.network_navigable_headers.is_empty() || state.network_default_cache_behavior != "default"sv || !state.network_navigable_cache_behavior.is_empty());
+    HTML::surrounding_agent().network_activity_observers->set_network_configuration(network_configuration(state));
     if (!state.is_active) {
         // https://w3c.github.io/webdriver-bidi/#cleanup-the-session
         while (!blocked_requests().is_empty()) {
@@ -170,19 +190,8 @@ static String network_context_id(HTML::Navigable& navigable)
     return MUST(String::formatted("{}-{}", id.namespace_id, id.local_id));
 }
 
-// https://w3c.github.io/webdriver-bidi/#webdriver-bidi-cache-behavior
-void apply_network_cache_behavior(FetchParams const& fetch_params)
-{
-    auto const& state = session_state();
-    auto request = fetch_params.request();
-    auto behavior = state.network_default_cache_behavior;
-    if (auto navigable = request_navigable(network_request_of(fetch_params).ptr(), *request))
-        behavior = state.network_navigable_cache_behavior.get(network_context_id(*navigable)).value_or(behavior);
-    if (behavior == "bypass"sv)
-        request->set_cache_mode(HTTP::CacheMode::NoStore);
-}
-
-// https://w3c.github.io/webdriver-bidi/#update-request-headers
+// AD-HOC: A header list a network interception gives may echo headers that Fetch generates. Its values for those
+//         replace the ones Fetch generates for the request again.
 static constexpr Array fetch_generated_request_header_names {
     "Content-Length"sv,
     "Accept-Encoding"sv,
@@ -218,26 +227,6 @@ void remove_network_request_content_length_override(FetchParams const& fetch_par
         return;
     fetch_params.request()->header_list()->delete_("Content-Length"sv);
     state->request_header_overrides->delete_("Content-Length"sv);
-}
-
-void apply_network_extra_headers(FetchParams const& fetch_params)
-{
-    auto const& state = session_state();
-    auto request = fetch_params.request();
-    // https://w3c.github.io/webdriver-bidi/#update-headers
-    auto update_headers = [&](auto const& headers) {
-        for (auto const& header : headers)
-            request->header_list()->set(header);
-    };
-    // 2. Update headers with request and session's extra headers' default headers
-    update_headers(state.network_default_headers);
-    if (auto navigable = request_navigable(network_request_of(fetch_params).ptr(), *request)) {
-        if (auto it = state.network_user_context_headers.find("default"_string); it != state.network_user_context_headers.end())
-            update_headers(it->value);
-        auto id = network_context_id(*navigable);
-        if (auto it = state.network_navigable_headers.find(id); it != state.network_navigable_headers.end())
-            update_headers(it->value);
-    }
 }
 
 // https://w3c.github.io/webdriver-bidi/#get-the-network-intercepts

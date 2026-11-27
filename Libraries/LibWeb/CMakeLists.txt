@@ -285,6 +285,7 @@ set(SOURCES
     Fetch/Fetching/Checks.cpp
     Fetch/Fetching/ClientContextSnapshots.cpp
     Fetch/Fetching/NetworkBodyPump.cpp
+    Fetch/Fetching/NetworkObserverHooks.cpp
     Fetch/Fetching/FetchEngine.cpp
     Fetch/Fetching/FetchEventSink.cpp
     Fetch/Fetching/Fetching.cpp
