@@ -867,28 +867,44 @@ struct ShapeForParams {
     shape: Arc<CachedShape>,
 }
 
+/// The shapes of a text.
+// OPTIMIZATION: Almost every text is shaped with one set of parameters, whose shape the entry holds itself, so that
+//               it costs no allocation of its own.
 struct ShapesForText {
-    last_used_tick: u64,
-    shapes: Vec<ShapeForParams>,
+    last_used_tick: u32,
+    params: ShapeParams,
+    shape: Arc<CachedShape>,
+    /// The shapes for the other parameters the text was shaped with.
+    more_shapes: Option<Box<MoreShapes>>,
 }
+
+/// The shapes of a text beyond its first, which few texts have, behind one word in the text's entry.
+#[derive(Default)]
+struct MoreShapes(Vec<ShapeForParams>);
+
+const _: () = assert!(size_of::<ShapesForText>() == 32);
 
 impl ShapesForText {
     /// About what the entry for `text` holds: the text, the entry, and its shapes.
     fn size_in_bytes(&self, text: &[u16]) -> usize {
         size_of_val(text)
             + size_of::<(Box<[u16]>, ShapesForText)>()
-            + self
-                .shapes
-                .iter()
-                .map(|shape| size_of::<ShapeForParams>() + shape.shape.size_in_bytes())
-                .sum::<usize>()
+            + self.shape.size_in_bytes()
+            + self.more_shapes.as_ref().map_or(0, |more_shapes| {
+                size_of::<MoreShapes>()
+                    + more_shapes
+                        .0
+                        .iter()
+                        .map(|shape| size_of::<ShapeForParams>() + shape.shape.size_in_bytes())
+                        .sum::<usize>()
+            })
     }
 }
 
 type FastMap<K, V> = hashbrown::HashMap<K, V, foldhash::fast::RandomState>;
 
 struct FontShapeCache {
-    last_used_tick: u64,
+    last_used_tick: u32,
     single_ascii_common_shapes: [Option<Arc<CachedShape>>; SINGLE_ASCII_SHAPE_CACHE_SIZE],
     shapes_by_text: FastMap<Box<[u16]>, ShapesForText>,
     /// What the entries of `shapes_by_text` hold, see `ShapesForText::size_in_bytes()`.
@@ -911,7 +927,7 @@ impl FontShapeCache {
     /// bytes of the whole cache.
     fn shape_for(
         &mut self,
-        tick: u64,
+        tick: u32,
         text: &[u16],
         params: ShapeParams,
         total_bytes: &mut usize,
@@ -936,40 +952,51 @@ impl FontShapeCache {
         }
         let entry = match self.shapes_by_text.entry_ref(text) {
             EntryRef::Occupied(entry) => entry.into_mut(),
-            EntryRef::Vacant(entry) => entry.insert_with_key(
-                Box::from(text),
-                ShapesForText {
-                    last_used_tick: tick,
-                    // OPTIMIZATION: Almost every text is shaped with one set of parameters, and a vector that grows
-                    //               from nothing makes room for four.
-                    shapes: Vec::with_capacity(1),
-                },
-            ),
+            EntryRef::Vacant(entry) => {
+                let entry = entry.insert_with_key(
+                    Box::from(text),
+                    ShapesForText {
+                        last_used_tick: tick,
+                        params,
+                        shape: Arc::new(shape_uncached()),
+                        more_shapes: None,
+                    },
+                );
+                let added_bytes = entry.size_in_bytes(text);
+                self.bytes += added_bytes;
+                *total_bytes += added_bytes;
+                return &entry.shape;
+            }
         };
         entry.last_used_tick = tick;
-        let index = match entry.shapes.iter().position(|entry| entry.params.matches(&params)) {
+        if entry.params.matches(&params) {
+            return &entry.shape;
+        }
+        let known = entry
+            .more_shapes
+            .as_ref()
+            .and_then(|more_shapes| more_shapes.0.iter().position(|entry| entry.params.matches(&params)));
+        let index = match known {
             Some(index) => index,
             None => {
-                let bytes_before = if entry.shapes.is_empty() {
-                    0
-                } else {
-                    entry.size_in_bytes(text)
-                };
-                entry.shapes.push(ShapeForParams {
+                let bytes_before = entry.size_in_bytes(text);
+                let more_shapes = &mut entry.more_shapes.get_or_insert_default().0;
+                more_shapes.push(ShapeForParams {
                     params,
                     shape: Arc::new(shape_uncached()),
                 });
+                let index = more_shapes.len() - 1;
                 let added_bytes = entry.size_in_bytes(text) - bytes_before;
                 self.bytes += added_bytes;
                 *total_bytes += added_bytes;
-                entry.shapes.len() - 1
+                index
             }
         };
-        &entry.shapes[index].shape
+        &entry.more_shapes.as_ref().expect("the text has more shapes").0[index].shape
     }
 
     /// Returns the bytes the evicted texts held.
-    fn evict_texts_used_at_or_before(&mut self, threshold: u64) -> usize {
+    fn evict_texts_used_at_or_before(&mut self, threshold: u32) -> usize {
         let mut evicted_bytes = 0;
         self.shapes_by_text.retain(|text, entry| {
             if entry.last_used_tick > threshold {
@@ -989,8 +1016,8 @@ impl FontShapeCache {
     }
 }
 
-fn median_tick(ticks: impl Iterator<Item = u64>) -> Option<u64> {
-    let mut ticks: Vec<u64> = ticks.collect();
+fn median_tick(ticks: impl Iterator<Item = u32>) -> Option<u32> {
+    let mut ticks: Vec<u32> = ticks.collect();
     if ticks.is_empty() {
         return None;
     }
@@ -1003,7 +1030,8 @@ fn median_tick(ticks: impl Iterator<Item = u64>) -> Option<u64> {
 #[derive(Default)]
 struct ShapingCache {
     caches_by_font_id: FastMap<u64, FontShapeCache>,
-    tick: u64,
+    /// Counts the shapes asked for. Starts over, with an empty cache, when it runs out.
+    tick: u32,
     /// What the texts of all fonts hold, see `FontShapeCache::bytes`.
     bytes: usize,
 }
@@ -1016,6 +1044,9 @@ impl ShapingCache {
         params: ShapeParams,
         shape_uncached: impl FnOnce() -> CachedShape,
     ) -> Arc<CachedShape> {
+        if self.tick == u32::MAX {
+            *self = Self::default();
+        }
         self.tick += 1;
         if self.caches_by_font_id.len() > MAX_SHAPE_CACHE_FONTS {
             self.evict_least_recently_used_font();
