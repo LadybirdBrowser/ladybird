@@ -6645,7 +6645,7 @@ void Document::abort()
         report_container_state_of_child_navigables();
 
     auto cancel_fetch = [&](GC::Ptr<Fetch::Infrastructure::FetchController> controller) {
-        if (!controller || controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+        if (!controller || !controller->control_block().is_ongoing())
             return;
         controller->stop_fetch();
         canceled_fetch = true;

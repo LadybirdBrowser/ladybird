@@ -133,7 +133,7 @@ void FontLoader::start_loading_next_source()
     if (m_has_completed)
         return;
 
-    if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
+    if (m_fetch_controller && m_fetch_controller->control_block().is_ongoing())
         return;
 
     while (true) {
