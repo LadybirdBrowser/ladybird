@@ -175,6 +175,23 @@ impl Class {
                 | ClassId::CallEnvironmentTemplate
                 | ClassId::EnvironmentShape
                 | ClassId::ObjectPropertyIteratorCacheData
+                | ClassId::RawNativeFunction
+                | ClassId::DirectGetterFunction
+                | ClassId::ArrayBuffer
+                | ClassId::TypedArrayBase
+                | ClassId::Uint8Array
+                | ClassId::Uint8ClampedArray
+                | ClassId::Uint16Array
+                | ClassId::Uint32Array
+                | ClassId::BigUint64Array
+                | ClassId::Int8Array
+                | ClassId::Int16Array
+                | ClassId::Int32Array
+                | ClassId::BigInt64Array
+                | ClassId::Float16Array
+                | ClassId::Float32Array
+                | ClassId::Float64Array
+                | ClassId::DataView
         )
     }
 

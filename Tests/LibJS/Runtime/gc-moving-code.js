@@ -63,7 +63,24 @@ holder.withBlockBindings(1);
 if (typeof jit !== "undefined") jit.neverCompile(holder.withTemplate);
 flushCode();
 
+// Built-in functions are held by the intrinsics of their realm and by the objects they are properties of.
+const nativeAddresses = {
+    max: addressOf(Math.max),
+    push: addressOf(Array.prototype.push),
+};
+
 runAfterMovingCollection(() => {
+    test("built-in functions move and keep working", () => {
+        expect(addressOf(Math.max)).not.toBe(nativeAddresses.max);
+        expect(addressOf(Array.prototype.push)).not.toBe(nativeAddresses.push);
+        expect(Math.max(1, 3, 2)).toBe(3);
+        expect([].push).toBe(Array.prototype.push);
+        const array = [1];
+        array.push(2);
+        expect(array).toEqual([1, 2]);
+        expect(Math.max.name).toBe("max");
+    });
+
     test("functions whose shared data moved keep working", () => {
         expect(adderBefore(2)).toBe(3);
         expect(holder.makeAdder(10)(5)).toBe(15);
