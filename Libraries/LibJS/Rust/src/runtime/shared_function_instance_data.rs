@@ -25,8 +25,9 @@ use crate::gc::sweep::Sweep;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeaderTail, Gc};
+use crate::layout::environment::Environment;
 use crate::layout::execution_context::{ScriptOrModule, ScriptOrModuleSlot};
-use crate::layout::function_object::CallEnvironmentTemplate;
+use crate::layout::function_object::{CallEnvironmentTemplate, FUNCTION_ENVIRONMENT_WORDS};
 pub use crate::layout::function_object::{SharedFunctionInstanceData, asm_call_metadata};
 use crate::layout::member::NullableMember;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -201,6 +202,9 @@ pub struct SharedFunctionInstanceDataStorage {
     parameter_names: OnceCell<Box<ParameterNames>>,
     #[gc(untraced)]
     compile_input: CompileInputSlot,
+    #[gc(
+        owned = "the rare data is the shared data's own, which only the mutator changes, and only its destructor frees"
+    )]
     rare_data: OnceCell<Box<SharedFunctionInstanceDataRareData>>,
 
     function_environment_bindings_count: Cell<u32>,
@@ -248,7 +252,24 @@ define_cell!(CallEnvironmentTemplate, Other);
 // SAFETY: The words of a template refer to the environment's shape, which the shared function instance data keeps
 //         alive, and to no other cell.
 unsafe impl Trace for CallEnvironmentTemplate {
-    fn trace(&self, _visitor: &mut Visitor) {}
+    fn trace(&self, visitor: &mut Visitor) {
+        // NB: The words are an image of the environment, whose shape they hold as a member, which is visited as a slot
+        //     of the template so that a collection that moves the shape rewrites it.
+        const SHAPE_OFFSET: usize = core::mem::offset_of!(Environment, shape);
+        const _: () =
+            assert!(SHAPE_OFFSET + size_of::<NullableMember<EnvironmentShape>>() <= 8 * FUNCTION_ENVIRONMENT_WORDS);
+        // SAFETY: The words hold the shape member of the environment at its offset in the environment, and nothing
+        //         writes them once the template is made.
+        let shape = unsafe {
+            &*self
+                .words
+                .as_ptr()
+                .cast::<u8>()
+                .add(SHAPE_OFFSET)
+                .cast::<NullableMember<EnvironmentShape>>()
+        };
+        visitor.visit_nullable_member(shape);
+    }
 }
 
 /// OPTIMIZATION: Precompute the argument indices that alias parameter bindings. Only the last occurrence of each
@@ -684,13 +705,32 @@ impl SharedFunctionInstanceData {
     /// Drops the function's executable, which no one else holds, and goes back to the lazy state from which the next
     /// call compiles the function again. Keeps what the next executable takes over. Only the sweep callback of a
     /// collection calls this, through its Sweep.
-    pub fn flush_executable(&self, executable: Gc<Executable>, _: &Sweep<'_>) {
+    pub fn flush_executable(&self, executable: Gc<Executable>, sweep: &Sweep<'_>) {
         assert!(self.can_flush_code());
-        let flushed_code = FlushedCode {
+        let flushed_code = Box::new(FlushedCode {
             shared_function_data: executable.shared_function_data_slice().to_vec(),
             template_object_caches: executable.template_object_caches_slice().to_vec(),
-        };
-        self.rare_data().flushed_code.replace(Some(Box::new(flushed_code)));
+        });
+        // NB: The cells were copied out of the dead executable after marking, which traced them for the shared data
+        //     (see Executable::trace_what_outlives_a_flush()), so a collection that moves them rewrites the copies.
+        if sweep.moves_cells() {
+            for shared_data in &flushed_code.shared_function_data {
+                // SAFETY: The box is the shared data's own from now on, which nothing changes until the collection is
+                //         over, and marking traced the cell.
+                unsafe { sweep.record_slot(shared_data) };
+            }
+            for cache in &flushed_code.template_object_caches {
+                // SAFETY: As above.
+                unsafe { sweep.record_slot(cache) };
+            }
+        }
+        // NB: A function with flushed code has no executable to flush until it is compiled again, which takes the
+        //     flushed code. Dropping flushed code here would free slots that marking recorded.
+        let previous = self.rare_data().flushed_code.replace(Some(flushed_code));
+        assert!(
+            previous.is_none(),
+            "a function whose code was flushed has no executable to flush"
+        );
         self.set_executable(None);
         // NB: The retained code only costs memory once no executable shares it, which forget_retained_code() checks.
         if let CompileInput::Unparsed(payload) = self.storage.compile_input.take() {

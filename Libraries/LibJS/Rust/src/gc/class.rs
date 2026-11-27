@@ -170,6 +170,10 @@ impl Class {
                 | ClassId::CapturingNativeFunction
                 | ClassId::WatchpointSet
                 | ClassId::DeclarativeEnvironmentRareData
+                | ClassId::SharedFunctionInstanceData
+                | ClassId::CallEnvironmentTemplate
+                | ClassId::EnvironmentShape
+                | ClassId::ObjectPropertyIteratorCacheData
         )
     }
 

@@ -1756,8 +1756,12 @@ impl Executable {
     /// Visits what outlives a flush of the executable, for its shared data while it leaves the executable unvisited
     /// (see `bytecode::flushing`).
     pub fn trace_what_outlives_a_flush(&self, visitor: &mut Visitor) {
-        self.shared_function_data.trace(visitor);
-        self.template_object_caches().trace(visitor);
+        // SAFETY: The tables are the executable's own, which nothing writes once it is built, and the rare data only
+        //         the mutator changes. Only the executable's destructor frees them, after the collection.
+        unsafe {
+            visitor.visit_owned_slots(&self.shared_function_data);
+            visitor.visit_owned_slots(self.template_object_caches());
+        }
     }
 
     pub fn class_blueprint(&self, index: u32) -> &ClassBlueprint {
@@ -2463,8 +2467,13 @@ unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         self.head.trace(visitor);
         self.property_keys.trace(visitor);
-        self.shared_function_data.trace(visitor);
-        self.rare_data.trace(visitor);
+        // NB: The shared data of the functions the bytecode creates and the rare data are visited as owned slots, so
+        //     that a collection that moves their cells rewrites them where they are.
+        // SAFETY: As in trace_what_outlives_a_flush(). The caches in the rare data are written by the mutator alone.
+        unsafe {
+            visitor.visit_owned_slots(&self.shared_function_data);
+            visitor.visit_owned_slots(&self.rare_data);
+        }
         self.trace_jit_code(visitor);
     }
 }
