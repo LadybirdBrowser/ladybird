@@ -104,6 +104,7 @@ pub type GeneratorExecuteFunction = fn(&GeneratorObject, &Vm, Completion) -> Thr
 #[derive(Trace)]
 pub struct GeneratorObject {
     base: Object,
+    #[gc(owned = "the context is the generator's own, which only its finalizer frees, once the generator is dead")]
     execution_context: GcRefCell<Option<OwnedExecutionContext>>,
     generating_executable: Cell<Option<Gc<Executable>>>,
     yield_continuation: Cell<u32>,

@@ -80,7 +80,9 @@ const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 32);
 unsafe impl Trace for EcmascriptFunctionObjectStorage {
     fn trace(&self, visitor: &mut Visitor) {
         if let Some(class_data) = self.class_data.get() {
-            class_data.trace(visitor);
+            // SAFETY: The class data is the function's own, which only the mutator changes, and only the function's
+            //         destructor frees.
+            unsafe { visitor.visit_owned_slots(&**class_data) };
         }
     }
 }

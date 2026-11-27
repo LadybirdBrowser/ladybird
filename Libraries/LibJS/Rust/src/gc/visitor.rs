@@ -18,7 +18,110 @@ use crate::layout::member::{Member, NullableMember};
 use crate::layout::value::Value;
 
 /// A LibGC visitor, which marks what it visits during a collection and roots it while roots are gathered.
-pub struct Visitor(NonNull<GCVisitor>);
+pub struct Visitor {
+    /// The LibGC visitor, or None in the visitor of record_cell_slots(), which never calls into LibGC.
+    raw: Option<NonNull<GCVisitor>>,
+    /// The marker of a visitor that marks for a collection, and null in every other visitor.
+    marker: *mut GCMarker,
+    /// The marker, except while visit_owned_slots() traces, when it is null, so that the visits of slots outside it,
+    /// which are almost all of them, need one check.
+    plain_marker: *mut GCMarker,
+    /// While visit_owned_slots() traces memory that the cell being visited owns, the address of a local of its frame,
+    /// above any copy of a slot that the tracing makes on the stack. Zero otherwise.
+    owned_slots_frame: usize,
+    /// The slots that record_cell_slots() gathers, if it traces with this visitor, and null in every other visitor.
+    recorder: *mut CellSlots,
+}
+
+/// What a slot of a cell holds, as record_cell_slots() finds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotKind {
+    /// A value, which is a cell if its tag says so.
+    Value,
+    /// The address of a cell, or 0.
+    Cell,
+    /// The compressed pointer of a cell, or 0.
+    CompressedCell,
+    /// A pointer into the cell itself, which a copy of the cell must not keep.
+    SelfPointer,
+}
+
+/// The slots that tracing a cell visits, by their offset into the cell, for code that copies the bytes of the cell:
+/// what tracing says is the only thing that tells which bytes are cells. Only the slots in the first bytes of the cell,
+/// which the copy covers, are kept.
+#[derive(Debug, Default)]
+pub struct CellSlots {
+    start: usize,
+    end: usize,
+    pub slots: Vec<(u32, SlotKind)>,
+    /// Whether every cell the tracing visited is in a slot it named. A cell visited by value or through an interior
+    /// pointer may be one that the bytes hold where no slot says so, and then nothing about the bytes is known.
+    pub complete: bool,
+}
+
+/// Where a slot that a trace visits is, as far as a copy of the first bytes of the cell is concerned.
+enum SlotPlace {
+    /// In the bytes the copy covers, at this offset.
+    InCopy(u32),
+    /// In a cell, but not in the bytes the copy covers: past them in the cell, or in another cell. The collection
+    /// rewrites it where it is, and the copy needs nothing.
+    InHeap,
+    /// Outside the heap, such as in malloc memory, where a copy of the cell's bytes may hold a pointer to it that the
+    /// copy would then need to know about.
+    Outside,
+}
+
+impl CellSlots {
+    fn place(&self, slot: *const u8, size: usize) -> SlotPlace {
+        let start = slot.addr();
+        if start >= self.start && start + size <= self.end {
+            SlotPlace::InCopy((start - self.start) as u32)
+        } else if super::class::is_in_heap_region(start) {
+            SlotPlace::InHeap
+        } else {
+            SlotPlace::Outside
+        }
+    }
+
+    fn record(&mut self, slot: *const u8, size: usize, kind: SlotKind) {
+        match self.place(slot, size) {
+            SlotPlace::InCopy(offset) => self.slots.push((offset, kind)),
+            SlotPlace::InHeap => {}
+            // NB: Nothing tells which bytes of the cell lead to the slot, so nothing about the bytes is known.
+            SlotPlace::Outside => self.complete = false,
+        }
+    }
+}
+
+/// The slots in the first `size` bytes of `cell`, which tracing the cell visits (see CellSlots).
+pub fn record_cell_slots<T>(cell: Gc<T>, size: usize) -> CellSlots {
+    let start = cell.as_ptr().addr();
+    let mut slots = CellSlots {
+        start,
+        end: start + size,
+        slots: Vec::new(),
+        complete: true,
+    };
+    // NB: The visitor holds no LibGC visitor, so no trace can hand one to LibGC or to C++ visit code: it gets None
+    //     from Visitor::as_raw(), which marks the recording incomplete.
+    let mut visitor = Visitor {
+        raw: None,
+        marker: core::ptr::null_mut(),
+        plain_marker: core::ptr::null_mut(),
+        owned_slots_frame: 0,
+        recorder: &raw mut slots,
+    };
+    // SAFETY: The cell is live and of the class whose trace this is, and stays where it is during the trace.
+    unsafe { (super::class::class_of(cell).trace)(cell.as_ptr().cast(), &mut visitor) };
+    slots
+}
+
+/// A slot that mark_slot_in_owned_slots_mode() marks.
+#[derive(Clone, Copy)]
+enum OwnedModeSlot<'a> {
+    Values(&'a [Value]),
+    Member(*const u32),
+}
 
 /// Where a visitor keeps the marker it marks for, right after the vtable pointer of the C++ Cell::Visitor, which
 /// check_layout() checks against GCLayout::visitor_marker_offset.
@@ -28,27 +131,68 @@ impl Visitor {
     /// The marker of a visitor that marks for a collection, which takes the cells it visits directly.
     #[inline(always)]
     fn marker(&self) -> Option<NonNull<GCMarker>> {
-        // SAFETY: The visitor is a live Cell::Visitor, which keeps a marker pointer at this offset.
-        NonNull::new(unsafe {
-            self.0
-                .as_ptr()
-                .cast::<u8>()
-                .add(VISITOR_MARKER_OFFSET)
-                .cast::<*mut GCMarker>()
-                .read()
-        })
+        NonNull::new(self.marker)
+    }
+
+    /// The marker of a visitor that marks for a collection, outside visit_owned_slots().
+    #[inline(always)]
+    fn plain_marker(&self) -> Option<NonNull<GCMarker>> {
+        NonNull::new(self.plain_marker)
     }
 
     /// # Safety
     ///
     /// `visitor` must be a visitor LibGC passed in, and outlive the returned value.
     pub unsafe fn from_raw(visitor: *mut GCVisitor) -> Self {
-        Self(NonNull::new(visitor).expect("LibGC passes a visitor"))
+        let raw = NonNull::new(visitor).expect("LibGC passes a visitor");
+        // SAFETY: The visitor is a live Cell::Visitor, which keeps a marker pointer at this offset, and does not change
+        //         it while it visits.
+        let marker = unsafe {
+            raw.as_ptr()
+                .cast::<u8>()
+                .add(VISITOR_MARKER_OFFSET)
+                .cast::<*mut GCMarker>()
+                .read()
+        };
+        Self {
+            raw: Some(raw),
+            marker,
+            plain_marker: marker,
+            owned_slots_frame: 0,
+            recorder: core::ptr::null_mut(),
+        }
     }
 
-    /// The LibGC visitor, for visiting what the visitor's methods cannot name, such as an embedder's C++ cells.
-    pub fn as_raw(&self) -> *mut GCVisitor {
-        self.0.as_ptr()
+    /// The LibGC visitor, for visiting what the visitor's methods cannot name, such as an embedder's C++ cells. None
+    /// while record_cell_slots() traces, which then knows nothing about the bytes of the cell, as it cannot see what
+    /// the caller would visit.
+    pub fn as_raw(&mut self) -> Option<NonNull<GCVisitor>> {
+        if self.raw.is_none()
+            && let Some(slots) = self.slot_recorder()
+        {
+            slots.complete = false;
+        }
+        self.raw
+    }
+
+    /// The slots that record_cell_slots() gathers, if it traces with this visitor.
+    #[inline(always)]
+    fn slot_recorder(&mut self) -> Option<&mut CellSlots> {
+        // SAFETY: The slots that record_cell_slots() gathers outlive the trace, and only this visitor writes them.
+        unsafe { self.recorder.as_mut() }
+    }
+
+    /// Visits a C++ cell by its address, which keeps it where it is.
+    ///
+    /// # Safety
+    ///
+    /// `cell` must be a live cell of the heap.
+    pub unsafe fn visit_foreign_cell(&mut self, cell: NonNull<core::ffi::c_void>) {
+        let Some(raw) = self.as_raw() else {
+            return;
+        };
+        // SAFETY: The visitor is live, and the caller vouches for the cell.
+        unsafe { gc_visitor_visit_cell(raw.as_ptr(), cell.as_ptr()) };
     }
 
     /// Visits a cell by value, which keeps it where it is in a collection that moves cells, since the collector cannot
@@ -60,30 +204,87 @@ impl Visitor {
             unsafe { gc_marker_visit_cell(marker.as_ptr(), cell.as_ptr().cast()) };
             return;
         }
+        let Some(raw) = self.as_raw() else {
+            return;
+        };
         // SAFETY: The visitor is live, and a Gc points to a live cell.
-        unsafe { gc_visitor_visit_cell(self.0.as_ptr(), cell.as_ptr().cast()) };
+        unsafe { gc_visitor_visit_cell(raw.as_ptr(), cell.as_ptr().cast()) };
     }
 
     /// Visits the cell a member names. It takes the slot, which a collection that moves the cell rewrites if the slot
     /// is in a cell. A slot elsewhere keeps the cell where it is.
+    #[inline(always)]
     pub fn visit_member<T>(&mut self, slot: &Member<T>) {
-        if let Some(marker) = self.marker() {
+        if let Some(marker) = self.plain_marker() {
             // SAFETY: The marker is the visitor's, and the slot holds a compressed pointer to a live cell.
             unsafe { gc_marker_visit_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
             return;
         }
-        self.visit(slot.get());
+        self.visit_member_outside_plain_marking(core::ptr::from_ref(slot).cast());
     }
 
     /// Visits the cell a member names, if it is not null, like visit_member().
+    #[inline(always)]
     pub fn visit_nullable_member<T>(&mut self, slot: &NullableMember<T>) {
-        if let Some(marker) = self.marker() {
+        if let Some(marker) = self.plain_marker() {
             // SAFETY: The marker is the visitor's, and the slot holds 0 or a compressed pointer to a live cell.
             unsafe { gc_marker_visit_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
             return;
         }
-        if let Some(cell) = slot.get() {
-            self.visit(cell);
+        self.visit_member_outside_plain_marking(core::ptr::from_ref(slot).cast());
+    }
+
+    /// Visits the Gc in `slot` while visit_owned_slots() traces or for a visitor that does not mark, like
+    /// visit_member_outside_plain_marking().
+    #[inline(never)]
+    fn visit_gc_outside_plain_marking(&mut self, slot: *const usize) {
+        // SAFETY: A Gc is a pointer to the start of a live cell.
+        let cell = unsafe { slot.read() };
+        let Some(marker) = self.marker() else {
+            if let Some(slots) = self.slot_recorder() {
+                slots.record(slot.cast(), size_of::<usize>(), SlotKind::Cell);
+                return;
+            }
+            let Some(raw) = self.as_raw() else {
+                return;
+            };
+            // SAFETY: The visitor is live, and the cell too.
+            unsafe { gc_visitor_visit_cell(raw.as_ptr(), core::ptr::without_provenance_mut(cell)) };
+            return;
+        };
+        // SAFETY: The marker is the visitor's. The caller of visit_owned_slots() vouches for owned memory, which is not
+        //         a copy on the stack.
+        unsafe {
+            if self.slot_is_owned(slot) {
+                gc_marker_visit_owned_cell_pointer(marker.as_ptr(), slot);
+            } else {
+                gc_marker_visit_interior_pointer(marker.as_ptr(), slot, core::ptr::without_provenance_mut(cell));
+            }
+        }
+    }
+
+    /// Visits the member in `slot`, which holds 0 or a compressed pointer to a live cell, while visit_owned_slots()
+    /// traces or for a visitor that does not mark. Out of line, so that the visits of members stay small enough to
+    /// inline.
+    #[inline(never)]
+    fn visit_member_outside_plain_marking(&mut self, slot: *const u32) {
+        if let Some(marker) = self.marker() {
+            self.mark_slot_in_owned_slots_mode(marker, OwnedModeSlot::Member(slot));
+            return;
+        }
+        if let Some(slots) = self.slot_recorder() {
+            slots.record(slot.cast(), size_of::<u32>(), SlotKind::CompressedCell);
+            return;
+        }
+        let Some(raw) = self.as_raw() else {
+            return;
+        };
+        // SAFETY: See above.
+        let compressed = unsafe { slot.read() };
+        if compressed != 0 {
+            let address = crate::layout::member::decompress_address(compressed);
+            // SAFETY: The visitor is live, and the address is that of a live cell.
+            unsafe { gc_visitor_visit_cell(raw.as_ptr(), core::ptr::without_provenance_mut(address)) };
         }
     }
 
@@ -104,6 +305,8 @@ impl Visitor {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, and the slot is in the cell being visited.
             unsafe { gc_marker_visit_self_pointer(marker.as_ptr(), slot.as_ptr().cast()) };
+        } else if let Some(slots) = self.slot_recorder() {
+            slots.record(slot.as_ptr().cast(), size_of::<usize>(), SlotKind::SelfPointer);
         }
     }
 
@@ -113,19 +316,43 @@ impl Visitor {
         if let Some(marker) = self.marker() {
             // SAFETY: The marker is the visitor's, and the cell is live.
             unsafe { gc_marker_pin_cell(marker.as_ptr(), cell.as_ptr().cast()) };
+        } else if let Some(slots) = self.slot_recorder() {
+            slots.complete = false;
         }
     }
 
     pub fn visit_values(&mut self, values: &[Value]) {
-        if let Some(marker) = self.marker() {
+        if let Some(marker) = self.plain_marker() {
             if !values.is_empty() {
                 // SAFETY: The marker is the visitor's, and Value is a NaN-boxed u64.
                 unsafe { gc_marker_visit_values(marker.as_ptr(), values.as_ptr().cast(), values.len()) };
             }
             return;
         }
+        if let Some(marker) = self.marker() {
+            if !values.is_empty() {
+                self.mark_slot_in_owned_slots_mode(marker, OwnedModeSlot::Values(values));
+            }
+            return;
+        }
+        self.visit_values_without_marker(values);
+    }
+
+    /// Visits values for a visitor that does not mark. Out of line, so that visit_values() stays small enough to
+    /// inline.
+    #[inline(never)]
+    fn visit_values_without_marker(&mut self, values: &[Value]) {
+        if let Some(slots) = self.slot_recorder() {
+            for value in values {
+                slots.record(core::ptr::from_ref(value).cast(), size_of::<Value>(), SlotKind::Value);
+            }
+            return;
+        }
+        let Some(raw) = self.as_raw() else {
+            return;
+        };
         // SAFETY: The visitor is live, and Value is a NaN-boxed u64.
-        unsafe { gc_visitor_visit_values(self.0.as_ptr(), values.as_ptr().cast(), values.len()) };
+        unsafe { gc_visitor_visit_values(raw.as_ptr(), values.as_ptr().cast(), values.len()) };
     }
 
     /// Visits values in memory that the cell being visited owns outside the heap, such as malloc storage, which a
@@ -144,8 +371,76 @@ impl Visitor {
             }
             return;
         }
-        // SAFETY: The visitor is live, and Value is a NaN-boxed u64.
-        unsafe { gc_visitor_visit_values(self.0.as_ptr(), values.as_ptr().cast(), values.len()) };
+        self.visit_values_without_marker(values);
+    }
+
+    /// Traces `value`, in memory that the cell being visited owns outside the heap, such as a vector, so that the Gc,
+    /// member and value slots in it are visited as owned slots: a collection that moves their cells rewrites them where
+    /// they are rather than keeping the cells where they are. A cell that is visited by value still stays where it is.
+    ///
+    /// # Safety
+    ///
+    /// As for visit_owned_values(), for every slot that `value` traces.
+    #[inline(never)]
+    pub unsafe fn visit_owned_slots<T: Trace + ?Sized>(&mut self, value: &T) {
+        let frame = 0u8;
+        let frame = core::hint::black_box(&frame) as *const u8 as usize;
+        // NB: A nested call keeps the outermost frame, which is above every copy either of them makes.
+        let outer_frame = self.owned_slots_frame;
+        if outer_frame == 0 {
+            self.owned_slots_frame = frame;
+        }
+        let outer_plain_marker = self.plain_marker;
+        self.plain_marker = core::ptr::null_mut();
+        value.trace(self);
+        self.plain_marker = outer_plain_marker;
+        self.owned_slots_frame = outer_frame;
+    }
+
+    /// Marks what `slot` holds while visit_owned_slots() traces, as an owned slot unless it is a copy on the stack. Out
+    /// of line, so that the visits outside visit_owned_slots() stay small enough to inline.
+    #[cold]
+    #[inline(never)]
+    fn mark_slot_in_owned_slots_mode(&mut self, marker: NonNull<GCMarker>, slot: OwnedModeSlot<'_>) {
+        let address = match slot {
+            OwnedModeSlot::Values(values) => values.as_ptr().cast::<u8>(),
+            OwnedModeSlot::Member(slot) => slot.cast::<u8>(),
+        };
+        let owned = self.slot_is_owned(address);
+        // SAFETY: The marker is the visitor's. Values are NaN-boxed u64s, and a member slot holds 0 or a compressed
+        //         pointer to a live cell. The caller of visit_owned_slots() vouches for owned memory, which is not a
+        //         copy on the stack.
+        unsafe {
+            match (slot, owned) {
+                (OwnedModeSlot::Values(values), true) => {
+                    gc_marker_visit_owned_values(marker.as_ptr(), values.as_ptr().cast(), values.len());
+                }
+                (OwnedModeSlot::Values(values), false) => {
+                    gc_marker_visit_values(marker.as_ptr(), values.as_ptr().cast(), values.len());
+                }
+                (OwnedModeSlot::Member(slot), true) => gc_marker_visit_owned_member(marker.as_ptr(), slot),
+                (OwnedModeSlot::Member(slot), false) => gc_marker_visit_member(marker.as_ptr(), slot),
+            }
+        }
+    }
+
+    /// Whether `slot` is in memory that the caller of visit_owned_slots() vouches for: not a copy that the tracing
+    /// made on the stack, between this frame and the frame of visit_owned_slots(), which only a slot in place may be.
+    #[inline(always)]
+    fn slot_is_owned<T: ?Sized>(&self, slot: *const T) -> bool {
+        // OPTIMIZATION: Most slots are visited outside visit_owned_slots().
+        self.owned_slots_frame != 0 && self.slot_is_off_the_tracing_stack(slot.cast::<u8>())
+    }
+
+    #[inline(never)]
+    fn slot_is_off_the_tracing_stack(&self, slot: *const u8) -> bool {
+        // NB: The stack grows down on every supported platform. The margins cover locals of inlined frames, which may
+        //     sit on either side of the frame addresses.
+        const MARGIN: usize = 4096;
+        let here = 0u8;
+        let here = core::hint::black_box(&here) as *const u8 as usize;
+        let stack = here.saturating_sub(MARGIN)..self.owned_slots_frame.saturating_add(MARGIN);
+        !stack.contains(&slot.addr())
     }
 
     /// Visits the cell a member names, in memory that the cell being visited owns outside the heap, such as a box,
@@ -161,6 +456,14 @@ impl Visitor {
             unsafe { gc_marker_visit_owned_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
             return;
         }
+        if let Some(slots) = self.slot_recorder() {
+            slots.record(
+                core::ptr::from_ref(slot).cast(),
+                size_of::<u32>(),
+                SlotKind::CompressedCell,
+            );
+            return;
+        }
         self.visit(slot.get());
     }
 
@@ -174,6 +477,14 @@ impl Visitor {
             // SAFETY: The marker is the visitor's, the slot holds 0 or a compressed pointer to a live cell, and the
             //         caller vouches for the memory.
             unsafe { gc_marker_visit_owned_member(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
+            return;
+        }
+        if let Some(slots) = self.slot_recorder() {
+            slots.record(
+                core::ptr::from_ref(slot).cast(),
+                size_of::<u32>(),
+                SlotKind::CompressedCell,
+            );
             return;
         }
         if let Some(cell) = slot.get() {
@@ -194,6 +505,10 @@ impl Visitor {
             unsafe { gc_marker_visit_owned_cell_pointer(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
             return;
         }
+        if let Some(slots) = self.slot_recorder() {
+            slots.record(core::ptr::from_ref(slot).cast(), size_of::<usize>(), SlotKind::Cell);
+            return;
+        }
         self.visit(*slot);
     }
 
@@ -209,6 +524,10 @@ impl Visitor {
             unsafe { gc_marker_visit_owned_cell_pointer(marker.as_ptr(), core::ptr::from_ref(slot).cast()) };
             return;
         }
+        if let Some(slots) = self.slot_recorder() {
+            slots.record(core::ptr::from_ref(slot).cast(), size_of::<usize>(), SlotKind::Cell);
+            return;
+        }
         if let Some(cell) = *slot {
             self.visit(cell);
         }
@@ -216,8 +535,13 @@ impl Visitor {
 
     /// Visits a value that is reachable only while `key` is. A collection that moves cells keeps both where they are.
     pub fn visit_ephemeron<T>(&mut self, key: Gc<T>, value: &Value) {
+        let Some(raw) = self.as_raw() else {
+            return;
+        };
         // SAFETY: The visitor is live, a Gc points to a live cell, and Value is a NaN-boxed u64.
-        unsafe { gc_visitor_visit_ephemeron(self.0.as_ptr(), key.as_ptr().cast(), core::ptr::from_ref(value).cast()) };
+        unsafe {
+            gc_visitor_visit_ephemeron(raw.as_ptr(), key.as_ptr().cast(), core::ptr::from_ref(value).cast());
+        }
     }
 
     /// Visits `value`, a cell that is reachable only while `key` is, by value: it stays where it is in a collection
@@ -425,9 +749,18 @@ unsafe impl<T> Trace for Gc<T> {
     fn trace(&self, visitor: &mut Visitor) {
         // NB: The Gc is visited where it is, so that a collection that moves its cell rewrites it if it is in a cell.
         //     Elsewhere, such as on the stack or in malloc memory, it keeps its cell where it is.
-        // SAFETY: A Gc is a pointer, which the collection only rewrites while the mutator waits for it.
-        let slot = unsafe { &*core::ptr::from_ref(self).cast::<Cell<*mut T>>() };
-        visitor.visit_interior_pointer(slot, *self);
+        if let Some(marker) = visitor.plain_marker() {
+            // SAFETY: The marker is the visitor's, and a Gc is a pointer to the start of a live cell.
+            unsafe {
+                gc_marker_visit_interior_pointer(
+                    marker.as_ptr(),
+                    core::ptr::from_ref(self).cast(),
+                    self.as_ptr().cast(),
+                );
+            }
+            return;
+        }
+        visitor.visit_gc_outside_plain_marking(core::ptr::from_ref(self).cast());
     }
 }
 
