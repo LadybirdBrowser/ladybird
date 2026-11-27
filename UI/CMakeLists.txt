@@ -18,6 +18,11 @@ if (APPLE)
     endif()
 
     set(LADYBIRD_SPARKLE_PLIST_ENTRIES "")
+
+    # NB: The application bundle is put together here rather than by CMake, which would name the bundle after the
+    #     executable. The executable shares its lowercase name with the other platforms, so that pgrep finds it along
+    #     with the helpers, which live next to it.
+    set(LADYBIRD_BUNDLE_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/Ladybird.app")
 endif()
 
 if (APPLE AND LADYBIRD_ENABLE_SPARKLE)
@@ -44,26 +49,25 @@ if (APPLE AND LADYBIRD_ENABLE_SPARKLE)
 endif()
 
 function(create_ladybird_bundle target_name)
-    # NB: CMake names the macOS bundle after the executable, so there the executable keeps the bundle's capitalized
-    #     name.
-    if (APPLE)
-        set(executable_name "Ladybird")
-    else()
-        set(executable_name "ladybird")
-    endif()
     set_target_properties(${target_name} PROPERTIES
-        OUTPUT_NAME "${executable_name}"
-        MACOSX_BUNDLE_GUI_IDENTIFIER ${LADYBIRD_BUNDLE_IDENTIFIER}
-        MACOSX_BUNDLE_BUNDLE_VERSION ${LADYBIRD_BROWSER_VERSION}
-        MACOSX_BUNDLE_SHORT_VERSION_STRING ${LADYBIRD_BROWSER_VERSION}
-        MACOSX_BUNDLE_INFO_PLIST "${LADYBIRD_SOURCE_DIR}/UI/Info.plist"
-        MACOSX_BUNDLE TRUE
+        OUTPUT_NAME "ladybird"
         WIN32_EXECUTABLE TRUE
-        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${LADYBIRD_BUNDLE_IDENTIFIER}
     )
 
     if (APPLE)
-        set(bundle_dir "$<TARGET_BUNDLE_DIR:${target_name}>")
+        set(bundle_dir "${LADYBIRD_BUNDLE_DIR}")
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${bundle_dir}/Contents/MacOS")
+
+        set(MACOSX_BUNDLE_GUI_IDENTIFIER ${LADYBIRD_BUNDLE_IDENTIFIER})
+        set(MACOSX_BUNDLE_BUNDLE_VERSION ${LADYBIRD_BROWSER_VERSION})
+        set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${LADYBIRD_BROWSER_VERSION})
+        set(info_plist "${CMAKE_CURRENT_BINARY_DIR}/${target_name}-Info.plist")
+        configure_file("${LADYBIRD_SOURCE_DIR}/UI/Info.plist" "${info_plist}")
+        set_property(TARGET ${target_name} APPEND PROPERTY LINK_DEPENDS "${info_plist}")
+        add_custom_command(TARGET ${target_name} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${info_plist}" "${bundle_dir}/Contents/Info.plist"
+            VERBATIM
+        )
 
         # The bundle's icon is made after linking, so a changed icon relinks the target.
         set(app_icon_images)
@@ -139,8 +143,7 @@ function(create_ladybird_bundle target_name)
             )
         endif()
 
-        # Note: This symlink is removed in the install commands
-        # This makes the bundle in the build directory *NOT* relocatable
+        # NB: The install does not copy this symlink, but it makes the bundle in the build directory *NOT* relocatable.
         add_custom_command(TARGET ${target_name} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E create_symlink "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" "${bundle_dir}/Contents/lib"
         )
@@ -150,7 +153,7 @@ function(create_ladybird_bundle target_name)
     endif()
 
     if (APPLE)
-        set(resource_base_dir "$<TARGET_BUNDLE_DIR:${target_name}>/Contents/Resources")
+        set(resource_base_dir "${LADYBIRD_BUNDLE_DIR}/Contents/Resources")
     else()
         set(resource_base_dir "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_DATADIR}/Lagom")
     endif()
@@ -206,7 +209,7 @@ add_custom_target(run
 
 if (APPLE)
     add_custom_target(debug-ladybird
-        COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" lldb "$<TARGET_BUNDLE_DIR:ladybird>"
+        COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" lldb "${LADYBIRD_BUNDLE_DIR}"
         USES_TERMINAL
     )
 else()
@@ -229,13 +232,14 @@ if (APPLE)
     # WebDriver and the helpers can link into the bundle after ladybird has signed it — and that leaves the seal stale
     # until something later relinks ladybird. Sign once more with everything in place.
     set(bundle_signed_stamp "${CMAKE_CURRENT_BINARY_DIR}/ladybird_bundle_signed.stamp")
-    ladybird_codesign_command(codesign_command ladybird-bundle --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" -v "$<TARGET_BUNDLE_DIR:ladybird>")
+    get_property(resource_outputs GLOBAL PROPERTY LADYBIRD_RESOURCE_OUTPUTS)
+    ladybird_codesign_command(codesign_command ladybird-bundle --entitlements "${LADYBIRD_ENTITLEMENTS_FILE}" -v "${LADYBIRD_BUNDLE_DIR}")
 
     add_custom_command(
         OUTPUT "${bundle_signed_stamp}"
         COMMAND ${codesign_command}
         COMMAND "${CMAKE_COMMAND}" -E touch "${bundle_signed_stamp}"
-        DEPENDS ladybird WebDriver ${ladybird_helper_processes} "${LADYBIRD_ENTITLEMENTS_FILE}"
+        DEPENDS ladybird WebDriver ${ladybird_helper_processes} "${LADYBIRD_ENTITLEMENTS_FILE}" ${resource_outputs}
         VERBATIM
     )
     add_custom_target(sign_ladybird_bundle ALL DEPENDS "${bundle_signed_stamp}")

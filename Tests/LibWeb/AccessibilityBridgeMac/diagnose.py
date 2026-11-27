@@ -85,7 +85,7 @@ except Exception:
     HAVE_SCREEN_PREFLIGHT = False
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
-DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird.app" / "Contents" / "MacOS" / "Ladybird"
+DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird.app" / "Contents" / "MacOS" / "ladybird"
 FIXTURE = pathlib.Path(__file__).resolve().parents[1] / "AccessibilityBridge" / "input" / "roles.html"
 
 HELPER_NAMES = ("ladybird-render", "ladybird-net", "ladybird-image", "ladybird-gpu", "ladybird-driver")

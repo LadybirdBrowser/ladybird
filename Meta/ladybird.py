@@ -475,9 +475,7 @@ HELPER_EXECUTABLE_NAMES = {
 
 def executable_path(host_system: HostSystem, build_dir: Path, target: str) -> Path:
     name = HELPER_EXECUTABLE_NAMES.get(target, target)
-    if host_system == HostSystem.macOS and target == "ladybird":
-        return build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", "Ladybird")
-    if host_system == HostSystem.macOS and target in HELPER_EXECUTABLE_NAMES:
+    if host_system == HostSystem.macOS and (target == "ladybird" or target in HELPER_EXECUTABLE_NAMES):
         return build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", name)
     return build_dir.joinpath("bin", name)
 

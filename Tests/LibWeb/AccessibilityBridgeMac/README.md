@@ -38,7 +38,7 @@ The runner is also usable directly:
 ./Tests/LibWeb/AccessibilityBridgeMac/run_tests.sh
 ```
 
-Set `LADYBIRD_BINARY=/path/to/Ladybird.app/Contents/MacOS/Ladybird` if your build isn’t at the default `Build/release/bin/Ladybird.app/Contents/MacOS/Ladybird`.
+Set `LADYBIRD_BINARY=/path/to/Ladybird.app/Contents/MacOS/ladybird` if your build isn’t at the default `Build/release/bin/Ladybird.app/Contents/MacOS/ladybird`.
 
 CI runs it that way: the macOS Sanitizer build job packs its `Ladybird.app` with `Meta/package-macos-test-bundle.py` into a self-contained tarball, and `.github/workflows/macos-accessibility-tests.yml` unpacks that on a runner with an unlocked GUI session and points `LADYBIRD_BINARY` at it — so the runner that hosts the tests never builds.
 

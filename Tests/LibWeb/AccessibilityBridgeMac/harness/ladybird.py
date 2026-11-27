@@ -29,7 +29,7 @@ from Foundation import NSRunLoop
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
 
-DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird.app" / "Contents" / "MacOS" / "Ladybird"
+DEFAULT_BINARY = REPO_ROOT / "Build" / "release" / "bin" / "Ladybird.app" / "Contents" / "MacOS" / "ladybird"
 
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parents[2] / "AccessibilityBridge" / "input"
 

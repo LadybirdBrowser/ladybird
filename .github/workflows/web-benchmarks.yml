@@ -158,7 +158,7 @@ jobs:
           python3 -m pip install -r requirements.txt
 
           if [ "${{ matrix.os_name }}" = "macOS" ]; then
-            executable="${GITHUB_WORKSPACE}/Build/bin/Ladybird.app/Contents/MacOS/Ladybird"
+            executable="${GITHUB_WORKSPACE}/Build/bin/Ladybird.app/Contents/MacOS/ladybird"
           else
             executable="${GITHUB_WORKSPACE}/Build/bin/ladybird"
           fi

@@ -19,7 +19,7 @@
         <key>CFBundleSignature</key>
         <string></string>
         <key>CFBundleExecutable</key>
-        <string>Ladybird</string>
+        <string>ladybird</string>
         <key>CFBundleIdentifier</key>
         <string>${MACOSX_BUNDLE_GUI_IDENTIFIER}</string>
         <key>CFBundleShortVersionString</key>
