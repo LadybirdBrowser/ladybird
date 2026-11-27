@@ -36,6 +36,10 @@ StringView policy_controlled_feature_token(PolicyControlledFeature feature)
         return "microphone"sv;
     case PolicyControlledFeature::PictureInPicture:
         return "picture-in-picture"sv;
+    case PolicyControlledFeature::PublickeyCredentialsCreate:
+        return "publickey-credentials-create"sv;
+    case PolicyControlledFeature::PublickeyCredentialsGet:
+        return "publickey-credentials-get"sv;
     case PolicyControlledFeature::WindowManagement:
         return "window-management"sv;
     }
@@ -69,6 +73,9 @@ DefaultAllowlist default_allowlist(PolicyControlledFeature feature)
     case PolicyControlledFeature::Geolocation:
     // https://w3c.github.io/mediacapture-main/#permissions-policy-integration
     case PolicyControlledFeature::Microphone:
+    // https://w3c.github.io/webauthn/#sctn-permissions-policy
+    case PolicyControlledFeature::PublickeyCredentialsCreate:
+    case PolicyControlledFeature::PublickeyCredentialsGet:
     // https://w3c.github.io/window-management/#api-permission-policy-integration
     case PolicyControlledFeature::WindowManagement:
         return DefaultAllowlist::Self;
