@@ -66,13 +66,13 @@ bool CrashReportStore::is_saved_report_name(StringView name)
         return all_of(suffix.substring_view(prefix.length(), 6), is_ascii_alphanumeric);
     };
     for (auto type : { ProcessType::Browser, ProcessType::WebContent,
-             ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor }) {
+             ProcessType::RequestServer, ProcessType::ImageDecoder, ProcessType::MediaServer, ProcessType::AudioServer, ProcessType::VideoDecoderServer, ProcessType::Compositor, ProcessType::WebRTCClient }) {
         if (has_process_name(process_name_from_type(type)))
             return true;
     }
     // NB: Reports saved before the processes were named after their executables may hold private data too, so they
     //     are listed, pruned and removed like any other.
-    for (auto process_name : { "Browser"sv, "WebContent"sv, "RequestServer"sv, "ImageDecoder"sv, "MediaServer"sv, "AudioServer"sv, "VideoDecoderServer"sv, "Compositor"sv }) {
+    for (auto process_name : { "Browser"sv, "WebContent"sv, "RequestServer"sv, "ImageDecoder"sv, "MediaServer"sv, "AudioServer"sv, "VideoDecoderServer"sv, "Compositor"sv, "WebRTCClient"sv }) {
         if (has_process_name(process_name))
             return true;
     }

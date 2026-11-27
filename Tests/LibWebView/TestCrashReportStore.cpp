@@ -95,6 +95,7 @@ TEST_CASE(unrelated_files_are_not_reports)
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-Firefox-abc123.txt"sv));
     EXPECT(!WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-render-abc123.log"sv));
     EXPECT(WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-render-abc123.txt"sv));
+    EXPECT(WebView::CrashReportStore::is_saved_report_name("2026-03-04T05-06-07Z-ladybird-webrtc-abc123.txt"sv));
 }
 
 TEST_CASE(reports_saved_under_former_process_names_are_still_reports)
