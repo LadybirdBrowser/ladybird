@@ -13,7 +13,7 @@ text: 2 rows, 2.048 slots, 0 layout nodes per element
   nodeRows: within 232
   arenaColumns: within 268
   textRows: within 292
-  paintableRows: within 324
+  paintableRows: within 300
   committedLinks: within 76
   fragments: within 220
   inlineContent: within 888

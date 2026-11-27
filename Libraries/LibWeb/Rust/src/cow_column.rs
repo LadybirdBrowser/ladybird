@@ -293,6 +293,32 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
         }
     }
 
+    /// Stops storing the chunk at `chunk_index` if `is_default` says every row of it is the default: see
+    /// [`Self::release_chunk_if_default`].
+    pub(crate) fn release_chunk_if_all(&mut self, chunk_index: usize, is_default: impl Fn(&T) -> bool) {
+        if chunk_index >= self.chunk_count {
+            return;
+        }
+        let chunk = chunk_of(&self.spine, chunk_index).expect("the column holds the chunk");
+        if self
+            .default_chunk
+            .as_ref()
+            .is_some_and(|default| Arc::ptr_eq(default, chunk))
+        {
+            return;
+        }
+        if !chunk.0.iter().all(is_default) {
+            return;
+        }
+        let chunk = self.default_chunk();
+        if let Some(entry) = self.chunks.get_mut(chunk_index) {
+            *entry = Arc::as_ptr(&chunk);
+        }
+        let group = group_mut(&mut self.spine, chunk_index);
+        group.chunks[chunk_index % GROUP] = Some(chunk);
+        group.owners[chunk_index % GROUP] = NO_OWNER;
+    }
+
     fn default_chunk(&mut self) -> Arc<Chunk<T, CHUNK>> {
         self.default_chunk
             .get_or_insert_with(|| Arc::new(Chunk(std::array::from_fn(|_| T::default()))))
@@ -376,28 +402,8 @@ impl<T: Clone + Default + PartialEq, const CHUNK: usize> CowColumn<T, CHUNK> {
     /// The rows of a column whose owner freed them all are, and the column would otherwise store them for as long as
     /// it lives: it never shrinks.
     pub(crate) fn release_chunk_if_default(&mut self, chunk_index: usize) {
-        if chunk_index >= self.chunk_count {
-            return;
-        }
-        let chunk = chunk_of(&self.spine, chunk_index).expect("the column holds the chunk");
-        if self
-            .default_chunk
-            .as_ref()
-            .is_some_and(|default| Arc::ptr_eq(default, chunk))
-        {
-            return;
-        }
         let default = T::default();
-        if chunk.0.iter().any(|row| *row != default) {
-            return;
-        }
-        let chunk = self.default_chunk();
-        if let Some(entry) = self.chunks.get_mut(chunk_index) {
-            *entry = Arc::as_ptr(&chunk);
-        }
-        let group = group_mut(&mut self.spine, chunk_index);
-        group.chunks[chunk_index % GROUP] = Some(chunk);
-        group.owners[chunk_index % GROUP] = NO_OWNER;
+        self.release_chunk_if_all(chunk_index, |row| *row == default);
     }
 
     /// The row at `index`, for writing. See [`RowMut`].
@@ -651,6 +657,11 @@ impl<T: Clone + Default, const CHUNK: usize> CowVec<T, CHUNK> {
         let rows = self.iter().cloned().collect();
         *self = Self::default();
         rows
+    }
+
+    /// See [`CowColumn::release_chunk_if_all`].
+    pub(crate) fn release_chunk_if_all(&mut self, chunk_index: usize, is_default: impl Fn(&T) -> bool) {
+        self.column.release_chunk_if_all(chunk_index, is_default);
     }
 
     /// Grows the vector to `len` rows, the new ones default, or truncates it to them.
