@@ -59,6 +59,9 @@ const huge = new Function(
 // rewrite too.
 const sparseArray = [];
 sparseArray[100000] = { sparse: "element" };
+// Functions keep their indexed properties in such a map too, which the VM holds for them.
+holder.functionWithElements = function () {};
+holder.functionWithElements[0] = { indexed: "element" };
 const bound = function (a, b) {
     return [this.t, a.x, b];
 }.bind({ t: "this" }, { x: "argument" });
@@ -70,6 +73,7 @@ const movedBefore = {
     hugeElement: addressOf(hugeArray[1999]),
     hugeBinding: addressOf(huge()),
     sparseElement: addressOf(sparseArray[100000]),
+    functionWithElements: addressOf(holder.functionWithElements),
 };
 const weakMap = new WeakMap([[holder.weakMapKey, "weak map value"]]);
 
@@ -224,6 +228,13 @@ runAfterMovingCollection(() => {
         expect(addressOf(sparseArray[100000])).not.toBe(movedBefore.sparseElement);
         expect(sparseArray[100000].sparse).toBe("element");
         expect(sparseArray.length).toBe(100001);
+    });
+
+    test("functions with indexed properties move, and keep them", () => {
+        expect(addressOf(holder.functionWithElements)).not.toBe(movedBefore.functionWithElements);
+        expect(holder.functionWithElements[0].indexed).toBe("element");
+        holder.functionWithElements[1] = "added";
+        expect(Object.keys(holder.functionWithElements)).toEqual(["0", "1"]);
     });
 
     test("bound functions keep their target, this and arguments", () => {

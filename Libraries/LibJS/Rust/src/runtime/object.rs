@@ -357,11 +357,6 @@ unsafe impl Trace for Object {
                 visitor,
             ),
             IndexedStorageKind::Dictionary => {
-                // NB: The VM keeps the indexed dictionaries of ECMAScript function objects by the address of the
-                //     function, so such a function stays where it is.
-                if self.is_ecmascript_function_object() {
-                    visitor.pin(self.as_gc());
-                }
                 self.indexed_dictionary().trace(visitor);
             }
         }
@@ -379,6 +374,29 @@ unsafe impl Trace for Object {
 }
 
 pub(crate) type IndexedDictionary = GcRefCell<GenericIndexedPropertyStorage>;
+
+/// The indexed dictionary of an ECMAScript function object, which the VM keeps for it (see
+/// `Vm::function_indexed_dictionaries`), and frees when it drops the entry: when the function leaves dictionary mode,
+/// when a collection finds the function dead, or with the VM.
+pub(crate) struct FunctionIndexedDictionary(*mut IndexedDictionary);
+
+impl FunctionIndexedDictionary {
+    /// Takes `dictionary`, which came from Box::into_raw().
+    fn new(dictionary: *mut IndexedDictionary) -> Self {
+        Self(dictionary)
+    }
+
+    fn pointer(&self) -> *mut IndexedDictionary {
+        self.0
+    }
+}
+
+impl Drop for FunctionIndexedDictionary {
+    fn drop(&mut self) {
+        // SAFETY: The pointer came from Box::into_raw(), and only this owns it.
+        drop(unsafe { Box::from_raw(self.0) });
+    }
+}
 
 /// Object::~Object(), which LibGC runs as it sweeps the object, rather than in a finalizer every dead object would
 /// have to visit while the world is stopped. Property storage in ValueStorage cells is collected with the object, and
@@ -408,6 +426,9 @@ impl Object {
             unsafe { value_storage::deallocate(self.named_properties.get()) };
         }
         match self.indexed_storage_kind() {
+            // NB: The collection that found the function dead freed its dictionary, and the VM frees the ones left when
+            //     the heap is torn down (see `FunctionIndexedDictionary`).
+            IndexedStorageKind::Dictionary if self.is_ecmascript_function_object() => {}
             IndexedStorageKind::Dictionary => self.free_indexed_elements_dictionary(),
             IndexedStorageKind::Packed | IndexedStorageKind::Holey
                 if flags & object_flag::HAS_MALLOC_INDEXED_STORAGE != 0 =>
@@ -3965,9 +3986,10 @@ impl Object {
             //         while its collections mark, nor while the map is borrowed mutably, which this checks.
             let dictionaries = unsafe { self.vm().function_indexed_dictionaries.try_borrow_unguarded() }
                 .expect("the indexed dictionaries of functions are not being changed");
-            return *dictionaries
-                .get(&core::ptr::from_ref(self).addr())
-                .expect("a function in dictionary mode has a dictionary");
+            return dictionaries
+                .get(&Gc::from_ref(self))
+                .expect("a function in dictionary mode has a dictionary")
+                .pointer();
         }
         self.indexed_elements.get().cast()
     }
@@ -3977,7 +3999,7 @@ impl Object {
             self.vm()
                 .function_indexed_dictionaries
                 .borrow_mut()
-                .insert(core::ptr::from_ref(self).addr(), dictionary);
+                .insert(Gc::from_ref(self), FunctionIndexedDictionary::new(dictionary));
         } else {
             self.make_room_for_indexed_storage();
             self.indexed_elements.set(dictionary.cast());
@@ -4167,15 +4189,16 @@ impl Object {
     }
 
     fn free_indexed_elements_dictionary(&self) {
-        let dictionary = if self.is_ecmascript_function_object() {
-            self.vm()
-                .function_indexed_dictionaries
-                .borrow_mut()
-                .remove(&core::ptr::from_ref(self).addr())
-                .unwrap_or(core::ptr::null_mut())
-        } else {
-            self.indexed_elements.replace(core::ptr::null_mut()).cast()
-        };
+        if self.is_ecmascript_function_object() {
+            drop(
+                self.vm()
+                    .function_indexed_dictionaries
+                    .borrow_mut()
+                    .remove(&Gc::from_ref(self)),
+            );
+            return;
+        }
+        let dictionary: *mut IndexedDictionary = self.indexed_elements.replace(core::ptr::null_mut()).cast();
         if !dictionary.is_null() {
             // SAFETY: The pointer came from Box::into_raw in transition_to_dictionary(), and is gone from the object.
             drop(unsafe { Box::from_raw(dictionary) });
