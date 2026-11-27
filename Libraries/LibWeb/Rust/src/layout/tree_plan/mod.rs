@@ -345,6 +345,8 @@ struct ChunkClaimsState {
     free_slots: std::sync::Mutex<crate::fork_vec::ForkVec<u32>>,
     /// The chunks builds stopped filling before every slot held a row.
     open_chunks: std::sync::Mutex<Vec<FilledChunk>>,
+    /// The same of the chunks builds fill with text rows alone, see [`PlanTree::text_chunk`].
+    open_text_chunks: std::sync::Mutex<Vec<FilledChunk>>,
     /// How many boxes builds numbered their rows in pre-order below, see [`ChunkClaims::take_pre_order_roots`].
     pre_order_roots: std::sync::atomic::AtomicU32,
 }
@@ -358,6 +360,7 @@ impl ChunkClaims {
             next_chunk: std::sync::atomic::AtomicU32::new(first_chunk),
             free_slots: std::sync::Mutex::new(free_slots),
             open_chunks: std::sync::Mutex::new(Vec::new()),
+            open_text_chunks: std::sync::Mutex::new(Vec::new()),
             pre_order_roots: std::sync::atomic::AtomicU32::new(0),
         }))
     }
@@ -377,11 +380,10 @@ impl ChunkClaims {
         self.0.pre_order_roots.load(std::sync::atomic::Ordering::Relaxed) as usize
     }
 
-    /// A chunk to fill from its first slot no row is in yet.
-    fn claim_chunk(&self) -> FilledChunk {
+    /// A chunk to fill from its first slot no row is in yet, with text rows alone if `for_text_rows`.
+    fn claim_chunk(&self, for_text_rows: bool) -> FilledChunk {
         if let Some(chunk) = self
-            .0
-            .open_chunks
+            .open_chunks(for_text_rows)
             .lock()
             .expect("no build panicked holding the open chunks")
             .pop()
@@ -396,10 +398,17 @@ impl ChunkClaims {
         }
     }
 
+    fn open_chunks(&self, for_text_rows: bool) -> &std::sync::Mutex<Vec<FilledChunk>> {
+        if for_text_rows {
+            &self.0.open_text_chunks
+        } else {
+            &self.0.open_chunks
+        }
+    }
+
     /// Takes back a chunk a build stopped filling before every slot held a row, for the next build that needs one.
-    fn give_back_open_chunk(&self, chunk: FilledChunk) {
-        self.0
-            .open_chunks
+    fn give_back_open_chunk(&self, chunk: FilledChunk, for_text_rows: bool) {
+        self.open_chunks(for_text_rows)
             .lock()
             .expect("no build panicked holding the open chunks")
             .push(chunk);
@@ -449,13 +458,16 @@ impl ChunkClaims {
 
     /// The chunks builds stopped filling before every slot held a row, once every build is over.
     pub(crate) fn take_open_chunks(&self) -> Vec<FilledChunk> {
-        std::mem::take(
-            &mut *self
-                .0
-                .open_chunks
-                .lock()
-                .expect("no build panicked holding the open chunks"),
-        )
+        let mut chunks = Vec::new();
+        for for_text_rows in [false, true] {
+            chunks.append(
+                &mut *self
+                    .open_chunks(for_text_rows)
+                    .lock()
+                    .expect("no build panicked holding the open chunks"),
+            );
+        }
+        chunks
     }
 }
 
@@ -737,6 +749,14 @@ pub(crate) struct PlanTree {
     chunks: Vec<BuiltChunk>,
     /// The position in `chunks` of the chunk the walk writes rows in now.
     current_chunk: usize,
+    /// The position in `chunks` of the chunk the walk writes text rows in while it fills chunks to come, if it claimed
+    /// one.
+    ///
+    /// OPTIMIZATION: About half the rows of a document are text, and a text row has nothing in the columns the arena
+    ///               keeps for boxes: its paintable row, its committed link, its ink overflow. Those columns store no
+    ///               chunk whose rows are all the default, so text rows that fill chunks of their own cost nothing
+    ///               there. Rows going in free slots of the arena go wherever a slot is free.
+    text_chunk: Option<usize>,
     /// The position in `chunks` of each chunk to come the plan fills, by its index past the arena's.
     chunk_positions: Vec<u32>,
     first_claimed_chunk: usize,
@@ -815,6 +835,7 @@ impl PlanTree {
         Self {
             chunks: vec![BuiltChunk::own(None), BuiltChunk::own(Some(Vec::new()))],
             current_chunk: REUSED_ROWS,
+            text_chunk: None,
             chunk_positions: Vec::new(),
             first_claimed_chunk: claims.0.first_chunk as usize,
             reused_row_tables: Vec::new(),
@@ -988,7 +1009,12 @@ impl PlanTree {
         if self.chunks[self.current_chunk].is_full() {
             self.claim_chunk();
         }
-        let chunk = &mut self.chunks[self.current_chunk];
+        let position = if node.kind == NodeKind::TextNode && self.current_chunk != REUSED_ROWS {
+            self.text_chunk_with_room()
+        } else {
+            self.current_chunk
+        };
+        let chunk = &mut self.chunks[position];
         let offset = chunk.start + chunk.len;
         let slot = match &chunk.free_slots {
             Some(free_slots) => free_slots[offset],
@@ -998,7 +1024,7 @@ impl PlanTree {
             ),
         };
         chunk.push_row(Self::new_row(&node, slot.generation()), node.facts);
-        self.latest_row = (slot, self.current_chunk as u32, offset as u32);
+        self.latest_row = (slot, position as u32, offset as u32);
         self.row_count += 1;
         slot
     }
@@ -1040,14 +1066,31 @@ impl PlanTree {
             self.current_chunk = REUSED_ROWS;
             return;
         }
-        let chunk = self.claims.claim_chunk();
+        self.current_chunk = self.claim_chunk_to_come(false);
+    }
+
+    /// The position in `chunks` of a chunk to come with room for a text row.
+    fn text_chunk_with_room(&mut self) -> usize {
+        if let Some(position) = self.text_chunk
+            && !self.chunks[position].is_full()
+        {
+            return position;
+        }
+        let position = self.claim_chunk_to_come(true);
+        self.text_chunk = Some(position);
+        position
+    }
+
+    /// Claims a chunk to come, answering its position in `chunks`.
+    fn claim_chunk_to_come(&mut self, for_text_rows: bool) -> usize {
+        let chunk = self.claims.claim_chunk(for_text_rows);
         let (index, start) = (chunk.index, chunk.used);
         let local = index as usize - self.first_claimed_chunk;
         if self.chunk_positions.len() <= local {
             self.chunk_positions.resize(local + 1, u32::MAX);
         }
         self.chunk_positions[local] = self.chunks.len() as u32;
-        self.current_chunk = self.chunks.len();
+        let position = self.chunks.len();
         self.chunks.push(BuiltChunk {
             storage: RowStorage::Chunk(chunk),
             start,
@@ -1055,12 +1098,20 @@ impl PlanTree {
             free_slots: None,
             index,
         });
+        position
     }
 
     /// Hands the chunk the plan filled last, if it has slots left, to the next build that claims a chunk, once the plan
     /// made, linked and derived every row of its own. Nothing of the plan reads or writes a row in it after.
     pub(crate) fn hand_on_open_chunk(&mut self) {
-        let chunk = &mut self.chunks[self.current_chunk];
+        self.hand_on_chunk(self.current_chunk, false);
+        if let Some(position) = self.text_chunk.take() {
+            self.hand_on_chunk(position, true);
+        }
+    }
+
+    fn hand_on_chunk(&mut self, position: usize, for_text_rows: bool) {
+        let chunk = &mut self.chunks[position];
         if !matches!(chunk.storage, RowStorage::Chunk(_)) || chunk.is_full() {
             return;
         }
@@ -1069,7 +1120,7 @@ impl PlanTree {
         };
         filled.used = chunk.start + chunk.len;
         self.chunk_positions[chunk.index as usize - self.first_claimed_chunk] = u32::MAX;
-        self.claims.give_back_open_chunk(filled);
+        self.claims.give_back_open_chunk(filled, for_text_rows);
     }
 
     /// Hands the rows over: the chunks the plan filled, and the rows it put in free slots of the arena. The free slots
