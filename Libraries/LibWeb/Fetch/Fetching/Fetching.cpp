@@ -1402,13 +1402,13 @@ void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController> con
         });
 
         // 4. Queue a fetch task to run processResponseEndOfBodyTask with fetchParams’s task destination.
-        Infrastructure::queue_fetch_task(controller, controller->task_destination(), move(process_response_end_of_body_task));
+        controller->queue_fetch_task(move(process_response_end_of_body_task));
     });
 
     // 5. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
     if (controller->algorithms()->process_response()) {
-        Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), GC::captures(controller, response_view), [](auto& controller, auto& response_view) {
+        controller->queue_fetch_task(GC::create_function(GC::Heap::the(), GC::captures(controller, response_view), [](auto& controller, auto& response_view) {
             controller->algorithms()->process_response()->function()(response_view);
         }));
     }
@@ -1590,7 +1590,7 @@ void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController> con
             if (read_body_in_parallel) {
                 algorithms->process_response_consume_body()->function()(response_view, Empty {});
             } else {
-                Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), GC::captures(algorithms, response_view), [](auto& algorithms, auto& response_view) {
+                controller->queue_fetch_task(GC::create_function(GC::Heap::the(), GC::captures(algorithms, response_view), [](auto& algorithms, auto& response_view) {
                     // NB: We have to provide fully_read a callback which accepts a ByteBuffer. Since that's not
                     //     nullable, we just invoke process_response_consume_body with a null value manually here.
                     algorithms->process_response_consume_body()->function()(response_view, Empty {});

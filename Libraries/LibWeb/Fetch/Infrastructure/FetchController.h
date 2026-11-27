@@ -131,9 +131,7 @@ public:
     void stop_fetch();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
 
-    u64 next_fetch_task_id() { return m_next_fetch_task_id++; }
-    void fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id);
-    void fetch_task_complete(u64 fetch_task_id);
+    void queue_fetch_task(GC::Ref<GC::Function<void()>>);
 
 private:
     explicit FetchController(FetchControllerRegistry&);

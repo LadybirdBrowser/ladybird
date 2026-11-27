@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -59,21 +58,6 @@ HTML::TaskID queue_fetch_task(TaskDestination task_destination, GC::Ref<GC::Func
     auto scope_guard = SVG::ScopedSVGImageDocument::create_if_needed(task_destination.document_override, SVG::ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage);
 
     return HTML::queue_global_task(HTML::Task::Source::Networking, task_destination.get<GC::Ref<JS::Object>>(), algorithm);
-}
-
-// AD-HOC: This overload allows tracking the queued task within the fetch controller so that we may cancel queued tasks
-//         when the spec indicates that we must stop an ongoing fetch.
-HTML::TaskID queue_fetch_task(GC::Ref<FetchController> fetch_controller, TaskDestination task_destination, GC::Ref<GC::Function<void()>> algorithm)
-{
-    auto fetch_task_id = fetch_controller->next_fetch_task_id();
-
-    auto html_task_id = queue_fetch_task(task_destination, GC::create_function<void()>(GC::Heap::the(), GC::captures(fetch_controller, fetch_task_id, algorithm), [](auto& fetch_controller, auto fetch_task_id, auto& algorithm) {
-        fetch_controller->fetch_task_complete(fetch_task_id);
-        algorithm->function()();
-    }));
-
-    fetch_controller->fetch_task_queued(fetch_task_id, html_task_id);
-    return html_task_id;
 }
 
 }

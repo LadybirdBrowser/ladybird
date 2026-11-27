@@ -609,7 +609,7 @@ TEST_CASE(an_event_after_the_end_of_its_fetch_is_dropped)
     event_sink.handle_event(RequestBodyEndOfBody {});
 
     // A task queued after the request body's tasks runs after them.
-    Web::Fetch::Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(heap, GC::captures(record), [](auto& record) { record->later_task_ran = true; }));
+    controller->queue_fetch_task(GC::create_function(heap, GC::captures(record), [](auto& record) { record->later_task_ran = true; }));
     harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->later_task_ran; }));
 
     EXPECT_EQ(record->calls, (Vector<ByteString> { "chunk 3" }));
@@ -653,7 +653,7 @@ TEST_CASE(a_canceled_fetch_runs_no_algorithm_of_a_non_null_request_body)
     controller->terminate();
 
     // A task queued after the request body's tasks runs after them.
-    Web::Fetch::Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(heap, GC::captures(record), [](auto& record) { record->later_task_ran = true; }));
+    controller->queue_fetch_task(GC::create_function(heap, GC::captures(record), [](auto& record) { record->later_task_ran = true; }));
     harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->later_task_ran; }));
 
     EXPECT(record->later_task_ran);

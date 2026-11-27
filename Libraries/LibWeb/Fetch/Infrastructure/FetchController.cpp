@@ -13,6 +13,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
+#include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -323,14 +324,19 @@ void FetchController::stop_request()
     m_started_fetch->fetch_executor->post(stop_command(state(), m_started_fetch->fetch_id));
 }
 
-void FetchController::fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id)
+// https://fetch.spec.whatwg.org/#queue-a-fetch-task
+// AD-HOC: This allows tracking the queued task within the fetch controller so that we may cancel queued tasks when the
+//         spec indicates that we must stop an ongoing fetch.
+void FetchController::queue_fetch_task(GC::Ref<GC::Function<void()>> algorithm)
 {
-    m_ongoing_fetch_tasks.set(fetch_task_id, event_id);
-}
+    auto fetch_task_id = m_next_fetch_task_id++;
 
-void FetchController::fetch_task_complete(u64 fetch_task_id)
-{
-    m_ongoing_fetch_tasks.remove(fetch_task_id);
+    auto html_task_id = Infrastructure::queue_fetch_task(m_task_destination, GC::create_function<void()>(GC::Heap::the(), GC::captures(GC::Ref { *this }, fetch_task_id, algorithm), [](auto& fetch_controller, auto fetch_task_id, auto& algorithm) {
+        fetch_controller->m_ongoing_fetch_tasks.remove(fetch_task_id);
+        algorithm->function()();
+    }));
+
+    m_ongoing_fetch_tasks.set(fetch_task_id, html_task_id);
 }
 
 GC_DEFINE_ALLOCATOR(FetchControllerHolder);
