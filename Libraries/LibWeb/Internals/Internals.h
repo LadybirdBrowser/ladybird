@@ -344,6 +344,7 @@ public:
     void force_parallel_layout();
     GC::Ref<JS::Object> style_engine_counters();
     GC::Ref<JS::Object> style_memory_report();
+    GC::Ref<JS::Object> layout_memory_report();
     u64 style_memory_of_frames();
     void panic_render_state_for_testing();
     Vector<String> style_self_check();

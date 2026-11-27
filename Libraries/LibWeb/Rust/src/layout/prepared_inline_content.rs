@@ -324,6 +324,25 @@ pub(crate) struct PreparedInlineContentMemos {
 }
 
 impl PreparedInlineContentMemos {
+    /// The bytes of the rows and of the prepared content they hold.
+    pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        self.by_slot.heap_size(|row| {
+            row.as_ref().map_or(0, |content| {
+                let shallow = sizer.arc_shallow(content);
+                if shallow == 0 {
+                    return 0;
+                }
+                shallow
+                    + size_of_val(&*content.items)
+                    + size_of_val(&*content.box_events)
+                    + size_of_val(&*content.fonts)
+                    + size_of_val(&*content.tab_stops)
+                    + size_of_val(&*content.tab_stop_items)
+                    + size_of_val(&*content.soft_wraps)
+            })
+        })
+    }
+
     pub(crate) fn fork(&self) -> Self {
         Self {
             by_slot: self.by_slot.fork(),

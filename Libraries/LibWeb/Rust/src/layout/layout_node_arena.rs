@@ -283,6 +283,17 @@ pub(crate) struct IntrinsicSizeCaches {
 }
 
 impl IntrinsicSizeCaches {
+    /// The bytes of the slots and of the maps they hold.
+    pub(crate) fn heap_size(&self) -> usize {
+        self.slots.heap_size(|slot| {
+            slot.sizes.as_ref().map_or(0, |maps| {
+                size_of::<IntrinsicSizeMaps>()
+                    + crate::heap_size::small_vec_bytes(&maps.content_inline_sizes.entries)
+                    + crate::heap_size::small_vec_bytes(&maps.max_content_block_size.entries)
+            })
+        })
+    }
+
     pub(super) fn cover_slots(&mut self, slot_count: usize) {
         self.slots.cover_slots(slot_count);
     }
@@ -1358,6 +1369,55 @@ pub(crate) struct LayoutNodeArena {
 }
 
 impl LayoutNodeArena {
+    /// Counts what the arena holds for its rows.
+    pub(crate) fn report_memory(&self, report: &mut super::memory_report::LayoutMemoryReport) {
+        use super::memory_report::LayoutMemoryOwner;
+        report.slots = self.slot_metadata.len();
+        report.live_rows = self.live_count as usize;
+        let bytes = self.chunks.row_bytes()
+            + self.chunks.len() * size_of::<Chunk>()
+            + self.tree_shape.heap_size(&mut report.sizer)
+            + self.slot_metadata.row_bytes();
+        report.add(LayoutMemoryOwner::NodeRows, bytes);
+        let bytes = self.style_column_heap_size()
+            + self.style_nodes.row_bytes()
+            + self.next_rows_with_same_style_node.row_bytes()
+            + self.first_rows_by_style_node.elements.row_bytes()
+            + self.first_rows_by_style_node.texts.row_bytes()
+            + self.bound_rows.elements.heap_size(&mut report.sizer, |_, _| 0)
+            + self.bound_rows.texts.heap_size(&mut report.sizer, |_, _| 0)
+            + self.committed_link_holders.row_bytes()
+            + self.pre_order_labels.row_bytes()
+            + self.free_list.row_bytes()
+            + self.next_rows_built_for_same_node.row_bytes()
+            + self.replaced_content_facts.heap_size(&mut report.sizer, |_, _| 0);
+        report.add(LayoutMemoryOwner::ArenaColumns, bytes);
+        let rendered_text = |rendered: &Arc<super::rendered_text::RenderedText>,
+                             sizer: &mut crate::heap_size::HeapSizer| {
+            let shallow = sizer.arc_shallow(rendered);
+            if shallow == 0 {
+                return 0;
+            }
+            shallow + rendered.heap_bytes()
+        };
+        let bytes = self.text_slots.slots.row_bytes()
+            + self.text_slots.vacant_states.row_bytes()
+            + self.text_slots.released_states.row_bytes()
+            + self.text_slots.states.heap_size(&mut report.sizer, |state, sizer| {
+                state
+                    .content
+                    .as_ref()
+                    .map_or(0, |content| rendered_text(content.rendered(), sizer))
+            })
+            + self.text_slots.published.heap_size(&mut report.sizer, |slot, sizer| {
+                slot.rendered
+                    .as_ref()
+                    .map_or(0, |rendered| rendered_text(rendered, sizer))
+            });
+        report.add(LayoutMemoryOwner::TextRows, bytes);
+        self.paintable_rows.report_memory(report);
+    }
+
     /// The bytes of the columns that name the style record each row is built from.
     pub(crate) fn style_column_heap_size(&self) -> usize {
         self.style_records.row_bytes()

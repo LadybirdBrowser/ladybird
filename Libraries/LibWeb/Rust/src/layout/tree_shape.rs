@@ -313,6 +313,11 @@ pub(crate) struct TreeShape {
 }
 
 impl TreeShape {
+    /// The bytes of the published rows that `sizer` reaches for the first time.
+    pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        self.nodes.heap_size(sizer, |_, _| 0)
+    }
+
     /// Brings the rows of every node written since the last publication up to date and publishes
     /// the column. A row whose node did not change is not written, so a chunk an earlier
     /// publication shares is copied only for a change.

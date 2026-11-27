@@ -40,6 +40,13 @@ pub struct InlineContent {
 #[derive(Default)]
 pub struct GlyphInkOfLines(std::sync::OnceLock<Box<[CssPixelRect]>>);
 
+impl GlyphInkOfLines {
+    /// The bytes the ink holds on the heap, if it was found.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.0.get().map_or(0, |ink| size_of_val(&**ink))
+    }
+}
+
 impl Clone for GlyphInkOfLines {
     fn clone(&self) -> Self {
         Self::default()
@@ -58,6 +65,17 @@ impl PartialEq for GlyphInkOfLines {
 pub struct TextFragmentIndex {
     fragments: std::sync::OnceLock<InlineBoxIndex>,
     fragmentless_break_lines: std::sync::OnceLock<Box<InlineBoxIndex>>,
+}
+
+impl TextFragmentIndex {
+    /// The bytes the indices built so far hold on the heap.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.fragments.get().map_or(0, InlineBoxIndex::heap_bytes)
+            + self
+                .fragmentless_break_lines
+                .get()
+                .map_or(0, |index| size_of::<InlineBoxIndex>() + index.heap_bytes())
+    }
 }
 
 // NB: The index follows from the fragments, so a copy builds its own, and it does not tell two contents apart.
@@ -80,6 +98,13 @@ pub struct InlineBoxIndex {
     /// Sorted by box.
     boxes: Vec<InlineBoxPieces>,
     piece_indices: Vec<u32>,
+}
+
+impl InlineBoxIndex {
+    /// The bytes the index holds on the heap.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.boxes) + crate::heap_size::vec_bytes(&self.piece_indices)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

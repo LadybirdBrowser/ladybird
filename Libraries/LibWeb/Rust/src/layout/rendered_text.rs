@@ -254,6 +254,19 @@ impl Default for TextMemos {
 }
 
 impl TextMemos {
+    /// The bytes of the rows and of the chunks they hold.
+    pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        self.chunks.heap_size(|row| {
+            row.as_ref().map_or(0, |row| {
+                let chunks = sizer.arc_shallow(&row.chunks);
+                if chunks == 0 {
+                    return 0;
+                }
+                chunks + crate::heap_size::vec_bytes(&row.chunks.chunks.chunks) + size_of_val(&*row.chunks.chunks.fonts)
+            })
+        }) + self.grapheme_segmenters.heap_size(|_| 0)
+    }
+
     /// The memos of a fork of the arena, which keeps the chunks and makes grapheme segmenters anew.
     pub(crate) fn fork(&self) -> Self {
         Self {
@@ -334,6 +347,13 @@ impl TextMemos {
 }
 
 impl RenderedText {
+    /// The bytes the text holds on the heap.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.text)
+            + crate::heap_size::vec_bytes(&self.edits)
+            + self.svg_source_text.as_deref().map_or(0, size_of_val)
+    }
+
     pub(super) fn dom_range(&self) -> std::ops::Range<usize> {
         self.dom_start_offset..self.dom_start_offset + self.dom_length_in_code_units
     }

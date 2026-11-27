@@ -1,0 +1,83 @@
+<!doctype html>
+<style>
+    .item {
+        margin: 1px;
+    }
+</style>
+<body>
+<script src="../../include.js"></script>
+<script>
+    // The layout memory each element adds, by owner: the report on a page of 1000 elements, less the one on the same
+    // page of 500, over the 500 elements between. Per-document costs cancel out.
+    function report() {
+        document.body.offsetWidth;
+        return internals.layoutMemoryReport();
+    }
+
+    function slopes(makeElement) {
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        const reports = [];
+        for (const count of [500, 1000]) {
+            while (container.childElementCount < count)
+                container.appendChild(makeElement(container.childElementCount));
+            reports.push(report());
+        }
+        const elements = 500;
+        const slopes = {};
+        for (const owner in reports[1].owners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / elements;
+        return {
+            rows: (reports[1].liveRows - reports[0].liveRows) / elements,
+            slots: (reports[1].slots - reports[0].slots) / elements,
+            layoutNodes: (reports[1].layoutNodes - reports[0].layoutNodes) / elements,
+            slopes,
+        };
+    }
+
+    // Bytes per element each owner may add, which a change that grows an owner past has to raise.
+    const emptyBudgets = {
+        nodeRows: 112,
+        arenaColumns: 72,
+        paintableRows: 228,
+        committedLinks: 136,
+        fragments: 284,
+        visualContexts: 20,
+        memos: 460,
+    };
+    const textBudgets = {
+        nodeRows: 232,
+        arenaColumns: 268,
+        textRows: 300,
+        paintableRows: 496,
+        committedLinks: 268,
+        fragments: 284,
+        inlineContent: 944,
+        visualContexts: 40,
+        memos: 1396,
+    };
+
+    function check(name, budgets, makeElement) {
+        const result = slopes(makeElement);
+        println(`${name}: ${result.rows} rows, ${result.slots} slots, ${result.layoutNodes} layout nodes per element`);
+        for (const owner in result.slopes) {
+            const budget = budgets[owner] ?? 0;
+            const slope = result.slopes[owner];
+            println(`  ${owner}: ${slope <= budget ? `within ${budget}` : `${slope} is over ${budget}`}`);
+        }
+    }
+
+    test(() => {
+        check("empty", emptyBudgets, () => {
+            const element = document.createElement("div");
+            element.className = "item";
+            return element;
+        });
+        check("text", textBudgets, index => {
+            const element = document.createElement("div");
+            element.className = "item";
+            element.textContent = `Item number ${index} of the list`;
+            return element;
+        });
+    });
+</script>

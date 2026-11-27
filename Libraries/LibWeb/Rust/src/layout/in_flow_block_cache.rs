@@ -129,6 +129,25 @@ pub(crate) struct InFlowBlockCacheStore {
 }
 
 impl InFlowBlockCacheStore {
+    /// The bytes of the slots and of the entries they hold.
+    pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        self.entries.heap_size(|slot| {
+            [&slot.latest, &slot.committed]
+                .into_iter()
+                .flatten()
+                .map(|entry| {
+                    let shallow = sizer.arc_shallow(entry);
+                    if shallow == 0 {
+                        return 0;
+                    }
+                    shallow
+                        + crate::heap_size::vec_bytes(&entry.floats_placed_by_contents)
+                        + crate::heap_size::small_vec_bytes(&entry.floats_read_by_contents.floats_in_reach)
+                })
+                .sum()
+        })
+    }
+
     pub(super) fn fork(&self) -> Self {
         Self {
             entries: self.entries.fork(),

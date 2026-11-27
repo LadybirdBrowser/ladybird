@@ -41,6 +41,7 @@ pub(crate) mod line_builder;
 pub(crate) mod line_clamp_edge;
 pub(crate) mod math_formatting_context;
 mod memo_invalidations;
+pub(crate) mod memory_report;
 pub mod node_data;
 pub(crate) mod node_facts;
 mod parallel_layout;

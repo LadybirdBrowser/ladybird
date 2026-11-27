@@ -609,6 +609,29 @@ pub(crate) struct FcRunCacheStore {
 }
 
 impl FcRunCacheStore {
+    /// The bytes of the slots and of the entries they hold, with each entry handed to `entry` for what it holds.
+    pub(crate) fn heap_size(
+        &self,
+        sizer: &mut crate::heap_size::HeapSizer,
+        mut entry: impl FnMut(&FcRunCacheEntry, &mut crate::heap_size::HeapSizer),
+    ) -> usize {
+        self.slots.heap_size(|slot| {
+            let mut bytes = crate::heap_size::small_vec_bytes(&slot.earlier);
+            for held in [&slot.latest, &slot.committed]
+                .into_iter()
+                .flatten()
+                .chain(&slot.earlier)
+            {
+                let first = sizer.arc_shallow(held);
+                if first != 0 {
+                    entry(held, sizer);
+                }
+                bytes += first;
+            }
+            bytes
+        }) + self.inline_layout_damage.row_bytes()
+    }
+
     pub(super) fn fork(&self) -> Self {
         Self {
             slots: self.slots.fork(),

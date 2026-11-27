@@ -509,6 +509,64 @@ impl CommittedFragmentLinkSlot {
 }
 
 impl PaintableRowStore {
+    /// Counts the columns of the paintable rows, and what the committed links reach.
+    pub(crate) fn report_memory(&self, report: &mut crate::layout::memory_report::LayoutMemoryReport) {
+        use crate::layout::memory_report::LayoutMemoryOwner;
+        let mut links = Vec::new();
+        let committed_links = self.committed_fragment_links.heap_size(&mut report.sizer, |slot, _| {
+            links.extend(slot.link.as_ref().map(|link| link.fragment.clone()));
+            0
+        });
+        report.add(LayoutMemoryOwner::CommittedLinks, committed_links);
+        for fragment in &links {
+            report.add_fragment_tree(fragment);
+        }
+        let mut contents = Vec::new();
+        let rows = self.rows.heap_size(&mut report.sizer, |_, _| 0)
+            + self.ink_overflow.heap_size(&mut report.sizer, |_, _| 0)
+            + self.ink_overflow_dirty.row_bytes()
+            + self.side_data.heap_size(&mut report.sizer, |_, _| 0)
+            + self.committed_side_data.heap_size(&mut report.sizer, |row, _| {
+                contents.extend(row.inline_content.clone());
+                0
+            })
+            + self.paint_change_stamps.heap_size(&mut report.sizer, |_, _| 0)
+            + self.stacking_context_entries.heap_size(&mut report.sizer, |_, _| 0)
+            + self.unique_node_ids.ids.row_bytes()
+            + crate::heap_size::vec_bytes(&self.ink_overflow_requests)
+            + crate::heap_size::vec_bytes(&self.stacking_context_roots_flagged_for_resort)
+            + crate::heap_size::vec_bytes(&self.line_roots_needing_fragment_ownership);
+        report.add(LayoutMemoryOwner::PaintableRows, rows);
+        for content in &contents {
+            report.add_inline_content(content);
+        }
+        let visual_contexts = self
+            .visual_context_records
+            .heap_size(&mut report.sizer, |record, sizer| {
+                record.as_ref().map_or(0, |record| {
+                    size_of::<HeldVisualContextRecord>()
+                        + sizer.arc_shallow(&record.inherited_input)
+                        + sizer.arc_shallow(&record.output_for_descendants)
+                })
+            })
+            + self
+                .visual_context_node_handles
+                .heap_size(&mut report.sizer, |handles, sizer| {
+                    handles.as_ref().map_or(0, |handles| {
+                        let shallow = sizer.arc_shallow(handles);
+                        if shallow == 0 {
+                            return 0;
+                        }
+                        shallow
+                            + crate::heap_size::vec_bytes(&handles.spatial)
+                            + crate::heap_size::vec_bytes(&handles.chain_clips)
+                            + crate::heap_size::vec_bytes(&handles.descendant_clips)
+                            + crate::heap_size::vec_bytes(&handles.effects)
+                    })
+                });
+        report.add(LayoutMemoryOwner::VisualContexts, visual_contexts);
+    }
+
     pub(crate) fn with_current_committed_fragment_link<R>(
         &self,
         layout_slot_index: u32,
