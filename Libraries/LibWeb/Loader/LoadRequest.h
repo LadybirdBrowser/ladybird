@@ -84,6 +84,9 @@ public:
     GC::Ptr<Page> page() const { return m_page.ptr(); }
     void set_page(Page& page) { m_page = page; }
 
+    Optional<PageId> originating_page_id() const { return m_originating_page_id; }
+    void set_originating_page_id(Optional<PageId> page_id) { m_originating_page_id = page_id; }
+
     HTTP::HeaderList const& headers() const { return m_headers; }
 
 private:
@@ -93,6 +96,7 @@ private:
     ByteBuffer m_body;
     Core::ElapsedTimer m_load_timer;
     GC::Root<Page> m_page;
+    Optional<PageId> m_originating_page_id;
     HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
     Optional<Fetch::Infrastructure::Request::InitiatorType> m_initiator_type;

@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/Loader/LoaderConfigSnapshot.h>
+#include <LibWebCommon/Page/PageId.h>
 
 namespace Web::Fetch::Engine {
 
@@ -82,6 +83,11 @@ public:
     [[nodiscard]] bool is_cors_preflight() const { return m_is_cors_preflight; }
     void set_is_cors_preflight() { m_is_cors_preflight = true; }
 
+    // The page of the realm that started the fetch, which its network requests are made for, if it has a top-level
+    // traversable.
+    [[nodiscard]] Optional<PageId> originating_page_id() const { return m_originating_page_id; }
+    void set_originating_page_id(Optional<PageId> page_id) { m_originating_page_id = page_id; }
+
     // The transport of the response body these fetch params receive, which the fetch's engine record keeps.
     void set_body_transport(Engine::FetchBodyDeliveryGate::Transport&) const;
     // Stops that transport, if there is one, without ending the fetch.
@@ -133,6 +139,8 @@ private:
     mutable RefPtr<Engine::FetchEngineRecord> m_engine_record;
 
     bool m_is_cors_preflight { false };
+
+    Optional<PageId> m_originating_page_id;
 };
 
 }
