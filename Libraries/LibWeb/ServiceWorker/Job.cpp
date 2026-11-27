@@ -484,12 +484,12 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         event_loop.spin_until(GC::create_function(GC::Heap::the(), GC::captures(fetch_controller, process_response_completion_result), [](auto& fetch_controller, auto& process_response_completion_result) -> bool {
             if (process_response_completion_result->value.has_value())
                 return true;
-            if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
+            if (fetch_controller->control_block().is_canceled()) {
                 process_response_completion_result->value = WebIDL::AbortError::create("Service Worker fetch was terminated or aborted"_utf16);
                 return true;
             }
             // NB: A stopped fetch's stop steps have completed the script fetch.
-            if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Stopped) {
+            if (fetch_controller->control_block().is_stopped()) {
                 process_response_completion_result->value = WebIDL::ExceptionOr<void> {};
                 return true;
             }

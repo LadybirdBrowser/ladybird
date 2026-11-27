@@ -46,7 +46,7 @@ bool stop_body_delivery(NavigationParams::BodyDelivery const& body_delivery)
     return body_delivery.visit(
         [](Empty) { return false; },
         [](GC::Ref<Fetch::Infrastructure::FetchController> const& fetch_controller) {
-            if (fetch_controller->state() != Fetch::Infrastructure::FetchController::State::Ongoing)
+            if (!fetch_controller->control_block().is_ongoing())
                 return false;
             fetch_controller->stop_fetch();
             return true;
