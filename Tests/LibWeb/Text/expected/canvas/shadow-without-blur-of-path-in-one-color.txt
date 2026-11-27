@@ -1,0 +1,11 @@
+fill: same (50,30)=255,165,0,255 (130,100)=0,0,255,255 (30,100)=0,0,0,0 (150,30)=0,0,0,0
+fill off the canvas: same (100,70)=255,0,0,255 (30,70)=0,0,0,0 (100,20)=0,0,0,0
+shadow with alpha: same (55,60)=0,0,0,128 (100,96)=0,0,0,128
+fill with alpha and global alpha: same
+shadow over content: same
+transform does not move the offset: same
+stroke: same
+dashed stroke with square caps: same
+clip: same (130,105)=0,0,255,255 (144,114)=0,0,0,0
+even-odd fill: same (100,70)=0,0,0,0 (65,50)=0,0,0,255
+offset of a part of a pixel: same
