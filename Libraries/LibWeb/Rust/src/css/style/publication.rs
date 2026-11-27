@@ -26,7 +26,7 @@ pub(crate) struct SubtreeGeneratedContentEffects {
     /// renumber the list it joins.
     pub(crate) increments_or_sets_counters: bool,
     /// An element's own quotes leave the quote depth after it other than they found it: its `::before` and `::after`
-    /// together do, or its `::marker` or its own `content` names a quote. The walk stops once it finds one.
+    /// together do, or its `::marker` or its own `content` names a quote.
     pub(crate) has_element_with_unbalanced_quotes: bool,
 }
 
@@ -438,8 +438,8 @@ impl RetainedState {
                         .then(generated_quote_transfer(after_record))
                         .is_identity()
                 {
+                    // NB: The walk goes on, as the caller asks of the whole subtree whether it moves a counter.
                     effects.has_element_with_unbalanced_quotes = true;
-                    return effects;
                 }
             }
             pending.push(Step::Leave(counters_in_reach_before));
