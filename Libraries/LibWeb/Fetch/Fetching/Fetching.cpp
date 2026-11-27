@@ -392,7 +392,12 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
     controller->set_task_destination(task_destination);
     controller->set_keepalive(request.keepalive());
     // AD-HOC: A fetch's network requests are loaded and reported for the page of the realm that starts it.
-    controller->set_page(Bindings::principal_host_defined_page(realm));
+    auto& page = Bindings::principal_host_defined_page(realm);
+    controller->set_page(page);
+    // NB: Workers have a Page shim without a navigable or a browser page ID. Their requests are attributed through the
+    //     worker's browser-level owners.
+    if (page.has_top_level_traversable())
+        fetch_params->set_originating_page_id(page.client().id());
     fetch_params->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
     fetch_params->set_has_response_body_transfer_lease(create_response_body_transfer_lease == CreateResponseBodyTransferLease::Yes);
 
@@ -3111,6 +3116,7 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
     LoadRequest load_request { move(load_request_headers) };
     load_request.set_url(request->current_url());
     load_request.set_page(fetch_controller_of(fetch_params)->page());
+    load_request.set_originating_page_id(fetch_params.originating_page_id());
     load_request.set_method(request->method());
     load_request.set_cache_mode(request->cache_mode());
     load_request.set_include_credentials(include_credentials);
@@ -3474,6 +3480,7 @@ NonnullRefPtr<PendingResponse> cors_preflight_fetch(Infrastructure::FetchParams 
     VERIFY(fetch_params.engine_record());
     preflight_fetch_params->set_engine_record(*fetch_params.engine_record());
     preflight_fetch_params->set_is_cors_preflight();
+    preflight_fetch_params->set_originating_page_id(fetch_params.originating_page_id());
 
     auto returned_pending_response = PendingResponse::create(fetch_params);
 

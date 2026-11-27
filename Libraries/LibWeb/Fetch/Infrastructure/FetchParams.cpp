@@ -35,6 +35,7 @@ FetchParams::FetchParams(FetchParams const& params)
     , m_loader_config(params.m_loader_config)
     , m_engine_record(params.m_engine_record)
     , m_is_cors_preflight(params.m_is_cors_preflight)
+    , m_originating_page_id(params.m_originating_page_id)
 {
 }
 
