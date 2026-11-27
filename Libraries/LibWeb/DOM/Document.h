@@ -83,6 +83,7 @@
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/RegistrableDomainSuffix.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/UserNavigationInvolvement.h>
 #include <LibWebCommon/HTML/VisibilityState.h>
@@ -2694,8 +2695,5 @@ private:
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-ancestor-origins-list
     GC::Ptr<HTML::DOMStringList> m_ancestor_origins_list;
 };
-
-bool is_a_registrable_domain_suffix_of_or_is_equal_to(Utf16View host_suffix_string, URL::Host const& original_host);
-bool is_a_registrable_domain_suffix_of_or_is_equal_to(URL::Host const& host_suffix, URL::Host const& original_host);
 
 }
