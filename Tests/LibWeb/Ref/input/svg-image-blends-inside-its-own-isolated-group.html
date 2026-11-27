@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-image-blends-inside-its-own-isolated-group-ref.html" />
+<style>
+    body {
+        background: #112233;
+    }
+    img, div {
+        display: block;
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+    }
+    div {
+        background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect style='mix-blend-mode:multiply' fill='%23df7126' width='100' height='100'/></svg>");
+    }
+</style>
+<img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect style='mix-blend-mode:multiply' fill='%23df7126' width='100' height='100'/></svg>">
+<div></div>

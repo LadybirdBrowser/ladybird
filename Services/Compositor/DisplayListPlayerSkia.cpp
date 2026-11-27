@@ -1469,7 +1469,7 @@ void DisplayListPlayerSkia::end_isolated_group()
 // NB: Use this path from the first paint. Direct replay and a cached raster can produce different pixels,
 //     especially when a screenshot targets a CPU bitmap while the cached raster is rendered on the GPU.
 //     The number of previous paints must not change how the image is rendered.
-// Images with destination-reading blends or live content, or under rotated/skewed/mirrored transforms,
+// Images with live content, or under rotated/skewed/mirrored transforms,
 // replay directly. Near-integer placements at the raster's resolution avoid filtering; other placements resample.
 RustFFI::VectorImageReplay DisplayListPlayerSkia::begin_vector_image(RustFFI::VectorImagePlacement const& command, bool requires_direct_replay)
 {
