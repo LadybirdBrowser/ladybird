@@ -99,6 +99,7 @@ impl<'a> Utf16View<'a> {
         }
     }
 
+    #[inline]
     pub fn substring_view(self, code_unit_offset: usize, code_unit_length: usize) -> Self {
         let range = code_unit_offset..code_unit_offset + code_unit_length;
         match self {
