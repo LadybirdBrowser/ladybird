@@ -32,6 +32,8 @@ enum class PolicyControlledFeature : u8 {
     Geolocation,
     Microphone,
     PictureInPicture,
+    PublickeyCredentialsCreate,
+    PublickeyCredentialsGet,
     WindowManagement,
 };
 
