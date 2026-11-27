@@ -70,13 +70,10 @@ unsafe impl Trace for Realm {
             .array_prototypes_without_is_concat_spreadable
             .trace(visitor);
         self.storage.string_objects_convert_to_their_string_data.trace(visitor);
-        // NB: JIT code reads the sets through these fields, so they are visited as slots, which a collection that
-        //     moves the sets rewrites.
-        // SAFETY: Only the runtime writes the fields, when it watches the array iterator methods of the realm anew.
-        unsafe {
-            visitor.visit_owned_cell_option(&self.array_iterator_next_watchpoint_set);
-            visitor.visit_owned_cell_option(&self.array_iterator_return_watchpoint_set);
-        }
+        // NB: JIT code reads the sets through these fields, so they are visited in place, where a collection that
+        //     moves the sets rewrites them.
+        self.array_iterator_next_watchpoint_set.trace(visitor);
+        self.array_iterator_return_watchpoint_set.trace(visitor);
     }
 }
 

@@ -1134,9 +1134,8 @@ define_cell!(TemplateObjectCache, Other);
 // SAFETY: Visits the template object, the only cell a cache reaches.
 unsafe impl Trace for TemplateObjectCache {
     fn trace(&self, visitor: &mut Visitor) {
-        // NB: The template object is visited as a slot, so that a collection that moves it rewrites it here.
-        // SAFETY: The slot is in the cache's own cell, which only the interpreter writes, and never in a collection.
-        unsafe { visitor.visit_owned_option(&*self.cached_template_object.as_ptr()) };
+        // NB: The template object is visited in place, so that a collection that moves it rewrites it here.
+        self.cached_template_object.trace(visitor);
     }
 }
 
