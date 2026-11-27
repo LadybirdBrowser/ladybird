@@ -3945,9 +3945,16 @@ Layout::Node const* Node::layout_node(Layout::BegunRead const& read) const
 {
     auto const* layout_node = unsafe_layout_node(read);
     // Where only the render state knows whether layout is up to date, asking would make every read of a layout node
-    // wait for it, so only layout the host knows is stale is caught here.
-    if (layout_node)
-        VERIFY(!document().layout_is_known_stale());
+    // wait for it, so only layout the host knows is stale is caught here. Each way the host knows it has an assertion
+    // of its own, so that a failure says which one it was.
+    if (layout_node) {
+        auto staleness = document().known_layout_staleness();
+        VERIFY(staleness != KnownLayoutStaleness::FlownStyleUpdate);
+        VERIFY(staleness != KnownLayoutStaleness::NoLayoutNodeArena);
+        VERIFY(staleness != KnownLayoutStaleness::FrameInFlight);
+        VERIFY(staleness != KnownLayoutStaleness::LayoutOutOfDate);
+        VERIFY(staleness != KnownLayoutStaleness::LayoutTreeNeedsBuild);
+    }
     return layout_node;
 }
 

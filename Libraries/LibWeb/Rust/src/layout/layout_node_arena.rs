@@ -6901,14 +6901,33 @@ pub extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost) -> bool
     host.ask(here, |state| state.arena_mut().layout_is_up_to_date(false))
 }
 
-/// Whether the host knows, without asking, that the layout of `host`'s document is not up to date: a frame brings
-/// layout it waits for, or what it knows of the render state says so.
+/// What the host knows, without asking, keeps the layout of a document from being up to date.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FfiKnownLayoutStaleness {
+    /// Nothing the host knows of: only the render state can tell whether layout is up to date.
+    NoneKnown,
+    /// A frame is still being rendered off the main thread, or a layout round rendered with it isn't taken in yet.
+    FrameInFlight,
+    /// The render state's layout is out of date.
+    LayoutOutOfDate,
+    /// The layout tree's update marks ask for a build.
+    TreeNeedsBuild,
+}
+
+/// What the host knows, without asking, keeps the layout of `host`'s document from being up to date, if anything.
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_layout_is_known_stale(host: &DocumentHost) -> bool {
+pub extern "C" fn render_state_known_layout_staleness(host: &DocumentHost) -> FfiKnownLayoutStaleness {
     let Some(here) = host.layout_waits_for_no_frame() else {
-        return true;
+        return FfiKnownLayoutStaleness::FrameInFlight;
     };
-    known_layout_is_up_to_date(host, &here) == Some(false)
+    match known_layout_is_up_to_date(host, &here) {
+        Some(false) if host.known_layout_up_to_date_unless_built() == Some(true) => {
+            FfiKnownLayoutStaleness::TreeNeedsBuild
+        }
+        Some(false) => FfiKnownLayoutStaleness::LayoutOutOfDate,
+        _ => FfiKnownLayoutStaleness::NoneKnown,
+    }
 }
 
 /// Refreshes the text content and replaced-content facts of every node enrolled since the last
