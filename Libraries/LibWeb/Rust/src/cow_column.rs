@@ -12,10 +12,13 @@
 //! costs one reference count however large the rows are, and so does dropping it. A write copies
 //! the spine, the row's group and the row's chunk only where a snapshot still shares them, so the
 //! cost of a generation follows the chunks written after it was published rather than the size of
-//! the column. Neither is deep-copied: a snapshot's clone shares its spine, and so does a column's
-//! clone, its fork. Publishing and forking take the same time however many rows the column holds:
-//! nothing in them walks the chunks. Both are `Send` and `Sync` when the row type is: the column is
-//! written through `&mut`, and a snapshot never changes.
+//! the column. A chunk no row of which was written is not stored: every such chunk of a column is
+//! the one chunk of defaults the column keeps, which a write copies as it copies a chunk a snapshot
+//! shares, and which [`CowColumn::release_chunk_if_default`] puts back in the place of a chunk whose
+//! rows all went back to the default. Neither is deep-copied: a snapshot's clone shares its spine,
+//! and so does a column's clone, its fork. Publishing and forking take the same time however many
+//! rows the column holds: nothing in them walks the chunks. Both are `Send` and `Sync` when the row
+//! type is: the column is written through `&mut`, and a snapshot never changes.
 //!
 //! A column is written only through [`CowColumn::set`] and [`RowMut`], and both compare the row
 //! they write with the row a snapshot shares before copying the chunk. So a write that leaves a row
@@ -65,6 +68,9 @@ pub(crate) fn new_edit_token() -> u64 {
     NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
+/// The owner of a chunk no column made its own, which is no column's edit token.
+const NO_OWNER: u64 = 0;
+
 type Spine<T, const CHUNK: usize> = Arc<[Arc<Group<T, CHUNK>>]>;
 
 #[inline]
@@ -97,6 +103,9 @@ pub(crate) struct CowColumn<T, const CHUNK: usize> {
     edit_token: AtomicU64,
     /// Advanced as the column is written. See [`Self::version`].
     version: u64,
+    /// The chunk that stands in every place whose rows are all the default, once the column holds such a place. The
+    /// column's reference keeps it shared, so a write there copies it.
+    default_chunk: Option<Arc<Chunk<T, CHUNK>>>,
 }
 
 // SAFETY: `chunks` points only into what `spine` holds, and the column hands out its rows only through `&self` and
@@ -118,6 +127,7 @@ impl<T, const CHUNK: usize> Default for CowColumn<T, CHUNK> {
             chunks: Vec::new(),
             edit_token: AtomicU64::new(new_edit_token()),
             version: 0,
+            default_chunk: None,
         }
     }
 }
@@ -263,23 +273,44 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
     /// shrinks: rows are reset in place instead.
     pub(crate) fn grow_to(&mut self, len: usize) {
         let () = Self::CHUNK_IS_NOT_EMPTY;
-        let edit_token = *self.edit_token.get_mut();
         while self.chunk_count * CHUNK < len {
             let chunk_index = self.chunk_count;
             if chunk_index.is_multiple_of(GROUP) {
                 let group = Arc::new(Group::new());
                 self.spine = self.spine.iter().cloned().chain([group]).collect();
             }
-            let chunk = Arc::new(Chunk(std::array::from_fn(|_| T::default())));
+            // OPTIMIZATION: The rows are the default until one is written, so the chunk is the one every such place
+            //               shares, and a column most of whose rows stay the default stores few chunks.
+            let chunk = self.default_chunk();
             if self.chunks.len() == chunk_index {
                 self.chunks.push(Arc::as_ptr(&chunk));
             }
             let group = group_mut(&mut self.spine, chunk_index);
             group.chunks[chunk_index % GROUP] = Some(chunk);
-            group.owners[chunk_index % GROUP] = edit_token;
+            group.owners[chunk_index % GROUP] = NO_OWNER;
             self.chunk_count += 1;
             self.version += 1;
         }
+    }
+
+    fn default_chunk(&mut self) -> Arc<Chunk<T, CHUNK>> {
+        self.default_chunk
+            .get_or_insert_with(|| Arc::new(Chunk(std::array::from_fn(|_| T::default()))))
+            .clone()
+    }
+
+    /// How many chunks the column stores for its rows, the chunk of defaults aside.
+    #[cfg(test)]
+    fn stored_chunk_count(&self) -> usize {
+        (0..self.chunk_count)
+            .filter(|&chunk_index| {
+                let chunk = chunk_of(&self.spine, chunk_index).expect("the column holds the chunk");
+                !self
+                    .default_chunk
+                    .as_ref()
+                    .is_some_and(|default| Arc::ptr_eq(default, chunk))
+            })
+            .count()
     }
 
     /// How many rows the column holds: whole chunks, the rows it was never asked for reading as the default.
@@ -314,6 +345,7 @@ impl<T: Clone + Default, const CHUNK: usize> Clone for CowColumn<T, CHUNK> {
             chunks: Vec::new(),
             edit_token: AtomicU64::new(new_edit_token()),
             version: self.version,
+            default_chunk: self.default_chunk.clone(),
         }
     }
 }
@@ -338,6 +370,34 @@ impl<T: Clone + Default + PartialEq, const CHUNK: usize> CowColumn<T, CHUNK> {
             return Some(std::mem::replace(self.owned_row(index)?, value));
         }
         Some(value)
+    }
+
+    /// Stops storing the chunk at `chunk_index` if every row of it is the default, which the rows go on reading as.
+    /// The rows of a column whose owner freed them all are, and the column would otherwise store them for as long as
+    /// it lives: it never shrinks.
+    pub(crate) fn release_chunk_if_default(&mut self, chunk_index: usize) {
+        if chunk_index >= self.chunk_count {
+            return;
+        }
+        let chunk = chunk_of(&self.spine, chunk_index).expect("the column holds the chunk");
+        if self
+            .default_chunk
+            .as_ref()
+            .is_some_and(|default| Arc::ptr_eq(default, chunk))
+        {
+            return;
+        }
+        let default = T::default();
+        if chunk.0.iter().any(|row| *row != default) {
+            return;
+        }
+        let chunk = self.default_chunk();
+        if let Some(entry) = self.chunks.get_mut(chunk_index) {
+            *entry = Arc::as_ptr(&chunk);
+        }
+        let group = group_mut(&mut self.spine, chunk_index);
+        group.chunks[chunk_index % GROUP] = Some(chunk);
+        group.owners[chunk_index % GROUP] = NO_OWNER;
     }
 
     /// The row at `index`, for writing. See [`RowMut`].
@@ -658,6 +718,39 @@ mod tests {
 
     fn chunk(spine: &Spine<u32, 4>, chunk_index: usize) -> &Arc<Chunk<u32, 4>> {
         chunk_of(spine, chunk_index).unwrap()
+    }
+
+    #[test]
+    fn a_column_stores_no_chunk_for_rows_that_are_all_the_default() {
+        let mut column = Column::default();
+        column.grow_to(12);
+        assert_eq!(column.stored_chunk_count(), 0);
+        set(&mut column, 5, 0);
+        assert_eq!(
+            column.stored_chunk_count(),
+            0,
+            "a write that changes nothing stores nothing"
+        );
+        set(&mut column, 5, 7);
+        assert_eq!(column.stored_chunk_count(), 1);
+        let snapshot = column.publish();
+
+        column.release_chunk_if_default(1);
+        assert_eq!(
+            column.stored_chunk_count(),
+            1,
+            "a chunk with a row that is not the default stays"
+        );
+        set(&mut column, 5, 0);
+        column.release_chunk_if_default(1);
+        assert_eq!(column.stored_chunk_count(), 0);
+        assert_eq!(rows(&column.publish(), 12), [0; 12]);
+        assert_eq!(rows(&snapshot, 8), [0, 0, 0, 0, 0, 7, 0, 0]);
+
+        set(&mut column, 6, 9);
+        set(&mut column, 9, 3);
+        assert_eq!(column.stored_chunk_count(), 2);
+        assert_eq!(rows(&column.publish(), 12), [0, 0, 0, 0, 0, 0, 9, 0, 0, 3, 0, 0]);
     }
 
     #[test]

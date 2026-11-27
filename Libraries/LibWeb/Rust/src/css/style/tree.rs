@@ -1309,6 +1309,10 @@ mod tests {
     fn a_fork_writing_one_text_link_copies_one_chunk_of_links() {
         let mut tree = HostTree::new();
         let texts: Vec<StyleNodeID> = (0..8 * TEXT_LINKS_PER_CHUNK).map(|_| tree.allocate_text()).collect();
+        // NB: The column stores a chunk only once a row of it is written.
+        for &text in &texts {
+            tree.set_next_sibling(text, Some(texts[0]));
+        }
         let mut fork = tree.clone();
         let mut sizer = crate::heap_size::HeapSizer::default();
         let whole = tree.text.links.heap_size(&mut sizer, |_, _| 0);
@@ -1317,7 +1321,7 @@ mod tests {
         let copied = fork.text.links.heap_size(&mut sizer, |_, _| 0);
         assert!(copied < 3 * TEXT_LINKS_PER_CHUNK * size_of::<TextLinks>());
         assert_eq!(fork.next_sibling_in_dom_order(texts[70]), Some(texts[71]));
-        assert_eq!(tree.next_sibling_in_dom_order(texts[70]), None);
+        assert_eq!(tree.next_sibling_in_dom_order(texts[70]), Some(texts[0]));
     }
 
     #[test]

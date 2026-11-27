@@ -509,6 +509,22 @@ impl CommittedFragmentLinkSlot {
 }
 
 impl PaintableRowStore {
+    /// Lets the columns stop storing the rows of the `count` slots from `first_slot`, in each column where they are
+    /// all the default, as the rows of freed slots are. Both are multiples of the columns' chunk size.
+    pub(crate) fn stop_storing_default_rows(&mut self, first_slot: usize, count: usize) {
+        let first = first_slot / PAINTABLE_SLOTS_PER_CHUNK;
+        for chunk in first..first + count / PAINTABLE_SLOTS_PER_CHUNK {
+            self.rows.release_chunk_if_default(chunk);
+            self.ink_overflow.release_chunk_if_default(chunk);
+            self.committed_side_data.release_chunk_if_default(chunk);
+            self.paint_change_stamps.release_chunk_if_default(chunk);
+            self.visual_context_records.release_chunk_if_default(chunk);
+            self.visual_context_node_handles.release_chunk_if_default(chunk);
+            self.stacking_context_entries.release_chunk_if_default(chunk);
+            self.committed_fragment_links.release_chunk_if_default(chunk);
+        }
+    }
+
     /// Counts the columns of the paintable rows, and what the committed links reach.
     pub(crate) fn report_memory(&self, report: &mut crate::layout::memory_report::LayoutMemoryReport) {
         use crate::layout::memory_report::LayoutMemoryOwner;
