@@ -177,14 +177,12 @@ def interface_prototype_has_immutable_prototype(interface: Interface) -> bool:
 # NB: The host class name is the internal class name that LibJS prints in errors, such as "[object Node] is not a
 #     constructor".
 def interface_prototype_host_class(interface: Interface) -> str:
-    flags = "JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT"
-    if interface_prototype_has_immutable_prototype(interface):
-        flags += " | JS_HOST_CLASS_IMMUTABLE_PROTOTYPE"
+    flags = "JS_HOST_CLASS_IMMUTABLE_PROTOTYPE" if interface_prototype_has_immutable_prototype(interface) else "0"
     return f'JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv, &interface_prototype_object_parent_host_class, nullptr, &metadata, {flags})'
 
 
 def interface_constructor_host_class(name: str, metadata_variable: str) -> str:
-    return f'JS::make_host_class(JS_HOST_CLASS_FUNCTION, "{name}"sv, &interface_constructor_parent_host_class, &interface_constructor_hooks, &{metadata_variable}, JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT | JS_HOST_CLASS_HAS_CONSTRUCTOR)'
+    return f'JS::make_host_class(JS_HOST_CLASS_FUNCTION, "{name}"sv, &interface_constructor_parent_host_class, &interface_constructor_hooks, &{metadata_variable}, JS_HOST_CLASS_HAS_CONSTRUCTOR)'
 
 
 def lookup_legacy_constructor(interface: Interface) -> Optional[LegacyConstructor]:

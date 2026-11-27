@@ -280,8 +280,7 @@ unsafe fn host_module_from_abi<'a>(module: *mut JSModule) -> &'a HostModule {
 /// named `filename`, which module loading resolves its imports against. It copies the `requested_module_count`
 /// module requests of `requested_modules`, its [[RequestedModules]]. `host_defined` is its [[HostDefined]] and
 /// `host_data` the embedder's cell for its own state, each a cell of the VM's heap or null, which the module keeps
-/// alive. Each host class gets a cell allocator of its own unless it has JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT.
-/// Returns an unrooted module. Main thread only.
+/// alive. Returns an unrooted module. Main thread only.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_host_module_create(
     vm: *mut JSVM,
