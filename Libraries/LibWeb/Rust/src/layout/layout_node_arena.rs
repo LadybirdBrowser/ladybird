@@ -3205,17 +3205,7 @@ impl LayoutNodeArena {
     /// paint facts also follow their element's own state, such as a form control's or a media element's, are owed
     /// them on every visit.
     pub(crate) fn owe_style_image_resources_once(&mut self, id: NodeSlotId) -> bool {
-        // NB: These are the kinds whose paint facts push_paint_facts_after_style_attach() in Painting/PaintFacts.cpp
-        //     takes from their element, and the two must stay in sync.
-        if matches!(
-            self.data(id).kind.get(),
-            NodeKind::CheckBox
-                | NodeKind::RadioButton
-                | NodeKind::CanvasBox
-                | NodeKind::ImageBox
-                | NodeKind::SVGImageBox
-                | NodeKind::VideoBox
-        ) {
+        if super::node_facts::kind_takes_paint_facts_from_element(self.data(id).kind.get()) {
             return true;
         }
         let index = id.slot_index() as usize;

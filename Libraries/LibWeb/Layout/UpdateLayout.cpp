@@ -14,10 +14,12 @@
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
@@ -109,6 +111,10 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             auto& document = *static_cast<Document*>(context);
             if (Layout::attach_owed_generated_image(*read, document, slot, element_style_node, pseudo_element, image, images))
                 document.m_owed_image_provider_arrived_with_image = true; },
+        .node_has_image_map = [](void* context, Layout::BegunRead const*, u32 style_node) {
+            auto& document = *static_cast<Document*>(context);
+            auto* image_element = as_if<HTML::HTMLImageElement>(DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { style_node }).resolve(document).ptr());
+            return image_element && image_element->associated_map_element(); },
     };
 }
 

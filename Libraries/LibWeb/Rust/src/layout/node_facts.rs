@@ -829,6 +829,22 @@ pub(crate) fn kind_is_non_devolvable_widget(kind: NodeKind) -> bool {
     matches!(kind, NodeKind::CheckBox | NodeKind::RadioButton)
 }
 
+/// Whether the paint facts of a box of `kind` also follow its element's own state, such as a form control's or a media
+/// element's, beside its style.
+pub(crate) fn kind_takes_paint_facts_from_element(kind: NodeKind) -> bool {
+    // NB: These are the kinds whose paint facts push_paint_facts_after_style_attach() in Painting/PaintFacts.cpp takes
+    //     from their element, and the two must stay in sync.
+    matches!(
+        kind,
+        NodeKind::CheckBox
+            | NodeKind::RadioButton
+            | NodeKind::CanvasBox
+            | NodeKind::ImageBox
+            | NodeKind::SVGImageBox
+            | NodeKind::VideoBox
+    )
+}
+
 #[inline]
 pub(crate) fn kind_is_replaced_box(kind: NodeKind) -> bool {
     matches!(
