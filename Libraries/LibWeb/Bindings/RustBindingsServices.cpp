@@ -105,6 +105,7 @@ void web_bindings_push_element_queue();
 void web_bindings_pop_element_queue_and_invoke_reactions();
 bool web_bindings_realm_is_window(void* realm);
 bool web_bindings_realm_is_secure_context(void* realm);
+bool web_bindings_realm_exposes_experimental_member(void* realm, ReadonlyBytes name);
 void web_bindings_report_an_exception(void* realm, JSValue exception);
 HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
 void web_bindings_for_each_active_window(void* ctx, void (*on_window)(void*, HTML::Window*));
@@ -196,6 +197,12 @@ void* web_css_realm_document(void* realm)
 bool web_bindings_realm_is_secure_context(void* realm)
 {
     return HTML::is_secure_context(principal_host_defined_environment_settings_object(*static_cast<JS::Realm*>(realm)));
+}
+
+bool web_bindings_realm_exposes_experimental_member(void* realm, ReadonlyBytes name)
+{
+    auto& settings = principal_host_defined_environment_settings_object(*static_cast<JS::Realm*>(realm));
+    return HTML::WindowOrWorkerGlobalScopeMixin::expose_experimental_interface(settings, StringView { name });
 }
 
 void web_bindings_report_an_exception(void* realm, JSValue exception)

@@ -33,9 +33,9 @@ use crate::bindings::conversions::implements_cpp_interface;
 use crate::bindings::realm_data::wrapper_world_of;
 use crate::bindings::services::{
     web_bindings_define_unforgeable_attributes, web_bindings_ensure_web_constructor, web_bindings_ensure_web_prototype,
-    web_bindings_perform_a_security_check, web_bindings_realm_is_secure_context, web_bindings_realm_is_window,
-    web_bindings_report_an_exception, web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper,
-    web_bindings_with_temporary_execution_context,
+    web_bindings_perform_a_security_check, web_bindings_realm_exposes_experimental_member,
+    web_bindings_realm_is_secure_context, web_bindings_realm_is_window, web_bindings_report_an_exception,
+    web_bindings_rust_wrapper_for, web_bindings_set_rust_wrapper, web_bindings_with_temporary_execution_context,
 };
 
 /// What an implementation can tell the bindings about its objects, as a C++ implementation object does by overriding
@@ -546,6 +546,12 @@ pub(crate) fn realm_is_window(realm: Gc<Realm>) -> bool {
 pub(crate) fn realm_is_secure_context(realm: Gc<Realm>) -> bool {
     // SAFETY: The realm is live.
     unsafe { web_bindings_realm_is_secure_context(realm.as_ptr().cast()) }
+}
+
+/// Whether the realm exposes the [Experimental] member with the name, "Interface.member".
+pub(crate) fn realm_exposes_experimental_member(realm: Gc<Realm>, name: &str) -> bool {
+    // SAFETY: The realm is live, and the name is lent for the call.
+    unsafe { web_bindings_realm_exposes_experimental_member(realm.as_ptr().cast(), ak::Span::new(name.as_bytes())) }
 }
 
 /// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
