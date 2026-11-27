@@ -27,7 +27,11 @@ PASS: insert an inline-block and remove the box before it
 PASS: insert an inline-block and restyle its neighbor
 PASS: insert an incrementing inline-block before a counter user
 PASS: insert an inline-block between counter users
+PASS: insert a subtree that increments a counter an ancestor in it reset before a counter user
+PASS: insert a subtree that increments a counter a sibling in it reset before a counter user
+PASS: insert a subtree that increments a counter before it resets it before a counter user
+PASS: insert a subtree that increments a counter a nested element reset before a counter user
 PASS: insert an opening quote between inline-blocks
 PASS: insert an inline-block under a first-letter
 PASS: insert an inline-block into a list in a first-letter block
-32 cases; 32 matched; 0 mismatched
+36 cases; 36 matched; 0 mismatched
