@@ -12,7 +12,7 @@ use super::commit::{CommitNotifications, FfiCommitMessageKind};
 use super::formatting_context::{FfiLayoutHostCallbacks, LayoutStageFacts, lay_out_boundary, lay_out_root};
 use super::layout_changes::LayoutChange;
 use super::layout_node_arena::{OwedImageResources, sync_enrolled_content_for_layout};
-use super::node_data::NodeSlotId;
+use super::node_data::{NodeFlag, NodeSlotId};
 use super::node_facts;
 use super::partial_relayout::FfiPartialRelayoutHostFacts;
 use super::tree_builder::{FfiGeneratedImage, FfiPseudoElement, TreeBuildAnswer, TreeBuildJob};
@@ -112,6 +112,9 @@ pub struct FfiLayoutUpdateHostCallbacks {
         FfiGeneratedImage,
         FfiStyleImageFacts,
     ),
+    /// Whether the node the StyleNodeID names is an image element with an image map, whose box takes the map's areas
+    /// as it attaches its style resources.
+    node_has_image_map: extern "C" fn(*mut c_void, &BegunRead, u32) -> bool,
 }
 
 /// What the loop needs to know about the document at one point in time. Every host call can
@@ -235,6 +238,38 @@ impl FfiLayoutUpdateHostCallbacks {
         (self.record_stabilization_bound_failure)(self.context, read)
     }
 
+    /// Whether attaching the style resources of `row`, whose style holds what `images` says, would do nothing: its
+    /// style holds no image, its kind takes no paint facts from its element, it has no layout node that could hold
+    /// what an earlier style asked for, and its element has no image map.
+    ///
+    /// OPTIMIZATION: Attaching makes the row's layout node, and that is all it does for almost every box of a
+    ///               document. A row keeps doing without one until something asks for it.
+    fn style_owes_box_nothing(
+        &self,
+        host: &DocumentHost,
+        read: &BegunRead,
+        identities: &super::row_reads::RowIdentities,
+        row: NodeSlotId,
+        images: FfiStyleImageFacts,
+    ) -> bool {
+        if images.holds_image_values || host.host_tables().shells.borrow().contains_key(&row) {
+            return false;
+        }
+        let takes_paint_facts_from_element = identities
+            .shell_facts(row)
+            .is_none_or(|facts| node_facts::kind_takes_paint_facts_from_element(facts.kind));
+        if takes_paint_facts_from_element {
+            return false;
+        }
+        // What another record holds says nothing of the one the row has now.
+        if host.row_styles_of(row, read).style_record(row) != images.style_record {
+            return false;
+        }
+        let is_anonymous = identities.identity_flags(row) & NodeFlag::Anonymous as u32 != 0;
+        let node = identities.style_node(row).filter(|_| !is_anonymous);
+        !node.is_some_and(|node| (self.node_has_image_map)(self.context, read, node.raw()))
+    }
+
     /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
     /// in the order the builds came to owe them. Until now a box that owns its image's provider
     /// had no image; one handed a provider whose image is already there lays out again.
@@ -255,7 +290,14 @@ impl FfiLayoutUpdateHostCallbacks {
             match owed {
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image,
-                } => (self.attach_style_resources)(self.context, read, row, owns_content_replacement_image, images),
+                } => {
+                    if !owns_content_replacement_image
+                        && self.style_owes_box_nothing(host, read, &identities, row, images)
+                    {
+                        continue;
+                    }
+                    (self.attach_style_resources)(self.context, read, row, owns_content_replacement_image, images);
+                }
                 OwedImageResources::GeneratedImage {
                     generator,
                     pseudo_element,
