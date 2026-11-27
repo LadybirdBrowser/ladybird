@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Window and Frame - shared mode
+Pass	Window and Frame - exclusive mode
+Pass	Frame and Frame - exclusive mode
+Pass	Terminated Frame with held lock
+Pass	Navigated Frame with held lock
+Pass	Navigated Frame with pending request
+Pass	Removed Frame with pending request
+Pass	Removed Frame as lock is granted

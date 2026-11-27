@@ -99,6 +99,14 @@ pub(crate) fn current_settings_object(vm: &Vm) -> CppEnvironmentSettingsObject {
 }
 
 impl CppEnvironmentSettingsObject {
+    /// # Safety
+    ///
+    /// `environment` must be a live environment settings object.
+    pub(crate) unsafe fn from_raw(environment: *mut c_void) -> Self {
+        // SAFETY: The caller passes a live environment settings object.
+        Self(unsafe { CppCell::from_raw(environment) })
+    }
+
     pub(crate) fn as_ptr(&self) -> *mut c_void {
         self.0.as_ptr()
     }

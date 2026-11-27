@@ -5,6 +5,8 @@
  */
 
 pub(crate) mod abstract_operations;
+pub(crate) mod agent;
 pub(crate) mod lock;
 pub(crate) mod lock_manager;
 pub(crate) mod lock_request;
+pub(crate) mod lock_table;

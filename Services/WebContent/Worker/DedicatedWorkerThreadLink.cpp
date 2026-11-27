@@ -7,6 +7,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibWeb/HTML/Scripting/ScriptAbortHandle.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
+#include <LibWeb/WebLocks/AbstractOperations.h>
 #include <WebContent/Worker/ConnectionFromClient.h>
 #include <WebContent/Worker/DedicatedWorkerThreadLink.h>
 
@@ -28,10 +29,12 @@ DedicatedWorkerThreadLink::~DedicatedWorkerThreadLink() = default;
 void DedicatedWorkerThreadLink::attach_worker_connection(ConnectionFromClient& connection)
 {
     m_worker_connection = &connection;
+    auto worker_lock_agent_id = Web::WebLocks::lock_agent_id();
 
     MutexLocker locker(m_mutex);
     m_worker_event_loop = Core::EventLoop::current_weak();
     m_worker_script_abort_handle = connection.script_abort_handle();
+    m_worker_lock_agent_id = worker_lock_agent_id;
     for (auto& task : m_tasks_posted_before_worker_attached)
         Core::deferred_invoke(run_on_attached_worker_connection(move(task)));
     m_tasks_posted_before_worker_attached.clear();
@@ -70,12 +73,18 @@ void DedicatedWorkerThreadLink::post_to_owner(Function<void()> function)
 void DedicatedWorkerThreadLink::terminate()
 {
     RefPtr<Web::HTML::ScriptAbortHandle> worker_script_abort_handle;
+    u64 worker_lock_agent_id = 0;
     {
         MutexLocker locker(m_mutex);
         worker_script_abort_handle = m_worker_script_abort_handle;
+        worker_lock_agent_id = m_worker_lock_agent_id;
     }
     if (worker_script_abort_handle)
         worker_script_abort_handle->abort_script();
+
+    // NB: The worker may be stuck in script and never get to close, so its locks go from here.
+    if (worker_lock_agent_id != 0)
+        Web::WebLocks::terminate_remaining_locks_and_requests(worker_lock_agent_id);
 
     post_to_worker([](ConnectionFromClient& connection) {
         connection.close_worker();

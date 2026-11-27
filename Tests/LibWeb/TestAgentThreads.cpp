@@ -271,10 +271,17 @@ static constexpr auto AGENT_SCRIPT = R"~~~(
         const matrix = new DOMMatrix([1, 2, 3, 4, 5, 6]).translate(1, 2);
         check("matrix", matrix.e === 12);
 
-        const result = await navigator.locks.request("lock", async lock => lock.name);
+        // NB: The agents have the same storage key, so they share the lock: one agent holds it at a time.
+        let clientId;
+        const result = await navigator.locks.request("lock", async lock => {
+            const holders = (await navigator.locks.query()).held.filter(held => held.name === lock.name);
+            check("lock holders", holders.length === 1);
+            clientId = holders[0].clientId;
+            return lock.name;
+        });
         check("locks", result === "lock");
         const state = await navigator.locks.query();
-        check("lock state", state.held.length === 0);
+        check("lock state", !state.held.some(held => held.clientId === clientId));
 
         check("navigator", navigator.userAgent.length > 0 && navigator.platform.length > 0 && navigator.language.length > 0);
         check("hardware", navigator.hardwareConcurrency > 0);
