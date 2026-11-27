@@ -1,0 +1,5 @@
+Ladybird’s GPU sandbox allows each of the directories Mesa keeps a
+shader cache in, as Mesa’s disk_cache_generate_cache_dir() names them,
+and RADV’s radv_physical_device.c names radv_builtin_shaders. Neither
+Chromium’s nor Gecko’s Linux sandbox policies name Mesa’s shader
+cache directories. From reading the sources.
