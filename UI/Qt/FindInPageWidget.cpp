@@ -217,8 +217,7 @@ void FindInPageWidget::find_text_changed()
         set_has_no_matches(false);
 
     auto case_sensitive = m_match_case->isChecked() ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive;
-    // Every match on the page is highlighted, with the current one standing out.
-    m_content_view->find_in_page(query, case_sensitive, true);
+    m_content_view->find_in_page(query, case_sensitive);
 }
 
 void FindInPageWidget::keyPressEvent(QKeyEvent* event)

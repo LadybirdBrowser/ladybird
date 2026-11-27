@@ -169,7 +169,7 @@ public:
     void update_system_theme(Core::AnonymousBuffer const& theme) { HubConnection::the().async_view_set_system_theme(view_id(), theme); }
     NonnullRefPtr<Core::Promise<ByteString>> selected_text();
     bool look_up_selected_text_at(Gfx::IntPoint widget_position);
-    void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false) { HubConnection::the().async_view_find_in_page(view_id(), query, move(case_sensitivity), highlight_all_matches); }
+    void find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity = CaseSensitivity::CaseInsensitive) { HubConnection::the().async_view_find_in_page(view_id(), query, move(case_sensitivity)); }
     void find_in_page_next_match() { HubConnection::the().async_view_find_in_page_next_match(view_id()); }
     void find_in_page_previous_match() { HubConnection::the().async_view_find_in_page_previous_match(view_id()); }
     void find_in_page_end() { HubConnection::the().async_view_find_in_page_end(view_id()); }

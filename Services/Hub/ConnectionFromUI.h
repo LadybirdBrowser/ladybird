@@ -172,7 +172,7 @@ private:
     virtual void view_enqueue_pinch_event(u64 view_id, Web::PinchEvent event) override;
     virtual void view_load(u64 view_id, URL::URL url, Web::Bindings::NavigationHistoryBehavior history_behavior) override;
     virtual void view_load_html(u64 view_id, ByteString html) override;
-    virtual void view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity, bool highlight_all_matches) override;
+    virtual void view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity) override;
     virtual void view_set_window_position(u64 view_id, Gfx::IntPoint position) override;
     virtual void view_set_window_size(u64 view_id, Gfx::IntSize size) override;
     virtual void view_set_system_visibility_state(u64 view_id, Web::HTML::VisibilityState visibility_state) override;

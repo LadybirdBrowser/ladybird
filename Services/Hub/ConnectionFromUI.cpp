@@ -997,10 +997,10 @@ void ConnectionFromUI::view_load_html(u64 view_id, ByteString html)
     }
 }
 
-void ConnectionFromUI::view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity, bool highlight_all_matches)
+void ConnectionFromUI::view_find_in_page(u64 view_id, Utf16String query, AK::CaseSensitivity case_sensitivity)
 {
     if (auto* view = find_view(view_id)) {
-        view->find_in_page(query, case_sensitivity, highlight_all_matches);
+        view->find_in_page(query, case_sensitivity);
         view->push_state_to_ui();
     }
 }
