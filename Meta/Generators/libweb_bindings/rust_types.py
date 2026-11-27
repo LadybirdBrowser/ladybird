@@ -613,12 +613,27 @@ def union_holds_sequence_of_cells(idl_type: IDLType, context: GenerationContext)
     )
 
 
-def dictionary_holds_sequence_of_cells(dictionary: Dictionary, context: GenerationContext) -> bool:
-    """Whether a member of the dictionary is a sequence of values that are or can hold cells, or a union with such a
-    member, which the struct of the dictionary keeps alive in a MarkedVec, for as long as the reference to the VM that
-    it was converted with lives."""
+def dictionary_holds_sequence_of_cells(
+    dictionary: Dictionary, context: GenerationContext, enclosing_dictionary_names: FrozenSet[str] = frozenset()
+) -> bool:
+    """Whether a member of the dictionary is a sequence of values that are or can hold cells, a union with such a
+    member, or a dictionary with such a member, which the struct of the dictionary keeps alive in a MarkedVec, for as
+    long as the reference to the VM that it was converted with lives."""
+
+    def member_dictionary_holds_sequence_of_cells(idl_type: IDLType) -> bool:
+        if isinstance(idl_type, (IDLUnionType, IDLParameterizedType)) or idl_type.nullable:
+            return False
+        member_dictionary = resolved_dictionary(idl_type, context)
+        if member_dictionary is None or member_dictionary.name in enclosing_dictionary_names | {dictionary.name}:
+            return False
+        return dictionary_holds_sequence_of_cells(
+            member_dictionary, context, enclosing_dictionary_names | {dictionary.name}
+        )
+
     return any(
-        is_sequence_of_cells(member.type, context) or union_holds_sequence_of_cells(member.type, context)
+        is_sequence_of_cells(member.type, context)
+        or union_holds_sequence_of_cells(member.type, context)
+        or member_dictionary_holds_sequence_of_cells(member.type)
         for member in dictionary.members
     )
 
