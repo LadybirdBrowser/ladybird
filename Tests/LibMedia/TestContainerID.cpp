@@ -30,7 +30,7 @@ TEST_CASE(container_mime_types)
              TestCase { "audio"sv, "mpeg"sv, Media::ContainerID::MPEGAudio, Media::ContainerMediaType::Audio },
              TestCase { "audio"sv, "mp3"sv, Media::ContainerID::MPEGAudio, Media::ContainerMediaType::Audio },
              TestCase { "audio"sv, "x-mp3"sv, Media::ContainerID::MPEGAudio, Media::ContainerMediaType::Audio },
-             TestCase { "audio"sv, "aac"sv, Media::ContainerID::ADTS, Media::ContainerMediaType::Audio },
+             TestCase { "audio"sv, "aac"sv, Media::ContainerID::AAC, Media::ContainerMediaType::Audio },
              TestCase { "audio"sv, "flac"sv, Media::ContainerID::FLAC, Media::ContainerMediaType::Audio },
              TestCase { "audio"sv, "wav"sv, Media::ContainerID::WAV, Media::ContainerMediaType::Audio },
              TestCase { "audio"sv, "wave"sv, Media::ContainerID::WAV, Media::ContainerMediaType::Audio },

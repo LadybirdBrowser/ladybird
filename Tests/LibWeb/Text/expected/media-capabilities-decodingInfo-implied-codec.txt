@@ -1,5 +1,7 @@
-audio/flac: supported=false
-audio/aac: supported=false
+audio/flac: supported=true
+audio/flac; codecs="flac": TypeError
+audio/aac: supported=true
+audio/aac; codecs="mp4a.40.2": TypeError
 audio/mpeg: TypeError
 audio/mpeg;: TypeError
 audio/mpeg; codecs="mp3": supported=true
