@@ -5,6 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/UnicodeUtils.h>
 #include <LibGC/Heap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -138,6 +139,13 @@ static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
     return platform_key;
 }
 
+bool KeyboardEvent::produces_keypress(u32 code_point)
+{
+    return code_point < AK::UnicodeUtils::FIRST_SUPPLEMENTARY_PLANE_CODE_POINT
+        && !is_unicode_surrogate(code_point)
+        && !Unicode::code_point_has_control_general_category(code_point);
+}
+
 // https://www.w3.org/TR/uievents/#dom-keyboardevent-charcode
 static u32 determine_char_code(Utf16FlyString const& event_name, u32 code_point)
 {
@@ -145,7 +153,7 @@ static u32 determine_char_code(Utf16FlyString const& event_name, u32 code_point)
     // reference number (code point) of that character (e.g. event.charCode = event.key.charCodeAt(0) for printable
     // characters). For keydown or keyup events, the value of charCode is 0.
     if (event_name == UIEvents::EventNames::keypress) {
-        if (Unicode::code_point_is_printable(code_point))
+        if (KeyboardEvent::produces_keypress(code_point))
             return code_point;
     }
 
