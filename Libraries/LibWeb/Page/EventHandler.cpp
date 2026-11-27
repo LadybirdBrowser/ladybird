@@ -303,8 +303,16 @@ void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 static CSS::UserSelect user_select_used_value_for_caret_position(Layout::BegunRead const& read, Painting::CaretPosition const& caret_position)
 {
     if (auto* layout_node = caret_position.boundary_layout_node(read)) {
-        // NB: The position comes from a hit test on up to date layout, which nothing has changed since.
-        VERIFY(layout_node->document().layout_is_up_to_date());
+        // NB: The position comes from a hit test on up to date layout, which nothing has changed since. Each way the host
+        //     can know that layout isn't up to date has an assertion of its own, so that a failure says which one it was.
+        auto const& document = layout_node->document();
+        auto staleness = document.known_layout_staleness();
+        VERIFY(staleness != DOM::KnownLayoutStaleness::FlownStyleUpdate);
+        VERIFY(staleness != DOM::KnownLayoutStaleness::NoLayoutNodeArena);
+        VERIFY(staleness != DOM::KnownLayoutStaleness::FrameInFlight);
+        VERIFY(staleness != DOM::KnownLayoutStaleness::LayoutOutOfDate);
+        VERIFY(staleness != DOM::KnownLayoutStaleness::LayoutTreeNeedsBuild);
+        VERIFY(document.layout_is_up_to_date());
         return layout_node->user_select_used_value();
     }
     if (auto* layout_node = caret_position.layout_node(read))
