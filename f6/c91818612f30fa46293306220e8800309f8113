@@ -1,0 +1,6 @@
+Ladybird traps tkill() and sends the signal with a tgkill() on its
+own thread group. Gecko does the same: SandboxFilter.cpp traps tkill
+with TKillCompatTrap(), which calls tgkill() with getpid(), for
+pthread_kill() in Android’s bionic and in musl. Chromium’s
+RestrictKillTarget() kills the process for any tkill(), but Chromium
+doesn’t support musl. From reading the sources.
