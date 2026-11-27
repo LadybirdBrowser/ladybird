@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<style>
+    @keyframes translate-within-the-plane {
+        0%, 100% { transform: translate(0px); }
+        50% { transform: translate3d(var(--x, 0), var(--y, 0), 0); }
+    }
+    @keyframes translate-out-of-the-plane {
+        from { transform: translate(0px); }
+        to { transform: translate3d(20px, 10px, 5px); }
+    }
+    @keyframes scale-within-the-plane {
+        from { transform: scale3d(2, 0.5, 1); }
+        to { transform: scale(1); }
+    }
+    @keyframes scale-out-of-the-plane {
+        from { transform: scale3d(2, 0.5, 3); }
+        to { transform: scale(1); }
+    }
+    div { width: 20px; height: 20px; background: green; animation: 1000s linear infinite; }
+    #translated-within-the-plane { --x: 20px; --y: 10px; animation-name: translate-within-the-plane; }
+    #translated-out-of-the-plane { animation-name: translate-out-of-the-plane; }
+    #scaled-within-the-plane { animation-name: scale-within-the-plane; }
+    #scaled-out-of-the-plane { animation-name: scale-out-of-the-plane; }
+</style>
+<div id="translated-within-the-plane"></div>
+<div id="translated-out-of-the-plane"></div>
+<div id="scaled-within-the-plane"></div>
+<div id="scaled-out-of-the-plane"></div>
+<script>
+    asyncTest(async done => {
+        internals.updateStyle();
+        const timeline = internals.createInternalAnimationTimeline();
+        for (const animation of document.getAnimations()) {
+            animation.timeline = timeline;
+            animation.startTime = 0;
+        }
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println("on the compositor:");
+        for (const line of internals.dumpCompositorAnimations().split("\n").filter(Boolean))
+            println(`  ${line}`);
+        internals.beginStyleTrace();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        const sampled = parseStyleTrace(internals.takeStyleTrace()).filter(event => event.outcome?.startsWith("sampled"));
+        println(`main-thread samples: [${sampled.map(event => event.element).join(", ")}]`);
+
+        timeline.setTimeForObservation(250000);
+        for (const id of ["translated-within-the-plane", "translated-out-of-the-plane", "scaled-within-the-plane", "scaled-out-of-the-plane"])
+            println(`${id} a quarter in: ${getComputedStyle(document.getElementById(id)).transform}`);
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        done();
+    });
+</script>
