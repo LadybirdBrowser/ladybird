@@ -337,6 +337,15 @@ impl CodeFlushing {
             shared_data.flush_executable(executable, sweep);
         }
         if !self.jit_candidates.borrow().is_empty() {
+            // NB: The JIT candidates outlive the collection, until its post-GC task takes them, so a collection that
+            //     moves their shared data rewrites them.
+            if sweep.moves_cells() {
+                for FlushCandidate(shared_data) in self.jit_candidates.borrow().iter() {
+                    // SAFETY: Nothing changes the candidates until the post-GC task takes them, and every candidate is
+                    //         a shared data that marking traced, so it survived.
+                    unsafe { sweep.record_slot(shared_data) };
+                }
+            }
             vm.enqueue_code_flushing_task();
         }
     }
