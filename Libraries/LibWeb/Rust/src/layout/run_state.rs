@@ -26,6 +26,34 @@ pub(crate) struct LayoutScratch {
     fragment_builder_scratch: fragment_tree::FragmentBuilderScratch,
 }
 
+impl LayoutScratch {
+    /// Counts what the scratch keeps of one pass for the next.
+    pub(crate) fn report_memory(&self, report: &mut super::memory_report::LayoutMemoryReport) {
+        use super::memory_report::LayoutMemoryOwner;
+        let mut cached_fragments = Vec::new();
+        let mut payloads_past_runs = 0;
+        let mut bytes = self.intrinsic_size_caches.heap_size()
+            + self.fc_run_cache_store.heap_size(&mut report.sizer, |entry, _| {
+                let Some(root) = &entry.result.fragment else {
+                    return;
+                };
+                cached_fragments.push(root.fragment.clone());
+                if let Some(payloads) = &root.payloads_past_run {
+                    payloads_past_runs += size_of_val(&**payloads) + payloads.heap_bytes();
+                }
+            })
+            + payloads_past_runs
+            + self.in_flow_block_cache_store.heap_size(&mut report.sizer);
+        bytes += self.text_memos.heap_size(&mut report.sizer);
+        bytes += self.prepared_inline_content_memos.heap_size(&mut report.sizer);
+        report.add(LayoutMemoryOwner::Memos, bytes);
+        // NB: The committed fragments were counted before these, so only what the memos alone hold is counted here.
+        for fragment in &cached_fragments {
+            report.add_fragment_tree(fragment);
+        }
+    }
+}
+
 /// What layout found out that the host hears of once the layout that found it is committed: what the
 /// container-relative lengths it resolved depend on, and the natural size it negotiated for the box of an `<svg>`
 /// document element. A run hands them to its parent with its result, so a discarded result tells the host nothing.

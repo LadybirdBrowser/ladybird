@@ -465,6 +465,11 @@ interface Internals {
     // What the document's style engine holds on the heap, by owner, with the C++ style state its elements hold:
     // { owners: { name: bytes }, elements, styledElements }.
     object styleMemoryReport();
+
+    // What the document's layout holds on the heap: `owners` maps each owner to its bytes, beside `slots` (the rows the
+    // layout node arena has room for), `liveRows` (those of them that hold a box or a text node) and `layoutNodes`
+    // (the rows a C++ layout node was made for).
+    object layoutMemoryReport();
     // What the style engines of the document and the documents in its frames hold on the heap, each allocation counted
     // once however many of them share it.
     unsigned long long styleMemoryOfFrames();

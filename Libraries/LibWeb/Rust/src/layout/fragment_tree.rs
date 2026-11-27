@@ -1506,6 +1506,15 @@ pub(crate) struct PayloadsPastRun {
 }
 
 impl PayloadsPastRun {
+    /// The bytes the payloads hold on the heap.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        use crate::heap_size::vec_bytes;
+        vec_bytes(&self.pending_abspos)
+            + vec_bytes(&self.anchor_candidates)
+            + vec_bytes(&self.inline_containing_block_rects)
+            + vec_bytes(&self.abspos_containing_block_info)
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.pending_abspos.is_empty()
             && self.anchor_candidates.is_empty()

@@ -444,7 +444,28 @@ pub struct GlyphBuffer {
 
 const _: () = assert!(size_of::<GlyphBuffer>() == 40);
 
+impl<T> GlyphStorage<T> {
+    fn heap_bytes(&self, first_sight: &mut impl FnMut(*const ()) -> bool) -> usize {
+        match self {
+            Self::Shared(glyphs) if first_sight(Arc::as_ptr(glyphs).cast()) => {
+                2 * size_of::<usize>() + size_of_val::<[T]>(glyphs)
+            }
+            Self::Shared(_) => 0,
+            Self::Owned(glyphs) => glyphs.capacity() * size_of::<T>(),
+        }
+    }
+}
+
 impl GlyphBuffer {
+    /// The bytes the buffer holds on the heap. Glyphs it shares with other buffers count where `first_sight` says
+    /// their allocation is reached for the first time.
+    pub fn heap_bytes(&self, mut first_sight: impl FnMut(*const ()) -> bool) -> usize {
+        self.glyphs.heap_bytes(&mut first_sight)
+            + self.placements.as_ref().map_or(0, |placements| {
+                size_of::<GlyphStorage<GlyphPlacement>>() + placements.heap_bytes(&mut first_sight)
+            })
+    }
+
     fn from_shaped(shaped: &[ShapedGlyph]) -> Self {
         let glyphs: Arc<[DrawGlyph]> = shaped
             .iter()

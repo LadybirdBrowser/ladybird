@@ -1,0 +1,22 @@
+empty: 1 rows, 1.024 slots, 0 layout nodes per element
+  nodeRows: within 112
+  arenaColumns: within 72
+  textRows: within 0
+  paintableRows: within 228
+  committedLinks: within 136
+  fragments: within 284
+  inlineContent: within 0
+  visualContexts: within 20
+  memos: within 460
+  layoutNodeTable: within 0
+text: 2 rows, 2.048 slots, 0 layout nodes per element
+  nodeRows: within 232
+  arenaColumns: within 268
+  textRows: within 300
+  paintableRows: within 496
+  committedLinks: within 268
+  fragments: within 284
+  inlineContent: within 944
+  visualContexts: within 40
+  memos: within 1396
+  layoutNodeTable: within 0

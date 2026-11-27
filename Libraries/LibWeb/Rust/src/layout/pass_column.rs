@@ -131,6 +131,27 @@ impl<T: Default> PassColumn<T> {
         Some(&mut unsafe { chunk.as_mut() }?.rows)
     }
 
+    /// The bytes of the column's chunks, with what `row_heap` says each row holds. Only for a caller no pass runs
+    /// beside.
+    pub(crate) fn heap_size(&self, mut row_heap: impl FnMut(&T) -> usize) -> usize {
+        // NB: A chunk counts as its rows alone, without the borrow states that a build with debug assertions keeps
+        //     beside them, so that a report says the same in every build.
+        let chunk_bytes = size_of::<[UnsafeCell<T>; ROWS_PER_CHUNK]>().next_multiple_of(align_of::<PassChunk<T>>());
+        let mut bytes = self.chunks.capacity() * size_of::<OwnedChunk<T>>();
+        for chunk in &self.chunks {
+            // SAFETY: A non-null chunk pointer stays valid until the column drops, and no pass writes its rows.
+            let Some(chunk) = (unsafe { chunk.pointer.load(Ordering::Acquire).as_ref() }) else {
+                continue;
+            };
+            bytes += chunk_bytes;
+            for row in &chunk.rows {
+                // SAFETY: As above.
+                bytes += row_heap(unsafe { &*row.get() });
+            }
+        }
+        bytes
+    }
+
     fn covered_rows(&self) -> usize {
         self.chunks.len() * ROWS_PER_CHUNK
     }
@@ -462,6 +483,14 @@ impl<T> ForkSharedRows<T> {
 }
 
 impl<T: Clone + Default> ForkSharedRows<T> {
+    /// The bytes of the host's rows, with what `row_heap` says each holds, and of the fork generations noted for them.
+    /// Only for a caller no pass runs beside.
+    pub(crate) fn heap_size(&self, row_heap: impl FnMut(&T) -> usize) -> usize {
+        // SAFETY: No pass runs beside the caller, so nothing writes the column.
+        let generations = unsafe { &*self.host_rows.fork_generation_each_row_was_saved_for.get() };
+        self.host_rows().heap_size(row_heap) + generations.heap_size(|_| 0)
+    }
+
     #[inline]
     fn host_rows(&self) -> &PassColumn<T> {
         // SAFETY: The host's column grows only in `cover_slots`, while neither the host nor a fork lays out.
