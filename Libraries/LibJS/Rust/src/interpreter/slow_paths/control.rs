@@ -119,7 +119,7 @@ pub fn debugger_check_breakpoint(vm: &Vm, pc: u32) {
     }
 
     let executable = vm.current_executable();
-    debugger.register_executable(vm, executable);
+    debugger.register_executable(executable);
     let reason = if debugger.should_pause_on_next_bytecode_execution(&executable, pc) {
         Some(PauseReason::Entry)
     } else if executable.has_debugger_breakpoint_at(pc) {

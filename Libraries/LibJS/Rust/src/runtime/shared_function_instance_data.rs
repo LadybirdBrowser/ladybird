@@ -233,6 +233,9 @@ unsafe impl Trace for SharedFunctionInstanceData {
     fn trace(&self, visitor: &mut Visitor) {
         match self.executable() {
             Some(executable) if flushing::bytecode_flush_candidate(self, executable) => {
+                // NB: The executable is not visited, so that it dies unless something else holds it. If it survives,
+                //     it stays where it is, as the slot of the shared data is not rewritten.
+                visitor.pin(executable);
                 executable.trace_what_outlives_a_flush(visitor);
             }
             _ => self.executable.trace(visitor),

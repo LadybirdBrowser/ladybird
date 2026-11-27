@@ -27,6 +27,32 @@ const holder = {
     },
 };
 
+holder.counter = (function* () {
+    let count = 0;
+    while (true) yield ++count;
+})();
+holder.counter.next();
+holder.thrower = function throwsFromHere() {
+    throw new Error("thrown");
+};
+holder.callsThrower = function callsThrower() {
+    holder.thrower();
+};
+
+// NB: test-js runs each test more than once with LIBJS_TEST_REPEAT, but the cells moved once, so what a test cannot undo
+//     happens once, and every run checks what it saw.
+function once(steps) {
+    let result;
+    let ran = false;
+    return () => {
+        if (!ran) {
+            result = steps();
+            ran = true;
+        }
+        return result;
+    };
+}
+
 const templateBefore = holder.withTemplate();
 const adderBefore = holder.makeAdder(1);
 const keyed = { first: 1, second: 2 };
@@ -50,6 +76,23 @@ runAfterMovingCollection(() => {
     test("for-in caches keep their keys when they move", () => {
         expect(holder.keysOf(keyed)).toEqual(["first", "second"]);
         expect(holder.keysOf({ first: 1, second: 2 })).toEqual(["first", "second"]);
+    });
+
+    const countsAfterMove = once(() => [holder.counter.next().value, holder.counter.next().value]);
+    test("a generator resumes in its executable after the executable moved", () => {
+        expect(countsAfterMove()).toEqual([2, 3]);
+    });
+
+    test("errors thrown from executables that moved know where they were thrown", () => {
+        let error;
+        try {
+            holder.callsThrower();
+        } catch (e) {
+            error = e;
+        }
+        expect(error.stack.includes("at throwsFromHere (")).toBeTrue();
+        expect(error.stack.includes("at callsThrower (")).toBeTrue();
+        expect(/gc-moving-code\.js:\d+:\d+/.test(error.stack)).toBeTrue();
     });
 
     test("environments made after their shape moved work", () => {

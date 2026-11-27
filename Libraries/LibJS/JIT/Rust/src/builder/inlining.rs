@@ -2363,6 +2363,8 @@ impl<'a, 'z> GraphBuilder<'a, 'z> {
         };
 
         self.embed(function.function);
+        // NB: The code uses the executable as a constant, for its caches, which collections move.
+        self.embed(callee_executable.cell);
         // NB: Frames of inlined calls without a closure start with the words of the function (see
         //     `Codegen::emit_frame_header()`).
         if closure.is_none()

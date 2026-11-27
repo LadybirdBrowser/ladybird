@@ -1644,7 +1644,7 @@ impl Executable {
             .did_allocate_external_memory(executable.external_memory_size());
 
         if let Some(debugger) = vm.debugger() {
-            debugger.register_executable(vm, executable);
+            debugger.register_executable(executable);
         }
 
         executable
@@ -2144,6 +2144,11 @@ impl Executable {
     /// executable ever left the plain tier.
     pub fn feedback(&self) -> Option<&ExecutableFeedback> {
         self.feedback.get().map(Box::as_ref)
+    }
+
+    /// The JIT state, if anything created it.
+    pub fn jit_state_if_created(&self) -> Option<&ExecutableJitState> {
+        self.jit.get().map(|state| &**state)
     }
 
     pub fn jit_state(&self) -> &ExecutableJitState {

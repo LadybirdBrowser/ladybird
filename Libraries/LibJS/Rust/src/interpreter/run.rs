@@ -234,7 +234,7 @@ impl Vm {
     #[inline(never)]
     fn register_executable_with_debugger(&self, executable: Gc<Executable>) {
         if let Some(debugger) = self.debugger() {
-            debugger.register_executable(self, executable);
+            debugger.register_executable(executable);
         }
     }
 

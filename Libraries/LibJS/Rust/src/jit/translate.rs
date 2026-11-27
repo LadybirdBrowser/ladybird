@@ -789,7 +789,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
     ) {
         false
     } else if matches!(snapshot_executable.function, Some(InlinedFunction::Builtin(_))) {
-        let index = compiled_executable.add_jit_builtin_exit_site((executable.as_ptr() as u64, frame_state.pc(), kind));
+        let index = compiled_executable.add_jit_builtin_exit_site((executable, frame_state.pc(), kind));
         index >= code.snapshot_executable(0).known_builtin_exit_sites
     } else {
         // NB: Sites in inlined callees are their executables', but the compiled code learns from them too.

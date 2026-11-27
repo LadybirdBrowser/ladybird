@@ -411,13 +411,17 @@ impl JitCode {
         self.embedded_cells.iter().copied().chain(functions)
     }
 
-    /// Keeps the embedded cells and the inlined functions alive, for code that a frame runs.
+    /// Keeps the embedded cells, the inlined functions and the executables alive and where they are, for code that a
+    /// frame runs.
     fn trace_embedded_cells(&self, visitor: &mut Visitor) {
         for cell in self.cells_held_by_realm() {
             visitor.visit(cell);
         }
         for &(_, cell) in &self.function_cells {
             visitor.visit(cell);
+        }
+        for snapshot in &self.snapshot_executables {
+            visitor.visit(snapshot.executable);
         }
     }
 
@@ -440,8 +444,9 @@ impl JitCode {
                 match &snapshot.function {
                     Some(InlinedFunction::Ecmascript(function)) => sweep.record_slot(function),
                     Some(InlinedFunction::Builtin(function)) => sweep.record_slot(function),
-                    None => {}
+                    None => continue,
                 }
+                sweep.record_slot(&snapshot.executable);
             }
         }
     }
@@ -695,16 +700,21 @@ unsafe impl Trace for JitCode {
             //         the code frees it, which a sweep callback defers until the collection is over if it moves cells.
             unsafe { visitor.visit_owned(&materialized.object) };
         }
-        // NB: The executables of inlined calls are held like the cells of their functions.
+        // NB: The executables of inlined calls are held like the cells of their functions, and the slots of the ones
+        //     that survived are handed to the collection (see `record_cell_slots()`). Code reads the executables
+        //     through these slots, or through embedded cells that `relocate()` patches.
         for snapshot in &self.snapshot_executables {
-            match snapshot.function {
-                Some(InlinedFunction::Ecmascript(function)) => {
-                    visitor.visit_ephemeron_cell(function, snapshot.executable);
+            // SAFETY: See above.
+            unsafe {
+                match snapshot.function {
+                    Some(InlinedFunction::Ecmascript(function)) => {
+                        visitor.visit_ephemeron_cell_without_pinning(function, snapshot.executable);
+                    }
+                    Some(InlinedFunction::Builtin(function)) => {
+                        visitor.visit_ephemeron_cell_without_pinning(function, snapshot.executable);
+                    }
+                    None => visitor.visit_owned(&snapshot.executable),
                 }
-                Some(InlinedFunction::Builtin(function)) => {
-                    visitor.visit_ephemeron_cell(function, snapshot.executable);
-                }
-                None => visitor.visit(snapshot.executable),
             }
         }
         for slot in &self.sample_slots {
@@ -743,9 +753,9 @@ pub struct ExecutableJitState {
     /// lookup cache it speculated on: the size the cache had when the last code that exited there was compiled.
     shape_exit_cache_sizes: RefCell<Vec<(u32, u8)>>,
     /// Places in builtins written in JavaScript where the executable's JIT code exited while running them inlined,
-    /// by the address of the builtin's executable. Builtins are inlined into all their callers, so these are kept per
-    /// caller: what failed in one caller says nothing about the others.
-    builtin_exit_sites: RefCell<Vec<(u64, u32, ExitKind)>>,
+    /// by the builtin's executable. Builtins are inlined into all their callers, so these are kept per caller: what
+    /// failed in one caller says nothing about the others.
+    builtin_exit_sites: RefCell<Vec<(Gc<Executable>, u32, ExitKind)>>,
     /// How often the executable's code was discarded.
     discard_count: Cell<u32>,
     /// How often in a row the executable's code was discarded without its exits having been at a site the code did not
@@ -762,6 +772,19 @@ pub struct ExecutableJitState {
     /// The loads and stores of bindings of the environments of the executable's closure (see `jit::snapshot`). The
     /// bytecode never changes, so snapshots find them once.
     pub(crate) captured_binding_accesses: OnceCell<CapturedBindingAccesses>,
+}
+
+// SAFETY: The executables of the builtins are the only cells the state keeps.
+unsafe impl Trace for ExecutableJitState {
+    fn trace(&self, visitor: &mut Visitor) {
+        // NB: The executables of the builtins are visited as owned slots, so that a collection that moves one rewrites
+        //     it where it is.
+        // SAFETY: Only exits add to the sites, which never run in a collection, and only the executable's destructor
+        //         frees them.
+        for (executable, _, _) in unsafe { &*self.builtin_exit_sites.as_ptr() } {
+            unsafe { visitor.visit_owned(executable) };
+        }
+    }
 }
 
 /// The loads and stores of bindings of the environments of an executable's closure, which are none if its code may
@@ -849,6 +872,13 @@ impl Executable {
         }
     }
 
+    /// Has a collection that moves the executable, which survived it, point the owner of its JIT entry slot at the copy.
+    pub fn record_jit_entry_slot_owner(&self, vm: &Vm, sweep: &Sweep<'_>) {
+        if let Some((table, slot)) = self.jit_entry_table_slot(vm) {
+            table.record_owner_slot(slot, sweep);
+        }
+    }
+
     /// Frees the slot of the executable, which died, and drops its JIT code.
     pub fn free_jit_entry_slot(&self, vm: &Vm, sweep: &Sweep<'_>) {
         let Some(table) = vm.jit.entry_table.as_ref() else {
@@ -874,6 +904,9 @@ impl Executable {
     pub fn trace_jit_code(&self, visitor: &mut Visitor) {
         if let Some(code) = self.jit_code(Vm::of_cell(self)) {
             code.trace(visitor);
+        }
+        if let Some(state) = self.jit_state_if_created() {
+            state.trace(visitor);
         }
     }
 
@@ -954,8 +987,14 @@ impl Executable {
         sites.len() - 1
     }
 
-    pub fn jit_builtin_exit_sites(&self) -> Vec<(u64, u32, ExitKind)> {
-        self.jit_state().builtin_exit_sites.borrow().clone()
+    /// The sites where JIT code exited in inlined builtins (see `add_jit_builtin_exit_site()`), each mapped by `map`,
+    /// which must not run code or allocate.
+    pub fn map_jit_builtin_exit_sites<T>(&self, mut map: impl FnMut(Gc<Executable>, u32, ExitKind) -> T) -> Vec<T> {
+        let sites = self.jit_state().builtin_exit_sites.borrow();
+        sites
+            .iter()
+            .map(|&(builtin, pc, kind)| map(builtin, pc, kind))
+            .collect()
     }
 
     pub fn jit_builtin_exit_site_count(&self) -> usize {
@@ -963,7 +1002,7 @@ impl Executable {
     }
 
     /// Records a site where JIT code exited in an inlined builtin, and returns its index among those sites.
-    pub fn add_jit_builtin_exit_site(&self, site: (u64, u32, ExitKind)) -> usize {
+    pub fn add_jit_builtin_exit_site(&self, site: (Gc<Executable>, u32, ExitKind)) -> usize {
         let mut sites = self.jit_state().builtin_exit_sites.borrow_mut();
         if let Some(index) = sites.iter().position(|recorded| *recorded == site) {
             return index;

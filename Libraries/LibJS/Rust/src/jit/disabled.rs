@@ -107,6 +107,8 @@ pub mod code {
 
         pub fn free_jit_entry_slot(&self, _vm: &Vm, _sweep: &Sweep<'_>) {}
 
+        pub fn record_jit_entry_slot_owner(&self, _vm: &Vm, _sweep: &Sweep<'_>) {}
+
         pub fn trace_jit_code(&self, _visitor: &mut Visitor) {}
 
         pub fn trace_embedded_cells_of_jit_code(&self, _vm: &Vm, _visitor: &mut Visitor) {}

@@ -171,6 +171,7 @@ impl Class {
                 | ClassId::WatchpointSet
                 | ClassId::DeclarativeEnvironmentRareData
                 | ClassId::SharedFunctionInstanceData
+                | ClassId::Executable
                 | ClassId::CallEnvironmentTemplate
                 | ClassId::EnvironmentShape
                 | ClassId::ObjectPropertyIteratorCacheData

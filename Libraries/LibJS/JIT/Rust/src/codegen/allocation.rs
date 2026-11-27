@@ -249,7 +249,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                     self.emit_unbox_cell(scratch, parent);
                     self.masm.move64(arguments[1], scratch);
                     self.masm.move64(arguments[0], self.pinned.vm);
-                    self.masm.move_imm64(arguments[2], self.snapshot.executables[0].cell.0);
+                    // NB: The executable is the running frame's, as the code does not embed it, and collections
+                    //     move it.
+                    let running = self.frame_field(self.runtime.offsets.execution_context_executable);
+                    self.masm.load64(arguments[2], &running);
                     self.masm.move_imm32(arguments[3], shape_cache);
                     self.masm.move_imm32(arguments[4], capacity);
                     self.masm.call_absolute(self.runtime.create_lexical_environment);
