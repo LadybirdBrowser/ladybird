@@ -164,6 +164,9 @@ def main():
     if "target" in args:
         if args.target == "Ladybird":
             args.target = "ladybird"
+        # Accept a helper's executable name in place of its target name.
+        targets_by_executable_name = {name: target for target, name in HELPER_EXECUTABLE_NAMES.items()}
+        args.target = targets_by_executable_name.get(args.target, args.target)
         if not args.target and args.command not in ("build", "rebuild"):
             args.target = "ladybird"
 
@@ -477,6 +480,9 @@ def executable_path(host_system: HostSystem, build_dir: Path, target: str) -> Pa
     name = HELPER_EXECUTABLE_NAMES.get(target, target)
     if host_system == HostSystem.macOS and (target == "ladybird" or target in HELPER_EXECUTABLE_NAMES):
         return build_dir.joinpath("bin", "Ladybird.app", "Contents", "MacOS", name)
+    # Elsewhere, the helpers are built into libexec, except on Windows, where everything is next to the browser.
+    if host_system != HostSystem.Windows and target in HELPER_EXECUTABLE_NAMES and target != "WebDriver":
+        return build_dir.joinpath("libexec", name)
     return build_dir.joinpath("bin", name)
 
 
@@ -542,11 +548,13 @@ def addr2line_main(build_dir, target: str, program: str, addresses: list[str]):
         print(f"Please install {program}!", file=sys.stderr)
         sys.exit(1)
 
+    executable_name = HELPER_EXECUTABLE_NAMES.get(target, target)
     binary_file_path = None
     for root, _, files in os.walk(build_dir):
-        if target in files:
-            candidate = Path(root) / target
-            if os.access(candidate, os.X_OK):
+        if executable_name in files:
+            candidate = Path(root) / executable_name
+            # Links may point at an installed build, whose addresses differ from this build's.
+            if not candidate.is_symlink() and os.access(candidate, os.X_OK):
                 binary_file_path = str(candidate)
 
     if not binary_file_path:
