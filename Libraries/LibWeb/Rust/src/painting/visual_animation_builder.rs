@@ -686,12 +686,85 @@ type TransformIdentityShapes = [Option<Option<Vec<VisualAnimationTransformOperat
 
 fn build_keyframe_value_cache(request: &Request, host: &Host, key: KeyframeValueCacheKey) -> KeyframeValueCache {
     let mut identity_shapes: TransformIdentityShapes = Default::default();
-    let values = request
+    let mut values: Option<Vec<Option<VisualAnimationValue>>> = request
         .keyframes()
         .iter()
         .map(|keyframe| lower_keyframe(request, host, keyframe, &mut identity_shapes))
         .collect();
+    if let Some(values) = &mut values {
+        give_each_transform_list_position_one_translation_and_scale_primitive(values);
+    }
     KeyframeValueCache { key, values }
+}
+
+/// https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+/// Where the keyframes name a 2D translation or scale at a position of their transform lists and a 3D one at the same
+/// position, the two interpolate through their 3D primitive. The compositor interpolates operations of one kind, so
+/// every keyframe takes the 2D operation where none of them leaves the plane, and the 3D one otherwise.
+fn give_each_transform_list_position_one_translation_and_scale_primitive(values: &mut [Option<VisualAnimationValue>]) {
+    use FfiVisualAnimationTransformOperationKind as Kind;
+    const PRIMITIVES: [(Kind, Kind, f32); 2] = [
+        (Kind::Translate, Kind::Translate3d, 0.0),
+        (Kind::Scale, Kind::Scale3d, 1.0),
+    ];
+    let mut transform_lists: Vec<&mut Vec<VisualAnimationTransformOperation>> = values
+        .iter_mut()
+        .filter_map(|value| match value {
+            Some(VisualAnimationValue::Transform(operations)) => Some(operations),
+            _ => None,
+        })
+        .collect();
+    let Some(position_count) = transform_lists.iter().map(|operations| operations.len()).min() else {
+        return;
+    };
+    for position in 0..position_count {
+        for (kind_in_plane, kind_in_space, identity) in PRIMITIVES {
+            let some_keyframe_names = |kind| {
+                transform_lists
+                    .iter()
+                    .any(|operations| operations[position].kind == kind)
+            };
+            let every_keyframe_names_one_of_the_two = transform_lists
+                .iter()
+                .all(|operations| [kind_in_plane, kind_in_space].contains(&operations[position].kind));
+            if !every_keyframe_names_one_of_the_two
+                || !some_keyframe_names(kind_in_plane)
+                || !some_keyframe_names(kind_in_space)
+            {
+                continue;
+            }
+            let every_keyframe_stays_in_plane = transform_lists.iter().all(|operations| {
+                let operation = &operations[position];
+                operation.kind == kind_in_plane || operation.values().get(2) == Some(&identity)
+            });
+            let (kind_to_replace, kind_of_every_keyframe) = if every_keyframe_stays_in_plane {
+                (kind_in_space, kind_in_plane)
+            } else {
+                (kind_in_plane, kind_in_space)
+            };
+            for operations in &mut transform_lists {
+                let operation = &mut operations[position];
+                if operation.kind != kind_to_replace {
+                    continue;
+                }
+                let x = operation.values()[0];
+                let y = operation.values().get(1).copied().unwrap_or(match operation.kind {
+                    Kind::Scale => x,
+                    _ => identity,
+                });
+                let values_of_every_keyframe: &[f32] = if every_keyframe_stays_in_plane {
+                    &[x, y]
+                } else {
+                    &[x, y, identity]
+                };
+                if let Some(replacement) =
+                    VisualAnimationTransformOperation::new(kind_of_every_keyframe, values_of_every_keyframe)
+                {
+                    *operation = replacement;
+                }
+            }
+        }
+    }
 }
 
 /// The value of the request's target kind one keyframe gives: none when the keyframe leaves the
@@ -1477,7 +1550,7 @@ mod tests {
 
     #[test]
     fn transform_keyframes_naming_functions_of_one_primitive_interpolate_together() {
-        let builds = |from: StyleValueData, to: StyleValueData| {
+        let built = |from: StyleValueData, to: StyleValueData| {
             let host = TestHost::default()
                 .with_value(0, AnimatedProperty::Transform, value_list(vec![from]))
                 .with_value(1, AnimatedProperty::Transform, value_list(vec![to]));
@@ -1492,31 +1565,99 @@ mod tests {
             );
             let request = Request::with_keyframe_set(&ffi_request, &keyframe_set(&keyframes));
             let mut state = CompositorAnimationEffectState::default();
-            state.build(&request, &Host::new(&ffi_host), |_| vec![1]).built
+            assert!(state.build(&request, &Host::new(&ffi_host), |_| vec![1]).built);
+            pending_animation(&state, FfiVisualAnimationTargetKind::Transform)
+                .keyframes
+                .iter()
+                .map(|keyframe| match &keyframe.value {
+                    VisualAnimationValue::Transform(operations) => operations[0],
+                    _ => unreachable!("a transform animation holds transform values"),
+                })
+                .collect::<Vec<_>>()
         };
 
-        assert!(builds(
-            transformation(transform_function::TRANSLATE, vec![px(1.0), px(0.0)]),
-            transformation(transform_function::TRANSLATE_X, vec![px(3.0)]),
-        ));
-        assert!(builds(
-            transformation(transform_function::TRANSLATE_Y, vec![px(1.0)]),
-            transformation(transform_function::TRANSLATE_X, vec![px(3.0)]),
-        ));
-        assert!(builds(
-            transformation(transform_function::SCALE_X, vec![number_value(2.0)]),
-            transformation(transform_function::SCALE, vec![number_value(3.0)]),
-        ));
-        assert!(builds(
-            transformation(transform_function::TRANSLATE_Z, vec![px(1.0)]),
-            transformation(transform_function::TRANSLATE3D, vec![px(0.0), px(0.0), px(3.0)]),
-        ));
-        // A 2D function and a 3D one interpolate through the 3D primitive, which the compositor leaves to the main
-        // thread.
-        assert!(!builds(
-            transformation(transform_function::TRANSLATE, vec![px(1.0)]),
-            transformation(transform_function::TRANSLATE3D, vec![px(0.0), px(0.0), px(3.0)]),
-        ));
+        assert_eq!(
+            built(
+                transformation(transform_function::TRANSLATE, vec![px(1.0), px(0.0)]),
+                transformation(transform_function::TRANSLATE_X, vec![px(3.0)]),
+            ),
+            [
+                operation(Kind::Translate, &[2.0, 0.0]),
+                operation(Kind::Translate, &[6.0, 0.0])
+            ]
+        );
+        assert_eq!(
+            built(
+                transformation(transform_function::TRANSLATE_Y, vec![px(1.0)]),
+                transformation(transform_function::TRANSLATE_X, vec![px(3.0)]),
+            ),
+            [
+                operation(Kind::Translate, &[0.0, 2.0]),
+                operation(Kind::Translate, &[6.0, 0.0])
+            ]
+        );
+        assert_eq!(
+            built(
+                transformation(transform_function::SCALE_X, vec![number_value(2.0)]),
+                transformation(transform_function::SCALE, vec![number_value(3.0)]),
+            ),
+            [operation(Kind::Scale, &[2.0, 1.0]), operation(Kind::Scale, &[3.0, 3.0])]
+        );
+        assert_eq!(
+            built(
+                transformation(transform_function::TRANSLATE_Z, vec![px(1.0)]),
+                transformation(transform_function::TRANSLATE3D, vec![px(0.0), px(0.0), px(3.0)]),
+            ),
+            [
+                operation(Kind::Translate3d, &[0.0, 0.0, 2.0]),
+                operation(Kind::Translate3d, &[0.0, 0.0, 6.0])
+            ]
+        );
+        // A 2D function and a 3D one interpolate through the 3D primitive, which is the 2D one where no keyframe
+        // leaves the plane.
+        assert_eq!(
+            built(
+                transformation(transform_function::TRANSLATE, vec![px(1.0)]),
+                transformation(transform_function::TRANSLATE3D, vec![px(2.0), px(4.0), px(0.0)]),
+            ),
+            [
+                operation(Kind::Translate, &[2.0, 0.0]),
+                operation(Kind::Translate, &[4.0, 8.0])
+            ]
+        );
+        assert_eq!(
+            built(
+                transformation(transform_function::TRANSLATE, vec![px(1.0)]),
+                transformation(transform_function::TRANSLATE3D, vec![px(0.0), px(0.0), px(3.0)]),
+            ),
+            [
+                operation(Kind::Translate3d, &[2.0, 0.0, 0.0]),
+                operation(Kind::Translate3d, &[0.0, 0.0, 6.0])
+            ]
+        );
+        assert_eq!(
+            built(
+                transformation(
+                    transform_function::SCALE3D,
+                    vec![number_value(2.0), number_value(3.0), number_value(1.0)]
+                ),
+                transformation(transform_function::SCALE, vec![number_value(4.0)]),
+            ),
+            [operation(Kind::Scale, &[2.0, 3.0]), operation(Kind::Scale, &[4.0, 4.0])]
+        );
+        assert_eq!(
+            built(
+                transformation(
+                    transform_function::SCALE3D,
+                    vec![number_value(2.0), number_value(3.0), number_value(5.0)]
+                ),
+                transformation(transform_function::SCALE, vec![number_value(4.0)]),
+            ),
+            [
+                operation(Kind::Scale3d, &[2.0, 3.0, 5.0]),
+                operation(Kind::Scale3d, &[4.0, 4.0, 1.0])
+            ]
+        );
     }
 
     #[test]
