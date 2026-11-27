@@ -1,0 +1,5 @@
+Ladybird’s Compositor exits when Skia can no longer submit to a lost
+GPU context, and the Browser relaunches it. Chromium does the same:
+GpuChannelManager hands a lost context to GpuServiceImpl::
+MaybeExitOnContextLost(), which calls RestartGpuProcessForContextLoss()
+unless the GPU runs in the browser process. From reading the source.
