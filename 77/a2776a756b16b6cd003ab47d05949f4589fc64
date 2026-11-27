@@ -1,0 +1,14 @@
+Reproduced in an arm64 container from the CI image: the overlay port’s
+libicudata.so.78.3 built for the arm64 Distribution triplet is 27.8 MB,
+with .rodata at 0x230 and icudt78_dat pointing at it, and a line-break
+iterator opens with it. After linuxdeploy 1-alpha-20251107-1 processed
+an AppDir holding it, the file was 55.5 MB, with .rodata at 0x1a90038
+and the symbol still at 0x230, exactly like the shipped 2026.48.0 copy,
+and ubrk_open() failed with U_MISSING_RESOURCE_ERROR. With the copy
+put back after linuxdeploy, the symbol points at .rodata again and
+the iterator opens. One or two runs of linuxdeploy’s patchelf 0.15.0
+--set-rpath alone left the file intact, so the damage comes from how
+linuxdeploy rewrites it. The shipped x86_64 copy kept its symbol at the
+start of .rodata. The same corrupted copy also made ucal_open() fall
+back to GMT for America/New_York, with a zone offset of 0 instead of
+-18000000 ms, which is the time-zone panic.
