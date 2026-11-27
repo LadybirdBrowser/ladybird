@@ -129,7 +129,8 @@ impl Visitor {
     }
 
     /// Visits values in memory that the cell being visited owns outside the heap, such as malloc storage, which a
-    /// collection that moves cells rewrites where they are rather than keeping their cells where they are.
+    /// collection that moves cells rewrites where they are rather than keeping their cells where they are. Slots in the
+    /// cell itself are traced in place instead (see the Trace of Gc, Member and Cell), and never visited as owned.
     ///
     /// # Safety
     ///
@@ -211,17 +212,6 @@ impl Visitor {
         if let Some(cell) = *slot {
             self.visit(cell);
         }
-    }
-
-    /// Like visit_owned_option(), for a slot in a Cell: in the cell being visited, whose slots a collection that moves
-    /// cells rewrites before it copies the cells, or in memory that cell owns.
-    ///
-    /// # Safety
-    ///
-    /// As for visit_owned_values().
-    pub unsafe fn visit_owned_cell_option<T>(&mut self, slot: &Cell<Option<Gc<T>>>) {
-        // SAFETY: A Cell has the layout of what it holds, and the caller vouches for the memory.
-        unsafe { self.visit_owned_option(&*slot.as_ptr()) };
     }
 
     /// Visits a value that is reachable only while `key` is. A collection that moves cells keeps both where they are.
@@ -433,7 +423,11 @@ impl_trace_for_tuples!(
 // SAFETY: A Gc reaches exactly its cell.
 unsafe impl<T> Trace for Gc<T> {
     fn trace(&self, visitor: &mut Visitor) {
-        visitor.visit(*self);
+        // NB: The Gc is visited where it is, so that a collection that moves its cell rewrites it if it is in a cell.
+        //     Elsewhere, such as on the stack or in malloc memory, it keeps its cell where it is.
+        // SAFETY: A Gc is a pointer, which the collection only rewrites while the mutator waits for it.
+        let slot = unsafe { &*core::ptr::from_ref(self).cast::<Cell<*mut T>>() };
+        visitor.visit_interior_pointer(slot, *self);
     }
 }
 

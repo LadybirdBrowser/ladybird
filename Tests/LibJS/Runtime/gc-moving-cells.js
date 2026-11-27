@@ -117,6 +117,10 @@ jit.neverCompile(internedConstant);
 // collector.
 holder.smallNumeric = String(123);
 holder.largeNumeric = String(123456);
+// The legacy static properties of RegExp hold the last input string in a field of the constructor.
+/x(y)/.exec("a" + "bxyz".repeat(3));
+const regExpInputBefore = addressOf(RegExp.input);
+
 const constantsBefore = {
     smallNumeric: addressOf(holder.smallNumeric),
     largeNumeric: addressOf(holder.largeNumeric),
@@ -276,6 +280,12 @@ runAfterMovingCollection(() => {
         expect(addressOf(holder.largeNumeric)).not.toBe(constantsBefore.largeNumeric);
         expect(addressOf(String(123456))).toBe(addressOf(holder.largeNumeric));
         expect(holder.largeNumeric).toBe("123456");
+    });
+
+    test("strings that a cell holds in a field move", () => {
+        expect(addressOf(RegExp.input)).not.toBe(regExpInputBefore);
+        expect(RegExp.input).toBe("abxyzbxyzbxyz");
+        expect(RegExp.$1).toBe("y");
     });
 
     test("interned strings move, and stay the interned strings of their contents", () => {
