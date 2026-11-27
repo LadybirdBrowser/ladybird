@@ -1534,8 +1534,8 @@ pub struct PaintVectorImage {
     pub rect: FloatRect,
     pub recorded_size: IntSize,
     pub records: DisplayListDataSpan,
-    // Whether a raster of the records can differ from replaying them in place: they read what was painted before them,
-    // or draw content that changes under them.
+    // Whether a raster of the records can differ from replaying them in place: they draw content that changes under
+    // them.
     pub requires_direct_replay: bool,
 }
 display_list_record_fields!(PaintVectorImage {

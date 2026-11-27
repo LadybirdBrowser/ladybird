@@ -8,7 +8,7 @@
 //! of the commands that paint them, which is the form the compositor replays a tape in.
 
 use crate::painting::display_list::builder::{
-    HEADER_SIZE, RecordedDisplayList, for_each_command, read_command, read_header,
+    COMMAND_ALIGNMENT, HEADER_SIZE, RecordedDisplayList, append_record, for_each_command, read_command, read_header,
 };
 use crate::painting::display_list::chunks::{Chunk, DisplayListChunk};
 use crate::painting::display_list::commands::{
@@ -21,11 +21,13 @@ use crate::painting::display_list::ffi_bytes::FfiBytes;
 use crate::painting::display_list::ids::allocate_display_list_id;
 use crate::painting::display_list::nested_records::for_each_nested_record_span;
 use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::display_list::summary::vector_image_records_require_direct_replay;
+use crate::painting::display_list::summary::{
+    records_blend_with_content_painted_before_them, vector_image_records_require_direct_replay,
+};
 use crate::painting::display_list_resources::DisplayListResources;
 use crate::painting::force_dark::ForceDarkRole;
 use libgfx_rust::image_frame::ImageFrameHandle;
-use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, IntSize, ScalingMode};
+use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, FloatSize, IntSize, MaskKind, ScalingMode};
 use smallvec::SmallVec;
 use std::collections::HashMap;
 use std::mem::{offset_of, size_of};
@@ -42,9 +44,13 @@ pub(crate) struct VectorImageRecords {
 }
 
 impl VectorImageRecords {
-    /// The records `display_list` holds, which its document recorded under no visual context, under a new id, drawing
-    /// `resources`.
-    pub(crate) fn recorded(display_list: &RecordedDisplayList, resources: &DisplayListResources) -> Arc<Self> {
+    /// The records `display_list` holds, which its document recorded under no visual context into a viewport of
+    /// `viewport_size`, under a new id, drawing `resources`.
+    pub(crate) fn recorded(
+        display_list: &RecordedDisplayList,
+        resources: &DisplayListResources,
+        viewport_size: FloatSize,
+    ) -> Arc<Self> {
         debug_assert!(
             display_list
                 .command_runs
@@ -54,6 +60,10 @@ impl VectorImageRecords {
         );
         let mut records = display_list_holding_vector_image_records(display_list, &resources.vector_images).bytes;
         forget_visual_context_nodes_named_by(&mut records);
+        // An SVG image renders as an isolated group, so a blend inside it never reads the content it is drawn over.
+        if records_blend_with_content_painted_before_them(&records) {
+            records = records_in_isolated_group(&records, viewport_size);
+        }
         let mut drawn = DisplayListResources::default();
         drawn.include_fonts_and_image_frames(&resources.with_vector_image_resources());
         Arc::new(Self {
@@ -100,6 +110,30 @@ impl VectorImageRecords {
     pub(crate) fn id(&self) -> u64 {
         self.id
     }
+}
+
+/// One isolated group holding `records`, which no destination-reading operation in them can see past.
+fn records_in_isolated_group(records: &[u8], viewport_size: FloatSize) -> Vec<u8> {
+    let content_offset = size_of::<DrawIsolatedGroup>().next_multiple_of(COMMAND_ALIGNMENT);
+    let mut inline_data = vec![0; content_offset - size_of::<DrawIsolatedGroup>()];
+    inline_data.extend_from_slice(records);
+    let group = DrawIsolatedGroup {
+        // NB: The image is clipped to its viewport where it is drawn. The group's clip lies a pixel outside of it, so it
+        //     neither cuts content nor antialiases the edges of the image a second time.
+        clip_rect: FloatRect::new(-1.0, -1.0, viewport_size.width + 2.0, viewport_size.height + 2.0),
+        content: DisplayListDataSpan {
+            offset: u32::try_from(content_offset).expect("display list payload exceeds u32"),
+            size: u32::try_from(records.len()).expect("display list payload exceeds u32"),
+        },
+        mask: DisplayListDataSpan::default(),
+        filter: DisplayListDataSpan::default(),
+        opacity: 1.0,
+        compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+        mask_kind: MaskKind::Alpha,
+    };
+    let mut bytes = Vec::with_capacity(HEADER_SIZE + content_offset + records.len());
+    append_record(&mut bytes, &group, &inline_data);
+    bytes
 }
 
 // The records replay against the visual context tree of whatever tape takes them in, of which they name no node.
@@ -396,7 +430,14 @@ mod tests {
         for fill in fills {
             builder.append(fill, &[], ContextRef::default());
         }
-        VectorImageRecords::recorded(&builder.finish(), &DisplayListResources::default())
+        VectorImageRecords::recorded(
+            &builder.finish(),
+            &DisplayListResources::default(),
+            FloatSize {
+                width: 10.0,
+                height: 10.0,
+            },
+        )
     }
 
     fn triangle_clip() -> PendingInlineClip {
@@ -519,6 +560,34 @@ mod tests {
     }
 
     #[test]
+    fn the_records_of_an_image_blend_inside_an_isolated_group_of_their_own() {
+        let blended = FillRect {
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Multiply,
+            ..fill(Color::from_rgb(255, 0, 0))
+        };
+        let vector_image = vector_image_of(&[fill(Color::from_rgb(0, 255, 0)), blended]);
+        assert!(!vector_image.requires_direct_replay);
+
+        let mut groups = Vec::new();
+        for_each_command(&vector_image.records, |header, _, payload| {
+            assert_eq!(header.command_type, DisplayListCommandType::DrawIsolatedGroup);
+            groups.push(read_command::<DrawIsolatedGroup>(payload));
+        });
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].clip_rect, FloatRect::new(-1.0, -1.0, 12.0, 12.0));
+        assert_eq!(
+            groups[0].compositing_and_blending_operator,
+            CompositingAndBlendingOperator::Normal
+        );
+
+        let vector_images = HashMap::from([(vector_image.id(), vector_image.clone())]);
+        let mut builder = DisplayListBuilder::new();
+        builder.append(&reference_to(&vector_image), &[], ContextRef::default());
+        let expanded = display_list_holding_vector_image_records(&builder.finish(), &vector_images);
+        assert_is_valid_for_the_compositor(&expanded);
+    }
+
+    #[test]
     fn the_records_of_an_image_hold_those_of_the_images_it_draws() {
         let inner = vector_image_of(&[fill(Color::from_rgb(255, 0, 0))]);
         let mut builder = DisplayListBuilder::new();
@@ -527,7 +596,14 @@ mod tests {
             vector_images: HashMap::from([(inner.id(), inner.clone())]),
             ..Default::default()
         };
-        let outer = VectorImageRecords::recorded(&builder.finish(), &resources);
+        let outer = VectorImageRecords::recorded(
+            &builder.finish(),
+            &resources,
+            FloatSize {
+                width: 10.0,
+                height: 10.0,
+            },
+        );
         assert!(outer.resources.vector_images.is_empty());
         for_each_command(&outer.records, |header, _, payload| {
             assert_eq!(header.command_type, DisplayListCommandType::PaintVectorImage);

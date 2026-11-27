@@ -446,11 +446,25 @@ fn draws_live_content(command_type: DisplayListCommandType) -> bool {
     )
 }
 
+/// Whether a destination-reading operation in `records` can see content painted before the records began: a
+/// non-normal blend on a command, or on a group of them. A blend inside a group reads only content of the group.
+pub fn records_blend_with_content_painted_before_them(records: &[u8]) -> bool {
+    let mut blends = false;
+    for_each_command(records, |header, _, payload| {
+        if let Some((blend, blends_with_isolated_backdrop_color)) = command_blend(header.command_type, payload)
+            && blend != CompositingAndBlendingOperator::Normal
+            && !blends_with_isolated_backdrop_color
+        {
+            blends = true;
+        }
+    });
+    blends
+}
+
 /// Whether reusing a raster of an SVG image's records can produce different pixels than replaying them in place. That
-/// is the case when a destination-reading operation can see content painted before the records began: a non-normal
-/// blend on a command, or on a group of them. A blend inside a group reads only content of the group. It is also the
-/// case when the records draw live content that changes under them: video frames, canvases and composited child
-/// contexts.
+/// is the case when the records draw live content that changes under them: video frames, canvases and composited child
+/// contexts. The records of an SVG image blend inside an isolated group of their own, so no blend in them can see
+/// content painted before them.
 pub fn vector_image_records_require_direct_replay(records: &[u8]) -> bool {
     let mut requires_direct_replay = false;
     for_each_command(records, |header, _, payload| {
@@ -458,13 +472,6 @@ pub fn vector_image_records_require_direct_replay(records: &[u8]) -> bool {
             return;
         }
         if draws_live_content(header.command_type) {
-            requires_direct_replay = true;
-            return;
-        }
-        if let Some((blend, blends_with_isolated_backdrop_color)) = command_blend(header.command_type, payload)
-            && blend != CompositingAndBlendingOperator::Normal
-            && !blends_with_isolated_backdrop_color
-        {
             requires_direct_replay = true;
             return;
         }
