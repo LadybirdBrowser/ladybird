@@ -1091,6 +1091,13 @@ impl FragmentBuilderScratch {
     pub(super) fn cover_slots(&mut self, slot_count: usize) {
         self.placed_box_slots.cover_slots(slot_count);
     }
+
+    /// Lets go of where the last pass placed its boxes, which no later pass reads.
+    pub(super) fn trim(&mut self) {
+        let covered_rows = self.placed_box_slots.covered_rows();
+        self.placed_box_slots = Default::default();
+        self.placed_box_slots.cover_slots(covered_rows);
+    }
 }
 
 fn take_spare_fragment_builder_buffers(worker: &super::layout_pass::WorkerScratch) -> FragmentBuilderBuffers {

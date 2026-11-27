@@ -27,6 +27,11 @@ pub(crate) struct LayoutScratch {
 }
 
 impl LayoutScratch {
+    /// Lets go of what a pass works in and the next one does not read: where the pass placed each box.
+    pub(crate) fn trim(&mut self) {
+        self.fragment_builder_scratch.trim();
+    }
+
     /// Counts what the scratch keeps of one pass for the next.
     pub(crate) fn report_memory(&self, report: &mut super::memory_report::LayoutMemoryReport) {
         use super::memory_report::LayoutMemoryOwner;

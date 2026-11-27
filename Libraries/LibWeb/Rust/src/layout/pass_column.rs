@@ -152,7 +152,7 @@ impl<T: Default> PassColumn<T> {
         bytes
     }
 
-    fn covered_rows(&self) -> usize {
+    pub(crate) fn covered_rows(&self) -> usize {
         self.chunks.len() * ROWS_PER_CHUNK
     }
 }

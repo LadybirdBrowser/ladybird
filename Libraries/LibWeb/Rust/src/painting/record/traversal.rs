@@ -38,7 +38,7 @@ pub(crate) fn record_display_list(
     window: Option<Arc<RecordedWindow>>,
     trace: bool,
 ) -> RecordingResult {
-    scratch.begin_recording(source.frame().paintable_row_capacity());
+    scratch.begin_recording();
     macro_rules! record {
         ($observer:ty) => {
             record_display_list_impl::<$observer>(source, scratch, viewport, inputs, source_recording, window)

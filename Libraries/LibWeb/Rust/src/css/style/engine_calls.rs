@@ -1529,6 +1529,8 @@ pub extern "C" fn style_engine_memory_report(
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_trim_scratch(host: &DocumentHost, read: &crate::render_state::BegunRead) {
     with_engine(read, host, StyleEngine::trim_scratch);
+    // NB: A document that stopped styling stopped laying out, too.
+    host.ask(read, |state| state.arena_handle_mut().trim_scratch());
 }
 
 /// A record of the allocations reports have counted, for [`style_engine_memory_beyond`].

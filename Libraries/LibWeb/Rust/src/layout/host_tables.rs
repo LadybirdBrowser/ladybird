@@ -174,6 +174,11 @@ impl ArenaHandle {
         }
     }
 
+    /// Lets go of what the layout passes work in, for a document that has not laid out in a while.
+    pub(crate) fn trim_scratch(&mut self) {
+        self.layout_scratch.trim();
+    }
+
     /// The layout stage's own scratch.
     pub(crate) fn layout_scratch(&self) -> &super::run_state::LayoutScratch {
         &self.layout_scratch
