@@ -13,30 +13,95 @@ use crate::painting::record::{BasePaintFacts, PatternTileKey};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[derive(Clone, Copy)]
-struct StampedEntry<T> {
-    recording_stamp: u32,
-    paintable: NodeSlotId,
-    value: T,
+const ROWS_PER_PAGE: usize = 64;
+
+struct Page<T> {
+    /// The stamp of the last write to a row of the page.
+    written_at: u64,
+    rows: [Option<(NodeSlotId, T)>; ROWS_PER_PAGE],
 }
 
-impl<T: Default> Default for StampedEntry<T> {
+/// What was worked out for a row at a stamp, by slot, for as long as the table's users ask at that stamp.
+///
+/// OPTIMIZATION: The rows are in pages that come to be as rows are written, and a page no row of which is written for
+///               a whole stamp is dropped. So the table holds about what its users reached lately, and nothing for the
+///               slots of rows they never reach: free slots, and boxes no recording visits.
+pub(crate) struct StampedRows<T> {
+    pages: Vec<Option<Box<Page<T>>>>,
+    /// The stamp the rows are written at.
+    stamp: u64,
+}
+
+impl<T> Default for StampedRows<T> {
     fn default() -> Self {
         Self {
-            recording_stamp: 0,
-            paintable: NodeSlotId::INVALID,
-            value: T::default(),
+            pages: Vec::new(),
+            stamp: 0,
         }
     }
 }
 
-/// Reusable workspace borrowed exclusively by one recording at a time. Its values are
-/// temporary derived facts, never persistent paint-cache entries or recording output.
+impl<T: Copy> StampedRows<T> {
+    /// Moves the table on to `stamp`, at which no row written at another stamp is answered, and drops the pages no
+    /// row of which was written at the stamp it leaves.
+    pub(crate) fn move_to_stamp(&mut self, stamp: u64) {
+        if stamp == self.stamp {
+            return;
+        }
+        let left = self.stamp;
+        for page in &mut self.pages {
+            if page.as_ref().is_some_and(|page| page.written_at != left) {
+                *page = None;
+            }
+        }
+        while self.pages.last().is_some_and(Option::is_none) {
+            self.pages.pop();
+        }
+        self.stamp = stamp;
+    }
+
+    pub(crate) fn stamp(&self) -> u64 {
+        self.stamp
+    }
+
+    /// What was written for `row` at the table's stamp.
+    pub(crate) fn get(&self, row: NodeSlotId) -> Option<T> {
+        let index = row.slot_index() as usize;
+        let page = self.pages.get(index / ROWS_PER_PAGE)?.as_deref()?;
+        if page.written_at != self.stamp {
+            return None;
+        }
+        let (written_for, value) = page.rows[index % ROWS_PER_PAGE]?;
+        (written_for == row).then_some(value)
+    }
+
+    pub(crate) fn set(&mut self, row: NodeSlotId, value: T) {
+        let index = row.slot_index() as usize;
+        let page_index = index / ROWS_PER_PAGE;
+        if self.pages.len() <= page_index {
+            self.pages.resize_with(page_index + 1, || None);
+        }
+        let page = self.pages[page_index].get_or_insert_with(|| {
+            Box::new(Page {
+                written_at: self.stamp,
+                rows: [None; ROWS_PER_PAGE],
+            })
+        });
+        if page.written_at != self.stamp {
+            // NB: The rows of the page are of an earlier stamp, which the table no longer answers.
+            page.rows = [None; ROWS_PER_PAGE];
+            page.written_at = self.stamp;
+        }
+        page.rows[index % ROWS_PER_PAGE] = Some((row, value));
+    }
+}
+
+/// Reusable workspace borrowed exclusively by one recording at a time. Its values are temporary derived facts, never
+/// persistent paint-cache entries or recording output.
 #[derive(Default)]
 pub(crate) struct RecordingScratch {
-    recording_stamp: u32,
-    base_paint_facts: Vec<StampedEntry<BasePaintFacts>>,
-    hit_test_facts: Vec<StampedEntry<HitTestFacts>>,
+    base_paint_facts: StampedRows<BasePaintFacts>,
+    hit_test_facts: StampedRows<HitTestFacts>,
     /// The records of each pattern tile, and whether they draw a placeholder for an SVG image.
     pub(super) pattern_tile_records: HashMap<PatternTileKey, (Arc<Vec<u8>>, bool)>,
     pub(super) selection_style_cache: HashMap<u32, Arc<SelectionStyleAnswer>>,
@@ -51,56 +116,23 @@ pub(crate) struct RecordingScratch {
     pub(crate) inline_strips: HashMap<(NodeSlotId, InlineStripKind), Option<Arc<InlineStrip>>>,
 }
 
-fn entry_if_stamped_for_current_recording<T: Copy>(
-    table: &[StampedEntry<T>],
-    recording_stamp: u32,
-    paintable: NodeSlotId,
-) -> Option<T> {
-    let entry = table.get(paintable.slot_index() as usize)?;
-    (entry.recording_stamp == recording_stamp && entry.paintable == paintable).then_some(entry.value)
-}
-
-fn stamp_entry_for_current_recording<T>(
-    table: &mut [StampedEntry<T>],
-    recording_stamp: u32,
-    paintable: NodeSlotId,
-    value: T,
-) {
-    if let Some(entry) = table.get_mut(paintable.slot_index() as usize) {
-        *entry = StampedEntry {
-            recording_stamp,
-            paintable,
-            value,
-        };
-    }
-}
-
 macro_rules! memo_table {
     ($get:ident, $set:ident, $table:ident, $type:ty) => {
         pub(crate) fn $get(&self, paintable: NodeSlotId) -> Option<$type> {
-            entry_if_stamped_for_current_recording(&self.$table, self.recording_stamp, paintable)
+            self.$table.get(paintable)
         }
 
         pub(crate) fn $set(&mut self, paintable: NodeSlotId, value: $type) {
-            stamp_entry_for_current_recording(&mut self.$table, self.recording_stamp, paintable, value)
+            self.$table.set(paintable, value)
         }
     };
 }
 
 impl RecordingScratch {
-    pub(crate) fn begin_recording(&mut self, row_count: usize) {
-        self.recording_stamp = match self.recording_stamp.checked_add(1) {
-            Some(recording_stamp) => recording_stamp,
-            None => {
-                self.base_paint_facts.clear();
-                self.hit_test_facts.clear();
-                1
-            }
-        };
-        if self.base_paint_facts.len() < row_count {
-            self.base_paint_facts.resize(row_count, StampedEntry::default());
-            self.hit_test_facts.resize(row_count, StampedEntry::default());
-        }
+    pub(crate) fn begin_recording(&mut self) {
+        let stamp = self.base_paint_facts.stamp() + 1;
+        self.base_paint_facts.move_to_stamp(stamp);
+        self.hit_test_facts.move_to_stamp(stamp);
         self.clear_temporary_caches();
     }
 
