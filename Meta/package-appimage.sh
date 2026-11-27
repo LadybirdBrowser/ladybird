@@ -68,11 +68,25 @@ for component in ladybird_Runtime ladybird_Freedesktop; do
 done
 echo AppImage >"$appdir/usr/share/Lagom/package-format"
 
+# linuxdeploy sets the runpath of every library in usr/lib, and for ICU's data library, whose data comes first in the
+# file, that moves the data on aarch64 but leaves the symbol that ICU finds it by pointing at the old place. So ICU
+# rejects its data, and every use of it fails. That library depends on nothing and needs no runpath, so put back the
+# copy that was installed.
+mapfile -d '' icu_data_libraries < <(find "$appdir/usr/lib" -maxdepth 1 -type f -name 'libicudata.so.*' -print0)
+mkdir "$work_directory/icu-data"
+for library in "${icu_data_libraries[@]}"; do
+    cp -p "$library" "$work_directory/icu-data/"
+done
+
 "$work_directory/linuxdeploy" --appdir "$appdir" \
     --deploy-deps-only "$appdir/usr/lib" --deploy-deps-only "$appdir/usr/libexec" \
     --executable "$appdir/usr/bin/Ladybird" \
     --desktop-file "$appdir/usr/share/applications/org.ladybird.Ladybird.desktop" \
     --icon-file "$appdir/usr/share/icons/hicolor/scalable/apps/org.ladybird.Ladybird.svg"
+
+for library in "${icu_data_libraries[@]}"; do
+    cp -p "$work_directory/icu-data/$(basename "$library")" "$library"
+done
 
 # linuxdeploy gives every library the runpath of one in usr/lib, which the plugins in directories below it do not share.
 while IFS= read -r library; do
