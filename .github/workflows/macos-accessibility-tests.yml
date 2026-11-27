@@ -63,7 +63,7 @@ jobs:
         working-directory: ${{ runner.temp }}/ladybird-app-bundle
         run: |
           tar -xzf ladybird-app-bundle.tar.gz
-          echo "LADYBIRD_BINARY=${PWD}/Ladybird.app/Contents/MacOS/Ladybird" >> "$GITHUB_ENV"
+          echo "LADYBIRD_BINARY=${PWD}/Ladybird.app/Contents/MacOS/ladybird" >> "$GITHUB_ENV"
 
       # Try to wake a display and clear the lock UI. And print the session state before and after — so a remedy that
       # doesn't work is visible, rather than inferred. (A few of Blacksmith's macOS runners still boot with the session

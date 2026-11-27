@@ -39,9 +39,6 @@ install(TARGETS ladybird WebDriver
   RUNTIME
     COMPONENT ladybird_Runtime
     DESTINATION ${ladybird_executable_install_dir}
-  BUNDLE
-    COMPONENT ladybird_Runtime
-    DESTINATION bundle
   LIBRARY
     COMPONENT ladybird_Runtime
     NAMELINK_COMPONENT ladybird_Development
@@ -71,22 +68,29 @@ list(REMOVE_DUPLICATES all_required_lagom_libraries)
 list(REMOVE_ITEM all_required_lagom_libraries ladybird)
 
 if (APPLE)
-    # Fixup the app bundle and copy:
-    #   - Shared libraries from lib/ to Ladybird.app/Contents/lib
-    # Static libraries are linked into the executables, so nothing loads them from the bundle.
-    # CMake strips every executable it installs except the one inside an application bundle, so strip that one here.
-    # Remove the symlink we created at build time for the lib directory first
+    # The build puts the application bundle together around the executables, and the install does the same with the
+    # parts of it that the build made.
+    set(bundle_contents_dir bundle/Ladybird.app/Contents)
+    install(FILES "${LADYBIRD_BUNDLE_DIR}/Contents/Info.plist" DESTINATION ${bundle_contents_dir} COMPONENT ladybird_Runtime)
+    install(FILES "${LADYBIRD_BUNDLE_DIR}/Contents/Resources/app_icon.icns" DESTINATION ${bundle_contents_dir}/Resources
+        COMPONENT ladybird_Runtime)
+    if (LADYBIRD_COMPILE_ICON_COMPOSER_ICON)
+        install(FILES "${LADYBIRD_BUNDLE_DIR}/Contents/Resources/Assets.car" DESTINATION ${bundle_contents_dir}/Resources
+            COMPONENT ladybird_Runtime)
+    endif()
+    if (LADYBIRD_ENABLE_SPARKLE)
+        install(DIRECTORY "${LADYBIRD_BUNDLE_DIR}/Contents/Frameworks/Sparkle.framework"
+            DESTINATION ${bundle_contents_dir}/Frameworks USE_SOURCE_PERMISSIONS COMPONENT ladybird_Runtime)
+    endif()
+    install_ladybird_resources(${bundle_contents_dir}/Resources ladybird_Runtime)
+
+    # Copy the shared libraries from lib/ to Ladybird.app/Contents/lib. Static libraries are linked into the executables,
+    # so nothing loads them from the bundle.
     install(CODE "
     set(contents_dir \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bundle/Ladybird.app/Contents)
-    file(REMOVE \${contents_dir}/lib)
     set(lib_dir \$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
     if (IS_ABSOLUTE ${CMAKE_INSTALL_LIBDIR})
       set(lib_dir \$ENV{DESTDIR}${CMAKE_INSTALL_LIBDIR})
-    endif()
-
-    if (CMAKE_INSTALL_DO_STRIP)
-      execute_process(COMMAND \"${CMAKE_STRIP}\" -u -r \${contents_dir}/MacOS/$<TARGET_FILE_NAME:ladybird>
-        COMMAND_ERROR_IS_FATAL ANY)
     endif()
 
     file(GLOB shared_libraries \${lib_dir}/*.dylib)
@@ -97,7 +101,7 @@ if (APPLE)
             COMPONENT ladybird_Runtime)
 
     install(FILES "${LADYBIRD_SOURCE_DIR}/Meta/Entitlements.plist" DESTINATION entitlements
-        RENAME Ladybird.release.entitlements COMPONENT ladybird_Runtime)
+        RENAME ladybird.release.entitlements COMPONENT ladybird_Runtime)
 endif()
 
 install(TARGETS ${all_required_lagom_libraries}
@@ -228,10 +232,6 @@ if (LADYBIRD_GENERATE_SYMBOL_FILES)
             set(name ${target})
         endif()
         if (APPLE)
-            get_target_property(is_bundle ${target} MACOSX_BUNDLE)
-            if (is_bundle)
-                string(APPEND name ".app")
-            endif()
             set(symbol_file "${symbol_files_dir}/${name}.dSYM")
             set(output "${symbol_file}/Contents/Info.plist")
             set(command dsymutil "$<TARGET_FILE:${target}>" -o "${symbol_file}")
@@ -295,7 +295,6 @@ install(
 )
 
 if (NOT APPLE)
-    # On macOS the resources are handled via the MACOSX_PACKAGE_LOCATION property on each resource file
     install_ladybird_resources("${CMAKE_INSTALL_DATADIR}/Lagom" ladybird_Runtime)
 endif()
 

@@ -25,7 +25,7 @@ Ladybird uses a multi-process architecture to improve stability and security in 
 
 | Process | Executable | How many | Launched |
 | --- | --- | --- | --- |
-| **UI** | `ladybird` (`Ladybird` on macOS) | One | By the user |
+| **UI** | `ladybird` | One | By the user |
 | **Hub** | `ladybird-hub` | One | By **UI**, as it starts |
 | **Compositor** | `ladybird-gpu` | One | At startup, and again if it crashes |
 | **WebContent** | `ladybird-render` | One per set of documents that must share a process, see [site isolation](#site-isolation) | When a document needs one, with a spare kept ready for the next tab |
@@ -38,7 +38,7 @@ Ladybird uses a multi-process architecture to improve stability and security in 
 
 On macOS, the kernel does not end a process when its parent dies, so a small **ProcessReaper** helper ends the others when **Hub** is gone; its executable is `ladybird-reaper`.
 
-The executables share the `ladybird` prefix, so that `pgrep -il ladybird` lists all of them. On macOS, the executable of **UI** keeps the capitalized name of the `Ladybird.app` bundle. Each name fits in the 15 characters that Linux keeps of a process name.
+The executables share the `ladybird` prefix, so that `pgrep -l ladybird` lists all of them. Each name fits in the 15 characters that Linux keeps of a process name.
 
 ### Process: UI
 

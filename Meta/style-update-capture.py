@@ -66,7 +66,7 @@ PHASES = {
 }
 
 
-WATCHED_PROCESSES = ("js", "test-web", "test262-runner", "ladybird-render", "ladybird", "Ladybird", "ladybird-driver")
+WATCHED_PROCESSES = ("js", "test-web", "test262-runner", "ladybird-render", "ladybird", "ladybird-driver")
 PS_FORMAT = "pid=,pgid=,rss=,time=,lstart=,comm="
 PS_START_FIELDS = 5
 PS_UNAVAILABLE = False
@@ -393,7 +393,6 @@ def configuration(executable):
     paths = [
         executable,
         executable.parent / "ladybird",
-        executable.parent / "Ladybird",
         executable.parent / "ladybird-render",
         build / "libexec/ladybird-render",
         *web_libraries(build),

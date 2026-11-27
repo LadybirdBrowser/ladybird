@@ -106,33 +106,30 @@ function(copy_resource_set subdir)
         return()
     endif()
 
-    if (APPLE)
-        target_sources(${COPY_TARGET} PRIVATE ${inputs})
-        set_source_files_properties(${inputs} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/${subdir}")
-    else()
-        set(outputs "")
-        foreach (input IN LISTS inputs)
-            get_filename_component(input_name "${input}" NAME)
-            list(APPEND outputs "${COPY_DESTINATION}/${subdir}/${input_name}")
-        endforeach()
+    set(outputs "")
+    foreach (input IN LISTS inputs)
+        get_filename_component(input_name "${input}" NAME)
+        list(APPEND outputs "${COPY_DESTINATION}/${subdir}/${input_name}")
+    endforeach()
 
-        add_custom_command(
-            OUTPUT ${outputs}
-            DEPENDS ${inputs}
-            COMMAND "${CMAKE_COMMAND}" -E make_directory "${COPY_DESTINATION}/${subdir}"
-            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${inputs}" "${COPY_DESTINATION}/${subdir}"
-            COMMAND_EXPAND_LISTS
-            VERBATIM
-        )
-        string(REPLACE "/" "_" subdir_underscores "${subdir}")
-        set(target_name "copy_${subdir_underscores}_resources_to_build")
-        while (TARGET ${target_name})
-            set(target_name "${target_name}_")
-        endwhile()
-        add_custom_target(${target_name} DEPENDS ${outputs})
-        add_dependencies(ladybird_codegen_accumulator ${target_name})
-        add_dependencies("${COPY_TARGET}_build_resource_files" ${target_name})
-    endif()
+    add_custom_command(
+        OUTPUT ${outputs}
+        DEPENDS ${inputs}
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${COPY_DESTINATION}/${subdir}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${inputs}" "${COPY_DESTINATION}/${subdir}"
+        COMMAND_EXPAND_LISTS
+        VERBATIM
+    )
+    string(REPLACE "/" "_" subdir_underscores "${subdir}")
+    set(target_name "copy_${subdir_underscores}_resources_to_build")
+    while (TARGET ${target_name})
+        set(target_name "${target_name}_")
+    endwhile()
+    add_custom_target(${target_name} DEPENDS ${outputs})
+    # The application bundle is signed again whenever one of its resources changes.
+    set_property(GLOBAL APPEND PROPERTY LADYBIRD_RESOURCE_OUTPUTS ${outputs})
+    add_dependencies(ladybird_codegen_accumulator ${target_name})
+    add_dependencies("${COPY_TARGET}_build_resource_files" ${target_name})
 endfunction()
 
 function(copy_resources_to_build base_directory bundle_target)

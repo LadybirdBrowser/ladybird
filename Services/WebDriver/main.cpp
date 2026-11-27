@@ -207,12 +207,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless, Optional<ByteString> const& proxy_autoconfig_url) {
             auto arguments = create_arguments(webdriver_endpoint, profile_name, profile_path, headless, expose_experimental_interfaces, expose_internals_object, force_cpu_painting, disable_sandbox, debug_process, default_time_zone, resource_substitution_map_path, proxy_autoconfig_url);
-#if defined(AK_OS_MACOS)
-            // NB: On macOS, the executable keeps the capitalized name of the application bundle.
-            return launch_process("Ladybird"sv, arguments.span());
-#else
             return launch_process("ladybird"sv, arguments.span());
-#endif
         };
 
         auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), move(launch_browser_callback));
