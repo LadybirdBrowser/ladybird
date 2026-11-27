@@ -531,7 +531,7 @@ impl PaintableRowStore {
         let mut links = Vec::new();
         let committed_links = self.committed_fragment_links.heap_size(&mut report.sizer, |slot, _| {
             links.extend(slot.link.as_ref().map(|link| link.fragment.clone()));
-            0
+            slot.link.as_ref().map_or(0, |link| link.placement.heap_bytes())
         });
         report.add(LayoutMemoryOwner::CommittedLinks, committed_links);
         for fragment in &links {

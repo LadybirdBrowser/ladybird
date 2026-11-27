@@ -522,6 +522,11 @@ impl LinkPlacement {
         self.rare_mut().insets = insets;
     }
 
+    /// The bytes the placement holds on the heap: its rare part, without the layout inputs that part shares.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        self.rare.as_ref().map_or(0, |_| size_of::<RareLinkPlacement>())
+    }
+
     /// What the parent decided about how the box shows.
     pub(crate) fn show_facts(&self) -> ParentShowFacts {
         let rare = self.rare.as_deref();

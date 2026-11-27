@@ -251,7 +251,7 @@ pub struct GlyphRunRecord {
     pub ascent: CssPixels,
     pub descent: CssPixels,
     /// Built the first time a caret, selection or hit-testing query asks.
-    pub cluster_geometry: std::sync::OnceLock<ClusterGeometry>,
+    pub cluster_geometry: std::sync::OnceLock<Box<ClusterGeometry>>,
 }
 
 impl GlyphRunRecord {
@@ -275,7 +275,8 @@ impl GlyphRunRecord {
     }
 
     pub fn cluster_geometry(&self) -> &ClusterGeometry {
-        self.cluster_geometry.get_or_init(|| ClusterGeometry::of(self))
+        self.cluster_geometry
+            .get_or_init(|| Box::new(ClusterGeometry::of(self)))
     }
 }
 
@@ -307,6 +308,11 @@ impl ClusterExtent {
 }
 
 impl ClusterGeometry {
+    /// The bytes the geometry holds on the heap.
+    pub(crate) fn heap_bytes(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.clusters)
+    }
+
     fn of(run: &GlyphRunRecord) -> Self {
         let mut clusters: Vec<ClusterExtent> = Vec::new();
         let mut pen = 0.0f32;
@@ -566,7 +572,10 @@ impl InlineContent {
                 if fragment.is_fully_truncated {
                     continue;
                 }
-                fragment.record.glyph_run = fragment.glyphs.take().map(|glyph_data| {
+                fragment.record.glyph_run = fragment.glyphs.take().map(|mut glyph_data| {
+                    // OPTIMIZATION: A run merged from several keeps room for more, which the content holds for as
+                    //               long as it is committed.
+                    glyph_data.glyphs.shrink_to_fit();
                     let bounding_box = libgfx_rust::FloatRect::from_array(
                         libgfx_rust::text_layout::glyph_run_bounding_box(&glyph_data.font, &glyph_data.glyphs, 1.0),
                     );

@@ -543,6 +543,8 @@ pub(crate) fn chunk_text(inputs: TextChunkInputs<'_>) -> ChunkedText {
     while let Some(chunk) = chunker.next_chunk() {
         chunks.push(chunk);
     }
+    // OPTIMIZATION: A memo keeps the chunks of every text node, so they keep no room to grow.
+    chunks.shrink_to_fit();
     ChunkedText {
         chunks,
         fonts: chunker.fonts.into_boxed_slice(),
