@@ -48,6 +48,8 @@ unsafe extern "C" {
     /// Whether the global object of the realm is a Window.
     pub(crate) fn web_bindings_realm_is_window(realm: *mut c_void) -> bool;
     pub(crate) fn web_bindings_realm_is_secure_context(realm: *mut c_void) -> bool;
+    /// Whether the realm exposes the [Experimental] member with the name, which is ASCII.
+    pub(crate) fn web_bindings_realm_exposes_experimental_member(realm: *mut c_void, name: ak::Span<'_, u8>) -> bool;
 
     pub(crate) fn web_bindings_report_an_exception(realm: *mut c_void, exception: u64);
 
