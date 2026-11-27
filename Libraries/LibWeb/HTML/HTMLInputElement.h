@@ -129,6 +129,7 @@ public:
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
     void did_pick_date(Optional<Utf16String> picked_value);
     bool has_date_picker() const;
+    void show_the_picker_if_applicable();
     bool handle_date_time_field_key(UIEvents::KeyCode, u32 modifiers, u32 code_point);
     bool handle_range_key(UIEvents::KeyCode, u32 modifiers);
     void start_slider_drag(CSSPixelPoint viewport_position);
