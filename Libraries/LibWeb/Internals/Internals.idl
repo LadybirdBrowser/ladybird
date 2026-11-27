@@ -240,6 +240,7 @@ interface Internals {
     DOMString getComputedAriaLevel(Element element);
     undefined setAccessibilityFocusTarget(Element element);
     undefined setAccessibilityInterested();
+    undefined setListenForDOMMutations();
     unsigned short getEchoServerPort();
     unsigned short getHttpsEchoServerPort();
 

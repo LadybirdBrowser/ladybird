@@ -1846,6 +1846,11 @@ void Internals::set_accessibility_interested()
     page().set_accessibility_interested(true);
 }
 
+void Internals::set_listen_for_dom_mutations()
+{
+    page().set_listen_for_dom_mutations(true);
+}
+
 u16 Internals::get_echo_server_port()
 {
     return s_echo_server_port;
