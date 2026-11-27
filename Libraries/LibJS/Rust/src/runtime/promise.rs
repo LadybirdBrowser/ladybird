@@ -251,9 +251,11 @@ pub struct Promise {
     /// Whether something may resolve the promise: resolving functions CreateResolvingFunctions made for it, or the
     /// direct resolve() of a promise nothing else resolves.
     has_resolver: Cell<bool>,
-    result: Cell<Value>,                                    // [[PromiseResult]]
+    result: Cell<Value>, // [[PromiseResult]]
+    #[gc(owned = "only the mutator changes the reactions, and only the promise's destructor frees them")]
     fulfill_reactions: GcRefCell<Vec<Gc<PromiseReaction>>>, // [[PromiseFulfillReactions]]
-    reject_reactions: GcRefCell<Vec<Gc<PromiseReaction>>>,  // [[PromiseRejectReactions]]
+    #[gc(owned = "only the mutator changes the reactions, and only the promise's destructor frees them")]
+    reject_reactions: GcRefCell<Vec<Gc<PromiseReaction>>>, // [[PromiseRejectReactions]]
 }
 
 define_cell!(

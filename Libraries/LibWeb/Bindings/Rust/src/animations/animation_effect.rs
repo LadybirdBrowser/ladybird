@@ -95,8 +95,11 @@ pub(crate) struct AnimationEffect {
 //         host visits them.
 unsafe impl Trace for AnimationEffect {
     fn trace(&self, visitor: &mut Visitor) {
+        let Some(raw) = visitor.as_raw() else {
+            return;
+        };
         // SAFETY: The effect holds a reference to the record, and the visitor is one LibGC passed in.
-        unsafe { web_animation_effect_visit_host_cells(self.record.as_host_ptr(), visitor.as_raw().cast()) };
+        unsafe { web_animation_effect_visit_host_cells(self.record.as_host_ptr(), raw.as_ptr().cast()) };
     }
 }
 

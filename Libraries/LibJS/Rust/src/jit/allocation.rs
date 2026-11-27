@@ -15,9 +15,9 @@
 use core::ptr::NonNull;
 
 use libjs_jit::snapshot::{
-    ArrayAllocationInfo, CellId, ClosureTemplateSnapshot, EnvironmentTemplateSnapshot, FunctionAllocationInfo,
-    LexicalEnvironmentTemplateSnapshot, List, ObjectAllocationInfo, ObjectSizeClass, RopeAllocationInfo,
-    SnapshotWriter, StorageSizeClass,
+    ArrayAllocationInfo, CellId, CellSlot, CellSlotHolds, ClosureTemplateSnapshot, EnvironmentTemplateSnapshot,
+    FunctionAllocationInfo, LexicalEnvironmentTemplateSnapshot, List, ObjectAllocationInfo, ObjectSizeClass,
+    RopeAllocationInfo, SampleSlot, SnapshotWriter, StorageSizeClass,
 };
 use libjs_runtime_macros::{jit_abi, jit_function_address};
 
@@ -25,6 +25,7 @@ use super::offset;
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{Extends, GcCell, class_of};
 use crate::gc::defer_gc::{DeferGc, Deferred};
+use crate::gc::visitor::{SlotKind, record_cell_slots};
 use crate::interpreter::slow_paths::bindings::create_lexical_environment;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -76,11 +77,39 @@ fn for_each_cell_word<T>(cell: Gc<T>, size: usize, mut word: impl FnMut(u64)) {
     }
 }
 
-/// The words of `cell` (see `for_each_cell_word()`), as a list of `snapshot`.
-fn cell_words<T>(snapshot: &mut SnapshotWriter, cell: Gc<T>, size: usize) -> List<u64> {
+/// The bytes of a cell, as words, and the slots in them that hold cells, which JIT code copies to make cells like it.
+#[derive(Clone, Copy, Default)]
+pub struct CellImage {
+    pub words: List<u64>,
+    pub slots: List<CellSlot>,
+}
+
+/// The image of the first `size` bytes of `cell`, if tracing the cell tells where all the cells in them are (see
+/// record_cell_slots()). Only then may JIT code copy the bytes, since it must know which of them are cells.
+fn cell_image<T>(snapshot: &mut SnapshotWriter, cell: Gc<T>, size: usize) -> Option<CellImage> {
+    let recorded = record_cell_slots(cell, size);
+    if !recorded.complete {
+        return None;
+    }
     let words = snapshot.begin();
     for_each_cell_word(cell, size, |word| snapshot.push(word));
-    snapshot.end(words)
+    let words = snapshot.end(words);
+    let slots = snapshot.begin();
+    for (offset, kind) in recorded.slots {
+        snapshot.push(CellSlot {
+            offset,
+            holds: match kind {
+                SlotKind::Value => CellSlotHolds::Value,
+                SlotKind::Cell => CellSlotHolds::Cell,
+                SlotKind::CompressedCell => CellSlotHolds::CompressedCell,
+                SlotKind::SelfPointer => CellSlotHolds::SelfPointer,
+            },
+        });
+    }
+    Some(CellImage {
+        words,
+        slots: snapshot.end(slots),
+    })
 }
 
 /// Clears the `size` bytes at `offset` of `words`, which may share their word with other fields.
@@ -115,6 +144,8 @@ pub fn allocation_infos<'d>(
     };
 
     let object_template = Object::create(vm, realm, Some(realm.object_prototype()));
+    // NB: Without an image, the template is empty, and code allocates objects through the runtime.
+    let object_image = cell_image(snapshot, object_template, size_of::<Object>()).unwrap_or_default();
     let mut object = ObjectAllocationInfo {
         empty_object_inline_capacity: u32::from(EMPTY_PLAIN_OBJECT_INLINE_CAPACITY),
         heap: heap_address,
@@ -127,7 +158,8 @@ pub fn allocation_infos<'d>(
         local_cursor_offset: offset(inline.local_cursor_offset),
         local_end_offset: offset(inline.local_end_offset),
         local_cell_size_offset: offset(inline.local_cell_size_offset),
-        template: cell_words(snapshot, object_template, size_of::<Object>()),
+        template: object_image.words,
+        template_slots: object_image.slots,
         shape_offset: offset(core::mem::offset_of!(Object, shape)),
         named_properties_offset: offset(core::mem::offset_of!(Object, named_properties)),
         inline_storage_offset: offset(core::mem::offset_of!(Object, inline_named_storage)),
@@ -154,6 +186,7 @@ pub fn allocation_infos<'d>(
 
     let array_template = Array::create(vm, realm, 0, None).must();
     let array_shape = array_template.shape();
+    let array_image = cell_image(snapshot, array_template, size_of::<Array>()).unwrap_or_default();
     // NB: Storage is only allocated inline where the heap gives the addresses of all the free lists it comes from.
     let storage_size_classes = snapshot.begin();
     let mut has_all_free_lists = true;
@@ -173,8 +206,9 @@ pub fn allocation_infos<'d>(
     let array = ArrayAllocationInfo {
         allocator: address(heap.local_free_list_of(Array::CLASS)),
         cell_size: size(size_of::<Array>()),
-        template: cell_words(snapshot, array_template, size_of::<Array>()),
-        shape: CellId(array_shape.as_ptr() as u64),
+        template: array_image.words,
+        template_slots: array_image.slots,
+        shape: CellId::from_address(array_shape.as_ptr() as u64),
         storage_size_classes,
         storage_template: snapshot.add(&value_storage::cell_header_template()[..]),
         storage_values_offset: offset(VALUES_OFFSET),
@@ -182,11 +216,12 @@ pub fn allocation_infos<'d>(
         slow_path: jit_function_address!(libjs_jit_allocate_array),
     };
 
-    let rope_template = rope_template(vm, snapshot);
+    let rope_image = rope_image(vm, snapshot).unwrap_or_default();
     let rope = RopeAllocationInfo {
         allocator: address(heap.local_free_list_of(RopeString::CLASS)),
         cell_size: size(size_of::<RopeString>()),
-        template: rope_template,
+        template: rope_image.words,
+        template_slots: rope_image.slots,
         lhs_offset: offset(ROPE_STRING_LHS_OFFSET),
         rhs_offset: offset(ROPE_STRING_RHS_OFFSET),
         length_offset: offset(core::mem::offset_of!(PrimitiveString, length_in_utf16_code_units)),
@@ -213,18 +248,18 @@ fn header_of<T: Extends<CellHeader>>(cell: Gc<T>) -> Gc<CellHeader> {
     cell.upcast()
 }
 
-/// The bytes of a new rope string, with null halves.
-fn rope_template(vm: &Vm, snapshot: &mut SnapshotWriter) -> List<u64> {
+/// The image of a new rope string, with null halves.
+fn rope_image(vm: &Vm, snapshot: &mut SnapshotWriter) -> Option<CellImage> {
     let half = PrimitiveString::create_from_utf8(vm, "ropes are made of two halves");
     let rope = PrimitiveString::create_from_concatenation(vm, half, half).must();
     assert!(class_of(rope).is_subclass_of(RopeString::CLASS));
-    let words = cell_words(snapshot, rope, size_of::<RopeString>());
+    let image = cell_image(snapshot, rope, size_of::<RopeString>())?;
     // NB: A snapshot that had no room for the words does not have all of them (see `Snapshot::is_complete()`).
     if snapshot.is_complete() {
-        clear_bytes(&mut snapshot[words], ROPE_STRING_LHS_OFFSET, 4);
-        clear_bytes(&mut snapshot[words], ROPE_STRING_RHS_OFFSET, 4);
+        clear_bytes(&mut snapshot[image.words], ROPE_STRING_LHS_OFFSET, 4);
+        clear_bytes(&mut snapshot[image.words], ROPE_STRING_RHS_OFFSET, 4);
     }
-    words
+    Some(image)
 }
 
 /// The size class of the environments of calls with room for `binding_count` binding values in their cells, as
@@ -430,6 +465,15 @@ pub fn function_environment_template(
     if shape.is_none() && binding_count != 0 {
         return None;
     }
+    let image = cell_image(
+        snapshot,
+        sample,
+        if has_function_fields {
+            size_of::<FunctionEnvironment>()
+        } else {
+            size_of::<DeclarativeEnvironment>()
+        },
+    )?;
     let cells = snapshot.begin();
     if let Some(shape) = shape {
         snapshot.push(cell(header_of(shape)));
@@ -442,15 +486,8 @@ pub fn function_environment_template(
     Some(EnvironmentTemplateSnapshot {
         allocator: allocator.as_ptr() as u64,
         cell_size,
-        words: cell_words(
-            snapshot,
-            sample,
-            if has_function_fields {
-                size_of::<FunctionEnvironment>()
-            } else {
-                size_of::<DeclarativeEnvironment>()
-            },
-        ),
+        words: image.words,
+        slots: image.slots,
         inline_binding_values: binding_count != 0,
         binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values)),
         binds_this,
@@ -498,10 +535,12 @@ pub fn lexical_environment_templates(
             if !sample.rare_data.is_null() || sample.binding_values_are_inline() != (binding_count != 0) {
                 return None;
             }
+            let image = cell_image(snapshot, sample, size_of::<DeclarativeEnvironment>())?;
             Some(LexicalEnvironmentTemplateSnapshot {
                 allocator: allocator.as_ptr() as u64,
                 cell_size,
-                words: cell_words(snapshot, sample, size_of::<DeclarativeEnvironment>()),
+                words: image.words,
+                slots: image.slots,
                 binding_count: u32::try_from(binding_count).ok()?,
                 inline_binding_values: binding_count != 0,
                 binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values)),
@@ -537,7 +576,7 @@ pub extern "C" fn libjs_jit_create_lexical_environment(
 }
 
 /// The sample of each closure template with its words, by shared function data index.
-pub type ClosureTemplates = Vec<Option<(Gc<EcmascriptFunctionObject>, List<u64>)>>;
+pub type ClosureTemplates = Vec<Option<(Gc<EcmascriptFunctionObject>, CellImage)>>;
 
 /// The closures JIT code of `executable`, whose frames run `function`, creates with each `NewFunction` (by shared
 /// function data index) by copying a sample (see `FunctionAllocationInfo`), or None for those it cannot.
@@ -563,7 +602,7 @@ fn closure_template(
     function: Gc<EcmascriptFunctionObject>,
     shared_data: Gc<SharedFunctionInstanceData>,
     snapshot: &mut SnapshotWriter,
-) -> Option<(Gc<EcmascriptFunctionObject>, List<u64>)> {
+) -> Option<(Gc<EcmascriptFunctionObject>, CellImage)> {
     // NB: Only the closures of plain functions are copies of each other apart from their environments.
     if shared_data.kind() != FunctionKind::Normal || shared_data.is_class_constructor() {
         return None;
@@ -585,8 +624,8 @@ fn closure_template(
     if !sample.can_be_copied() {
         return None;
     }
-    let words = cell_words(snapshot, sample, size_of::<EcmascriptFunctionObject>());
-    Some((sample, words))
+    let image = cell_image(snapshot, sample, size_of::<EcmascriptFunctionObject>())?;
+    Some((sample, image))
 }
 
 /// The slots that hold the samples of the closure templates of JIT code, each in a box of its own, so that its address
@@ -607,16 +646,17 @@ pub fn closure_template_snapshots(
 ) -> List<Option<ClosureTemplateSnapshot>> {
     let rows = snapshot.begin();
     for template in templates {
-        snapshot.push(template.map(|(sample, words)| {
+        snapshot.push(template.map(|(sample, image)| {
             cell(sample.upcast());
             let slot = Box::new(Value::from_object(sample.upcast::<Object>()));
-            let sample_slot = CellId(core::ptr::from_ref::<Value>(&slot).expose_provenance() as u64);
+            let sample_slot = SampleSlot(core::ptr::from_ref::<Value>(&slot).expose_provenance() as u64);
             sample_slots.push(slot);
             ClosureTemplateSnapshot {
                 sample_slot,
                 shape: cell(sample.shape().upcast()),
                 shared_data: cell(sample.shared_data().upcast()),
-                words,
+                words: image.words,
+                slots: image.slots,
                 inline_executable: None,
             }
         }));

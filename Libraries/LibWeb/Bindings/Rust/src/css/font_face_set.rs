@@ -89,8 +89,11 @@ impl Drop for CppFontFaceState {
 // SAFETY: The state visits every cell it can reach.
 unsafe impl Trace for CppFontFaceState {
     fn trace(&self, visitor: &mut Visitor) {
+        let Some(raw) = visitor.as_raw() else {
+            return;
+        };
         // SAFETY: This holds a reference, and the visitor is live.
-        unsafe { web_css_font_face_visit_edges(self.as_ptr(), visitor.as_raw().cast()) };
+        unsafe { web_css_font_face_visit_edges(self.as_ptr(), raw.as_ptr().cast()) };
     }
 }
 

@@ -42,7 +42,7 @@ fn compress_address(address: usize) -> u32 {
 /// stack scan recognizes a cell by its address or by its compressed pointer in either half of a word, but not by its
 /// unshifted offset, which the compiler could otherwise keep instead while either is held across an allocation.
 #[inline(always)]
-fn decompress_address(compressed: u32) -> usize {
+pub(crate) fn decompress_address(compressed: u32) -> usize {
     let mut address = heap_region_base() + ((compressed as usize) << COMPRESSED_POINTER_SHIFT);
     // SAFETY: The assembly is empty: it only has the compiler put `compressed` and `address` in registers here.
     unsafe {

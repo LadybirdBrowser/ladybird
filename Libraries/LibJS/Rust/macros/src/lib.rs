@@ -80,7 +80,9 @@ pub fn jit_function_address(input: TokenStream) -> TokenStream {
 }
 
 /// Implements Trace by tracing every field. A field marked #[gc(untraced)] is skipped and holds no cells, or says what
-/// keeps them alive: #[gc(untraced = "the realm traces the shapes")].
+/// keeps them alive: #[gc(untraced = "the realm traces the shapes")]. A field marked #[gc(owned = "why")] holds its
+/// cells in memory that the cell owns outside the heap, and says why nothing frees, moves or writes them until the
+/// collection is over, so that they are visited as owned slots (see Visitor::visit_owned_slots()).
 ///
 /// The Trace trait is crate::gc::visitor::Trace, or path::gc::visitor::Trace for a type marked #[gc(crate = path)],
 /// such as a type that an embedder puts in cells of the runtime's heap from a crate of its own.
@@ -94,36 +96,45 @@ pub fn derive_trace(input: TokenStream) -> TokenStream {
         Err(error) => return error.to_compile_error().into(),
     };
     let body = match &input.data {
-        Data::Struct(data) => trace_fields(&data.fields, &gc, |member| quote!(&self.#member)),
-        Data::Enum(data) => {
-            let arms = data.variants.iter().map(|variant| {
+        Data::Struct(data) => trace_fields(&data.fields, &gc, |index, field| match &field.ident {
+            Some(ident) => quote!(&self.#ident),
+            None => {
+                let index = Index::from(index);
+                quote!(&self.#index)
+            }
+        }),
+        Data::Enum(data) => data
+            .variants
+            .iter()
+            .map(|variant| {
                 let variant_name = &variant.ident;
                 let bindings: Vec<_> = (0..variant.fields.len())
                     .map(|index| format_ident!("field_{index}"))
                     .collect();
-                let traced: Vec<_> = variant
-                    .fields
-                    .iter()
-                    .zip(&bindings)
-                    .filter(|(field, _)| !is_untraced(field))
-                    .map(|(_, binding)| quote!(#gc::visitor::Trace::trace(#binding, visitor);))
-                    .collect();
-                match &variant.fields {
+                let traced = trace_fields(&variant.fields, &gc, |index, _| {
+                    let binding = &bindings[index];
+                    quote!(#binding)
+                })?;
+                Ok(match &variant.fields {
                     Fields::Named(fields) => {
                         let names = fields.named.iter().map(|field| field.ident.as_ref().unwrap());
-                        quote!(Self::#variant_name { #(#names: #bindings),* } => { #(#traced)* })
+                        quote!(Self::#variant_name { #(#names: #bindings),* } => { #traced })
                     }
-                    Fields::Unnamed(_) => quote!(Self::#variant_name(#(#bindings),*) => { #(#traced)* }),
+                    Fields::Unnamed(_) => quote!(Self::#variant_name(#(#bindings),*) => { #traced }),
                     Fields::Unit => quote!(Self::#variant_name => {}),
-                }
-            });
-            quote!(match self { #(#arms)* })
-        }
+                })
+            })
+            .collect::<syn::Result<Vec<_>>>()
+            .map(|arms| quote!(match self { #(#arms)* })),
         Data::Union(_) => {
             return syn::Error::new_spanned(name, "Trace cannot be derived for a union")
                 .to_compile_error()
                 .into();
         }
+    };
+    let body = match body {
+        Ok(body) => body,
+        Err(error) => return error.to_compile_error().into(),
     };
     quote! {
         // SAFETY: Traces every field that is not marked untraced.
@@ -155,40 +166,57 @@ fn gc_module_path(input: &DeriveInput) -> syn::Result<TokenStream2> {
     })
 }
 
-fn trace_fields(fields: &Fields, gc: &TokenStream2, access: impl Fn(TokenStream2) -> TokenStream2) -> TokenStream2 {
-    let traced = fields
-        .iter()
-        .enumerate()
-        .filter(|(_, field)| !is_untraced(field))
-        .map(|(index, field)| {
-            let member = match &field.ident {
-                Some(ident) => quote!(#ident),
-                None => {
-                    let index = Index::from(index);
-                    quote!(#index)
-                }
-            };
-            let value = access(member);
-            quote!(#gc::visitor::Trace::trace(#value, visitor);)
+/// The trace of `fields`, each of which `access` gives a reference to by its index.
+fn trace_fields(
+    fields: &Fields,
+    gc: &TokenStream2,
+    access: impl Fn(usize, &syn::Field) -> TokenStream2,
+) -> syn::Result<TokenStream2> {
+    let mut traced = Vec::new();
+    for (index, field) in fields.iter().enumerate() {
+        let value = access(index, field);
+        traced.push(match field_tracing(field)? {
+            FieldTracing::Untraced => continue,
+            // SAFETY: The field's #[gc(owned = "...")] says why nothing frees, moves or writes its slots until the
+            //         collection is over.
+            FieldTracing::Owned => quote!(unsafe { visitor.visit_owned_slots(#value) };),
+            FieldTracing::Traced => quote!(#gc::visitor::Trace::trace(#value, visitor);),
         });
-    quote!(#(#traced)*)
+    }
+    Ok(quote!(#(#traced)*))
 }
 
-fn is_untraced(field: &syn::Field) -> bool {
-    field.attrs.iter().any(|attribute| {
-        if !attribute.path().is_ident("gc") {
-            return false;
-        }
-        let mut untraced = false;
-        let _ = attribute.parse_nested_meta(|meta| {
+/// How the trace visits a field, from its #[gc(...)] attributes.
+enum FieldTracing {
+    Traced,
+    /// #[gc(untraced)] or #[gc(untraced = "what keeps the cells alive")]: skipped.
+    Untraced,
+    /// #[gc(owned = "why")]: its slots are in memory that the cell owns outside the heap, which nothing frees, moves or
+    /// writes until the collection is over, so they are visited as owned slots (see Visitor::visit_owned_slots()).
+    Owned,
+}
+
+fn field_tracing(field: &syn::Field) -> syn::Result<FieldTracing> {
+    let mut tracing = FieldTracing::Traced;
+    for attribute in field.attrs.iter().filter(|attribute| attribute.path().is_ident("gc")) {
+        attribute.parse_nested_meta(|meta| {
+            if !matches!(tracing, FieldTracing::Traced) {
+                return Err(meta.error("a field is either untraced or owned, once"));
+            }
             if meta.path.is_ident("untraced") {
-                untraced = true;
                 if meta.input.peek(syn::Token![=]) {
                     meta.value()?.parse::<syn::LitStr>()?;
                 }
+                tracing = FieldTracing::Untraced;
+                return Ok(());
             }
-            Ok(())
-        });
-        untraced
-    })
+            if meta.path.is_ident("owned") {
+                meta.value()?.parse::<syn::LitStr>()?;
+                tracing = FieldTracing::Owned;
+                return Ok(());
+            }
+            Err(meta.error("expected `untraced`, `untraced = \"why\"` or `owned = \"why\"`"))
+        })?;
+    }
+    Ok(tracing)
 }

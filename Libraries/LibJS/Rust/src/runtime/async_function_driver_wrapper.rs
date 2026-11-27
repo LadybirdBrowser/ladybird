@@ -32,6 +32,7 @@ pub struct AsyncFunctionDriverWrapper {
     generator_object: Cell<Gc<GeneratorObject>>,
     top_level_promise: Cell<Gc<Promise>>,
     current_promise: Cell<Option<Gc<Promise>>>,
+    #[gc(owned = "the context is the wrapper's own, which only the mutator takes back, and only its destructor frees")]
     suspended_execution_context: GcRefCell<Option<OwnedExecutionContext>>,
     on_settled: Cell<Option<Gc<NativeFunction>>>,
     is_initial_execution: Cell<bool>,

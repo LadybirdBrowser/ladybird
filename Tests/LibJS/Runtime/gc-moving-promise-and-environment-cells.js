@@ -42,6 +42,29 @@ function readMethod(object) {
 }
 for (let i = 0; i < 10; ++i) readMethod(reader);
 
+// A suspended generator keeps the values of its frame in memory of its own.
+holder.generator = (function* () {
+    const local = { kept: "by the frame" };
+    holder.generatorLocalAddress = addressOf(local);
+    yield 1;
+    yield local;
+})();
+holder.generator.next();
+
+// So does an async function that waits.
+holder.asyncResult = (async () => {
+    const local = { kept: "across await" };
+    holder.asyncLocalAddress = addressOf(local);
+    await new Promise(resolve => (holder.resumeAsync = resolve));
+    return local;
+})();
+
+// The fields of a class are kept by its constructor.
+holder.Class = class {
+    field = "initial " + "value";
+    ["computed" + "Field"] = 2;
+};
+
 // Bindings that eval adds give an environment rare data.
 holder.withEvalBindings = (() => {
     eval("var added = 'added by eval'");
@@ -131,6 +154,29 @@ runAfterMovingCollection(() => {
     test("a watchpoint set that moved still fires", () => {
         expect(methodBeforeChange()).toBe("before");
         expect(readMethod(reader)).toBe("after");
+    });
+
+    const generatorLocal = once(() => holder.generator.next().value);
+    test("the values in the frame of a suspended generator move", () => {
+        const value = generatorLocal();
+        expect(addressOf(value)).not.toBe(holder.generatorLocalAddress);
+        expect(value).toEqual({ kept: "by the frame" });
+    });
+
+    test("the values in the frame of a waiting async function move", () => {
+        settled.length = 0;
+        holder.asyncResult.then(value => settled.push(["async", value, addressOf(value)]));
+        holder.resumeAsync();
+        runQueuedPromiseJobs();
+        expect(settled.length).toBe(1);
+        expect(settled[0][1]).toEqual({ kept: "across await" });
+        expect(settled[0][2]).not.toBe(holder.asyncLocalAddress);
+    });
+
+    test("class constructors keep their fields when they move", () => {
+        const instance = new holder.Class();
+        expect(instance.field).toBe("initial value");
+        expect(instance.computedField).toBe(2);
     });
 
     const evalBindingBeforeRemoval = once(() => [holder.withEvalBindings.read(), holder.withEvalBindings.remove()]);

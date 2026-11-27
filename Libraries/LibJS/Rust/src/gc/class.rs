@@ -47,6 +47,9 @@ pub struct Class {
     /// Whether LibGC may only trace the cells of this class on the thread that owns their heap, see
     /// traced_on_owner_thread_only().
     owner_thread_only: bool,
+    /// The trace of the cells of this class, which type_info.visit_edges calls with the visitor LibGC passes, for
+    /// tracing them with a visitor that is not one of LibGC's (see record_cell_slots()).
+    pub trace: unsafe fn(cell: *const c_void, visitor: &mut Visitor),
 }
 
 // The layout module's mirror of the class, through which Layout.h tells an embedder where a class keeps its id and
@@ -103,6 +106,7 @@ impl Class {
             object_methods,
             kind,
             owner_thread_only: false,
+            trace: trace::<T>,
         }
     }
 
@@ -186,8 +190,15 @@ impl Class {
 
 unsafe extern "C" fn visit_edges<T: Trace>(cell: *mut c_void, visitor: *mut GCVisitor) {
     // SAFETY: LibGC passes a live cell of this class and a visitor that outlives the call.
-    let (cell, mut visitor) = unsafe { (&*cell.cast::<T>(), Visitor::from_raw(visitor)) };
-    cell.trace(&mut visitor);
+    unsafe { trace::<T>(cell, &mut Visitor::from_raw(visitor)) };
+}
+
+/// # Safety
+///
+/// `cell` must be a live cell of the class of `T`, which stays where it is while the visitor visits it.
+unsafe fn trace<T: Trace>(cell: *const c_void, visitor: &mut Visitor) {
+    // SAFETY: The caller vouches for the cell.
+    unsafe { &*cell.cast::<T>() }.trace(visitor);
 }
 
 /// Cells that need to act before they are destroyed. Finalizers run during a collection, while every cell that dies
@@ -271,6 +282,7 @@ impl Class {
             object_methods,
             kind: parent.kind,
             owner_thread_only: parent.owner_thread_only,
+            trace: parent.trace,
         }));
         #[cfg(feature = "address-sanitizer")]
         // SAFETY: The class is a live allocation, which the process keeps for as long as it runs.
