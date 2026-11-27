@@ -60,7 +60,7 @@ pub(crate) struct ScrollTimeline {
 
 // SAFETY: The timeline visits what it reaches.
 unsafe impl Trace for ScrollTimeline {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.timeline.trace(visitor);
     }
 }

@@ -88,7 +88,7 @@ impl Drop for CppFontFaceState {
 
 // SAFETY: The state visits every cell it can reach.
 unsafe impl Trace for CppFontFaceState {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         let Some(raw) = visitor.as_raw() else {
             return;
         };

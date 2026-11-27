@@ -39,7 +39,7 @@ pub(crate) struct DocumentTimeline {
 
 // SAFETY: The timeline visits what it reaches.
 unsafe impl Trace for DocumentTimeline {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.timeline.trace(visitor);
     }
 }

@@ -851,7 +851,7 @@ pub(crate) struct KeyframeEffect {
 
 // SAFETY: The keyframes reach no cell; the effect visits what it reaches.
 unsafe impl Trace for KeyframeEffect {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.effect.trace(visitor);
     }
 }

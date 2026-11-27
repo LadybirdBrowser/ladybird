@@ -60,7 +60,7 @@ impl<T> Deref for EmbedderCell<T> {
 
 // SAFETY: The value is all the cell holds.
 unsafe impl<T: Trace> Trace for EmbedderCell<T> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         (**self).trace(visitor);
     }
 }

@@ -11,6 +11,7 @@
 
 use core::cell::RefCell;
 use core::ffi::c_void;
+use libjs_rust::api::ref_cell_for_trace;
 use std::sync::Arc;
 
 use libjs_rust::api::{
@@ -82,8 +83,9 @@ struct CompileJob {
 
 // SAFETY: The exception that compiling the bytes throws is the one cell the job holds.
 unsafe impl Trace for CompileJob {
-    fn trace(&self, visitor: &mut Visitor) {
-        if let Some(Err(exception)) = &*self.result.borrow() {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // SAFETY: Nothing writes the result while a collection traces it.
+        if let Some(Err(exception)) = unsafe { ref_cell_for_trace(&self.result) } {
             exception.trace(visitor);
         }
     }

@@ -168,7 +168,7 @@ impl DeclarativeEnvironmentRareData {
 
 // SAFETY: The flags hold no cells; the storage traces the rest.
 unsafe impl Trace for DeclarativeEnvironmentRareData {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.storage.trace(visitor);
     }
 }
@@ -294,7 +294,7 @@ define_cell!(DeclarativeEnvironment, Other, extends: [Environment], finalize: fi
 // SAFETY: Visits the outer environment and the shape (in the Environment), the rare data's dispose capability and shape
 // cache and every binding value.
 unsafe impl Trace for DeclarativeEnvironment {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.rare_data.trace(visitor);
         let binding_values = self.binding_values.get();
@@ -393,7 +393,7 @@ impl Finalize for GlobalDeclarativeEnvironment {
 
 // SAFETY: Visits what the declarative environment holds. The serial number is no cell.
 unsafe impl Trace for GlobalDeclarativeEnvironment {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
     }
 }

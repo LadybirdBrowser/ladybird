@@ -32,7 +32,7 @@ struct RuleObjects(HashMap<u64, AnyCSSRule>);
 
 // SAFETY: Forwards to every object.
 unsafe impl Trace for RuleObjects {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for object in self.0.values() {
             object.trace(visitor);
         }

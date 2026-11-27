@@ -279,7 +279,7 @@ pub(crate) struct Animation {
 
 // SAFETY: Visits the event target, the realm, the promises and the cells of the host the record names.
 unsafe impl Trace for Animation {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.event_target.trace(visitor);
         visitor.visit(self.realm);
         if let Some(promise) = self.current_ready_promise.get() {

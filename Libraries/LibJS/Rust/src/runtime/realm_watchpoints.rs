@@ -156,7 +156,7 @@ pub struct WatchedCondition {
 
 // SAFETY: Visits the one cell a watched condition holds.
 unsafe impl Trace for WatchedCondition {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The set is visited in place, in the storage of its realm's cell, so that a collection that moves it
         //     rewrites it here rather than keeping it where it is.
         self.set.trace(visitor);

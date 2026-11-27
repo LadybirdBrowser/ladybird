@@ -39,7 +39,7 @@ define_cell!(HeapFunction, Other);
 
 // SAFETY: The captures are all the cells the function reaches, and `trace` visits them.
 unsafe impl Trace for HeapFunction {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // SAFETY: create_heap_function() stored the captures that `trace` was instantiated for.
         unsafe { (self.trace)(&raw const self.storage, visitor) };
     }
@@ -62,7 +62,7 @@ where
 /// # Safety
 ///
 /// `storage` must hold a CapturingBehaviour<C, F>.
-unsafe fn trace_captures<C: Trace, F>(storage: *const CaptureStorage, visitor: &mut Visitor) {
+unsafe fn trace_captures<C: Trace + 'static, F: 'static>(storage: *const CaptureStorage, visitor: &mut Visitor<'_>) {
     // SAFETY: The caller passes storage that holds a CapturingBehaviour<C, F>, which fits and is aligned for it.
     let behaviour = unsafe { &*storage.cast::<CapturingBehaviour<C, F>>() };
     behaviour.captures.trace(visitor);

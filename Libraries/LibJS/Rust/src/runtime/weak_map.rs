@@ -31,7 +31,7 @@ struct WeakMapValues(HashMap<Gc<CellHeader>, Value, foldhash::fast::RandomState>
 //         remove_dead_cells() once they die, together with their values, which then also hands the slots of the
 //         surviving entries to a collection that moves cells.
 unsafe impl Trace for WeakMapValues {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for (&key, value) in &self.0 {
             // SAFETY: See above.
             unsafe { visitor.visit_ephemeron_without_pinning(key, value) };

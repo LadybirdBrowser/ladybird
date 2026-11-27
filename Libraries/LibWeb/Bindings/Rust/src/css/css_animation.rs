@@ -25,7 +25,7 @@ pub(crate) struct CSSAnimation {
 
 // SAFETY: The animation visits what it reaches.
 unsafe impl Trace for CSSAnimation {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.animation.trace(visitor);
     }
 }

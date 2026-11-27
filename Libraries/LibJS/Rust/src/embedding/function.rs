@@ -80,7 +80,7 @@ struct HostClosure {
 
 // SAFETY: The context is the only cell a closure holds.
 unsafe impl Trace for HostClosure {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.context.trace(visitor);
     }
 }

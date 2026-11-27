@@ -1133,7 +1133,7 @@ define_cell!(TemplateObjectCache, Other);
 
 // SAFETY: Visits the template object, the only cell a cache reaches.
 unsafe impl Trace for TemplateObjectCache {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The template object is visited in place, so that a collection that moves it rewrites it here.
         self.cached_template_object.trace(visitor);
     }
@@ -1181,7 +1181,7 @@ const _: () = assert!(size_of::<ObjectPropertyIteratorCacheData>() == 72);
 
 // SAFETY: Visits the shape, the validity, the materialized key values and the keys.
 unsafe impl Trace for ObjectPropertyIteratorCacheData {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.shape.trace(visitor);
         self.prototype_chain_validity.trace(visitor);
         // SAFETY: The values are written once, when the cell is made, and only its finalizer frees them.
@@ -1755,7 +1755,7 @@ impl Executable {
 
     /// Visits what outlives a flush of the executable, for its shared data while it leaves the executable unvisited
     /// (see `bytecode::flushing`).
-    pub fn trace_what_outlives_a_flush(&self, visitor: &mut Visitor) {
+    pub fn trace_what_outlives_a_flush<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // SAFETY: The tables are the executable's own, which nothing writes once it is built, and the rare data only
         //         the mutator changes. Only the executable's destructor frees them, after the collection.
         unsafe {
@@ -2441,7 +2441,7 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
 // SAFETY: Visits the constants, the only cells that the head holds. Its inline caches do not keep what they remember
 // alive.
 unsafe impl Trace for ExecutableHead {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The constants are visited as owned values, so that a collection that moves their cells rewrites them where
         //     they are. They are in the tables of the executable, which nothing writes once it is built, and only its
         //     destructor frees. JIT code that embeds a constant lists its cell among the cells it embeds, which keeps
@@ -2455,7 +2455,7 @@ unsafe impl Trace for ExecutableHead {
 // shapes. The dynamic
 // global variable caches do not keep what they remember alive, and the breakpoint sites hold no cells.
 unsafe impl Trace for ExecutableRareData {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.template_object_caches.trace(visitor);
         for cache in &self.object_property_iterator_caches {
             cache.data.trace(visitor);
@@ -2469,7 +2469,7 @@ unsafe impl Trace for ExecutableRareData {
 // functions the bytecode creates and the literal values of its classes, which are all the cells an executable keeps
 // alive so far. The inline caches do not keep the shapes and objects they remember alive.
 unsafe impl Trace for Executable {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.head.trace(visitor);
         self.property_keys.trace(visitor);
         // NB: The shared data of the functions the bytecode creates and the rare data are visited as owned slots, so

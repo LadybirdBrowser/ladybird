@@ -14,6 +14,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
@@ -253,8 +254,9 @@ impl JsonStringifyCache {
 
 // SAFETY: The objects being serialized are the only cells the cache keeps alive; its shapes are weak.
 unsafe impl Trace for JsonStringifyCache {
-    fn trace(&self, visitor: &mut Visitor) {
-        self.objects.borrow().trace(visitor);
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // SAFETY: Nothing writes the objects while a collection traces them.
+        unsafe { ref_cell_for_trace(&self.objects) }.trace(visitor);
     }
 }
 

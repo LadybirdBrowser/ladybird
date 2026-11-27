@@ -42,7 +42,7 @@ pub(crate) enum CSSNumericValueOrCSSKeywordValueOrDOMString {
 
 // SAFETY: Visits the cells of the variant.
 unsafe impl Trace for CSSNumericValueOrCSSKeywordValueOrDOMString {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         match self {
             Self::CSSNumericValue(value) => value.trace(visitor),
             Self::CSSKeywordValue(value) => visitor.visit(*value),
@@ -71,7 +71,7 @@ pub(crate) struct ViewTimeline {
 
 // SAFETY: The timeline visits what it reaches.
 unsafe impl Trace for ViewTimeline {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.scroll_timeline.trace(visitor);
     }
 }

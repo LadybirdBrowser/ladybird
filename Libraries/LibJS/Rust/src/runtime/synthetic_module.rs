@@ -43,7 +43,7 @@ struct CapturingEvaluationSteps<C, F> {
 
 // SAFETY: The steps are zero-sized, so the captures are all the cells this reaches.
 unsafe impl<C: Trace, F> Trace for CapturingEvaluationSteps<C, F> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.captures.trace(visitor);
     }
 }

@@ -36,7 +36,7 @@ struct IndirectBindings(HashMap<Utf16FlyString, IndirectBinding, foldhash::fast:
 
 // SAFETY: Visits the module of every indirect binding.
 unsafe impl Trace for IndirectBindings {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for indirect_binding in self.0.values() {
             indirect_binding.trace(visitor);
         }

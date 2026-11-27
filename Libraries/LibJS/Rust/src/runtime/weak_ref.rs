@@ -33,7 +33,7 @@ pub struct WeakRef {
 // the rest of the job as AddToKeptObjects does. Otherwise it is held weakly, and remove_dead_cells() forgets it once
 // it dies, or hands its slot to a collection that moves cells.
 unsafe impl Trace for WeakRef {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
 
         // SAFETY: The VM owns the heap and destroys it before anything else, so it outlives every WeakRef.

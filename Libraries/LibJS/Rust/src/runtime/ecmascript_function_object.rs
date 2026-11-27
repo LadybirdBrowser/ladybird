@@ -78,7 +78,7 @@ const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 32);
 
 // SAFETY: Visits the cells of the class data, if there is any.
 unsafe impl Trace for EcmascriptFunctionObjectStorage {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(class_data) = self.class_data.get() {
             // SAFETY: The class data is the function's own, which only the mutator changes, and only the function's
             //         destructor frees.
@@ -121,7 +121,7 @@ define_cell!(
 
 // SAFETY: Visits every cell an ECMAScript function object holds, besides those of its FunctionObject.
 unsafe impl Trace for EcmascriptFunctionObject {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.fields().environment.trace(visitor);
         visitor.visit_nullable_member(&self.fields().shared_data);
@@ -137,7 +137,7 @@ define_cell!(
 
 // SAFETY: Visits every cell the rare data of an ECMAScript function object holds, besides those of the function.
 unsafe impl Trace for EcmascriptFunctionObjectWithRareData {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.private_environment.trace(visitor);
         self.home_object.trace(visitor);

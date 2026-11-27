@@ -131,7 +131,7 @@ struct SymbolsByKey(HashMap<Vec<u16>, Gc<Symbol>>);
 
 // SAFETY: Visits every symbol of the map.
 unsafe impl Trace for SymbolsByKey {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for symbol in self.0.values() {
             symbol.trace(visitor);
         }

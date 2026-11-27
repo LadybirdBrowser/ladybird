@@ -92,7 +92,7 @@ impl<V: Version> Deref for RenderingContext<V> {
 
 // SAFETY: The state holds every cell that a context can reach.
 unsafe impl<V: Version> Trace for RenderingContext<V> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.state.trace(visitor);
     }
 }

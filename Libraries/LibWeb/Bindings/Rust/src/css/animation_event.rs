@@ -56,7 +56,7 @@ impl EventAnimation {
 
 // SAFETY: Visits the cells of the host that keep the record's object, or the elements the record names, alive.
 unsafe impl Trace for EventAnimation {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(animation) = self.0.borrow().as_ref() {
             animation.for_each_host_cell(|cell, _| {
                 // SAFETY: The record names live cells of the host, which the event keeps alive.

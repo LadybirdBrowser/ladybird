@@ -26,7 +26,7 @@ pub(crate) struct CSSTransition {
 
 // SAFETY: The animation visits what it reaches.
 unsafe impl Trace for CSSTransition {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.animation.trace(visitor);
     }
 }

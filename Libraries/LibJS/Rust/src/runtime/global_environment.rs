@@ -30,7 +30,7 @@ define_cell!(GlobalEnvironment, Other, extends: [Environment]);
 
 // SAFETY: Visits the outer environment and the three records a global environment holds.
 unsafe impl Trace for GlobalEnvironment {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.object_record.trace(visitor);
         self.global_this_value.trace(visitor);

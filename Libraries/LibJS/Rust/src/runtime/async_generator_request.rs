@@ -18,8 +18,8 @@ pub struct AsyncGeneratorRequest {
 
 // SAFETY: Visits the completion's value and the capability, the only cells a request reaches.
 unsafe impl Trace for AsyncGeneratorRequest {
-    fn trace(&self, visitor: &mut Visitor) {
-        self.completion.value().trace(visitor);
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        self.completion.trace(visitor);
         self.capability.trace(visitor);
     }
 }

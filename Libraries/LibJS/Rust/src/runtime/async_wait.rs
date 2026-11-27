@@ -51,9 +51,10 @@ pub(crate) struct TimeoutJob {
 // SAFETY: The resolver and buffer are reachable while the realm is. The sweep callback removes waits whose realm
 // died, before any of their cells can be freed. The native waiter never dereferences a GC pointer.
 unsafe impl Trace for PendingWait {
-    fn trace(&self, visitor: &mut Visitor) {
-        visitor.visit_ephemeron(self.realm, &Value::from_object(self.resolve));
-        visitor.visit_ephemeron(self.realm, &Value::from_object(self.buffer));
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // NB: The cells are visited by value, as the fields hold them in no value slot.
+        visitor.visit_ephemeron_cell(self.realm, self.resolve);
+        visitor.visit_ephemeron_cell(self.realm, self.buffer);
     }
 }
 

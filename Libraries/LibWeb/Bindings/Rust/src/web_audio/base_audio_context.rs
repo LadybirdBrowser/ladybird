@@ -118,7 +118,7 @@ pub(crate) struct BaseAudioContext {
 
 // SAFETY: This traces the context’s strong edges and the weak nodes it keeps alive while rendering.
 unsafe impl Trace for BaseAudioContext {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.event_target.trace(visitor);
         self.destination.trace(visitor);
         self.pending_promises.trace(visitor);
@@ -138,7 +138,7 @@ unsafe impl Trace for BaseAudioContext {
         for node in &*self.script_processor_nodes.borrow() {
             if let Some(node) = node.get() {
                 if node.parent().event_target().has_event_listener("audioprocess") {
-                    node.trace(visitor);
+                    visitor.visit(node);
                 }
             }
         }
@@ -149,7 +149,7 @@ unsafe impl Trace for BaseAudioContext {
         for source in &*self.media_stream_sources.borrow() {
             if let Some(source) = source.get() {
                 if source.has_live_input_track() {
-                    source.trace(visitor);
+                    visitor.visit(source);
                 }
             }
         }

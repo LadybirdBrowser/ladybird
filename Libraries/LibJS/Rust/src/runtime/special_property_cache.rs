@@ -108,7 +108,7 @@ define_cell!(SpecialPropertyCache, Other);
 
 // SAFETY: Visits the values and the string the cache knows, and the validity it watches.
 unsafe impl Trace for SpecialPropertyCache {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         // NB: The fields are visited in place, so that a collection that moves their cells rewrites them here rather
         //     than keeping the cells where they are.
         self.watched_prototype_chain_validity.trace(visitor);

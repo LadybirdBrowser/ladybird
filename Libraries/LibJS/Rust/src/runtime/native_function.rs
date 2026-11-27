@@ -72,7 +72,7 @@ define_cell!(NativeFunction, Object, extends: [FunctionObject, Object], methods:
 
 // SAFETY: The realm is the only cell a NativeFunction adds to its FunctionObject; the names are strings.
 unsafe impl Trace for NativeFunction {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.realm.trace(visitor);
     }
@@ -482,7 +482,7 @@ struct CapturingBehaviour<C, F> {
 
 // SAFETY: The behaviour holds nothing, so the captures are all the cells this reaches.
 unsafe impl<C: Trace, F> Trace for CapturingBehaviour<C, F> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.captures.trace(visitor);
     }
 }
@@ -702,7 +702,7 @@ define_cell!(
 
 // SAFETY: The index is a number; everything else is the NativeFunction's.
 unsafe impl Trace for RawNativeFunction {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
     }
 }
@@ -829,7 +829,7 @@ define_cell!(
 
 // SAFETY: The offsets are numbers; everything else is the RawNativeFunction's.
 unsafe impl Trace for DirectGetterFunction {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
     }
 }

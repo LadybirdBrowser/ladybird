@@ -61,14 +61,14 @@ impl EmbedderValue for Imports {
 
 // SAFETY: Visits the cell of every entity of the list.
 unsafe impl Trace for Imports {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         for &import in self.0.borrow().iter() {
             match import {
-                ExternValue::Function(address) => EntityRef(address).trace(visitor),
-                ExternValue::Table(address) => EntityRef(address).trace(visitor),
-                ExternValue::Memory(address) => EntityRef(address).trace(visitor),
-                ExternValue::Global(address) => EntityRef(address).trace(visitor),
-                ExternValue::Tag(address) => EntityRef(address).trace(visitor),
+                ExternValue::Function(address) => EntityRef(address).visit(visitor),
+                ExternValue::Table(address) => EntityRef(address).visit(visitor),
+                ExternValue::Memory(address) => EntityRef(address).visit(visitor),
+                ExternValue::Global(address) => EntityRef(address).visit(visitor),
+                ExternValue::Tag(address) => EntityRef(address).visit(visitor),
             }
         }
     }

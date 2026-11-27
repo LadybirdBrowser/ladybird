@@ -35,6 +35,7 @@ use crate::gc::capi::{self, GCVisitor};
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
+use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::heap::Heap;
 use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::{MarkedVec, Root, RootSet};
@@ -1334,15 +1335,25 @@ impl Vm {
         &self.roots
     }
 
-    fn gather_roots(&self, visitor: &mut Visitor) {
+    fn gather_roots<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.code_flushing.begin_pass(self);
         self.jit.trace(visitor);
         self.trace_embedded_cells_of_running_jit_code(visitor);
+        // SAFETY: The execution contexts stay where they are until the collection is over: no code runs during it.
+        let outlives_the_collection = |context: &ExecutionContext| unsafe { &*core::ptr::from_ref(context) };
         self.for_each_execution_context_top_to_bottom(|context| {
-            context.trace(visitor);
+            outlives_the_collection(context).trace(visitor);
             ControlFlow::Continue(())
         });
-        for saved_stack in self.saved_execution_context_stacks.borrow().iter() {
+        // SAFETY: Nothing writes the saved stacks, the debugger or the last throw while a collection traces them.
+        let (saved_execution_context_stacks, debugger, last_throw) = unsafe {
+            (
+                ref_cell_for_trace(&self.saved_execution_context_stacks),
+                ref_cell_for_trace(&self.debugger),
+                ref_cell_for_trace(&self.last_throw),
+            )
+        };
+        for saved_stack in saved_execution_context_stacks {
             for_each_execution_context_top_to_bottom_of(
                 saved_stack.length,
                 |index| {
@@ -1354,7 +1365,7 @@ impl Vm {
                 },
                 saved_stack.running_execution_context,
                 |context| {
-                    context.trace(visitor);
+                    outlives_the_collection(context).trace(visitor);
                     ControlFlow::Continue(())
                 },
             );
@@ -1374,10 +1385,10 @@ impl Vm {
         self.job_queues.trace(visitor);
         self.loaded_modules.trace(visitor);
         self.finalization_registries_with_dead_cells.trace(visitor);
-        if let Some(debugger) = self.debugger.borrow().as_ref() {
+        if let Some(debugger) = debugger {
             debugger.trace(visitor);
         }
-        if let Some(throw_site) = self.last_throw.borrow().as_ref() {
+        if let Some(throw_site) = last_throw {
             throw_site.value.trace(visitor);
         }
     }
@@ -2588,7 +2599,7 @@ impl Drop for Vm {
 // SAFETY: gather_roots() visits the VM's roots. The caches it skips are weak, and the VM clears them of dead cells after
 // each collection.
 unsafe impl Trace for Vm {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.gather_roots(visitor);
     }
 }

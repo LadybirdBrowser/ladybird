@@ -25,7 +25,7 @@ struct CapturedSteps<C, A> {
 
 // SAFETY: The steps are a plain function, which holds no cells.
 unsafe impl<C: Trace, A> Trace for CapturedSteps<C, A> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.captures.trace(visitor);
     }
 }
@@ -44,7 +44,7 @@ pub(crate) struct FunctionCell(Box<dyn Steps>);
 
 // SAFETY: The captures of the steps are all the cells this reaches.
 unsafe impl Trace for FunctionCell {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.0.trace(visitor);
     }
 }
@@ -71,7 +71,7 @@ impl<A> Copy for FunctionWith<A> {}
 
 // SAFETY: The cell is all the function reaches.
 unsafe impl<A> Trace for FunctionWith<A> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.cell.trace(visitor);
     }
 }
@@ -132,7 +132,7 @@ struct CapturedOperation<C> {
 
 // SAFETY: The steps are a plain function, which holds no cells.
 unsafe impl<C: Trace> Trace for CapturedOperation<C> {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.captures.trace(visitor);
     }
 }
@@ -147,7 +147,7 @@ pub(crate) struct OperationCell(Box<dyn OperationSteps>);
 
 // SAFETY: The captures of the steps are all the cells this reaches.
 unsafe impl Trace for OperationCell {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.0.trace(visitor);
     }
 }

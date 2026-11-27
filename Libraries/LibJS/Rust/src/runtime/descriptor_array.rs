@@ -54,8 +54,9 @@ define_cell!(DescriptorArray, Other);
 
 // SAFETY: The keys of the entries are the only cells a descriptor array reaches.
 unsafe impl Trace for DescriptorArray {
-    fn trace(&self, visitor: &mut Visitor) {
-        for entry in self.entries.borrow().iter() {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        // SAFETY: Nothing writes the entries while a collection traces them.
+        for entry in unsafe { self.entries.borrow_for_trace() } {
             entry.property_key.trace(visitor);
         }
     }

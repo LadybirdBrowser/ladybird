@@ -153,7 +153,7 @@ define_cell!(TypedArrayBase, Object, extends: [Object], methods: TYPED_ARRAY_BAS
 
 // SAFETY: The viewed buffer in the storage is the only cell a TypedArrayBase adds to its Object.
 unsafe impl Trace for TypedArrayBase {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.storage.trace(visitor);
     }

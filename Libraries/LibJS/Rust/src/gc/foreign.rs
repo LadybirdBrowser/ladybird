@@ -42,7 +42,7 @@ impl ForeignCellSlot {
 
 // SAFETY: Visits the one cell the slot holds.
 unsafe impl Trace for ForeignCellSlot {
-    fn trace(&self, visitor: &mut Visitor) {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         if let Some(cell) = self.get() {
             // SAFETY: set() only stores cells of the heap, which the slot has kept alive.
             unsafe { visitor.visit_foreign_cell(cell) };
