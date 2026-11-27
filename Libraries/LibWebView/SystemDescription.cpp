@@ -192,8 +192,11 @@ static OSRelease read_os_release(ReadonlySpan<StringView> paths)
     return {};
 }
 
-static OSRelease current_os_release()
+static OSRelease current_os_release(InstallMethod install_method)
 {
+    // A Flatpak's /etc describes its runtime. Flatpak shows the host's os-release at /run/host.
+    if (install_method == InstallMethod::Flatpak)
+        return read_os_release(Array { "/run/host/os-release"sv });
     return read_os_release(Array { "/etc/os-release"sv, "/usr/lib/os-release"sv });
 }
 
@@ -222,8 +225,8 @@ SystemDescription describe_current_system()
 #elif ARCH(AARCH64)
     system.architecture = Architecture::AArch64;
 #endif
-    if (system.install_method != InstallMethod::MacOSApp && system.install_method != InstallMethod::Flatpak)
-        system.os_release = current_os_release();
+    if (system.install_method != InstallMethod::MacOSApp)
+        system.os_release = current_os_release(system.install_method);
     system.macos_version = current_macos_version();
     return system;
 }
@@ -499,10 +502,8 @@ Vector<ReportedSystemDetail> describe_system_for_report()
     auto system = describe_current_system();
     add("Kernel release"sv, kernel_release());
 
-    // A Flatpak's /etc describes its runtime. Flatpak shows the host's os-release at /run/host.
-    auto os_release = system.install_method == InstallMethod::Flatpak ? read_os_release(Array { "/run/host/os-release"sv }) : current_os_release();
-    add("OS version"sv, version_number_from(view(system.macos_version.has_value() ? system.macos_version : os_release.version_id)));
-    add("Distribution"sv, view(os_release.id));
+    add("OS version"sv, version_number_from(view(system.macos_version.has_value() ? system.macos_version : system.os_release.version_id)));
+    add("Distribution"sv, view(system.os_release.id));
     add("C library"sv, view(current_c_library()));
     add("Install method"sv, install_method_name(system.install_method));
     if (first_is_one_of(system.install_method, InstallMethod::DEB, InstallMethod::RPM))
