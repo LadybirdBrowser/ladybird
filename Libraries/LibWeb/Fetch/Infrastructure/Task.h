@@ -30,6 +30,5 @@ struct WEB_API TaskDestination : public Variant<Empty, GC::Ref<JS::Object>, Nonn
 };
 
 HTML::TaskID queue_fetch_task(TaskDestination, GC::Ref<GC::Function<void()>>);
-WEB_API HTML::TaskID queue_fetch_task(GC::Ref<FetchController>, TaskDestination, GC::Ref<GC::Function<void()>>);
 
 }

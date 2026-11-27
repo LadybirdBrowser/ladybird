@@ -75,7 +75,7 @@ static void transmit_null_request_body(GC::Ref<Infrastructure::FetchController> 
     //    fetchParams’s process request end-of-body and fetchParams’s task destination.
     if (!controller->algorithms()->process_request_end_of_body())
         return;
-    Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), GC::captures(controller), [](auto& controller) {
+    controller->queue_fetch_task(GC::create_function(GC::Heap::the(), GC::captures(controller), [](auto& controller) {
         controller->algorithms()->process_request_end_of_body()->function()();
     }));
 }
@@ -158,7 +158,7 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
             finish_fetch_response_handover(controller, move(delivery));
         },
         [&](Engine::Event::RequestBodyProgress const& progress) {
-            Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), GC::captures(controller, progress.length), [](auto& controller, auto& length) {
+            controller->queue_fetch_task(GC::create_function(GC::Heap::the(), GC::captures(controller, progress.length), [](auto& controller, auto& length) {
                 process_body_chunk(controller, length);
             }));
         },
@@ -167,7 +167,7 @@ void FetchEventSink::handle_event(Engine::EngineEvent event)
                 transmit_null_request_body(controller);
                 return;
             }
-            Infrastructure::queue_fetch_task(controller, controller->task_destination(), GC::create_function(GC::Heap::the(), GC::captures(controller), [](auto& controller) {
+            controller->queue_fetch_task(GC::create_function(GC::Heap::the(), GC::captures(controller), [](auto& controller) {
                 process_end_of_body(controller);
             }));
         },
