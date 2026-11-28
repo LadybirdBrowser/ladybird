@@ -1,4 +1,4 @@
-empty: 1 rows, 1.024 slots, 0 layout nodes per element
+empty: 1 rows, 0 layout nodes per element
   nodeRows: within 112
   arenaColumns: within 76
   textRows: within 0
@@ -9,7 +9,7 @@ empty: 1 rows, 1.024 slots, 0 layout nodes per element
   visualContexts: within 4
   memos: within 460
   layoutNodeTable: within 0
-text: 2 rows, 2.048 slots, 0 layout nodes per element
+text: 2 rows, 0 layout nodes per element
   nodeRows: within 228
   arenaColumns: within 152
   textRows: within 312

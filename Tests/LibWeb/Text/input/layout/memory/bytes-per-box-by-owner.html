@@ -29,7 +29,6 @@
             slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / elements;
         return {
             rows: (reports[1].liveRows - reports[0].liveRows) / elements,
-            slots: (reports[1].slots - reports[0].slots) / elements,
             layoutNodes: (reports[1].layoutNodes - reports[0].layoutNodes) / elements,
             slopes,
         };
@@ -61,7 +60,8 @@
 
     function check(name, budgets, makeElement) {
         const result = slopes(makeElement);
-        println(`${name}: ${result.rows} rows, ${result.slots} slots, ${result.layoutNodes} layout nodes per element`);
+        // NB: The slots are left out: they come in chunks, so their slope tells where a chunk boundary falls.
+        println(`${name}: ${result.rows} rows, ${result.layoutNodes} layout nodes per element`);
         for (const owner in result.slopes) {
             const budget = budgets[owner] ?? 0;
             const slope = result.slopes[owner];
