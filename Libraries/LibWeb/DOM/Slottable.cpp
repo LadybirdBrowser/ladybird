@@ -25,7 +25,6 @@ SlottableMixin::~SlottableMixin() = default;
 
 void SlottableMixin::RareData::visit_edges(JS::Cell::Visitor& visitor)
 {
-    visitor.visit(assigned_slot);
     visitor.visit(manual_slot_assignment);
 }
 
@@ -48,8 +47,7 @@ void SlottableMixin::set_slottable_name(Utf16FlyString name)
 
 GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot_internal() const
 {
-    auto const* rare_data = slottable_rare_data();
-    return rare_data ? rare_data->assigned_slot : nullptr;
+    return assigned_slot_for_node(const_cast<SlottableMixin&>(*this).slottable_as_node());
 }
 
 void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_slot)
@@ -59,12 +57,10 @@ void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_s
     auto& node = slottable_as_node();
     node.document().page().keyboard_scroll_dom_tree_changed(node);
     node.set_has_assigned_slot({}, assigned_slot != nullptr);
-    if (!assigned_slot) {
-        if (auto* rare_data = slottable_rare_data())
-            rare_data->assigned_slot = nullptr;
-    } else {
-        ensure_slottable_rare_data().assigned_slot = assigned_slot;
-    }
+    if (auto* element = as_if<Element>(node))
+        element->set_assigned_slot_in_core({}, assigned_slot.ptr());
+    else
+        as<Text>(node).set_assigned_slot_in_core({}, assigned_slot.ptr());
     if (node.document().may_have_blocking_wheel_event_listener())
         node.update_inside_blocking_wheel_event_handler_state_for_subtree();
     if (auto* element = as_if<Element>(node))
@@ -94,27 +90,6 @@ GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot()
 
     // The assignedSlot getter steps are to return the result of find a slot given this and with the open flag set.
     return find_a_slot(node.as_slottable(), OpenFlag::Set);
-}
-
-GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node> node)
-{
-    // OPTIMIZATION: Ancestor walks ask this of every node they pass, and almost none are assigned to a slot.
-    if (!node->has_assigned_slot())
-        return nullptr;
-
-    return node->as_slottable().visit([](auto const& slottable) {
-        return slottable->assigned_slot_internal();
-    });
-}
-
-// https://dom.spec.whatwg.org/#slotable-assigned
-bool is_an_assigned_slottable(GC::Ref<Node> node)
-{
-    if (!node->is_slottable())
-        return false;
-
-    // A slottable is assigned if its assigned slot is non-null.
-    return assigned_slot_for_node(node) != nullptr;
 }
 
 // https://dom.spec.whatwg.org/#find-a-slot

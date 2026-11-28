@@ -25,6 +25,40 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(Event);
 
+static_assert(sizeof(RustFFI::EventPathItem) == 16 && alignof(RustFFI::EventPathItem) == 4);
+static_assert(offsetof(RustFFI::EventPathItem, invocation_target) == 0);
+static_assert(offsetof(RustFFI::EventPathItem, shadow_adjusted_target) == 4);
+static_assert(offsetof(RustFFI::EventPathItem, related_target) == 8);
+static_assert(offsetof(RustFFI::EventPathItem, invocation_target_in_shadow_tree) == 12);
+static_assert(offsetof(RustFFI::EventPathItem, root_of_closed_tree) == 13);
+static_assert(offsetof(RustFFI::EventPathItem, slot_in_closed_tree) == 14);
+static_assert(sizeof(RustFFI::EventPath) == 32 && alignof(RustFFI::EventPath) == 8);
+static_assert(offsetof(RustFFI::EventPath, items) == 0);
+static_assert(offsetof(RustFFI::EventPath, size) == 8);
+static_assert(offsetof(RustFFI::EventPath, capacity) == 12);
+static_assert(offsetof(RustFFI::EventPath, touch_targets) == 16);
+static_assert(offsetof(RustFFI::EventPath, touch_target_count) == 24);
+static_assert(sizeof(RustFFI::EventCore) == 56 && alignof(RustFFI::EventCore) == 8);
+static_assert(offsetof(RustFFI::EventCore, target) == 0);
+static_assert(offsetof(RustFFI::EventCore, related_target) == 4);
+static_assert(offsetof(RustFFI::EventCore, current_target) == 8);
+static_assert(offsetof(RustFFI::EventCore, event_phase) == 12);
+static_assert(offsetof(RustFFI::EventCore, bubbles) == 13);
+static_assert(offsetof(RustFFI::EventCore, cancelable) == 14);
+static_assert(offsetof(RustFFI::EventCore, stop_propagation) == 15);
+static_assert(offsetof(RustFFI::EventCore, stop_immediate_propagation) == 16);
+static_assert(offsetof(RustFFI::EventCore, canceled) == 17);
+static_assert(offsetof(RustFFI::EventCore, in_passive_listener) == 18);
+static_assert(offsetof(RustFFI::EventCore, composed) == 19);
+static_assert(offsetof(RustFFI::EventCore, initialized) == 20);
+static_assert(offsetof(RustFFI::EventCore, dispatch) == 21);
+static_assert(offsetof(RustFFI::EventCore, is_trusted) == 22);
+static_assert(offsetof(RustFFI::EventCore, path) == 24);
+static_assert(Event::Phase::None == RustFFI::EVENT_PHASE_NONE);
+static_assert(Event::Phase::CapturingPhase == RustFFI::EVENT_PHASE_CAPTURING);
+static_assert(Event::Phase::AtTarget == RustFFI::EVENT_PHASE_AT_TARGET);
+static_assert(Event::Phase::BubblingPhase == RustFFI::EVENT_PHASE_BUBBLING);
+
 // https://dom.spec.whatwg.org/#concept-event-create
 GC::Ref<Event> Event::create(JS::Object const& relevant_global_object, FlyString const& event_name, EventInit const& event_init)
 {
@@ -41,7 +75,7 @@ GC::Ref<Event> Event::create(FlyString const& event_name, HighResolutionTime::DO
 {
     auto event = GC::Heap::the().allocate<Event>(event_name, time_stamp);
     // 4. Initialize event’s isTrusted attribute to true.
-    event->m_is_trusted = true;
+    event->m_event_core.is_trusted = true;
     return event;
 }
 
@@ -71,7 +105,7 @@ GC::Ref<Event> Event::create(FlyString const& event_name, EventInit const& event
 {
     auto event = GC::Heap::the().allocate<Event>(event_name, event_init, time_stamp);
     // 4. Initialize event’s isTrusted attribute to true.
-    event->m_is_trusted = true;
+    event->m_event_core.is_trusted = true;
     return event;
 }
 
@@ -98,110 +132,102 @@ GC::Ref<Event> Event::create_for_constructor(Utf16String const& event_name, Bind
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
 Event::Event(FlyString const& type, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : m_type(Utf16FlyString::from_utf8(type))
-    , m_initialized(true)
     , m_time_stamp(time_stamp)
 {
+    // NB: libweb_rust finds the core of an event at this offset into the event's cell.
+    static_assert(offsetof(Event, m_event_core) == RustFFI::EVENT_CORE_OFFSET);
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Event, m_event_core) >= sizeof(Bindings::GCAllocatedWrappable));
+    m_event_core.initialized = true;
+    m_event_core.is_trusted = true;
 }
 
 Event::Event(Utf16FlyString const& type, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : Bindings::GCAllocatedWrappable()
     , m_type(type)
-    , m_initialized(true)
     , m_time_stamp(time_stamp)
 {
+    m_event_core.initialized = true;
+    m_event_core.is_trusted = true;
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps
 Event::Event(FlyString const& type, EventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
     : m_type(Utf16FlyString::from_utf8(type))
-    , m_bubbles(event_init.bubbles)
-    , m_cancelable(event_init.cancelable)
-    , m_composed(event_init.composed)
-    , m_initialized(true)
     , m_time_stamp(time_stamp)
 {
+    m_event_core.bubbles = event_init.bubbles;
+    m_event_core.cancelable = event_init.cancelable;
+    m_event_core.composed = event_init.composed;
+    m_event_core.initialized = true;
+    m_event_core.is_trusted = true;
 }
 
 void Event::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_target);
-    visitor.visit(m_related_target);
-    visitor.visit(m_current_target);
-    for (auto& it : m_path) {
-        visitor.visit(it.invocation_target);
-        visitor.visit(it.shadow_adjusted_target);
-        visitor.visit(it.related_target);
-        visitor.visit(it.touch_target_list);
+    visitor.visit(m_event_core.target);
+    visitor.visit(m_event_core.related_target);
+    visitor.visit(m_event_core.current_target);
+    // NB: The path's buffers are allocated by libweb_rust, which writes only items and touch targets that count.
+    auto& path = m_event_core.path;
+    for (size_t i = 0; i < path.size; ++i) {
+        visitor.visit(path.items[i].invocation_target);
+        visitor.visit(path.items[i].shadow_adjusted_target);
+        visitor.visit(path.items[i].related_target);
     }
+    for (size_t i = 0; i < static_cast<size_t>(path.size) * path.touch_target_count; ++i)
+        visitor.visit(path.touch_targets[i]);
     visitor.visit(m_touch_target_list);
 }
 
-// https://dom.spec.whatwg.org/#concept-event-path-append
-void Event::append_to_path(EventTarget& invocation_target, GC::Ptr<EventTarget> shadow_adjusted_target, GC::Ptr<EventTarget> related_target, TouchTargetList& touch_targets, bool slot_in_closed_tree)
+void Event::set_touch_target_list(ReadonlySpan<GC::Member<EventTarget>> touch_targets)
 {
-    // 1. Let invocationTargetInShadowTree be false.
-    bool invocation_target_in_shadow_tree = false;
-
-    // 3. Let root-of-closed-tree be false.
-    bool root_of_closed_tree = false;
-
-    // 2. If invocationTarget is a node and its root is a shadow root, then set invocationTargetInShadowTree to true.
-    if (is<Node>(invocation_target)) {
-        auto& invocation_target_node = as<Node>(invocation_target);
-        if (is<ShadowRoot>(invocation_target_node.root()))
-            invocation_target_in_shadow_tree = true;
-        if (is<ShadowRoot>(invocation_target_node)) {
-            auto& invocation_target_shadow_root = as<ShadowRoot>(invocation_target_node);
-            // 4. If invocationTarget is a shadow root whose mode is "closed", then set root-of-closed-tree to true.
-            root_of_closed_tree = invocation_target_shadow_root.mode() == Web::DOM::ShadowRootMode::Closed;
-        }
-    }
-
-    // 5. Append a new struct to event’s path whose invocation target is invocationTarget, invocation-target-in-shadow-tree is invocationTargetInShadowTree,
-    // shadow-adjusted target is shadowAdjustedTarget, relatedTarget is relatedTarget, touch target list is touchTargets, root-of-closed-tree is root-of-closed-tree,
-    // and slot-in-closed-tree is slot-in-closed-tree.
-    m_path.append({ invocation_target, invocation_target_in_shadow_tree, shadow_adjusted_target, related_target, touch_targets, root_of_closed_tree, slot_in_closed_tree, m_path.size() });
+    m_touch_target_list.clear_with_capacity();
+    for (auto const& touch_target : touch_targets)
+        m_touch_target_list.append(touch_target.ptr());
 }
 
 void Event::set_cancelled_flag()
 {
-    if (m_cancelable && !m_in_passive_listener)
-        m_cancelled = true;
+    if (m_event_core.cancelable && !m_event_core.in_passive_listener)
+        m_event_core.canceled = true;
 }
 
 // https://dom.spec.whatwg.org/#concept-event-initialize
 void Event::initialize_event(Utf16FlyString const& type, bool bubbles, bool cancelable)
 {
     // 1. Set event’s initialized flag.
-    m_initialized = true;
+    m_event_core.initialized = true;
 
     // 2. Unset event’s stop propagation flag, stop immediate propagation flag, and canceled flag.
-    m_stop_propagation = false;
-    m_stop_immediate_propagation = false;
-    m_cancelled = false;
+    m_event_core.stop_propagation = false;
+    m_event_core.stop_immediate_propagation = false;
+    m_event_core.canceled = false;
 
     // 3. Set event’s isTrusted attribute to false.
-    m_is_trusted = false;
+    m_event_core.is_trusted = false;
 
     // 4. Set event’s target to null.
-    m_target = nullptr;
+    m_event_core.target = nullptr;
 
     // 5. Set event’s type attribute to type.
     m_type = type;
 
     // 6. Set event’s bubbles attribute to bubbles.
-    m_bubbles = bubbles;
+    m_event_core.bubbles = bubbles;
 
     // 8. Set event’s cancelable attribute to cancelable.
-    m_cancelable = cancelable;
+    m_event_core.cancelable = cancelable;
 }
 
 // https://dom.spec.whatwg.org/#dom-event-initevent
 void Event::init_event(Utf16FlyString const& type, bool bubbles, bool cancelable)
 {
     // 1. If this’s dispatch flag is set, then return.
-    if (m_dispatch)
+    if (m_event_core.dispatch)
         return;
 
     // 2. Initialize this with type, bubbles, and cancelable.
@@ -217,17 +243,18 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
     // 2. Let path be this’s path. (NOTE: Not necessary)
 
     // 3. If path is empty, then return composedPath.
-    if (m_path.is_empty())
+    auto path = this->path();
+    if (path.is_empty())
         return composed_path;
 
     // 4. Let currentTarget be this’s currentTarget attribute value. (NOTE: Not necessary)
 
     // 5. Assert: currentTarget is an EventTarget object.
-    VERIFY(m_current_target);
+    VERIFY(m_event_core.current_target);
 
     // 6. Append currentTarget to composedPath.
     // NOTE: If path is not empty, then the event is being dispatched and will have a currentTarget.
-    composed_path.append(const_cast<EventTarget*>(m_current_target.ptr()));
+    composed_path.append(const_cast<EventTarget*>(m_event_core.current_target.ptr()));
 
     // 7. Let currentTargetIndex be 0.
     size_t current_target_index = 0;
@@ -237,15 +264,15 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
 
     // 9. Let index be path’s size − 1.
     // 10. While index is greater than or equal to 0:
-    for (ssize_t index = m_path.size() - 1; index >= 0; --index) {
-        auto& path_entry = m_path.at(index);
+    for (ssize_t index = path.size() - 1; index >= 0; --index) {
+        auto& path_entry = path[index];
 
         // 1. If path[index]'s root-of-closed-tree is true, then increase currentTargetHiddenSubtreeLevel by 1.
         if (path_entry.root_of_closed_tree)
             ++current_target_hidden_subtree_level;
 
         // 2. If path[index]'s invocation target is currentTarget, then set currentTargetIndex to index and break.
-        if (path_entry.invocation_target == m_current_target) {
+        if (path_entry.invocation_target.ptr() == m_event_core.current_target.ptr()) {
             current_target_index = index;
             break;
         }
@@ -264,7 +291,7 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
     // 12. Set index to currentTargetIndex − 1.
     // 13. While index is greater than or equal to 0:
     for (ssize_t index = current_target_index - 1; index >= 0; --index) {
-        auto& path_entry = m_path.at(index);
+        auto& path_entry = path[index];
 
         // 1. If path[index]'s root-of-closed-tree is true, then increase currentHiddenLevel by 1.
         if (path_entry.root_of_closed_tree)
@@ -295,8 +322,8 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
 
     // 15. Set index to currentTargetIndex + 1.
     // 16. While index is less than path’s size:
-    for (size_t index = current_target_index + 1; index < m_path.size(); ++index) {
-        auto& path_entry = m_path.at(index);
+    for (size_t index = current_target_index + 1; index < path.size(); ++index) {
+        auto& path_entry = path[index];
 
         // 1. If path[index]'s slot-in-closed-tree is true, then increase currentHiddenLevel by 1.
         if (path_entry.slot_in_closed_tree)

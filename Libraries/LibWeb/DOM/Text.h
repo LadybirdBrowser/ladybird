@@ -43,6 +43,13 @@ public:
     bool is_password_input() const { return m_is_password_input; }
     void set_is_password_input(Badge<HTML::HTMLInputElement>, bool b) { m_is_password_input = b; }
 
+    // https://dom.spec.whatwg.org/#slotable-assigned-slot, which the Text node keeps in its core.
+    // NB: This hides SlottableMixin::assigned_slot_internal(), which has to find the core first. It is defined in
+    //     HTML/HTMLSlotElement.h.
+    inline GC::Ptr<HTML::HTMLSlotElement> assigned_slot_internal() const;
+    Element* assigned_slot_in_core() const { return m_text_core.assigned_slot.ptr(); }
+    void set_assigned_slot_in_core(Badge<SlottableMixin>, Element* slot) { m_text_core.assigned_slot = slot; }
+
     Optional<Element::Directionality> directionality() const;
 
     // The text node's StyleEngine identity, or 0 while it is disconnected.
@@ -64,6 +71,9 @@ private:
 
     Optional<size_t> m_max_length {};
     bool m_is_password_input { false };
+
+    // NB: The core comes last, so that it fills the padding at the end of the cell.
+    RustFFI::TextCore m_text_core {};
 };
 
 }

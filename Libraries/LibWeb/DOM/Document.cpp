@@ -927,6 +927,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 // NB: The Rust definition of the core asserts the same layout.
 static_assert(sizeof(RustFFI::DocumentCore) == 96 && alignof(RustFFI::DocumentCore) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
+static_assert(offsetof(RustFFI::DocumentCore, window) == 4);
 static_assert(offsetof(RustFFI::DocumentCore, live_ranges) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, node_iterators) == 24);
 static_assert(offsetof(RustFFI::DocumentCore, node_tree_version) == 40);
@@ -1119,7 +1120,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);
     visitor.visit(m_page);
-    visitor.visit(m_window);
+    visitor.visit(m_document_core.window);
     visitor.visit(m_relevant_global_event_target);
     visitor.visit(m_style_sheets);
     visitor.visit(m_hovered_node);
@@ -5204,14 +5205,6 @@ Page const& Document::page() const
     return m_page;
 }
 
-EventTarget* Document::get_parent(Event const& event)
-{
-    if (event.type() == HTML::EventNames::load)
-        return nullptr;
-
-    return m_window.ptr();
-}
-
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
 bool Document::is_completely_loaded() const
 {
@@ -6191,7 +6184,7 @@ void Document::check_favicon_after_loading_link_resource()
 
 void Document::set_window(HTML::Window& window)
 {
-    m_window = &window;
+    m_document_core.window = &window;
 }
 
 CSS::StyleSheetList& Document::style_sheets()
@@ -6465,7 +6458,7 @@ void Document::run_unloading_cleanup_steps()
     // The User Agent MUST stop all sources of a globalObject in the following conditions:
     // 1. If globalObject is a Window object and the unloading document cleanup steps are executed for its associated
     //    document.
-    if (auto navigator = m_window ? m_window->navigator_if_created() : nullptr) {
+    if (auto navigator = this->window() ? this->window()->navigator_if_created() : nullptr) {
         if (auto media_devices = navigator->media_devices_if_created())
             media_devices->stop_all_sources();
     }

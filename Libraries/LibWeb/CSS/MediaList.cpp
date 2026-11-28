@@ -86,14 +86,15 @@ void invalidate_style_sheet_for_media_change(StyleSheetState& sheet)
 
 MediaEnvironmentSnapshot::MediaEnvironmentSnapshot(DOM::Document const& document)
 {
-    if (!document.window())
+    auto window = document.window();
+    if (!window)
         return;
 
     m_length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
         Length::ResolutionContext::for_document(document), all_container_relative_length_units_mask);
 
     for (size_t index = 0; index < m_values.size(); ++index)
-        m_values[index] = document.window()->query_media_feature(static_cast<MediaFeatureID>(index));
+        m_values[index] = window->query_media_feature(static_cast<MediaFeatureID>(index));
 }
 
 void RustMediaList::dump(StringBuilder& builder, int indent_levels) const

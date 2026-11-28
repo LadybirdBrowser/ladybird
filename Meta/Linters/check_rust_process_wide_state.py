@@ -151,6 +151,7 @@ RENDER_STATE_ALLOWED = {
         ["render_state/owner.rs:DROPPED_AFTER_HOLD"],
     ),
     f"{RENDER_STATE_CRATE}/src/css/parser/value_parser.rs:INITIAL_VALUES": "per-thread cache of the initial values of longhands, parsed outside any document; every thread parses the same values",
+    f"{RENDER_STATE_CRATE}/src/dom/dispatch.rs:HOOKS": "the table of the C++ callbacks of event dispatch, which C++ registers before any event exists and never changes after; only the main thread, which dispatches every event, calls through it",
     f"{RENDER_STATE_CRATE}/src/dom/hooks.rs:HOOKS": "the table of the DOM's C++ callbacks, which C++ registers before any node exists and never changes after; only the main thread, which owns the DOM, calls through it",
     f"{RENDER_STATE_CRATE}/src/dom/tree_version.rs:LAST_STAMP": "the last stamp of the DOM's tree versions, which only the main thread, which owns the DOM, reads and writes, as its token proves; the unit tests keep one per thread",
     f"{RENDER_STATE_CRATE}/src/dom/node.rs:HEAP_REGION_BASE": "the copy of the heap region base that LibGC fills in before any cell exists and never changes after; every thread reads the same value",

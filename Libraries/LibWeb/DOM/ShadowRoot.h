@@ -59,9 +59,6 @@ public:
     [[nodiscard]] bool uses_document_style_sheets() const { return m_uses_document_style_sheets; }
     void set_uses_document_style_sheets(bool value) { m_uses_document_style_sheets = value; }
 
-    // ^EventTarget
-    virtual EventTarget* get_parent(Event const&) override;
-
     WebIDL::ExceptionOr<Utf16String> inner_html() const;
     WebIDL::ExceptionOr<void> set_inner_html(Utf16View, GC::Ptr<TrustedTypes::TrustedHTMLParserOptions> = nullptr);
 

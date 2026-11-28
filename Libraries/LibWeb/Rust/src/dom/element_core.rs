@@ -10,6 +10,7 @@
 //! Its fields are AK and DOM types to C++, which owns what they hold: C++ constructs, assigns and destroys every field
 //! as the C++ type it sees, and Rust only reads them, in place.
 
+use super::node_core::ElementMember;
 use super::node_core::NodePointer;
 use super::node_core::ShadowRootMember;
 use core::cell::Cell;
@@ -22,7 +23,7 @@ use super::strings::OptionalFlyStringField;
 use super::strings::StringField;
 
 /// Where DOM::Element embeds its core, in bytes from the start of the element's cell, which Element.cpp asserts.
-pub const ELEMENT_CORE_OFFSET: usize = 136;
+pub const ELEMENT_CORE_OFFSET: usize = 144;
 
 /// A field that holds the classes of an element, laid out as C++'s DOM::ClassNames, which is what C++ sees it as: one
 /// class in place, or all of them in an outline buffer, which C++ allocates and frees.
@@ -170,6 +171,8 @@ pub struct ElementCore {
     /// The element's 1-based index among its element siblings with its local name and namespace, or 0 where it is not
     /// counted yet.
     child_index_of_type: Cell<u32>,
+    /// https://dom.spec.whatwg.org/#slotable-assigned-slot
+    assigned_slot: ElementMember,
 }
 
 impl ElementCore {
@@ -216,6 +219,12 @@ impl ElementCore {
     #[inline(always)]
     pub fn shadow_root(&self) -> Option<NodePointer> {
         self.shadow_root.get()
+    }
+
+    /// https://dom.spec.whatwg.org/#slotable-assigned-slot
+    #[inline(always)]
+    pub fn assigned_slot(&self) -> Option<NodePointer> {
+        self.assigned_slot.get()
     }
 
     #[inline(always)]
@@ -271,6 +280,7 @@ impl ElementCore {
             parent_child_index_generation: Cell::new(0),
             child_index: Cell::new(0),
             child_index_of_type: Cell::new(0),
+            assigned_slot: ElementMember::null_for_test(),
         }
     }
 
@@ -280,6 +290,10 @@ impl ElementCore {
 
     pub(crate) fn set_shadow_root_for_test(&self, shadow_root: Option<NodePointer>) {
         self.shadow_root.set_for_test(shadow_root);
+    }
+
+    pub(crate) fn set_assigned_slot_for_test(&self, slot: Option<NodePointer>) {
+        self.assigned_slot.set_for_test(slot);
     }
 
     /// The core with the attributes `attributes`, in a list the test leaks.
@@ -338,6 +352,7 @@ const _: () = assert!(offset_of!(ElementCore, shadow_root) == 60);
 const _: () = assert!(offset_of!(ElementCore, parent_child_index_generation) == 64);
 const _: () = assert!(offset_of!(ElementCore, child_index) == 68);
 const _: () = assert!(offset_of!(ElementCore, child_index_of_type) == 72);
+const _: () = assert!(offset_of!(ElementCore, assigned_slot) == 76);
 
 #[cfg(test)]
 mod tests {

@@ -213,8 +213,14 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(EventTarget);
 
+static_assert(sizeof(RustFFI::EventTargetCore) == 6 && alignof(RustFFI::EventTargetCore) == 2);
+static_assert(offsetof(RustFFI::EventTargetCore, flags) == 0);
+static_assert(offsetof(RustFFI::EventTargetCore, capture_listener_types) == 2);
+static_assert(offsetof(RustFFI::EventTargetCore, bubble_listener_types) == 4);
 EventTarget::EventTarget()
 {
+    // NB: libweb_rust finds the core of an event target at this offset into the target's cell.
+    static_assert(offsetof(EventTarget, m_event_target_core) == RustFFI::EVENT_TARGET_CORE_OFFSET);
 }
 
 EventTarget::~EventTarget() = default;
@@ -490,6 +496,8 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     if (it == event_listener_list.end()) {
         prepare_to_observe_css_animation_events(*this, listener);
         event_listener_list.append(listener);
+        auto& listener_types = listener.capture() ? m_event_target_core.capture_listener_types : m_event_target_core.bubble_listener_types;
+        listener_types |= event_type_summary_bit(listener.type);
         invalidate_compositor_keyboard_scroll_state(*this, listener);
         invalidate_compositor_wheel_event_listener_state(*this, listener);
         wake_animation_frame_pump_for_animation_event_listener(*this, listener);
@@ -558,6 +566,7 @@ void EventTarget::remove_an_event_listener(DOMEventListener& listener)
     VERIFY(m_data);
     auto did_remove = m_data->event_listener_list.remove_first_matching([&](auto& entry) { return entry.ptr() == &listener; });
     if (did_remove) {
+        update_listener_type_summaries();
         invalidate_compositor_keyboard_scroll_state(*this, listener);
         invalidate_compositor_wheel_event_listener_state(*this, listener);
         update_needs_beforeunload_check(*this, listener);
@@ -1165,9 +1174,22 @@ bool EventTarget::dispatch_event(Event& event)
     return EventDispatcher::dispatch(*this, event);
 }
 
+// Works out the listener type summaries of the core again from the listeners, after one has been removed.
+void EventTarget::update_listener_type_summaries()
+{
+    u16 capture_listener_types = 0;
+    u16 bubble_listener_types = 0;
+    for (auto const& listener : m_data->event_listener_list)
+        (listener->capture() ? capture_listener_types : bubble_listener_types) |= event_type_summary_bit(listener->type);
+    m_event_target_core.capture_listener_types = capture_listener_types;
+    m_event_target_core.bubble_listener_types = bubble_listener_types;
+}
+
 bool EventTarget::has_event_listener(Utf16FlyString const& type) const
 {
-    return m_data && m_data->event_listener_list.contains([&type](auto listener) { return listener->type == type; });
+    if (!may_have_event_listener(event_type_summary_bit(type)))
+        return false;
+    return m_data->event_listener_list.contains([&type](auto listener) { return listener->type == type; });
 }
 
 bool EventTarget::has_blocking_wheel_event_listener() const
@@ -1178,11 +1200,6 @@ bool EventTarget::has_blocking_wheel_event_listener() const
 bool EventTarget::has_blocking_keyboard_event_listener() const
 {
     return m_data && m_data->event_listener_list.contains(is_blocking_keyboard_event_listener);
-}
-
-bool EventTarget::has_event_listeners() const
-{
-    return m_data && !m_data->event_listener_list.is_empty();
 }
 
 bool EventTarget::has_activation_behavior() const

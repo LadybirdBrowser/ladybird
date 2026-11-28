@@ -47,19 +47,6 @@ public:
     // FIXME: These need explicit marking somehow.
     using TouchTargetList = Vector<GC::Ptr<EventTarget>>;
 
-    struct PathEntry {
-        GC::Ptr<EventTarget> invocation_target;
-        bool invocation_target_in_shadow_tree { false };
-        GC::Ptr<EventTarget> shadow_adjusted_target;
-        GC::Ptr<EventTarget> related_target;
-        TouchTargetList touch_target_list;
-        bool root_of_closed_tree { false };
-        bool slot_in_closed_tree { false };
-        size_t index;
-    };
-
-    using Path = Vector<PathEntry>;
-
     [[nodiscard]] static GC::Ref<Event> create(JS::Object const& relevant_global_object, FlyString const& event_name, EventInit const& event_init = {});
     [[nodiscard]] static GC::Ref<Event> create(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, EventInit const& event_init = {});
     [[nodiscard]] static GC::Ref<Event> create(FlyString const& event_name, HighResolutionTime::DOMHighResTimeStamp);
@@ -79,24 +66,26 @@ public:
     Event(FlyString const& type, EventInitLike const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
         : Bindings::GCAllocatedWrappable()
         , m_type(Utf16FlyString::from_utf8(type))
-        , m_bubbles(event_init.bubbles)
-        , m_cancelable(event_init.cancelable)
-        , m_composed(event_init.composed)
-        , m_initialized(true)
         , m_time_stamp(time_stamp)
     {
+        m_event_core.bubbles = event_init.bubbles;
+        m_event_core.cancelable = event_init.cancelable;
+        m_event_core.composed = event_init.composed;
+        m_event_core.initialized = true;
+        m_event_core.is_trusted = true;
     }
 
     template<typename EventInitLike>
     Event(Utf16FlyString const& type, EventInitLike const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
         : Bindings::GCAllocatedWrappable()
         , m_type(type)
-        , m_bubbles(event_init.bubbles)
-        , m_cancelable(event_init.cancelable)
-        , m_composed(event_init.composed)
-        , m_initialized(true)
         , m_time_stamp(time_stamp)
     {
+        m_event_core.bubbles = event_init.bubbles;
+        m_event_core.cancelable = event_init.cancelable;
+        m_event_core.composed = event_init.composed;
+        m_event_core.initialized = true;
+        m_event_core.is_trusted = true;
     }
 
     virtual ~Event() = default;
@@ -107,85 +96,78 @@ public:
     Utf16FlyString const& type() const { return m_type; }
     void set_type(Utf16FlyString const& type) { m_type = type; }
 
-    GC::Ptr<EventTarget> target() const { return m_target; }
-    void set_target(EventTarget* target) { m_target = target; }
-    static constexpr size_t target_offset() { return offsetof(Event, m_target); }
+    GC::Ptr<EventTarget> target() const { return m_event_core.target; }
+    void set_target(EventTarget* target) { m_event_core.target = target; }
+    static constexpr GC::MemberOffset target_offset() { return GC_FIELD_OFFSET(Event, m_event_core.target); }
 
     // NOTE: This is intended for the JS bindings.
     GC::Ptr<EventTarget> src_element() const { return target(); }
 
-    GC::Ptr<EventTarget> related_target() const { return m_related_target; }
-    void set_related_target(GC::Ptr<EventTarget> related_target) { m_related_target = related_target; }
-    static constexpr size_t related_target_offset() { return offsetof(Event, m_related_target); }
+    GC::Ptr<EventTarget> related_target() const { return m_event_core.related_target; }
+    void set_related_target(GC::Ptr<EventTarget> related_target) { m_event_core.related_target = related_target; }
+    static constexpr GC::MemberOffset related_target_offset() { return GC_FIELD_OFFSET(Event, m_event_core.related_target); }
 
-    bool should_stop_propagation() const { return m_stop_propagation; }
-    void set_stop_propagation(bool stop_propagation) { m_stop_propagation = stop_propagation; }
+    bool should_stop_propagation() const { return m_event_core.stop_propagation; }
+    void set_stop_propagation(bool stop_propagation) { m_event_core.stop_propagation = stop_propagation; }
 
-    bool should_stop_immediate_propagation() const { return m_stop_immediate_propagation; }
-    void set_stop_immediate_propagation(bool stop_immediate_propagation) { m_stop_immediate_propagation = stop_immediate_propagation; }
+    bool should_stop_immediate_propagation() const { return m_event_core.stop_immediate_propagation; }
+    void set_stop_immediate_propagation(bool stop_immediate_propagation) { m_event_core.stop_immediate_propagation = stop_immediate_propagation; }
 
-    bool cancelled() const { return m_cancelled; }
-    void set_cancelled(bool cancelled) { m_cancelled = cancelled; }
+    bool cancelled() const { return m_event_core.canceled; }
+    void set_cancelled(bool cancelled) { m_event_core.canceled = cancelled; }
 
-    bool in_passive_listener() const { return m_in_passive_listener; }
-    void set_in_passive_listener(bool in_passive_listener) { m_in_passive_listener = in_passive_listener; }
+    void set_in_passive_listener(bool in_passive_listener) { m_event_core.in_passive_listener = in_passive_listener; }
 
-    bool composed() const { return m_composed; }
-    void set_composed(bool composed) { m_composed = composed; }
+    bool composed() const { return m_event_core.composed; }
+    void set_composed(bool composed) { m_event_core.composed = composed; }
 
-    bool initialized() const { return m_initialized; }
-    void set_initialized(bool initialized) { m_initialized = initialized; }
+    bool initialized() const { return m_event_core.initialized; }
+    void set_initialized(bool initialized) { m_event_core.initialized = initialized; }
 
-    bool dispatched() const { return m_dispatch; }
-    void set_dispatched(bool dispatched) { m_dispatch = dispatched; }
+    bool dispatched() const { return m_event_core.dispatch; }
 
     void prevent_default() { set_cancelled_flag(); }
     bool default_prevented() const { return cancelled(); }
 
-    u16 event_phase() const { return m_phase; }
-    void set_phase(Phase phase) { m_phase = phase; }
+    u16 event_phase() const { return m_event_core.event_phase; }
 
-    GC::Ptr<EventTarget> current_target() const { return m_current_target; }
-    void set_current_target(EventTarget* current_target) { m_current_target = current_target; }
+    GC::Ptr<EventTarget> current_target() const { return m_event_core.current_target; }
 
-    bool return_value() const { return !m_cancelled; }
+    bool return_value() const { return !m_event_core.canceled; }
     void set_return_value(bool return_value)
     {
         if (!return_value)
             set_cancelled_flag();
     }
 
-    void append_to_path(EventTarget&, GC::Ptr<EventTarget>, GC::Ptr<EventTarget>, TouchTargetList&, bool);
-    Path& path() { return m_path; }
-    Path const& path() const { return m_path; }
-    void clear_path() { m_path.clear(); }
+    // https://dom.spec.whatwg.org/#event-path, which the dispatch in libweb_rust builds in the event's core.
+    ReadonlySpan<RustFFI::EventPathItem> path() const { return { m_event_core.path.items, m_event_core.path.size }; }
 
-    void set_touch_target_list(TouchTargetList& touch_target_list) { m_touch_target_list = touch_target_list; }
+    void set_touch_target_list(ReadonlySpan<GC::Member<EventTarget>>);
     TouchTargetList& touch_target_list() { return m_touch_target_list; }
-    void clear_touch_target_list() { m_touch_target_list.clear(); }
 
-    bool bubbles() const { return m_bubbles; }
-    void set_bubbles(bool bubbles) { m_bubbles = bubbles; }
+    bool bubbles() const { return m_event_core.bubbles; }
+    void set_bubbles(bool bubbles) { m_event_core.bubbles = bubbles; }
 
-    bool cancelable() const { return m_cancelable; }
-    void set_cancelable(bool cancelable) { m_cancelable = cancelable; }
+    bool cancelable() const { return m_event_core.cancelable; }
+    void set_cancelable(bool cancelable) { m_event_core.cancelable = cancelable; }
 
-    bool is_trusted() const { return m_is_trusted; }
-    void set_is_trusted(bool is_trusted) { m_is_trusted = is_trusted; }
+    bool is_trusted() const { return m_event_core.is_trusted; }
+    void set_is_trusted(bool is_trusted) { m_event_core.is_trusted = is_trusted; }
 
-    void stop_propagation() { m_stop_propagation = true; }
+    void stop_propagation() { m_event_core.stop_propagation = true; }
 
-    bool cancel_bubble() const { return m_stop_propagation; }
+    bool cancel_bubble() const { return m_event_core.stop_propagation; }
     void set_cancel_bubble(bool cancel_bubble)
     {
         if (cancel_bubble)
-            m_stop_propagation = true;
+            m_event_core.stop_propagation = true;
     }
 
     void stop_immediate_propagation()
     {
-        m_stop_propagation = true;
-        m_stop_immediate_propagation = true;
+        m_event_core.stop_propagation = true;
+        m_event_core.stop_immediate_propagation = true;
     }
 
     void init_event(Utf16FlyString const&, bool, bool);
@@ -207,28 +189,10 @@ protected:
 
 private:
     Utf16FlyString m_type;
-    GC::Ptr<EventTarget> m_target;
-    GC::Ptr<EventTarget> m_related_target;
-    GC::Ptr<EventTarget> m_current_target;
+    // NB: The constructors initialize isTrusted to true. Every way that script obtains an event initializes it to false:
+    //     the bindings for constructors, createEvent(), initEvent(), dispatchEvent() and click().
+    RustFFI::EventCore m_event_core {};
 
-    Phase m_phase { None };
-
-    bool m_bubbles { false };
-    bool m_cancelable { false };
-
-    bool m_stop_propagation { false };
-    bool m_stop_immediate_propagation { false };
-    bool m_cancelled { false };
-    bool m_in_passive_listener { false };
-    bool m_composed { false };
-    bool m_initialized { false };
-    bool m_dispatch { false };
-
-    // NB: Every way that script obtains an event initializes isTrusted to false: the bindings for constructors,
-    //     createEvent(), initEvent(), dispatchEvent() and click().
-    bool m_is_trusted { true };
-
-    Path m_path;
     TouchTargetList m_touch_target_list;
 
     HighResolutionTime::DOMHighResTimeStamp m_time_stamp { 0 };

@@ -10,8 +10,11 @@
 pub mod adopt;
 pub mod child_index;
 pub mod collection;
+pub mod dispatch;
 pub mod element;
 pub mod element_core;
+pub mod event;
+pub mod event_target;
 pub mod hooks;
 pub mod insert;
 pub mod links;

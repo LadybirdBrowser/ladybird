@@ -18,7 +18,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Text) == 128);
+static_assert(sizeof(Text) == 136);
 #endif
 
 struct Text::RareData final
@@ -63,7 +63,12 @@ Text::Text(Document& document, Utf16String data)
 Text::Text(Document& document, NodeType type, Utf16String data)
     : CharacterData(document, type, move(data))
 {
+    // NB: libweb_rust finds the core of a Text node at this offset into the node's cell.
+    static_assert(offsetof(Text, m_text_core) == RustFFI::TEXT_CORE_OFFSET);
 }
+
+static_assert(sizeof(RustFFI::TextCore) == 4 && alignof(RustFFI::TextCore) == 4);
+static_assert(offsetof(RustFFI::TextCore, assigned_slot) == 0);
 
 GC::Ref<Text> Text::create(Document& document, Utf16String data)
 {
@@ -87,6 +92,9 @@ void Text::adopted_from(Document& old_document)
 void Text::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    // NB: Almost no Text node is assigned to a slot, so leave the marker out for those.
+    if (m_text_core.assigned_slot)
+        visitor.visit(m_text_core.assigned_slot);
 }
 
 // https://dom.spec.whatwg.org/#dom-text-splittext

@@ -10,7 +10,7 @@
 
 namespace Web::DOM {
 
-class EventDispatcher;
+struct RustEventHooks;
 
 }
 
@@ -31,7 +31,7 @@ public:
     virtual void set_being_activated(bool) override;
 
 private:
-    friend class DOM::EventDispatcher;
+    friend struct DOM::RustEventHooks;
 
     HTMLLabelElement(DOM::Document&, DOM::QualifiedName);
 

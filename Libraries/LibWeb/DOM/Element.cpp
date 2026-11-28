@@ -186,7 +186,7 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 }
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Element) == 288);
+static_assert(sizeof(Element) == 296);
 #endif
 
 // NB: The Rust definition of the core asserts the same layout.
@@ -202,6 +202,7 @@ static_assert(offsetof(RustFFI::ElementCore, shadow_root) == 60);
 static_assert(offsetof(RustFFI::ElementCore, parent_child_index_generation) == 64);
 static_assert(offsetof(RustFFI::ElementCore, child_index) == 68);
 static_assert(offsetof(RustFFI::ElementCore, child_index_of_type) == 72);
+static_assert(offsetof(RustFFI::ElementCore, assigned_slot) == 76);
 
 Element::RareData::~RareData() = default;
 
@@ -361,6 +362,7 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .parent_child_index_generation = 0,
         .child_index = 0,
         .child_index_of_type = 0,
+        .assigned_slot = {},
     }
 {
     // NB: libweb_rust finds the core of an element at this offset into the element's cell, which starts with its node.
@@ -467,6 +469,9 @@ void Element::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_inline_style);
     visitor.visit(m_element_core.shadow_root);
+    // NB: Almost no element is assigned to a slot, so leave the marker out for those.
+    if (m_element_core.assigned_slot)
+        visitor.visit(m_element_core.assigned_slot);
 }
 
 size_t Element::external_memory_size() const
@@ -2008,7 +2013,7 @@ static void for_each_inclusive_descendant_element_in_flat_tree(Element& root, Ca
         auto* element = as_if<Element>(node);
         if (!element)
             return TraversalDecision::Continue;
-        if (element != &root && element->assigned_slot_internal())
+        if (element != &root && element->has_assigned_slot())
             return TraversalDecision::SkipChildrenAndContinue;
         auto decision = callback(*element);
         if (decision != TraversalDecision::Continue)

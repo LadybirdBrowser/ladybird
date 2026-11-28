@@ -94,7 +94,7 @@ void invalidate_style_after_text_change_under(DOM::Element& parent_of_text)
 
     bool ancestor_chain_has_assigned_slot = false;
     for (auto ancestor = GC::Ptr<DOM::Element> { parent_of_text }; ancestor; ancestor = ancestor->parent_element()) {
-        if (ancestor->assigned_slot_internal()) {
+        if (ancestor->has_assigned_slot()) {
             ancestor_chain_has_assigned_slot = true;
             break;
         }

@@ -13,12 +13,20 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMEventListener.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
+
+// The bit of an event type in the listener type summaries of an event target's core (see Rust/src/dom/event_target.rs):
+// one of 16, picked from the type's interned identity, which is the same for every equal type.
+inline u16 event_type_summary_bit(Utf16FlyString const& type)
+{
+    return static_cast<u16>(1u << ((static_cast<u64>(type.raw_identity()) * 0x9E3779B97F4A7C15ull) >> 60));
+}
 
 class WEB_API EventTarget : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(EventTarget, Bindings::GCAllocatedWrappable);
@@ -79,10 +87,17 @@ public:
     bool has_event_listener(Utf16FlyString const& type) const;
     bool has_blocking_wheel_event_listener() const;
     bool has_blocking_keyboard_event_listener() const;
-    bool has_event_listeners() const;
+    bool has_event_listeners() const { return (m_event_target_core.capture_listener_types | m_event_target_core.bubble_listener_types) != 0; }
+
+    // Whether the target may have a listener of any of the types whose bits are set in types, see
+    // event_type_summary_bit(). A type whose bit is clear has none.
+    bool may_have_event_listener(u16 types) const { return ((m_event_target_core.capture_listener_types | m_event_target_core.bubble_listener_types) & types) != 0; }
 
 protected:
     EventTarget();
+
+    // Says what the target's class is, which its constructor does. See the EVENT_TARGET_* flags.
+    void set_event_target_core_flag(u8 flag) { m_event_target_core.flags |= flag; }
 
     void element_event_handler_attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& value);
     virtual void event_listener_list_changed() { }
@@ -102,6 +117,13 @@ private:
     };
 
     Data& ensure_data();
+    void update_listener_type_summaries();
+
+    template<typename>
+    friend struct GC::CellConstructionHook;
+
+    // NB: The core comes first, so that it fills the padding at the end of the cell's header.
+    RustFFI::EventTargetCore m_event_target_core {};
     OwnPtr<Data> m_data;
 
     WebIDL::CallbackType* get_current_value_of_event_handler(Utf16FlyString const& name);
@@ -111,5 +133,25 @@ private:
 };
 
 bool is_window_reflecting_body_element_event_handler(Utf16FlyString const& name);
+
+}
+
+namespace GC {
+
+// Tells libweb_rust, as an event target that is no node is constructed, whether its class has a "get the parent" of its
+// own (see Rust/src/dom/event_target.rs). DOM::Node says what a node's class has in a hook of its own.
+template<typename T>
+requires(IsBaseOf<Web::DOM::EventTarget, T> && !IsBaseOf<Web::DOM::Node, T>)
+struct CellConstructionHook<T> {
+    static void did_construct(T& target)
+    {
+        using Web::DOM::Event;
+        using Web::DOM::EventTarget;
+        // NB: The dispatch in libweb_rust asks only nodes whether they have activation behavior.
+        static_assert(IsSame<decltype(&T::has_activation_behavior), bool (EventTarget::*)() const>);
+        if constexpr (!IsSame<decltype(&T::get_parent), EventTarget* (EventTarget::*)(Event const&)>)
+            target.set_event_target_core_flag(Web::DOM::RustFFI::EVENT_TARGET_HAS_GET_THE_PARENT);
+    }
+};
 
 }

@@ -117,7 +117,7 @@ static StyleNodeID identity_of(GC::Ptr<DOM::Element> element)
 // The identity of the slot the element is assigned to, or none.
 static StyleNodeID assigned_slot_identity_of(DOM::Element const& element)
 {
-    return identity_of(element.assigned_slot_internal());
+    return identity_of(element.assigned_slot_in_core());
 }
 
 // A shadow root's identity, minted on first use.

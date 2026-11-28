@@ -608,6 +608,13 @@ public:
     bool is_shadow_host() const;
     GC::Ptr<ShadowRoot> shadow_root() { return m_element_core.shadow_root; }
     GC::Ptr<ShadowRoot const> shadow_root() const { return m_element_core.shadow_root; }
+
+    // https://dom.spec.whatwg.org/#slotable-assigned-slot, which the element keeps in its core.
+    // NB: This hides SlottableMixin::assigned_slot_internal(), which has to find the core first. It is defined in
+    //     HTML/HTMLSlotElement.h.
+    inline GC::Ptr<HTML::HTMLSlotElement> assigned_slot_internal() const;
+    Element* assigned_slot_in_core() const { return m_element_core.assigned_slot.ptr(); }
+    void set_assigned_slot_in_core(Badge<SlottableMixin>, Element* slot) { m_element_core.assigned_slot = slot; }
     void set_shadow_root(GC::Ptr<ShadowRoot>);
 
     void set_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
