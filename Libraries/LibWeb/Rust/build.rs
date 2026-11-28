@@ -2850,6 +2850,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ElementPrefix".to_string(),
         "HTMLElementPrefix".to_string(),
         "HTMLSlotElementPrefix".to_string(),
+        "TextObject".to_string(),
+        "CDATASectionObject".to_string(),
         "CommentObject".to_string(),
         "ProcessingInstructionObject".to_string(),
         "DocumentTypeObject".to_string(),

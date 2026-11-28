@@ -17,15 +17,13 @@
 
 namespace Web::DOM {
 
+// NB: libweb_rust defines, allocates and destroys every Text node, see Rust/src/dom/node_objects.rs.
 class WEB_API Text
     : public CharacterData
     , public SlottableMixin {
     WEB_WRAPPABLE(Text, CharacterData);
-    GC_DECLARE_ALLOCATOR(Text);
 
 public:
-    virtual ~Text() override = default;
-
     [[nodiscard]] static GC::Ref<Text> create(Document&, Utf16String data);
     [[nodiscard]] static GC::Ref<Text> create_for_constructor(JS::Object&, Utf16String data);
 
@@ -66,8 +64,10 @@ public:
     void set_style_node_id(CSS::StyleNodeID);
 
 protected:
-    Text(Document&, Utf16String);
-    Text(Document&, NodeType, Utf16String);
+    friend struct RustNodeObjectHooks;
+
+    explicit Text(VtableProbe);
+    virtual ~Text() override = default;
 
     virtual void adopted_from(Document&) override;
 

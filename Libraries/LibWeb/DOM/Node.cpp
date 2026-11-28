@@ -1231,21 +1231,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
             // Set copy’s namespace, namespace prefix, local name, and value to those of node.
             auto& attr = as<Attr>(*this);
             copy = attr.clone(document);
-        } else if (is_text()) {
-            // -> Text
-            auto& text = as<Text>(*this);
-
-            // Set copy’s data to that of node.
-            copy = [&]() -> GC::Ref<Text> {
-                switch (type()) {
-                case NodeType::TEXT_NODE:
-                    return Text::create(document, text.data());
-                case NodeType::CDATA_SECTION_NODE:
-                    return CDATASection::create(document, text.data());
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            }();
         }
         // -> Otherwise
         //    Do nothing.

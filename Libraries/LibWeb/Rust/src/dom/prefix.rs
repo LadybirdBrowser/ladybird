@@ -15,6 +15,9 @@
 //! typed as what C++ keeps there instead. A level whose class has no subclass with a prefix of its own ends with its
 //! last Rust field, and the C++ members of the class follow it.
 //!
+//! For the classes whose objects Rust defines whole (see node_objects.rs), Rust writes each slot of a new node as the
+//! C++ constructors would, and C++ visits, finalizes and destroys what the slots hold through hooks.
+//!
 //! | Prefix | Slot | What C++ keeps there | What would let Rust own it |
 //! |---|---|---|---|
 //! | WrappablePrefix | vtable | GC::Cell's vtable pointer | Rust defining the object, with C++ as a payload |
@@ -294,6 +297,18 @@ impl NodePrefix {
             node_directory_slot: OpaqueCxx::new([0]),
             // NB: A null OwnPtr.
             rare_data: OpaqueCxx::new([0]),
+        }
+    }
+}
+
+impl TextPrefix {
+    /// The prefix of a new Text node, whose SlottableMixin base C++ gives the vtable pointer `slottable_mixin_vtable`.
+    #[inline(always)]
+    pub(super) fn new(character_data: CharacterDataPrefix, slottable_mixin_vtable: u64) -> Self {
+        Self {
+            character_data,
+            slottable_mixin_vtable: OpaqueCxx::new([slottable_mixin_vtable]),
+            core: TextCore::new(),
         }
     }
 }

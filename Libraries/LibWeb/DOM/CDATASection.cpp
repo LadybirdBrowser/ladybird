@@ -4,23 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibWeb/DOM/CDATASection.h>
+#include <LibWeb/DOM/Document.h>
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(CDATASection);
+static_assert(is_shell_of_rust_object<CDATASection, RustFFI::CDATASectionObject>);
 
-CDATASection::CDATASection(Document& document, Utf16String data)
-    : Text(document, NodeType::CDATA_SECTION_NODE, move(data))
+CDATASection::CDATASection(VtableProbe probe)
+    : Text(probe)
 {
 }
 
 GC::Ref<CDATASection> CDATASection::create(Document& document, Utf16String data)
 {
-    return GC::Heap::the().allocate<CDATASection>(document, move(data));
+    return static_cast<CDATASection&>(*RustFFI::rust_dom_create_cdata_section(&document, move(data).into_raw()));
 }
-
-CDATASection::~CDATASection() = default;
 
 }

@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The classes of nodes whose objects Rust defines whole: Comment, ProcessingInstruction and DocumentType. Rust lays
+//! The classes of nodes whose objects Rust defines whole: Text, CDATASection, Comment, ProcessingInstruction and
+//! DocumentType. Rust lays
 //! out each object as a struct of its own, allocates it from LibGC's heap with a type info of its own, traces it,
 //! finalizes it and destroys it. C++ keeps the class as a shell over the object, through which C++ code and the
 //! bindings reach the node as before. The shell has no member of its own beyond the core Rust lays out at its end, and
@@ -40,6 +41,7 @@ use super::node_ref::NodeRef;
 use super::prefix::CharacterDataPrefix;
 use super::prefix::CxxWords;
 use super::prefix::NodePrefix;
+use super::prefix::TextPrefix;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -49,6 +51,11 @@ crate::stage::main_thread_ffi_entries!(without_host);
 /// keeps in the opaque slots of a node's prefixes.
 #[repr(C)]
 pub struct NodeObjectHooks {
+    pub text_vtable: *const c_void,
+    /// The vtable pointer of the SlottableMixin base of DOM::Text, which TextPrefix keeps in an opaque slot.
+    pub text_slottable_mixin_vtable: *const c_void,
+    pub cdata_section_vtable: *const c_void,
+    pub cdata_section_slottable_mixin_vtable: *const c_void,
     pub comment_vtable: *const c_void,
     pub processing_instruction_vtable: *const c_void,
     pub document_type_vtable: *const c_void,
@@ -69,6 +76,8 @@ pub struct NodeObjectHooks {
 struct NodeObjects {
     hooks: &'static NodeObjectHooks,
     null_weak_impl: u64,
+    text: Allocator,
+    cdata_section: Allocator,
     comment: Allocator,
     processing_instruction: Allocator,
     document_type: Allocator,
@@ -133,6 +142,8 @@ pub unsafe extern "C" fn rust_dom_register_node_objects(hooks: &'static NodeObje
         *NODE_OBJECTS.0.get() = Some(NodeObjects {
             hooks,
             null_weak_impl,
+            text: allocator_of::<TextObject>(),
+            cdata_section: allocator_of::<CDATASectionObject>(),
             comment: allocator_of::<CommentObject>(),
             processing_instruction: allocator_of::<ProcessingInstructionObject>(),
             document_type: allocator_of::<DocumentTypeObject>(),
@@ -247,6 +258,58 @@ macro_rules! node_object {
     };
 }
 
+/// A whole DOM::Text.
+/// https://dom.spec.whatwg.org/#interface-text
+#[repr(C)]
+pub struct TextObject {
+    text: TextPrefix,
+}
+
+node_object!(TextObject, "Text", text);
+
+static TEXT_TYPE_INFO: CellTypeInfo = type_info_of::<TextObject>();
+
+// SAFETY: The object starts with its NodePrefix, and Text.cpp asserts its size and alignment.
+unsafe impl NodeObject for TextObject {
+    const TYPE_INFO: &'static CellTypeInfo = &TEXT_TYPE_INFO;
+}
+
+impl Drop for TextObject {
+    fn drop(&mut self) {
+        // SAFETY: LibGC destroys the object once, and nothing reads it after this.
+        unsafe {
+            destroy_slots(self);
+            drop(self.text.character_data.core.take_data());
+        }
+    }
+}
+
+/// A whole DOM::CDATASection, which is a Text node with a class of its own.
+/// https://dom.spec.whatwg.org/#interface-cdatasection
+#[repr(C)]
+pub struct CDATASectionObject {
+    text: TextPrefix,
+}
+
+node_object!(CDATASectionObject, "CDATASection", text);
+
+static CDATA_SECTION_TYPE_INFO: CellTypeInfo = type_info_of::<CDATASectionObject>();
+
+// SAFETY: The object starts with its NodePrefix, and CDATASection.cpp asserts its size and alignment.
+unsafe impl NodeObject for CDATASectionObject {
+    const TYPE_INFO: &'static CellTypeInfo = &CDATA_SECTION_TYPE_INFO;
+}
+
+impl Drop for CDATASectionObject {
+    fn drop(&mut self) {
+        // SAFETY: LibGC destroys the object once, and nothing reads it after this.
+        unsafe {
+            destroy_slots(self);
+            drop(self.text.character_data.core.take_data());
+        }
+    }
+}
+
 /// A whole DOM::Comment.
 /// https://dom.spec.whatwg.org/#interface-comment
 #[repr(C)]
@@ -354,6 +417,17 @@ pub(super) fn clone_single_node(main_thread: &mut MainThread<'_>, document: Node
             );
             create_document_type(main_thread, document, name, public_id, system_id)
         }
+        // -> Text
+        NodeClassId::Text => {
+            // Set copy's data to that of node.
+            let data = node.read(main_thread).data().to_utf16_string();
+            create_text(main_thread, document, data)
+        }
+        // NB: A CDATASection node is a Text node, whose copy is one too.
+        NodeClassId::CDATASection => {
+            let data = node.read(main_thread).data().to_utf16_string();
+            create_cdata_section(main_thread, document, data)
+        }
         // -> Comment
         NodeClassId::Comment => {
             // Set copy's data to that of node.
@@ -375,6 +449,67 @@ pub(super) fn clone_single_node(main_thread: &mut MainThread<'_>, document: Node
     };
     // 7. Return copy.
     Some(copy)
+}
+
+/// The prefix of a new Text node of the class `class_id`, whose C++ class has the vtable pointer of `words` and the
+/// SlottableMixin vtable pointer `slottable_mixin_vtable`.
+#[inline(always)]
+fn text_prefix(
+    words: CxxWords,
+    slottable_mixin_vtable: *const c_void,
+    class_id: NodeClassId,
+    node_type: NodeType,
+    node: NodePointer,
+    document: NodePointer,
+    data: ak::Utf16String,
+) -> TextPrefix {
+    TextPrefix::new(
+        CharacterDataPrefix {
+            node: NodePrefix::new(words, class_id, node_type, node, document),
+            core: CharacterDataCore::new(data),
+        },
+        slottable_mixin_vtable.addr() as u64,
+    )
+}
+
+/// A new Text node with the node document `document` and the data `data`.
+pub(super) fn create_text(main_thread: &mut MainThread<'_>, document: NodeRef, data: ak::Utf16String) -> NodeRef {
+    let objects = node_objects();
+    let document_pointer = document.pointer();
+    allocate(main_thread, document, &objects.text, |node| TextObject {
+        text: text_prefix(
+            objects.words(objects.hooks.text_vtable),
+            objects.hooks.text_slottable_mixin_vtable,
+            NodeClassId::Text,
+            NodeType::TEXT_NODE,
+            node,
+            document_pointer,
+            data,
+        ),
+    })
+}
+
+/// A new CDATASection node with the node document `document` and the data `data`.
+pub(super) fn create_cdata_section(
+    main_thread: &mut MainThread<'_>,
+    document: NodeRef,
+    data: ak::Utf16String,
+) -> NodeRef {
+    let objects = node_objects();
+    let document_pointer = document.pointer();
+    allocate(main_thread, document, &objects.cdata_section, |node| {
+        CDATASectionObject {
+            text: text_prefix(
+                objects.words(objects.hooks.cdata_section_vtable),
+                objects.hooks.cdata_section_slottable_mixin_vtable,
+                NodeClassId::CDATASection,
+                NodeType::CDATA_SECTION_NODE,
+                node,
+                document_pointer,
+                data,
+            ),
+        }
+    })
 }
 
 /// A new Comment node with the node document `document` and the data `data`.
@@ -446,6 +581,49 @@ pub(super) fn create_document_type(
             core: DocumentTypeCore::new(name, public_id, system_id),
         }
     })
+}
+
+/// A new Text node with the node document `document` and the data `data`, whose reference passes to it, for
+/// DOM::Text::create().
+///
+/// # Safety
+///
+/// `document` must be a live document, `data` the raw word of an AK::Utf16String whose reference the caller hands
+/// over, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_create_text(document: &NodeCell, data: usize) -> NonNull<NodeCell> {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: Guaranteed by the caller.
+    let (document, data) = unsafe {
+        (
+            NodeRef::from_cell(document, &main_thread),
+            ak::Utf16String::from_raw_owned(data),
+        )
+    };
+    let node = create_text(&mut main_thread, document, data);
+    NonNull::from(node.cell())
+}
+
+/// A new CDATASection node with the node document `document` and the data `data`, whose reference passes to it, for
+/// DOM::CDATASection::create().
+///
+/// # Safety
+///
+/// As for rust_dom_create_text().
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_create_cdata_section(document: &NodeCell, data: usize) -> NonNull<NodeCell> {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: Guaranteed by the caller.
+    let (document, data) = unsafe {
+        (
+            NodeRef::from_cell(document, &main_thread),
+            ak::Utf16String::from_raw_owned(data),
+        )
+    };
+    let node = create_cdata_section(&mut main_thread, document, data);
+    NonNull::from(node.cell())
 }
 
 /// A new Comment node with the node document `document` and the data `data`, whose reference passes to it, for
@@ -520,6 +698,8 @@ pub unsafe extern "C" fn rust_dom_create_document_type(document: &NodeCell) -> N
 }
 
 // NB: The C++ classes assert that they have the sizes and alignments of these.
+const _: () = assert!(size_of::<TextObject>() == 128 && align_of::<TextObject>() == 8);
+const _: () = assert!(size_of::<CDATASectionObject>() == 128 && align_of::<CDATASectionObject>() == 8);
 const _: () = assert!(size_of::<CommentObject>() == 104 && align_of::<CommentObject>() == 8);
 const _: () =
     assert!(size_of::<ProcessingInstructionObject>() == 112 && align_of::<ProcessingInstructionObject>() == 8);

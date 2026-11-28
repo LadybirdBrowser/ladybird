@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
@@ -55,11 +56,29 @@ struct RustNodeObjectHooks {
     // NB: libweb_rust makes the copies of these nodes when it clones them, and runs no cloning steps for them.
     template<typename T>
     static constexpr bool has_no_cloning_steps = IsSame<decltype(&T::cloned), WebIDL::ExceptionOr<void> (Node::*)(Node&, bool) const>;
-    static_assert(has_no_cloning_steps<Comment> && has_no_cloning_steps<ProcessingInstruction> && has_no_cloning_steps<DocumentType>);
+    static_assert(has_no_cloning_steps<Text> && has_no_cloning_steps<CDATASection> && has_no_cloning_steps<Comment> && has_no_cloning_steps<ProcessingInstruction> && has_no_cloning_steps<DocumentType>);
+
+    // NB: A Text node's SlottableMixin base holds only its vtable pointer, which TextPrefix keeps in an opaque slot, and
+    //     which Node::~Node() leaves as it is.
+    static_assert(sizeof(SlottableMixin) == sizeof(void*));
+
+    // The vtable pointer of the SlottableMixin base of the Text node `text`.
+    static void const* slottable_mixin_vtable_pointer(Text const& text)
+    {
+        auto const* slottable_mixin = static_cast<SlottableMixin const*>(&text);
+        VERIFY(reinterpret_cast<u8 const*>(slottable_mixin) == reinterpret_cast<u8 const*>(&text) + offsetof(RustFFI::TextPrefix, slottable_mixin_vtable));
+        return vtable_pointer_at(slottable_mixin);
+    }
 
     static RustFFI::NodeObjectHooks make()
     {
+        auto const& text = probe<Text>();
+        auto const& cdata_section = probe<CDATASection>();
         return {
+            .text_vtable = vtable_pointer_at(&text),
+            .text_slottable_mixin_vtable = slottable_mixin_vtable_pointer(text),
+            .cdata_section_vtable = vtable_pointer_at(&cdata_section),
+            .cdata_section_slottable_mixin_vtable = slottable_mixin_vtable_pointer(cdata_section),
             .comment_vtable = vtable_pointer_at(&probe<Comment>()),
             .processing_instruction_vtable = vtable_pointer_at(&probe<ProcessingInstruction>()),
             .document_type_vtable = vtable_pointer_at(&probe<DocumentType>()),

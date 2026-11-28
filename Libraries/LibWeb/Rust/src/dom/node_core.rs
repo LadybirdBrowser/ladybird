@@ -263,6 +263,16 @@ pub struct TextCore {
 pub const TEXT_NO_MAX_LENGTH: u32 = u32::MAX;
 
 impl TextCore {
+    /// The core of a new Text node: one without an assigned slot, a maximum length, or a password to hold.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            assigned_slot: ElementMember(Cell::new(0)),
+            max_length: Cell::new(TEXT_NO_MAX_LENGTH),
+            is_password_input: Cell::new(false),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#slotable-assigned-slot
     #[inline(always)]
     pub fn assigned_slot(&self) -> Option<NodePointer> {

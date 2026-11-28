@@ -47,8 +47,6 @@ CharacterData::RareData const* CharacterData::character_data_rare_data() const
     return static_cast<RareData const*>(rare_data());
 }
 
-GC_DEFINE_ALLOCATOR(CharacterData);
-
 static bool ends_in_ascii_whitespace(Utf16String const& data)
 {
     return !data.is_empty() && is_ascii_space(data.code_unit_at(data.length_in_code_units() - 1));
@@ -76,9 +74,8 @@ static bool whitespace_text_may_follow(Node const& node)
     return false;
 }
 
-CharacterData::CharacterData(Document& document, NodeType type, Utf16String data)
-    : Node(document, type)
-    , m_character_data_core { .data = move(data) }
+CharacterData::CharacterData(VtableProbe probe)
+    : Node(probe)
 {
     // NB: libweb_rust reads a CharacterData node as the CharacterDataPrefix it starts with.
     static_assert(sizeof(CharacterData) == sizeof(RustFFI::CharacterDataPrefix));
@@ -88,8 +85,6 @@ CharacterData::CharacterData(Document& document, NodeType type, Utf16String data
     //     its tail padding, where only the Itanium ABI could.
     static_assert(offsetof(CharacterData, m_character_data_core) >= sizeof(Node));
 }
-
-CharacterData::~CharacterData() = default;
 
 size_t CharacterData::external_memory_size() const
 {

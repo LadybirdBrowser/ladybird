@@ -154,6 +154,8 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/css/parser/value_parser.rs:INITIAL_VALUES": "per-thread cache of the initial values of longhands, parsed outside any document; every thread parses the same values",
     f"{RENDER_STATE_CRATE}/src/dom/dispatch.rs:HOOKS": "the table of the C++ callbacks of event dispatch, which C++ registers before any event exists and never changes after; only the main thread, which dispatches every event, calls through it",
     f"{RENDER_STATE_CRATE}/src/dom/hooks.rs:HOOKS": "the table of the DOM's C++ callbacks, which C++ registers before any node exists and never changes after; only the main thread, which owns the DOM, calls through it",
+    f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:TEXT_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every Text node with",
+    f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:CDATA_SECTION_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every CDATASection node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:COMMENT_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every Comment node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:PROCESSING_INSTRUCTION_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every ProcessingInstruction node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:DOCUMENT_TYPE_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every DocumentType node with",
