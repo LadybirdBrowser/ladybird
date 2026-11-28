@@ -746,7 +746,8 @@ impl Allocator {
             return Location::Register(register);
         }
         let slot = allocation.slots[value as usize];
-        debug_assert!(slot != NO_SLOT, "v{value} is neither in a register nor in a slot");
+        // NB: A hard failure in release builds too: code that read a stale register or slot here would be exploitable.
+        assert!(slot != NO_SLOT, "v{value} is neither in a register nor in a slot");
         Location::Slot(slot)
     }
 

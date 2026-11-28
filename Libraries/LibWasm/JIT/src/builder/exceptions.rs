@@ -359,9 +359,12 @@ impl Builder {
             } else {
                 None
             };
+            // NB: The next test comes after this test but not after its handler, so it keeps what the tests numbered.
+            let handler_mark = self.numbering_log.len() as u32;
             self.push_caught(func, module, clause.kind, clause.tag, exception);
             // NB: The labels are counted from outside the try_table, whose own construct is still open.
             self.branch(func, clause.label + 1);
+            self.unnumber(handler_mark);
             self.stack.truncate(control.height as usize);
             match otherwise {
                 Some((test, slot)) => self.continue_from(func, test, slot),
@@ -407,6 +410,9 @@ impl Builder {
                     self.throw_to(func, control.outer_handler, exception);
                 }
             }
+            // NB: The tag tests number values in blocks that do not dominate the handlers, so every handler starts
+            //     from the numbering at the start of the try, as the later ones do after the previous handler.
+            self.unnumber(control.numbering_mark);
             let control = &mut self.controls[index];
             control.kind = ControlKind::Catch;
             control.exception = exception.unwrap_or(NONE);
