@@ -67,11 +67,7 @@ struct WebView::AccessibilityTextStyle {
 
 [ExistingCpp]
 struct WebView::AccessibilityTextGeometry {
-    Vector<i32> character_x;
-    Vector<i32> character_y;
-    Vector<i32> line_break_character_offsets;
-    Vector<i32> line_tops;
-    Vector<i32> line_heights;
+    Vector<i32> data;
 }
 
 [ExistingCpp]

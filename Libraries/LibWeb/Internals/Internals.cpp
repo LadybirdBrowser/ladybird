@@ -2183,11 +2183,11 @@ String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
                 builder.appendff("{}{},{}", j ? " "sv : ""sv, offset.x(), offset.y());
             }
         }
-        if (!geometry.line_break_character_offsets.is_empty()) {
+        if (!geometry.line_break_character_offsets().is_empty()) {
             builder.append(" lines="sv);
-            for (size_t j = 0; j < geometry.line_break_character_offsets.size(); ++j) {
-                auto height = j < geometry.line_heights.size() ? geometry.line_heights[j] : -1;
-                builder.appendff("{}{}@{}", j ? " "sv : ""sv, geometry.line_break_character_offsets[j], height);
+            for (size_t j = 0; j < geometry.line_break_character_offsets().size(); ++j) {
+                auto height = j < geometry.line_heights().size() ? geometry.line_heights()[j] : -1;
+                builder.appendff("{}{}@{}", j ? " "sv : ""sv, geometry.line_break_character_offsets()[j], height);
             }
         }
         builder.append('\n');
