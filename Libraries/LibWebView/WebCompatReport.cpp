@@ -84,6 +84,7 @@ Optional<String> WebCompatReport::validate(StringView description)
 
 WebCompatReport::WebCompatReport(Page page)
     : m_page(move(page))
+    , m_system(describe_system_for_report())
 {
 }
 
@@ -100,6 +101,8 @@ Vector<ReportDetail> WebCompatReport::details() const
     details.append({ "Ladybird version"_string, to_string(browser_version), true });
     details.append({ "Platform"_string, to_string(platform), false });
     details.append({ "Architecture"_string, to_string(architecture), false });
+    for (auto const& detail : m_system)
+        details.append({ to_string(detail.field.name), detail.value, false });
     details.append({ "Git commit"_string, to_string(LADYBIRD_COMMIT), true });
     return details;
 }
@@ -124,6 +127,7 @@ ByteString WebCompatReport::diagnostics(IncludePageDumps include_page_dumps, Inc
     StringBuilder builder;
     builder.append("Ladybird web compatibility report, format 1\n"sv);
     append_build_information_for_process(builder, ProcessType::Browser);
+    append_system_for_report(builder, m_system);
     builder.appendff("URL: {}\n", m_page.url.serialize());
     builder.appendff("User agent: {}\n", m_page.user_agent);
     builder.appendff("Viewport size: {}\n", format_viewport_size(m_page.viewport_size));
@@ -180,6 +184,8 @@ Optional<String> WebCompatReport::send(String const& description, Optional<ByteB
     contents.add("device_pixel_ratio"sv, "number"sv, m_page.device_pixel_ratio);
     contents.add("zoom_level"sv, "number"sv, m_page.zoom_level);
     contents.add_build_information(platform, architecture, LADYBIRD_COMMIT, build_configuration);
+    for (auto const& detail : m_system)
+        contents.add_text(detail.field.key, "text"sv, detail.value);
     if (include_platform_features == IncludePlatformFeatures::Yes && m_platform_features.has_value())
         contents.add_platform_features(*m_platform_features);
 

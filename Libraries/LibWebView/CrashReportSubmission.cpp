@@ -47,6 +47,7 @@ static ReportSubmission::Contents describe_report(CrashReportSubmission::Options
     contents.add_text("description"sv, "multiline"sv, options.description);
     contents.add_text("url"sv, "text"sv, options.url);
     contents.add_platform_features(text);
+    contents.add_system_details(text);
 
     auto version = diagnostics.header("Version"sv);
     auto build = diagnostics.header("Build configuration"sv);

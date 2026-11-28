@@ -10,6 +10,7 @@
 #include <LibURL/URL.h>
 #include <LibWebView/CrashReportDiagnostics.h>
 #include <LibWebView/CrashReportReview.h>
+#include <LibWebView/SystemDescription.h>
 
 namespace WebView {
 
@@ -82,6 +83,8 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(ByteString const& rep
     add_field("Platform"sv, diagnostics.header("Platform"sv));
     add_field("Process"sv, diagnostics.header("Process"sv));
     add_field("Architecture"sv, diagnostics.header("Architecture"sv));
+    for (auto const& field : reported_system_fields)
+        add_field(field.name, diagnostics.header(field.name));
     add_field("Git commit"sv, diagnostics.header("Git commit"sv), true);
     add_field("Sandbox"sv, diagnostics.header("Sandbox"sv));
 

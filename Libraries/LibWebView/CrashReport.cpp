@@ -14,11 +14,11 @@
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/SystemDescription.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <fcntl.h>
 #    include <signal.h>
-#    include <sys/utsname.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
 #endif
@@ -91,15 +91,7 @@ static StringView signal_name(int signal)
 
 static void append_system_description(StringBuilder& builder)
 {
-    utsname system {};
-    if (uname(&system) == 0) {
-        // Only the numeric release, never nodename or custom kernel build text.
-        auto release = StringView { system.release, strnlen(system.release, sizeof(system.release)) };
-        size_t length = 0;
-        while (length < release.length() && (is_ascii_digit(release[length]) || release[length] == '.'))
-            ++length;
-        builder.appendff("Kernel release: {}\n", release.substring_view(0, length));
-    }
+    append_system_for_report(builder, describe_system_for_report());
     if (s_disable_sandbox == DisableSandbox::Yes)
         builder.append("Sandbox: off\n"sv);
 }

@@ -73,7 +73,7 @@ CrashReportReviewWidget::CrashReportReviewWidget(QString exit_text, QWidget* par
 
     auto* contents = new QWidget(m_review_page);
     auto* contents_layout = create_group_layout(contents);
-    auto* contents_summary = create_label(tr("Includes technical crash details, your Ladybird version and platform."), contents);
+    auto* contents_summary = create_label(tr("Includes technical crash details, your Ladybird version and the kind of system it runs on."), contents);
     contents_summary->setForegroundRole(QPalette::PlaceholderText);
     contents_layout->addWidget(contents_summary);
     m_details = create_details_panel(contents);

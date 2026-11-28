@@ -24,6 +24,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/ReportSubmission.h>
+#include <LibWebView/SystemDescription.h>
 
 namespace WebView {
 
@@ -75,19 +76,27 @@ void ReportSubmission::Contents::add_build_information(StringView platform, Stri
     add_text("build_configuration"sv, "text"sv, build_configuration);
 }
 
+static StringView report_line(StringView report_text, StringView name)
+{
+    for (auto line : report_text.split_view('\n')) {
+        if (line.starts_with(name) && line.substring_view(name.length()).starts_with(": "sv))
+            return line.substring_view(name.length() + 2);
+    }
+    return {};
+}
+
 void ReportSubmission::Contents::add_platform_features(StringView report_text)
 {
-    auto header = [&](StringView name) -> StringView {
-        for (auto line : report_text.split_view('\n')) {
-            if (line.starts_with(name) && line.substring_view(name.length()).starts_with(": "sv))
-                return line.substring_view(name.length() + 2);
-        }
-        return {};
-    };
-    if (auto features = JsonValue::from_string(header("Platform features"sv)); !features.is_error() && features.value().is_array())
+    if (auto features = JsonValue::from_string(report_line(report_text, "Platform features"sv)); !features.is_error() && features.value().is_array())
         add("platform_features"sv, "platform_features"sv, features.release_value());
-    add_text("gpu_device"sv, "text"sv, header("GPU device"sv));
-    add_text("gpu_driver"sv, "text"sv, header("GPU driver"sv));
+    add_text("gpu_device"sv, "text"sv, report_line(report_text, "GPU device"sv));
+    add_text("gpu_driver"sv, "text"sv, report_line(report_text, "GPU driver"sv));
+}
+
+void ReportSubmission::Contents::add_system_details(StringView report_text)
+{
+    for (auto const& field : reported_system_fields)
+        add_text(field.key, "text"sv, report_line(report_text, field.name));
 }
 
 ByteString ReportSubmission::build_manifest(Contents const& contents, ReadonlySpan<Attachment> attachments)

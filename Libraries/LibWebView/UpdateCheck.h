@@ -18,35 +18,9 @@
 #include <LibCore/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/SystemDescription.h>
 
 namespace WebView {
-
-enum class InstallMethod : u8 {
-    MacOSApp,
-    DEB,
-    RPM,
-    Flatpak,
-    AppImage,
-    Source,
-};
-
-enum class Architecture : u8 {
-    X86_64,
-    AArch64,
-    Other,
-};
-
-struct OSRelease {
-    Optional<String> id;
-    Optional<String> version_id;
-};
-
-struct SystemDescription {
-    InstallMethod install_method { InstallMethod::Source };
-    Architecture architecture { Architecture::Other };
-    OSRelease os_release;
-    Optional<String> macos_version;
-};
 
 struct AvailableUpdate {
     String version;
@@ -70,10 +44,6 @@ struct UpdateCheckResult {
     Kind kind { Kind::Failed };
     Optional<AvailableUpdate> update;
 };
-
-WEBVIEW_API OSRelease parse_os_release(StringView);
-WEBVIEW_API Optional<InstallMethod> parse_package_format(StringView);
-WEBVIEW_API SystemDescription describe_current_system();
 
 #if defined(LADYBIRD_HAS_UPDATE_CHECK)
 

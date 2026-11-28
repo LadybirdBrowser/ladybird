@@ -15,6 +15,7 @@
 #include <LibTest/TestCase.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/ProcessManager.h>
+#include <LibWebView/SystemDescription.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
@@ -269,6 +270,26 @@ TEST_CASE(reports_of_processes_without_platform_features_say_so)
     auto file = MUST(Core::File::open(paths[0], Core::File::OpenMode::Read));
     auto contents = MUST(file->read_until_eof());
     EXPECT(StringView { contents }.contains("\nPlatform features: []\n"sv));
+}
+
+TEST_CASE(reports_say_what_kind_of_system_crashed)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+    StringBuilder system;
+    WebView::append_system_for_report(system, WebView::describe_system_for_report());
+    EXPECT(system.string_view().contains("Install method: "sv));
+
+    auto report = MUST(WebView::CrashReport::create(WebView::ProcessType::WebContent));
+    MUST(report->save(SIGSEGV, test_directory()));
+    auto paths = report_paths();
+    EXPECT_EQ(paths.size(), 1u);
+    auto file = MUST(Core::File::open(paths[0], Core::File::OpenMode::Read));
+    auto contents = MUST(file->read_until_eof());
+    EXPECT(StringView { contents }.contains(system.string_view()));
+
+    // A browser records the same before it can crash, for the launch that formats its report.
+    EXPECT(WebView::CrashReport::describe_current_build(WebView::ProcessType::Browser).contains(system.string_view()));
 }
 
 TEST_CASE(invalid_frame_lengths_are_ignored)
