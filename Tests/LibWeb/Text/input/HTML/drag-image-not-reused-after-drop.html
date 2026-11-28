@@ -23,15 +23,15 @@
                     displayList: `
                         @canvas RECORD (empty)
                         @viewport ASSEMBLE
-                          @viewport/preamble RECORD (empty)
-                          @viewport/scroll-metadata RECORD (empty)
-                          @viewport/background SKIP
-                          @viewport/border SKIP
+                          @viewport/preamble COPY
+                          @viewport/scroll-metadata COPY
+                          @viewport/background COPY
+                          @viewport/border COPY
                           BlockContainer<HTML>/descendants(background-and-borders) COPY
-                          @viewport/foreground RECORD (empty)
+                          @viewport/foreground COPY
                           BlockContainer<HTML>/descendants(foreground) COPY
                           BlockContainer<HTML> COPY
-                          @viewport/outline SKIP
+                          @viewport/outline COPY
                         @inspector-overlays RECORD
                     `,
                 },

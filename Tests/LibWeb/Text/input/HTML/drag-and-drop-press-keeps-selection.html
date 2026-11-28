@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        font: 16px/20px sans-serif;
+    }
+    p,
+    div {
+        margin: 0;
+        height: 40px;
+    }
+</style>
+<p id="draggable" draggable="true">Draggable text</p>
+<p><a id="link" href="https://example.com">A link</a></p>
+<div id="holder" draggable="true"><span id="editable" contenteditable="true">Editable text</span></div>
+<p id="other">Text selected before each press</p>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const describe = () => {
+            const selection = getSelection();
+            const element = selection.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
+            return `${selection.type} in #${element?.id}`;
+        };
+        const press = (name, x, y, { clickCount = 1, modifiers = 0, dragTo = null, moveBy = 0 } = {}) => {
+            getSelection().selectAllChildren(other);
+            internals.mouseDown(x, y, clickCount, 0, modifiers);
+            if (moveBy) {
+                internals.mouseMove(x + moveBy / 2, y);
+                internals.mouseMove(x + moveBy, y);
+                internals.mouseUp(x + moveBy, y);
+            } else if (dragTo) {
+                internals.mouseMove(x, y + 10);
+                internals.mouseMove(dragTo[0], dragTo[1]);
+                internals.mouseUp(dragTo[0], dragTo[1]);
+            } else {
+                internals.mouseUp(x, y);
+            }
+            println(`${name}: ${describe()}`);
+        };
+
+        press("Click on draggable text", 30, 10);
+        press("Double click on draggable text", 30, 10, { clickCount: 2 });
+        press("Press on draggable text and a move within the drag threshold", 30, 10, { moveBy: 4 });
+        press("Drag of draggable text", 30, 10, { dragTo: [30, 300] });
+        press("Click on draggable text with Alt held", 30, 10, { modifiers: internals.MOD_ALT });
+        press("Click on a link", 20, 50);
+        press("Click on editable text inside a draggable element", 30, 90);
+    });
+</script>

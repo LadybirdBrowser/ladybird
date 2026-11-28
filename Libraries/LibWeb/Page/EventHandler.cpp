@@ -3636,6 +3636,14 @@ static bool is_inside_button(GC::Ptr<DOM::Node const> node)
     return false;
 }
 
+static bool is_inside_non_editable_draggable_element(GC::Ptr<DOM::Node> node)
+{
+    if (!node || node->is_editable_or_editing_host())
+        return false;
+    auto draggable_element = DragAndDropEventHandler::first_draggable_inclusive_ancestor(*node);
+    return draggable_element && !draggable_element->is_editable_or_editing_host();
+}
+
 void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned modifiers, int click_count)
 {
     // NB: A press that ends a middle button scroll has no default actions, whichever document gets it.
@@ -3684,7 +3692,10 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
 
     // NB: Pressing a button activates it, so a drag that starts on one does not select its label or the page around
     //     it.
-    if (auto hit = document.hit_test(read, visual_viewport_position); hit.has_value() && is_inside_button(hit->dom_node()))
+    auto hit = document.hit_test(read, visual_viewport_position);
+    if (hit.has_value() && is_inside_button(hit->dom_node()))
+        return;
+    if (hit.has_value() && !(modifiers & UIEvents::KeyModifier::Mod_Alt) && is_inside_non_editable_draggable_element(hit->dom_node()))
         return;
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
