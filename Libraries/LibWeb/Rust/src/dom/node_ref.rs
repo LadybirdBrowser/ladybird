@@ -36,6 +36,7 @@ use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
 use super::node::Node;
 use super::node::NodeCell;
+use super::node::compress;
 use super::node::decompress;
 use super::node_core::DOCUMENT_CORE_OFFSET;
 use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
@@ -93,10 +94,24 @@ impl NodeRef {
         }
     }
 
+    /// The compressed pointer that names the node, as links and GC::Member fields hold it.
+    #[inline(always)]
+    pub(super) fn pointer(self) -> NodePointer {
+        compress(self.cell())
+    }
+
     #[inline(always)]
     fn follow(link: Option<NodePointer>) -> Option<NodeRef> {
         // SAFETY: The links of a live node name nodes it keeps alive.
         link.map(|pointer| unsafe { Self::decode(pointer) })
+    }
+
+    /// The node as a read handle, for as long as `main_thread` is borrowed, which keeps anything from changing the DOM.
+    #[inline(always)]
+    pub(super) fn read<'a>(self, main_thread: &'a MainThread<'_>) -> Node<'a> {
+        // SAFETY: The node is alive for as long as the reference is held, and the shared borrow of the main thread
+        //         token keeps anything from changing the DOM for 'a.
+        unsafe { Node::from_cell(&*self.cell.as_ptr(), main_thread) }
     }
 
     /// The node as C++ sees it, for as long as the reference is borrowed.

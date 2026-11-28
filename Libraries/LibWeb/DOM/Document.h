@@ -52,6 +52,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
+#include <LibWeb/DOM/WeakCellRegistry.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
@@ -1109,7 +1110,9 @@ public:
     void attach_range(Badge<Range>, Range&);
     void detach_range(Badge<Range>, Range&);
 
-    Range::DocumentLiveRangeList& live_ranges() { return m_live_ranges; }
+    // Tells the selection and the highlights of each live range whose boundary point libweb_rust set while running the
+    // live range pre-remove steps of the change.
+    void live_range_boundary_points_set();
 
     void register_document_observer(Badge<DocumentObserver>, DocumentObserver&);
     void unregister_document_observer(Badge<DocumentObserver>, DocumentObserver&);
@@ -2284,8 +2287,10 @@ private:
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 
-    // A live Range keeps its owner document alive and removes itself from this list when finalized.
-    Range::DocumentLiveRangeList m_live_ranges;
+    // https://dom.spec.whatwg.org/#concept-live-range
+    // NB: A live range keeps its owner document alive, and this keeps the live ranges weakly, so that libweb_rust can
+    //     walk them in place, see Rust/src/dom/weak_cells.rs.
+    WeakCellRegistry<Range> m_live_ranges { *this, m_document_core.live_ranges };
 
     // Document should not visit DocumentObserver to avoid leaks.
     // It's responsibility of object that requires DocumentObserver to keep it alive.

@@ -133,14 +133,8 @@ pub struct MoveHooks {
         new_parent: RawNodeRef,
     ),
     /// See [`after_move_unlink`].
-    pub after_unlink: unsafe extern "C" fn(
-        scope: &mut MoveScope,
-        node: RawNodeRef,
-        old_parent: RawNodeRef,
-        old_parent_root: RawNodeRef,
-        new_parent: RawNodeRef,
-        child: RawNullableNodeRef,
-    ),
+    pub after_unlink:
+        unsafe extern "C" fn(scope: &mut MoveScope, node: RawNodeRef, old_parent: RawNodeRef, old_parent_root: RawNodeRef),
     /// See [`after_move_link`].
     pub after_link: unsafe extern "C" fn(
         scope: &mut MoveScope,
@@ -174,12 +168,8 @@ pub struct MoveHooks {
 #[repr(C)]
 pub struct InsertionHooks {
     /// See [`begin_insertion`].
-    pub begin_insertion: unsafe extern "C" fn(
-        parent: RawNodeRef,
-        node: RawNullableNodeRef,
-        nodes: ak::Span<'_, NodeRef>,
-        child: RawNullableNodeRef,
-    ) -> InsertionStart,
+    pub begin_insertion:
+        unsafe extern "C" fn(parent: RawNodeRef, node: RawNullableNodeRef, nodes: ak::Span<'_, NodeRef>) -> InsertionStart,
     /// See [`insert_node_into_children`].
     pub insert_node_into_children: unsafe extern "C" fn(
         parent: RawNodeRef,
@@ -248,6 +238,8 @@ pub struct DomHooks {
         unsafe extern "C" fn(node: RawNodeRef, old_document: RawNodeRef, document: RawNodeRef),
     /// The callbacks of moving a node.
     pub moving: MoveHooks,
+    /// See [`live_range_boundary_points_set`].
+    pub live_range_boundary_points_set: unsafe extern "C" fn(document: RawNodeRef),
     /// See [`queue_tree_mutation_record`].
     pub queue_tree_mutation_record: unsafe extern "C" fn(
         target: RawNodeRef,
@@ -293,11 +285,10 @@ pub unsafe extern "C" fn rust_dom_register_hooks(hooks: &'static DomHooks) {
     unsafe { *HOOKS.0.get() = Some(hooks) };
 }
 
-/// Step 4.2 and step 5 of inserting `node`, whose nodes are `nodes`, into `parent` before `child`, after step 4.1 has
-/// emptied a DocumentFragment: if `node` is a DocumentFragment, queues a tree mutation record for it with « », `nodes`,
-/// null and null, and if `child` is non-null, increases the offsets of the live ranges in `parent` past `child`'s index
-/// by the count of `nodes`. Before them, tells the editing history of the mutation and consumes the deferred style
-/// change events of the documents. Answers whether the insertion affects the element children of `parent`, and the
+/// Step 4.2 of inserting `node`, whose nodes are `nodes`, into `parent`, after step 4.1 has emptied a
+/// DocumentFragment: if `node` is a DocumentFragment, queues a tree mutation record for it with « », `nodes`, null and
+/// null. Before it, tells the editing history of the mutation and consumes the deferred style change events of the
+/// documents. Answers whether the insertion affects the element children of `parent`, and the
 /// tree version after the steps.
 ///
 /// `node` is null for nodes that are inserted as the children of a DocumentFragment no one can observe, which is not
@@ -309,12 +300,9 @@ pub(crate) fn begin_insertion<I: Inserter>(
     parent: NodeRef,
     node: Option<NodeRef>,
     nodes: &[NodeRef],
-    child: Option<NodeRef>,
 ) -> InsertionStart {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
-    unsafe {
-        (insertion_hooks::<I>(main_thread).begin_insertion)(parent, node.into(), ak::Span::new(nodes), child.into())
-    }
+    unsafe { (insertion_hooks::<I>(main_thread).begin_insertion)(parent, node.into(), ak::Span::new(nodes)) }
 }
 
 /// Steps 7.2 to 7.6 of inserting nodes for `node`, which has been adopted into `parent`'s node document: inserts it
@@ -401,9 +389,8 @@ pub(crate) fn finish_insertion<I: Inserter>(
 }
 
 /// The steps of removing all children of `parent` that concern only `parent`, and so run once before the first child
-/// is removed: tells the editing history of the mutation, consumes the deferred style change events of the document,
-/// and runs the live range pre-remove steps for every child at once, which leaves each boundary point that was in a
-/// child or on `parent` at (`parent`, 0). Answers what the removals keep across them.
+/// is removed: tells the editing history of the mutation and consumes the deferred style change events of the document.
+/// Answers what the removals keep across them.
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
 pub(crate) fn begin_removing_all_children(main_thread: &mut MainThread<'_>, parent: NodeRef) -> ChildrenRemoval {
@@ -425,9 +412,9 @@ pub(crate) fn end_removing_all_children(
     unsafe { (hooks(main_thread).end_removing_all_children)(parent, children_removal) }
 }
 
-/// The steps of removing `node` from `parent` that come before the node leaves its parent's children: tells the
-/// editing history, the document and the page of the removal, runs the live range pre-remove steps and the NodeIterator
-/// pre-remove steps, schedules the list item renumbering the removal causes, settles the slot assignments of a shadow
+/// The steps of removing `node` from `parent` that come before the node leaves its parent's children, but for the live
+/// range and NodeIterator pre-remove steps: tells the editing history, the document and the page of the removal,
+/// schedules the list item renumbering the removal causes, settles the slot assignments of a shadow
 /// tree the subtree leaves, records the removal for layout and the style engine, and takes the node out of the C++
 /// state that follows the children of `parent`: the animation counts, the child index generation and the child indices.
 ///
@@ -541,11 +528,11 @@ pub(crate) fn adopt_from_other_document(
     unsafe { (hooks(main_thread).adopt_from_other_document)(node, old_document, document) }
 }
 
-/// Steps 9 and 10 of moving `node` from `old_parent`, whose root is `old_parent_root`, into `new_parent`: runs the live
-/// range pre-remove steps and the NodeIterator pre-remove steps given `node`. Before them, tells the page of the move,
-/// consumes the deferred style change events of the document, and keeps in `scope` whether the move affects the element
-/// children of the parents and the `:read-write` state of the elements of a subtree that changes editability. After
-/// them, has the style engine take in its pending arrivals, keeps in `scope` where an element was and whether the
+/// What moving `node` from `old_parent`, whose root is `old_parent_root`, into `new_parent` does before it runs the
+/// live range pre-remove steps and the NodeIterator pre-remove steps given `node`, steps 9 and 10: tells the page of
+/// the move, consumes the deferred style change events of the document, and keeps in `scope` whether the move affects
+/// the element children of the parents and the `:read-write` state of the elements of a subtree that changes
+/// editability. Then has the style engine take in its pending arrivals, keeps in `scope` where an element was and whether the
 /// subtree holds the focused or hovered node, marks the layout tree of `old_parent`, settles and keeps in `scope` the
 /// slots of the subtree, unregisters the anchor names a subtree that leaves its tree scope registered, and takes `node`
 /// out of the C++ state that follows the children of `old_parent`.
@@ -564,10 +551,9 @@ pub(crate) fn begin_move(
     unsafe { (hooks(main_thread).moving.begin_move)(scope, node, old_parent, old_parent_root, new_parent) }
 }
 
-/// Steps 14 to 18 of moving `node`, which has left the children of `old_parent`, whose root is `old_parent_root`, into
-/// `new_parent` before `child`: assigns the slottables and signals the slot changes the removal causes, adds the
-/// transient registered observers given `node` and `old_parent`, and if `child` is non-null, increases the offsets of
-/// the live ranges in `new_parent` past `child`'s index by 1.
+/// Steps 14 to 17 of moving `node`, which has left the children of `old_parent`, whose root is `old_parent_root`:
+/// assigns the slottables and signals the slot changes the removal causes, and adds the
+/// transient registered observers given `node` and `old_parent`.
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
@@ -577,13 +563,9 @@ pub(crate) fn after_move_unlink(
     node: NodeRef,
     old_parent: NodeRef,
     old_parent_root: NodeRef,
-    new_parent: NodeRef,
-    child: Option<NodeRef>,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
-    unsafe {
-        (hooks(main_thread).moving.after_unlink)(scope, node, old_parent, old_parent_root, new_parent, child.into());
-    }
+    unsafe { (hooks(main_thread).moving.after_unlink)(scope, node, old_parent, old_parent_root) }
 }
 
 /// Steps 22 to 24 of moving `node`, which has joined the children of `new_parent` before `child`, from `old_parent`,
@@ -661,6 +643,15 @@ pub(crate) fn end_move(
             child.into(),
         );
     }
+}
+
+/// Tells the selection and the highlights of each live range of `document` that the live range pre-remove steps set the
+/// start or end of, which RANGE_BOUNDARY_POINT_SET_BY_MUTATION marks, of the change, and clears the marks.
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn live_range_boundary_points_set(main_thread: &mut MainThread<'_>, document: NodeRef) {
+    // SAFETY: The callback is called on the main thread with a live node.
+    unsafe { (hooks(main_thread).live_range_boundary_points_set)(document) }
 }
 
 /// Queues a tree mutation record for `target` with `added_nodes`, `removed_nodes`, `previous_sibling` and

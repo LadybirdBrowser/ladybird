@@ -9,19 +9,10 @@
 //! https://dom.spec.whatwg.org/#concept-tree
 
 use super::node::NodeCell;
-use super::node::compress;
 use super::node_ref::NodeRef;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
-
-impl NodeRef {
-    /// The compressed pointer of the node, as its links to it hold it.
-    #[inline(always)]
-    fn pointer(self) -> super::node_core::NodePointer {
-        compress(self.cell())
-    }
-}
 
 /// Inserts `node`, the root of a tree of its own, into `parent`'s children before `child`, or appends it if `child` is
 /// null, and makes `parent`'s root the root of every node of `node`'s subtree.

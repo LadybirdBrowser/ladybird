@@ -19,6 +19,7 @@ pub mod node_core;
 pub mod node_ref;
 pub mod pre_insert;
 pub mod qualified_name;
+pub mod range;
 pub mod remove;
 pub mod replace;
 mod steps;
@@ -26,3 +27,4 @@ pub mod strings;
 #[cfg(test)]
 pub(crate) mod test_tree;
 mod tree;
+pub mod weak_cells;

@@ -541,17 +541,6 @@ void Node::bump_character_data_version()
         holder->m_character_data_version = ++s_last_tree_version;
 }
 
-// OPTIMIZATION: Computing a node's index walks all preceding siblings, so the live range steps defer it until a live
-//               range actually needs it.
-static auto lazy_index_of(Node const& node)
-{
-    return [&node, index = Optional<size_t> {}]() mutable {
-        if (!index.has_value())
-            index = node.index();
-        return *index;
-    };
-}
-
 // https://dom.spec.whatwg.org/#dom-node-normalize
 WebIDL::ExceptionOr<void> Node::normalize()
 {
@@ -615,35 +604,16 @@ WebIDL::ExceptionOr<void> Node::normalize()
 
         // 6. While currentNode is an exclusive Text node:
         while (current_node && current_node->is_exclusive_text()) {
-            // 1. For each live range whose start node is currentNode, add length to its start offset and set its start
+            // 1. For each live range whose start node is currentNode: add length to its start offset and set its start
             //    node to node.
-            // 2. For each live range whose end node is currentNode, add length to its end offset and set its end node
+            // 2. For each live range whose end node is currentNode: add length to its end offset and set its end node
             //    to node.
-            // 3. For each live range whose start node is currentNode’s parent and start offset is currentNode’s index,
+            // 3. For each live range whose start node is currentNode’s parent and start offset is currentNode’s index:
             //    set its start node to node and its start offset to length.
-            // 4. For each live range whose end node is currentNode’s parent and end offset is currentNode’s index, set
+            // 4. For each live range whose end node is currentNode’s parent and end offset is currentNode’s index: set
             //    its end node to node and its end offset to length.
-            // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-            auto* current_node_parent = current_node->parent();
-            auto current_node_index = lazy_index_of(*current_node);
-            for (auto& range : document().live_ranges()) {
-                if (range.start_container().ptr() == current_node) {
-                    range.increase_start_offset(length);
-                    range.set_start_node(node);
-                }
-                if (range.end_container().ptr() == current_node) {
-                    range.increase_end_offset(length);
-                    range.set_end_node(node);
-                }
-                if (range.start_container().ptr() == current_node_parent && range.start_offset() == current_node_index()) {
-                    range.set_start_node(node);
-                    range.set_start_offset(length);
-                }
-                if (range.end_container().ptr() == current_node_parent && range.end_offset() == current_node_index()) {
-                    range.set_end_node(node);
-                    range.set_end_offset(length);
-                }
-            }
+            // NB: libweb_rust runs these steps, see Rust/src/dom/range.rs.
+            RustFFI::rust_dom_live_ranges_normalize(&node, current_node, length);
 
             // 5. Add currentNode’s length to length.
             length += static_cast<Text&>(*current_node).length();
@@ -829,23 +799,6 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 }
 
 // https://dom.spec.whatwg.org/#concept-node-insert
-void Node::adjust_live_ranges_for_insertion(Node& child, size_t count)
-{
-    // 1. For each live range whose start node is parent and start offset is greater than child’s index:
-    //    increase its start offset by count.
-    // 2. For each live range whose end node is parent and end offset is greater than child’s index:
-    //    increase its end offset by count.
-    // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-    auto child_index = lazy_index_of(child);
-    for (auto& range : document().live_ranges()) {
-        if (range.start_container().ptr() == this && range.start_offset() > child_index())
-            range.increase_start_offset(count);
-        if (range.end_container().ptr() == this && range.end_offset() > child_index())
-            range.increase_end_offset(count);
-    }
-}
-
-// https://dom.spec.whatwg.org/#concept-node-insert
 void Node::insert_node_into_children(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
     // NB: libweb_rust adopts node into parent’s node document before this, see Rust/src/dom/insert.rs.
@@ -967,52 +920,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
 {
     // To append a node node to a node parent: pre-insert node into parent before null.
     return pre_insert(node, nullptr);
-}
-
-// https://dom.spec.whatwg.org/#live-range-pre-remove-steps
-void Node::live_range_pre_remove()
-{
-    // 1. Let parent be node’s parent.
-    auto* parent = this->parent();
-
-    // 2. Assert: parent is not null.
-    VERIFY(parent);
-
-    // 3. Let index be node’s index.
-    auto index = lazy_index_of(*this);
-
-    // 4. For each live range whose start node is an inclusive descendant of node, set its start to (parent, index).
-    // 5. For each live range whose end node is an inclusive descendant of node, set its end to (parent, index).
-    // 6. For each live range whose start node is parent and start offset is greater than index, decrease its start
-    //    offset by 1.
-    // 7. For each live range whose end node is parent and end offset is greater than index, decrease its end offset by 1.
-    // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-    for (auto& range : document().live_ranges()) {
-        if (range.start_container()->is_inclusive_descendant_of(*this))
-            MUST(range.set_start(*parent, index()));
-        if (range.end_container()->is_inclusive_descendant_of(*this))
-            MUST(range.set_end(*parent, index()));
-        if (range.start_container().ptr() == parent && range.start_offset() > index())
-            range.decrease_start_offset(1);
-        if (range.end_container().ptr() == parent && range.end_offset() > index())
-            range.decrease_end_offset(1);
-    }
-}
-
-void Node::live_range_pre_remove_all_children()
-{
-    for (auto& range : document().live_ranges()) {
-        if (range.start_container().ptr() == this) {
-            range.set_start_offset(0);
-        } else if (is_ancestor_of(range.start_container())) {
-            MUST(range.set_start(*this, 0));
-        }
-        if (range.end_container().ptr() == this) {
-            range.set_end_offset(0);
-        } else if (is_ancestor_of(range.end_container())) {
-            MUST(range.set_end(*this, 0));
-        }
-    }
 }
 
 void Node::run_node_iterator_pre_removing_steps()
@@ -1444,11 +1351,9 @@ void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root,
         });
     }
 
-    // 9. Run the live range pre-remove steps, given node.
-    live_range_pre_remove();
-
     // 10. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
     //     NodeIterator pre-remove steps given node and iterator.
+    // NB: libweb_rust runs step 9 after this, see Rust/src/dom/move_node.rs.
     run_node_iterator_pre_removing_steps();
 
     // A move keeps the identities in the style engine's tree, so every node on either side of it is named before the
@@ -1486,7 +1391,7 @@ void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root,
 }
 
 // https://dom.spec.whatwg.org/#move
-void Node::after_move_unlink(MoveScope& scope, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child)
+void Node::after_move_unlink(MoveScope& scope, Node& old_parent, Node& old_parent_root)
 {
     // 14. If node is assigned, then run assign slottables for node’s assigned slot.
     // AD-HOC: Assigned nodes are recomputed lazily.
@@ -1516,14 +1421,6 @@ void Node::after_move_unlink(MoveScope& scope, Node& old_parent, Node& old_paren
 
     // 17. Add transient registered observers given node and oldParent.
     add_transient_registered_observers(old_parent);
-
-    // 18. If child is non-null:
-    //     1. For each live range whose start node is newParent and start offset is greater than child’s index:
-    //        increase its start offset by 1.
-    //     2. For each live range whose end node is newParent and end offset is greater than child’s index: increase
-    //        its end offset by 1.
-    if (child)
-        new_parent.adjust_live_ranges_for_insertion(*child, 1);
 }
 
 // https://dom.spec.whatwg.org/#move
@@ -4277,7 +4174,7 @@ class RustDOMHooks {
 public:
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static RustFFI::InsertionStart begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* child)
+    static RustFFI::InsertionStart begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes)
     {
         auto& document = parent->document();
 
@@ -4305,9 +4202,6 @@ public:
         if (node && is<DocumentFragment>(*node))
             node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
 
-        // 5. If child is non-null:
-        if (child)
-            parent->adjust_live_ranges_for_insertion(*child, nodes.size());
         return { affects_elements, s_last_tree_version };
     }
 
@@ -4469,9 +4363,6 @@ public:
 
         document.flush_deferred_style_change_event();
 
-        // 3. Run the live range pre-remove steps, given node.
-        parent->live_range_pre_remove_all_children();
-
         RustFFI::ChildrenRemoval children_removal {};
         children_removal.affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
         children_removal.track_affected_elements = document.has_valid_html_collection_caches();
@@ -4508,10 +4399,6 @@ public:
         facts.was_tracked_by_style_engine = node->is_tracked_by_style_engine();
         if (facts.was_connected)
             document.page().keyboard_scroll_dom_tree_changed(*node);
-
-        // 3. Run the live range pre-remove steps, given node.
-        if (!children_removal)
-            node->live_range_pre_remove();
 
         // 4. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
         //    NodeIterator pre-remove steps given node and iterator.
@@ -4627,9 +4514,9 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#move
-    static void after_move_unlink(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root, Node* new_parent, Node* child)
+    static void after_move_unlink(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root)
     {
-        node->after_move_unlink(*scope, *old_parent, *old_parent_root, *new_parent, child);
+        node->after_move_unlink(*scope, *old_parent, *old_parent_root);
     }
 
     // https://dom.spec.whatwg.org/#move
@@ -4654,6 +4541,12 @@ public:
     static void end_move(MoveScope* scope, Node* node, Node* old_parent, Node* new_parent, Node* old_previous_sibling, Node* old_next_sibling, Node* new_previous_sibling, Node* child)
     {
         node->end_move(*scope, *old_parent, *new_parent, old_previous_sibling, old_next_sibling, new_previous_sibling, child);
+    }
+
+    // https://dom.spec.whatwg.org/#live-range-pre-remove-steps
+    static void live_range_boundary_points_set(Node* document)
+    {
+        as<Document>(*document).live_range_boundary_points_set();
     }
 
     // https://dom.spec.whatwg.org/#concept-collection
@@ -4689,6 +4582,7 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
         .run_moving_steps = RustDOMHooks::run_moving_steps,
         .end_move = RustDOMHooks::end_move,
     },
+    .live_range_boundary_points_set = RustDOMHooks::live_range_boundary_points_set,
     .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
 };
 

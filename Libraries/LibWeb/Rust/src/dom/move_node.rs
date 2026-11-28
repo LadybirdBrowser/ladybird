@@ -19,6 +19,8 @@ use super::node_ref::RawNullableNodeRef;
 use super::pre_insert::is_character_data;
 use super::pre_insert::is_doctype;
 use super::pre_insert::is_text;
+use super::range::adjust_live_ranges_for_insertion;
+use super::range::live_range_pre_remove_steps;
 use super::steps::moving_steps_do_nothing;
 use super::tree::for_each_shadow_including_inclusive_descendant;
 use crate::stage::MainThread;
@@ -138,12 +140,16 @@ pub(crate) fn move_node(
 
     let old_parent_root = old_parent.root();
 
+    // NB: The callback does what the move does for the page, the style engine, layout, slots and the C++ state that
+    //     follows the children of oldParent while the subtree still stands where it did, see hooks::begin_move().
+    hooks::begin_move(main_thread, scope, node, old_parent, old_parent_root, new_parent);
+
     // 9. Run the live range pre-remove steps, given node.
+    live_range_pre_remove_steps(main_thread, node);
+
     // 10. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
     //     NodeIterator pre-remove steps given node and iterator.
-    // NB: The callback also does what the move does for the page, the style engine, layout, slots and the C++ state
-    //     that follows the children of oldParent while the subtree still stands where it did, see hooks::begin_move().
-    hooks::begin_move(main_thread, scope, node, old_parent, old_parent_root, new_parent);
+    // NB: The callback above runs these steps, for now.
 
     // 11. Let oldPreviousSibling be node’s previous sibling.
     let old_previous_sibling = node.previous_sibling();
@@ -161,12 +167,16 @@ pub(crate) fn move_node(
     //     1. Run assign slottables for a tree with oldParent’s root.
     //     2. Run assign slottables for a tree with node.
     // 17. Add transient registered observers given node and oldParent.
+    hooks::after_move_unlink(main_thread, scope, node, old_parent, old_parent_root);
+
     // 18. If child is non-null:
     //     1. For each live range whose start node is newParent and start offset is greater than child’s index:
     //        increase its start offset by 1.
     //     2. For each live range whose end node is newParent and end offset is greater than child’s index: increase
     //        its end offset by 1.
-    hooks::after_move_unlink(main_thread, scope, node, old_parent, old_parent_root, new_parent, child);
+    if let Some(child) = child {
+        adjust_live_ranges_for_insertion(main_thread, new_parent, child, 1);
+    }
 
     // 19. Let newPreviousSibling be child’s previous sibling if child is non-null, and newParent’s last child
     //     otherwise.

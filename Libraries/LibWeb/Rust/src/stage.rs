@@ -155,6 +155,7 @@ ffi_entry!(crate::dom::remove::MainThreadFfiEntry);
 ffi_entry!(crate::dom::replace::MainThreadFfiEntry);
 ffi_entry!(crate::dom::adopt::MainThreadFfiEntry);
 ffi_entry!(crate::dom::move_node::MainThreadFfiEntry);
+ffi_entry!(crate::dom::range::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

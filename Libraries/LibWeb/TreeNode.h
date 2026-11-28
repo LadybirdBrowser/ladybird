@@ -96,26 +96,6 @@ public:
     bool is_following(TreeNode const&) const;
     bool is_before(TreeNode const&) const;
 
-    // https://dom.spec.whatwg.org/#concept-tree-preceding (Object A is 'typename U' and Object B is 'this')
-    template<typename U>
-    bool has_preceding_node_of_type_in_tree_order() const
-    {
-        for (auto* node = previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
-            if (is<U>(node))
-                return true;
-        }
-        return false;
-    }
-
-    bool is_parent_of(TreeNode const& other) const
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (&other == child)
-                return true;
-        }
-        return false;
-    }
-
     void append_child(GC::Ref<T> node);
 
     size_t child_count() const

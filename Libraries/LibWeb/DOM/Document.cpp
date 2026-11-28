@@ -950,8 +950,10 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 }
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentCore) == 1 && alignof(RustFFI::DocumentCore) == 1);
+static_assert(sizeof(RustFFI::DocumentCore) == 40 && alignof(RustFFI::DocumentCore) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
+static_assert(offsetof(RustFFI::DocumentCore, live_ranges) == 8);
+static_assert(offsetof(RustFFI::DocumentCore, node_iterators) == 24);
 
 Document::~Document()
 {
@@ -1132,6 +1134,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     m_style_scope.visit_edges(visitor);
     m_paint_timing_state.visit_edges(visitor);
     m_commit_messages->visit_edges(visitor);
+    m_live_ranges.visit_edges(visitor);
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);
     visitor.visit(m_page);
@@ -4327,12 +4330,12 @@ void Document::adopt_node_from_other_document(Node& node, Document& old_document
     // AD-HOC: Live ranges are registered with the document their boundary points belong to. The removal in step 2
     //         only clamps ranges anchored in node's own tree, so ranges anchored in a parentless node's tree cross
     //         into this document with their boundaries intact and must be re-registered here.
-    if (!old_document.live_ranges().is_empty()) {
+    if (!old_document.m_live_ranges.is_empty()) {
         GC::RootVector<GC::Ref<Range>> ranges_to_transfer;
-        for (auto& range : old_document.live_ranges()) {
+        old_document.m_live_ranges.for_each([&](Range& range) {
             if (&range.start_container()->document() == this)
                 ranges_to_transfer.append(range);
-        }
+        });
         for (auto range : ranges_to_transfer)
             range->update_owner_document({});
     }
@@ -5948,14 +5951,30 @@ void Document::unregister_node_iterator(Badge<NodeIterator>, NodeIterator& node_
 
 void Document::attach_range(Badge<Range>, Range& range)
 {
-    VERIFY(!m_live_ranges.contains(range));
-    m_live_ranges.append(range);
+    m_live_ranges.add(range);
 }
 
 void Document::detach_range(Badge<Range>, Range& range)
 {
-    VERIFY(m_live_ranges.contains(range));
     m_live_ranges.remove(range);
+}
+
+void Document::live_range_boundary_points_set()
+{
+    // NB: Updating a selection or highlight can allocate, and so collect garbage, which takes dead ranges out of the
+    //     registry, so the ranges whose boundary points were set are gathered before any is updated.
+    GC::RootVector<GC::Ref<Range>> ranges;
+    m_live_ranges.for_each([&](Range& range) {
+        if (!(range.m_range_core.flags & RustFFI::RANGE_BOUNDARY_POINT_SET_BY_MUTATION))
+            return;
+        range.m_range_core.flags &= ~RustFFI::RANGE_BOUNDARY_POINT_SET_BY_MUTATION;
+        ranges.append(range);
+    });
+    for (auto& range : ranges) {
+        // NB: The range's start and end stay in its owner document, so only its selection and highlights hear of it.
+        range->update_associated_selection();
+        range->update_associated_highlights(range->m_owner_document);
+    }
 }
 
 void Document::register_document_observer(Badge<DocumentObserver>, DocumentObserver& document_observer)

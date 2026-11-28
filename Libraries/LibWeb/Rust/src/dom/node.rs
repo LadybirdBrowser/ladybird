@@ -127,6 +127,17 @@ impl<'a> Node<'a> {
         Self { cell }
     }
 
+    /// The node `pointer` names, as code holding `main_thread` reads it from a field of a cell that is no node.
+    ///
+    /// # Safety
+    ///
+    /// `pointer` must name a live node, and the DOM must not change for `'a`.
+    #[inline(always)]
+    pub(crate) unsafe fn from_pointer(pointer: NodePointer, _main_thread: &'a MainThread<'_>) -> Self {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { Self::decode(pointer) }
+    }
+
     /// # Safety
     ///
     /// `pointer` must name a node that lives for `'a`.
@@ -198,6 +209,31 @@ impl<'a> Node<'a> {
                 .cast::<CharacterDataCore>()
         };
         core.data()
+    }
+
+    /// The compressed pointer that names the node.
+    #[inline(always)]
+    pub fn pointer(self) -> NodePointer {
+        compress(self.cell)
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-node-length
+    pub fn length(self) -> usize {
+        // To determine the length of a node node, run these steps:
+        match self.node_type() {
+            // 1. If node is a DocumentType or Attr node, then return 0.
+            NodeType::DOCUMENT_TYPE_NODE | NodeType::ATTRIBUTE_NODE => 0,
+            // 2. If node is a CharacterData node, then return node’s data’s length.
+            NodeType::TEXT_NODE
+            | NodeType::CDATA_SECTION_NODE
+            | NodeType::PROCESSING_INSTRUCTION_NODE
+            | NodeType::COMMENT_NODE => match self.data().units() {
+                ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => units.len(),
+                ak::Utf16StringUnits::Utf16(units) => units.len(),
+            },
+            // 3. Return the number of node’s children.
+            _ => core::iter::successors(self.first_child(), |child| child.next_sibling()).count(),
+        }
     }
 
     /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps in its core.

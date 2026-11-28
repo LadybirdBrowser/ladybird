@@ -17,6 +17,7 @@ use super::node::NodeCell;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNullableNodeRef;
+use super::range::adjust_live_ranges_for_insertion;
 use super::remove::remove_all_children;
 use super::steps::insertion_steps_do_nothing;
 use super::tree::for_each_shadow_including_inclusive_descendant;
@@ -56,15 +57,19 @@ pub(crate) fn insert(
     }
     //    2. Queue a tree mutation record for node with « », nodes, null, and null.
     //       NOTE: This step intentionally does not pay attention to suppressObservers.
+    // NB: The callback also tells the editing history of the mutation and consumes the deferred style change events of
+    //     the documents, and answers whether the insertion affects the element children of parent, and which tree
+    //     version the steps below start from.
+    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes);
+
     // 5. If child is non-null:
     //    1. For each live range whose start node is parent and start offset is greater than child’s index: increase its
     //       start offset by count.
     //    2. For each live range whose end node is parent and end offset is greater than child’s index: increase its end
     //       offset by count.
-    // NB: The callback also tells the editing history of the mutation and consumes the deferred style change events of
-    //     the documents, and answers whether the insertion affects the element children of parent, and which tree
-    //     version the steps below start from.
-    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes, child);
+    if let Some(child) = child {
+        adjust_live_ranges_for_insertion(main_thread, parent, child, count);
+    }
 
     insert_nodes::<DomInserter>(main_thread, parent, node, nodes, child, suppress_observers, start);
 }
@@ -81,8 +86,12 @@ fn parser_insert(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRe
     // 2. Let count be nodes’s size.
     // 3. If count is 0, then return.
     // 4. If node is a DocumentFragment node: ...
+    let start = hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes);
+
     // 5. If child is non-null: ...
-    let start = hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes, child);
+    if let Some(child) = child {
+        adjust_live_ranges_for_insertion(main_thread, parent, child, 1);
+    }
 
     insert_nodes::<ParserInserter>(main_thread, parent, node, &nodes, child, false, start);
 }
@@ -98,7 +107,7 @@ pub(crate) fn insert_as_children_of_unobservable_fragment(
     if nodes.is_empty() {
         return;
     }
-    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes, None);
+    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes);
     // NB: The children changed steps are told that parent itself was inserted, for want of the fragment.
     insert_nodes::<DomInserter>(main_thread, parent, parent, nodes, None, true, start);
 }
