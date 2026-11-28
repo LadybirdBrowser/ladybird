@@ -9,6 +9,7 @@
 pub mod character_types;
 mod column;
 mod fast_hash;
+pub mod format;
 mod generic_lexer;
 pub mod math;
 pub mod perf_map;

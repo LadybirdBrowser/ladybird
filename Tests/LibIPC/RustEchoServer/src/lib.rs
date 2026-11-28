@@ -7,6 +7,8 @@
 //! A Rust endpoint that TestRustEchoServer speaks with over the platform's transport, using code that the IPC compiler
 //! generated for both languages from RustEchoServer.ipc.
 
+#![allow(clippy::disallowed_macros)]
+
 #[path = "../../../../Libraries/RustDemangle.rs"]
 mod rust_demangle;
 

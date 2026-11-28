@@ -68,7 +68,7 @@ pub mod options {
             if let Ok(value) = std::env::var("LIBJS_JIT")
                 && value.trim() != "off"
             {
-                WARNING.call_once(|| eprintln!("LIBJS_JIT: This build has no JIT, ignoring LIBJS_JIT={value}"));
+                WARNING.call_once(|| ak::warnln!("LIBJS_JIT: This build has no JIT, ignoring LIBJS_JIT={value}"));
             }
             Self
         }

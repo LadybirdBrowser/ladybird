@@ -370,7 +370,7 @@ impl LaneSlot {
     fn deliver_plan(&mut self, plan: Option<ClockPlan>, update: u64) {
         self.taken_in = self.taken_in.filter(|taken_in| *taken_in > update);
         if super::hover::logs_hover() {
-            eprintln!(
+            ak::warnln!(
                 "{} hover lane: plan sealed, lanes {}",
                 super::hover::log_time(),
                 match &self.lanes {
@@ -453,7 +453,7 @@ impl LaneSlot {
         };
         self.lanes = Lanes::Newest(lane);
         if super::hover::logs_hover() {
-            eprintln!("{} hover lane: lane came together", super::hover::log_time());
+            ak::warnln!("{} hover lane: lane came together", super::hover::log_time());
         }
         self.take_in_scroll_offsets();
     }
@@ -539,7 +539,7 @@ impl LaneSlot {
         // from, and the moves and animation times since wait for the lane of the update's frame.
         if self.taken_in.is_some() || matches!(self.lanes, Lanes::Coming { .. }) {
             if super::hover::logs_hover() && self.ticks.pointer_waits() {
-                eprintln!(
+                ak::warnln!(
                     "{} hover lane: a move waits for the update's frame",
                     super::hover::log_time()
                 );

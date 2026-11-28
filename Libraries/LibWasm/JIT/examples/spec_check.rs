@@ -15,6 +15,8 @@
 //! architecture: with `--runtime` and `LIBWASM_JIT=off`, comparing the files of two architectures checks one's
 //! interpreter against the other's.
 
+#![allow(clippy::disallowed_macros)]
+
 #[path = "../tests/harness/mod.rs"]
 mod harness;
 

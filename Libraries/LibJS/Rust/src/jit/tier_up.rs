@@ -262,7 +262,7 @@ pub fn on_budget_exhausted(vm: &Vm, pc: u32, is_loop: bool) {
     if options.dump_feedback && !executable.has_dumped_feedback() {
         executable.set_has_dumped_feedback();
         if let Some(description) = super::feedback_dump::describe_feedback(&executable) {
-            eprintln!("{description}");
+            ak::warnln!("{description}");
         }
     }
 
@@ -421,7 +421,7 @@ fn finish_compile(
                 vm.jit.count_coverage(format_args!("compile-failure.{reason}"));
             }
             if options.dump_ir || options.dump_passes || options.dump_asm {
-                eprintln!(
+                ak::warnln!(
                     "LIBJS_JIT: Not compiling {}: {failure:?}",
                     super::describe_executable(&executable)
                 );
@@ -435,7 +435,7 @@ fn finish_compile(
         vm.jit.count_coverage(key);
     }
     if let Some(dump) = compiled.dump() {
-        eprintln!("JIT code for {}:\n{dump}", super::describe_executable(&executable));
+        ak::warnln!("JIT code for {}:\n{dump}", super::describe_executable(&executable));
     }
     if let Some(memory) = memory {
         install(

@@ -8,6 +8,8 @@
 //! `link-openssl` feature, this links OpenSSL's libcrypto itself: the one the build system passes in
 //! LADYBIRD_OPENSSL_CRYPTO_LIBRARY, or else one that a build directory has, or else the system's.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};

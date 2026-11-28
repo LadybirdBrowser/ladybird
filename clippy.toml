@@ -52,3 +52,11 @@ disallowed-methods = [
     { path = "f64::acosh", reason = "the C library of each platform computes this differently: use ak::math::acosh" },
     { path = "f64::atanh", reason = "the C library of each platform computes this differently: use ak::math::atanh" },
 ]
+# Code that runs in Ladybird's processes logs through ak::outln, ak::warn and ak::warnln. Build scripts, command-line
+# tools and tests allow these macros, since there a failed write may as well end the program.
+disallowed-macros = [
+    { path = "std::print", reason = "a write that fails panics, as it does once the process has lost its stdout or stderr: use ak::outln, ak::warn or ak::warnln" },
+    { path = "std::println", reason = "a write that fails panics, as it does once the process has lost its stdout or stderr: use ak::outln, ak::warn or ak::warnln" },
+    { path = "std::eprint", reason = "a write that fails panics, as it does once the process has lost its stdout or stderr: use ak::outln, ak::warn or ak::warnln" },
+    { path = "std::eprintln", reason = "a write that fails panics, as it does once the process has lost its stdout or stderr: use ak::outln, ak::warn or ak::warnln" },
+]

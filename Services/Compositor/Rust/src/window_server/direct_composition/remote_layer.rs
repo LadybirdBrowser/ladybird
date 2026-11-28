@@ -187,7 +187,7 @@ impl DirectCompositionRemoteLayer {
         let (target, root_visual, frame_visual) = match created {
             Ok(created) => created,
             Err(error) => {
-                eprintln!("Compositor: Unable to target the window of a remote layer: {error}");
+                ak::warnln!("Compositor: Unable to target the window of a remote layer: {error}");
                 destroy_child_window(window);
                 return None;
             }
@@ -274,7 +274,7 @@ impl RemoteLayer for DirectCompositionRemoteLayer {
                         state.frame_swap_chain = Some(swap_chain);
                     }
                     Err(error) => {
-                        eprintln!("Compositor: Unable to create the swap chain of a remote layer: {error}");
+                        ak::warnln!("Compositor: Unable to create the swap chain of a remote layer: {error}");
                         state.stop_showing_frame();
                         return false;
                     }
@@ -285,7 +285,7 @@ impl RemoteLayer for DirectCompositionRemoteLayer {
                 .as_mut()
                 .expect("a swap chain the frame is shown in");
             if let Err(error) = swap_chain.draw(store.painting_surface(), painted_size) {
-                eprintln!("Compositor: Unable to show a frame in a remote layer: {error}");
+                ak::warnln!("Compositor: Unable to show a frame in a remote layer: {error}");
                 state.stop_showing_frame();
                 return false;
             }
@@ -387,7 +387,7 @@ impl LayerState {
                 )
                 .is_err()
                 {
-                    eprintln!(
+                    ak::warnln!(
                         "Compositor: Unable to resize the window of a remote layer: error {}",
                         GetLastError().0
                     );
@@ -611,7 +611,7 @@ impl Natives {
                                 let _ = group_visual.SetClip(&clip);
                                 visuals.clip = Some(clip);
                             }
-                            Err(error) => eprintln!("Compositor: Unable to create the clip of a group: {error}"),
+                            Err(error) => ak::warnln!("Compositor: Unable to create the clip of a group: {error}"),
                         }
                     }
                     if let Some(clip) = &visuals.clip {
@@ -637,7 +637,7 @@ impl Natives {
                     Ok(group_visual3) => {
                         let _ = group_visual3.SetOpacity2(group.opacity);
                     }
-                    Err(error) => eprintln!("Compositor: Unable to fade a group: {error}"),
+                    Err(error) => ak::warnln!("Compositor: Unable to fade a group: {error}"),
                 }
             }
         }
@@ -675,7 +675,7 @@ impl Natives {
             return;
         }
         let Some(composition_texture) = composition_texture else {
-            eprintln!("Compositor: The window server cannot show the surface of a tile");
+            ak::warnln!("Compositor: The window server cannot show the surface of a tile");
             if visuals.content_visual_shows_composition_texture_of_surface {
                 // SAFETY: The visual is live.
                 let _ = unsafe { tile_visual.SetContent(None) };
@@ -721,7 +721,7 @@ impl NativeSublayers for Natives {
         match self.create_visuals(kind) {
             Ok(visuals) => Some(visuals),
             Err(error) => {
-                eprintln!("Compositor: Unable to create the visuals of a sublayer: {error}");
+                ak::warnln!("Compositor: Unable to create the visuals of a sublayer: {error}");
                 None
             }
         }
@@ -740,7 +740,7 @@ impl NativeSublayers for Natives {
             SublayerContent::Backdrop(_) => {}
             SublayerContent::Placed { content, placement } => {
                 if let Err(error) = self.update_placed_content(visuals, content, &placement) {
-                    eprintln!("Compositor: Unable to show a sublayer: {error}");
+                    ak::warnln!("Compositor: Unable to show a sublayer: {error}");
                 }
             }
         }
@@ -783,7 +783,7 @@ fn add_visuals(parent: &IDCompositionVisual2, sublayers: &[&Visuals]) {
         let visual: &IDCompositionVisual = &sublayer.outermost_visual;
         // SAFETY: The visuals are live, and the visual is in no parent.
         if let Err(error) = unsafe { parent.AddVisual(visual, true, visual_below) } {
-            eprintln!("Compositor: Unable to add the visual of a sublayer to its parent: {error}");
+            ak::warnln!("Compositor: Unable to add the visual of a sublayer to its parent: {error}");
             continue;
         }
         visual_below = Some(visual);

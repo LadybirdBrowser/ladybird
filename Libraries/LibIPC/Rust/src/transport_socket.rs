@@ -470,7 +470,7 @@ impl Shared {
     // NB: Gives back what can no longer be sent, for the caller to release.
     fn fail_sending(&self, send: &mut SendState, error: &io::Error) -> VecDeque<Frame<'static>> {
         if !matches!(error.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset) {
-            eprintln!("TransportSocket: send failed: {error}");
+            ak::warnln!("TransportSocket: send failed: {error}");
         }
         self.send_failed.store(true, Ordering::Release);
         // NB: The peer hears that nothing more comes from this end, and closes its own, which ends what this end reads
@@ -542,7 +542,7 @@ impl Shared {
                             }
                             io::ErrorKind::ConnectionReset => ReadEnding::PeerGone,
                             _ => {
-                                eprintln!("TransportSocket: read failed: {error}");
+                                ak::warnln!("TransportSocket: read failed: {error}");
                                 ReadEnding::PeerGone
                             }
                         });
@@ -596,7 +596,7 @@ impl Shared {
                 true
             }
             Some(ReadEnding::Misbehaved(what)) => {
-                eprintln!("TransportSocket: Refusing a malformed {what}");
+                ak::warnln!("TransportSocket: Refusing a malformed {what}");
                 // NB: The peer hears at once that this end is gone.
                 socket::shutdown(self.socket, Shutdown::Both);
                 self.io_thread_state.store(IoThreadState::Stopped);
@@ -641,7 +641,7 @@ impl Shared {
                 .poller
                 .set_writable_interest(self.socket, self.poller_token, wants_writable)
             {
-                eprintln!("TransportSocket: Unable to wait for room in the socket: {error}");
+                ak::warnln!("TransportSocket: Unable to wait for room in the socket: {error}");
                 self.io_thread_state.store(IoThreadState::Stopped);
                 return true;
             }
@@ -797,7 +797,7 @@ impl SharedIoThread {
                 Ok(woken) => woken,
                 Err(error) => {
                     // NB: Waiting again soon is all this thread can do, without giving up on every transport at once.
-                    eprintln!("TransportSocket: Waiting for the sockets failed: {error}");
+                    ak::warnln!("TransportSocket: Waiting for the sockets failed: {error}");
                     std::thread::sleep(Duration::from_millis(1));
                     true
                 }
@@ -984,7 +984,7 @@ impl TransportSocket {
                 .map(|error| format!("a socket it can't wait on ({error})")),
         };
         if let Some(refusal) = refusal {
-            eprintln!("TransportSocket: Refusing {refusal}");
+            ak::warnln!("TransportSocket: Refusing {refusal}");
             socket::shutdown(socket.as_raw_fd(), Shutdown::Both);
             drop(io_thread.end_io(&shared));
         }

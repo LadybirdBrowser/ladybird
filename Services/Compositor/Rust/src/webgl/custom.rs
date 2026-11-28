@@ -285,7 +285,7 @@ impl<H: WebGLHost> Replayer<'_, H> {
                 "WebGL image upload names an image frame that is not registered",
             )),
             ImageConversionOutcome::Failed => {
-                eprintln!("Compositor: Could not convert an image for a WebGL texture upload");
+                ak::warnln!("Compositor: Could not convert an image for a WebGL texture upload");
                 Ok(None)
             }
         }

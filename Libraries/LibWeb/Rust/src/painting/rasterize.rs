@@ -179,7 +179,7 @@ fn rasterize(
     };
     let chunks_in_paint_order = chunks.iter().map(|chunk| chunk.id).collect();
     let Some(display_list) = poster.share_display_list(chunks_in_paint_order, &chunks, properties, None) else {
-        eprintln!(
+        ak::warnln!(
             "WebContent: Could not place a {} byte display list to rasterize in shared memory",
             display_list.bytes.len()
         );

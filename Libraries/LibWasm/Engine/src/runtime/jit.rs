@@ -924,7 +924,7 @@ mod native {
                 // NB: The pages may hold code that is installed already, which must not stop being executable. The
                 //     change back can only fail for lack of kernel memory, when the process cannot go on anyway.
                 if !ak::windows_code_memory::make_executable(region, length) {
-                    eprintln!(
+                    ak::warnln!(
                         "LibWasm JIT: making compiled code executable again failed: {}",
                         std::io::Error::last_os_error()
                     );
@@ -944,7 +944,7 @@ mod native {
                 // NB: The pages may hold code that is installed already, which must not stop being executable. The
                 //     change back can only fail for lack of kernel memory, when the process cannot go on anyway.
                 if libc::mprotect(region.cast(), length, libc::PROT_READ | libc::PROT_EXEC) != 0 {
-                    eprintln!(
+                    ak::warnln!(
                         "LibWasm JIT: making compiled code executable again failed: {}",
                         std::io::Error::last_os_error()
                     );

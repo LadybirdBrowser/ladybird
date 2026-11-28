@@ -465,6 +465,7 @@ pub fn compute_effect_geometry<'a>(
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_macros)]
 mod tests {
     use super::*;
     use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, VISUAL_VIEWPORT_NODE_INDEX};

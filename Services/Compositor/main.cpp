@@ -18,6 +18,7 @@
 #include <LibCore/Process.h>
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/StatsLog.h>
+#include <LibCore/System.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/GpuDeviceIdentity.h>
 #include <LibIPC/SingleServer.h>
@@ -26,6 +27,11 @@
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+#if !defined(AK_OS_WINDOWS)
+    // A write to a pipe whose reader has exited, such as a stderr that's gone, then fails instead of ending the process.
+    MUST(Core::System::signal(SIGPIPE, SIG_IGN));
+#endif
+
     AK::set_rich_debug_enabled(true);
 
     StringView mach_server_name;

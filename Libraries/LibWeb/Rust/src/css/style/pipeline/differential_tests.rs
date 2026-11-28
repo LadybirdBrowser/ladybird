@@ -8,6 +8,8 @@
 //! the engine and comparing every record against a cold pass over the same document, and what that pass
 //! matched against the reference matcher.
 
+#![allow(clippy::disallowed_macros)]
+
 use super::super::bridge::element_adjustment_fact;
 use super::super::*;
 use super::counters::StyleCounter;

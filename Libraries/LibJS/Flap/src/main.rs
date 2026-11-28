@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#![allow(clippy::disallowed_macros)]
+
 use flapc::{
     Architecture, CompilationUnit, CompileOptions, Compiler, ObjectFormat, OptimizationReportOptions, Profile,
     SourceInput, Target,

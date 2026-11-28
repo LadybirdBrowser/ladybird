@@ -178,7 +178,7 @@ impl Shared {
                 false
             }
             id => {
-                eprintln!("TransportMachPort: Rejecting message with unknown id {id:#x}");
+                ak::warnln!("TransportMachPort: Rejecting message with unknown id {id:#x}");
                 self.mark_peer_eof();
                 self.set_io_thread_state(IoThreadState::Stopped);
                 false
@@ -195,7 +195,7 @@ impl Shared {
         };
         // NB: The rights and the payload region are ours once received, so dropping them releases them.
         if ports.len() > MAX_MESSAGE_ATTACHMENT_COUNT {
-            eprintln!(
+            ak::warnln!(
                 "TransportMachPort: Rejecting message with {} attachments exceeding limit {MAX_MESSAGE_ATTACHMENT_COUNT}",
                 ports.len()
             );
@@ -290,7 +290,7 @@ impl Shared {
                 SendResult::WouldBlock(pending)
             }
             SendOutcome::Failed(error) => {
-                eprintln!("TransportMachPort: send failed: {}", mach::error_string(error));
+                ak::warnln!("TransportMachPort: send failed: {}", mach::error_string(error));
                 send.peer_is_unreachable = true;
                 self.peer_is_unreachable.store(true, Ordering::Release);
                 SendResult::PeerGone
@@ -718,7 +718,7 @@ impl SharedIoThread {
                 return true;
             }
             Err(ReceiveError::Malformed { what, local_port }) => {
-                eprintln!("TransportMachPort: Rejecting malformed message ({what})");
+                ak::warnln!("TransportMachPort: Rejecting malformed message ({what})");
                 if let Some(transport) = self.transport_receiving_on(local_port) {
                     transport.mark_peer_eof();
                     transport.set_io_thread_state(IoThreadState::Stopped);
@@ -756,7 +756,7 @@ impl SharedIoThread {
     }
 
     fn handle_failed_receive(&self, error: KernReturn, port: PortName, locals: &mut IoThreadLocals) {
-        eprintln!(
+        ak::warnln!(
             "TransportMachPort: mach_msg receive failed: {}",
             mach::error_string(error)
         );

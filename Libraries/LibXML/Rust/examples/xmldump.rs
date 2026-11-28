@@ -6,6 +6,8 @@
 
 //! Prints the events of the documents named on the command line.
 
+#![allow(clippy::disallowed_macros)]
+
 fn main() {
     let options = libxml_rust::Options {
         preserve_comments: true,

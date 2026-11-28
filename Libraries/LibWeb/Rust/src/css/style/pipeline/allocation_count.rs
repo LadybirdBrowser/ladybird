@@ -12,6 +12,8 @@
 //! With LIBWEB_TEST_ALLOCATION_BACKTRACES set, each allocation counted prints a backtrace to
 //! stderr, for a test that fails to name where its allocations come from.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 use std::sync::OnceLock;

@@ -1521,7 +1521,7 @@ impl Lane {
                     }
                     Err(Park(reason)) => {
                         if hover::logs_hover() {
-                            eprintln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
+                            ak::warnln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
                         }
                         self.leave_frame_to_host();
                     }
@@ -1553,7 +1553,7 @@ impl Lane {
             match self.lay_out_and_present(state, &turn, sampled_at.0) {
                 Ok(()) => {
                     if hover::logs_hover() {
-                        eprintln!(
+                        ak::warnln!(
                             "{} hover lane: tick presented a frame hovering {:?} at {:?}, sampled at {:.3}",
                             hover::log_time(),
                             self.hovered.target.flatten().map(StyleNodeID::raw),
@@ -1566,7 +1566,7 @@ impl Lane {
                 }
                 Err(Park(reason)) => {
                     if hover::logs_hover() {
-                        eprintln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
+                        ak::warnln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
                     }
                     self.leave_frame_to_host();
                 }
@@ -2181,7 +2181,7 @@ pub extern "C" fn document_host_presented_color(
 pub extern "C" fn document_host_mouse_event_is_outdated(host: &DocumentHost, input_event_id: u64) -> bool {
     let outdated = host.mouse_event_is_outdated(input_event_id);
     if outdated && hover::logs_hover() {
-        eprintln!(
+        ak::warnln!(
             "{} hover lane: mouse event {input_event_id} is older than the newest pointer move",
             hover::log_time()
         );

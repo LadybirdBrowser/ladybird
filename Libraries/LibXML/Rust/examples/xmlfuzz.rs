@@ -9,6 +9,8 @@
 //!
 //! usage: xmlfuzz [--mutations N] [--max-size BYTES] PATH...
 
+#![allow(clippy::disallowed_macros)]
+
 use std::path::Path;
 
 use libxml_rust::Options;

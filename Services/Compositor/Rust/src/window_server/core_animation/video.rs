@@ -132,7 +132,7 @@ fn content_light_level_information(information: &ContentLightLevelInformation) -
 }
 
 fn log_failure(what: &CStr, status: i32) {
-    eprintln!("Compositor: Failed to {}: {status}", what.to_string_lossy());
+    ak::warnln!("Compositor: Failed to {}: {status}", what.to_string_lossy());
 }
 
 /// Hands the surface of a frame to AVFoundation, which shows it at `shown_size` of its top left as soon as it is

@@ -159,7 +159,7 @@ impl CompositionSwapChain {
         // SAFETY: The swap chain is live, and its current buffer was drawn into.
         let result = unsafe { self.swap_chain.Present(0, DXGI_PRESENT(0)) };
         if result.is_err() {
-            eprintln!(
+            ak::warnln!(
                 "Compositor: Failed to present a swap chain of a remote layer: {}",
                 windows::core::Error::from(result)
             );

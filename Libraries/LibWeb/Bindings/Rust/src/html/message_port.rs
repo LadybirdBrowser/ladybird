@@ -1063,7 +1063,7 @@ impl SocketTransport {
                     true
                 }
                 Err(error) => {
-                    eprintln!("Failed to decode a MessagePort message: {error:?}");
+                    ak::warnln!("Failed to decode a MessagePort message: {error:?}");
                     false
                 }
             }

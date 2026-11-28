@@ -8,6 +8,8 @@
 //! a fake runtime: a fake VM, frame and executable laid out with made up
 //! offsets, and Rust functions standing in for the slow paths and helpers.
 
+#![allow(clippy::disallowed_macros)]
+
 use super::*;
 use crate::artifact::Layout;
 use crate::bytecode::FrameLayout;

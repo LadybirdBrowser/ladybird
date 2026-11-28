@@ -190,7 +190,7 @@ impl InkBoundsAudit {
                 .zip(counts)
                 .map(|(name, count)| format!("{name}={count}"))
                 .collect();
-            eprintln!("Paint ink bounds audit: {}", summary.join(" "));
+            ak::warnln!("Paint ink bounds audit: {}", summary.join(" "));
         }
     }
 }

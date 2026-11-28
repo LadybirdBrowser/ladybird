@@ -51,7 +51,7 @@ unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
             return Some(&[]);
         }
         if bytes.is_null() {
-            eprintln!("bytes_from_raw: null pointer with non-zero length {len}");
+            ak::warnln!("bytes_from_raw: null pointer with non-zero length {len}");
             return None;
         }
         Some(ak::slice_from_raw_parts(bytes, len))
@@ -61,7 +61,7 @@ unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
 unsafe fn set_static_string(out: *mut *const u8, out_len: *mut usize, value: &'static str) -> bool {
     unsafe {
         if out.is_null() || out_len.is_null() {
-            eprintln!("set_static_string: null output pointer");
+            ak::warnln!("set_static_string: null output pointer");
             return false;
         }
         *out = value.as_ptr();
@@ -213,7 +213,7 @@ pub unsafe extern "C" fn textcodec_rust_streaming_decoder_decode_to_utf16(
     unsafe {
         abort_on_panic(|| {
             if decoder.is_null() {
-                eprintln!("textcodec_rust_streaming_decoder_decode_to_utf16: null decoder pointer");
+                ak::warnln!("textcodec_rust_streaming_decoder_decode_to_utf16: null decoder pointer");
                 return false;
             }
             let Some(input) = bytes_from_raw(input, input_len) else {

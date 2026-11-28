@@ -1156,7 +1156,7 @@ impl Executable {
         let discard_count = state.discard_count.get() + 1;
         state.discard_count.set(discard_count);
         if vm.jit.options.log_exits {
-            eprintln!(
+            ak::warnln!(
                 "JIT discard: {}, discard {discard_count}",
                 super::describe_executable(self)
             );

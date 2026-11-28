@@ -100,7 +100,7 @@ fn log_exception(vm: &Vm, value: Value) {
             Some(writer) => unsafe {
                 (writer.append)(writer.context, line.as_ptr(), line.len());
             },
-            None => eprintln!("{line}"),
+            None => ak::warnln!("{line}"),
         }
     }
 }

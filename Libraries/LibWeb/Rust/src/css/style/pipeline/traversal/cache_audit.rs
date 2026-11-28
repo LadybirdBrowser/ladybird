@@ -85,12 +85,12 @@ impl CacheAudit {
         if self.failures.is_empty() {
             return;
         }
-        eprintln!(
+        ak::warnln!(
             "Style cache audit: what a pass reused differs from recomputing it without caches in {} places (live is what the pass holds, cold the recomputation):",
             self.failures.len()
         );
         for failure in &self.failures {
-            eprintln!("    {failure}");
+            ak::warnln!("    {failure}");
         }
         assert!(
             mode != Mode::Abort,

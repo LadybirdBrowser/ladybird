@@ -8,6 +8,8 @@
 //! comparing verdicts with other implementations. With `--stats`, valid modules also report the size of their code
 //! and of what validation keeps for running it.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::io::BufRead;
 
 fn main() {

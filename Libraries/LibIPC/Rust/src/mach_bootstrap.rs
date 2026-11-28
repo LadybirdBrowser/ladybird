@@ -91,7 +91,7 @@ fn listen(server_receive_right: &MachPort, should_stop: &AtomicBool, on_request:
         let received = match mach::receive_bootstrap_request(server_receive_right) {
             Ok(received) => received,
             Err(error) => {
-                eprintln!("MachBootstrapListener: mach_msg failed: {}", mach::error_string(error));
+                ak::warnln!("MachBootstrapListener: mach_msg failed: {}", mach::error_string(error));
                 return;
             }
         };
@@ -101,7 +101,7 @@ fn listen(server_receive_right: &MachPort, should_stop: &AtomicBool, on_request:
         }
         match received {
             ReceivedBootstrapRequest::Request(request) => on_request(request),
-            ReceivedBootstrapRequest::Ignored(what) => eprintln!("MachBootstrapListener: Ignoring {what}"),
+            ReceivedBootstrapRequest::Ignored(what) => ak::warnln!("MachBootstrapListener: Ignoring {what}"),
         }
     }
 }
@@ -157,7 +157,7 @@ impl TransportBootstrapServer {
         let child_exit_queue = match ChildExitQueue::new() {
             Ok(queue) => Some(Arc::new(queue)),
             Err(error) => {
-                eprintln!(
+                ak::warnln!(
                     "Unable to create the queue that reports children that exit before they take their transport: \
                      {error}"
                 );
@@ -190,7 +190,7 @@ impl TransportBootstrapServer {
                 if error.raw_os_error() == Some(libc::ESRCH) {
                     return;
                 }
-                eprintln!("Unable to watch for the exit of child {pid}: {error}");
+                ak::warnln!("Unable to watch for the exit of child {pid}: {error}");
             }
         }
 
@@ -229,7 +229,7 @@ impl TransportBootstrapServer {
                 true
             }
             Err(error) => {
-                eprintln!("Unable to start watching for children that exit: {error}");
+                ak::warnln!("Unable to start watching for children that exit: {error}");
                 false
             }
         }
@@ -271,7 +271,7 @@ fn watch_for_child_exits(child_exit_queue: &ChildExitQueue, child_transports: &M
             Ok(ChildExitEvent::Stop) => return,
             Ok(ChildExitEvent::Other) => {}
             Err(error) => {
-                eprintln!("Unable to wait for children to exit: {error}");
+                ak::warnln!("Unable to wait for children to exit: {error}");
                 return;
             }
         }

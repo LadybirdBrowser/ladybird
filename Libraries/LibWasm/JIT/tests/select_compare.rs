@@ -8,6 +8,7 @@
 //! that computed a value. Check them against the interpreter, directly and through the runtime.
 
 #![cfg(any(target_arch = "x86_64", all(target_arch = "aarch64", not(windows))))]
+#![allow(clippy::disallowed_macros)]
 
 mod harness;
 

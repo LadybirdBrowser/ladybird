@@ -642,12 +642,12 @@ pub(super) fn conclude(failures: &[String], mode: Mode) {
     if failures.is_empty() {
         return;
     }
-    eprintln!(
+    ak::warnln!(
         "Style self-check: the engine differs from a cold pass in {} places:",
         failures.len()
     );
     for failure in failures {
-        eprintln!("    {failure}");
+        ak::warnln!("    {failure}");
     }
     assert!(
         mode != Mode::Abort,

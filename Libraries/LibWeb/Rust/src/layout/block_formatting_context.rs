@@ -4458,7 +4458,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         if formatting_context::formatting_context_type_created_by_box(facts).is_none() && !facts.is_block_container() {
             // Keep the C++ behavior: diagnose and skip this unsupported box after its
             // vertical metrics have been resolved.
-            eprintln!("FIXME: Block-level box is not BlockContainer but does not create formatting context");
+            ak::warnln!("FIXME: Block-level box is not BlockContainer but does not create formatting context");
             formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
                 run.state,
                 &self.run.pass,

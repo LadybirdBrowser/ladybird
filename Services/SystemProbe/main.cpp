@@ -6,6 +6,7 @@
 
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibCore/System.h>
 #include <LibGfx/GpuDeviceIdentity.h>
 #include <LibMain/Main.h>
 #include <LibPlatformFeatures/Build.h>
@@ -20,6 +21,11 @@
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+#if !defined(AK_OS_WINDOWS)
+    // A write to a pipe whose reader has exited, such as a stderr that's gone, then fails instead of ending the process.
+    MUST(Core::System::signal(SIGPIPE, SIG_IGN));
+#endif
+
     StringView gpu_device;
 
     Core::ArgsParser args_parser;

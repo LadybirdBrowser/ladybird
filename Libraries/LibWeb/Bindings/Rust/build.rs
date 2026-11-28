@@ -14,6 +14,8 @@
 //! model of the command stream that libcompositing_rust has, and the GL constants. Those do not need the bindings, so
 //! every build of the crate has them.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};

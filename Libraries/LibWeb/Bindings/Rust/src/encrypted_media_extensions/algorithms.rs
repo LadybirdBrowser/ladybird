@@ -178,7 +178,7 @@ pub(crate) fn get_consent_status(
     _origin: &Origin,
 ) -> ConsentStatus {
     // FIXME: Implement this
-    eprintln!("get_consent_status: Not implemented, returning Allowed by default");
+    ak::warnln!("get_consent_status: Not implemented, returning Allowed by default");
 
     ConsentStatus::Allowed
 }

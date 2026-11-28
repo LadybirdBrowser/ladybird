@@ -7,6 +7,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/Process.h>
+#include <LibCore/System.h>
 #include <LibMain/Main.h>
 #include <WebRTCClient/Sandbox.h>
 
@@ -14,6 +15,11 @@ extern "C" int webrtc_client_run(u8 const* mach_server_name, size_t mach_server_
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+#if !defined(AK_OS_WINDOWS)
+    // A write to a pipe whose reader has exited, such as a stderr that's gone, then fails instead of ending the process.
+    MUST(Core::System::signal(SIGPIPE, SIG_IGN));
+#endif
+
     int crash_report_fd = -1;
     StringView mach_server_name;
     bool wait_for_debugger = false;

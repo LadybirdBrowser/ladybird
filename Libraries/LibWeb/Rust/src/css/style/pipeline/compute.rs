@@ -1318,7 +1318,7 @@ impl RetainedState {
                     values.value(property),
                 );
                 if held.pointer() != computed.pointer() && held != computed {
-                    eprintln!(
+                    ak::warnln!(
                         "style group {group} holds another value of longhand {property} than the element computed"
                     );
                     std::process::abort();
@@ -1344,7 +1344,7 @@ impl RetainedState {
                 unsafe { crate::css::computed_values::style_group_payloads_equal(group, built, payloads[group]) };
             crate::css::computed_values::release_group_payload(group, built);
             if !equal {
-                eprintln!("style group {group} as the element takes it differs from the one its values build");
+                ak::warnln!("style group {group} as the element takes it differs from the one its values build");
                 std::process::abort();
             }
         }

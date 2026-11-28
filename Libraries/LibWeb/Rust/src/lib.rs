@@ -89,7 +89,7 @@ unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<&'a [u8]> {
             return Some(&[]);
         }
         if bytes.is_null() {
-            eprintln!("bytes_from_raw: null pointer with non-zero length {len}");
+            ak::warnln!("bytes_from_raw: null pointer with non-zero length {len}");
             return None;
         }
         Some(ak::slice_from_raw_parts(bytes, len))

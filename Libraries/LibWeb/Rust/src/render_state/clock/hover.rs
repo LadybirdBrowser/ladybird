@@ -831,7 +831,7 @@ impl Lane {
                 Err(HoverDeclined::Handed(_)) => "handed to a same-process iframe".to_string(),
                 Err(HoverDeclined::Park(reason)) => format!("parked: {reason}"),
             };
-            eprintln!(
+            ak::warnln!(
                 "{} hover lane: pointer {:?}: {outcome} in {} us",
                 log_time(),
                 pointer.position,
@@ -935,7 +935,7 @@ impl Lane {
                     return Err(HoverDeclined::Park(reason));
                 }
                 if logs_hover() {
-                    eprintln!("{} hover lane: move left to the host: {reason}", log_time());
+                    ak::warnln!("{} hover lane: move left to the host: {reason}", log_time());
                 }
                 self.parked = parked;
                 self.hovered.target = target_before;
@@ -1140,16 +1140,16 @@ impl Lane {
             {
                 if logs_hover() {
                     if let Some(refusal) = wave.refusal {
-                        eprintln!("{} hover lane: wave refused: {refusal}", log_time());
+                        ak::warnln!("{} hover lane: wave refused: {refusal}", log_time());
                     }
                     if !compositor_animations_stop {
-                        eprintln!(
+                        ak::warnln!(
                             "{} hover lane: wave refused: compositor animations a step ends and keeps alike",
                             log_time()
                         );
                     }
                     if samples_overlap {
-                        eprintln!(
+                        ak::warnln!(
                             "{} hover lane: wave refused: an element inherits what another's samples animate",
                             log_time()
                         );
@@ -1157,7 +1157,7 @@ impl Lane {
                     let engine = state.engine_mut();
                     for row in &wave.rows {
                         if let Some(refusal) = engine.hover_row_refusal(row) {
-                            eprintln!(
+                            ak::warnln!(
                                 "{} hover lane: row of style node {} (reaction {:#x}, plan {}, step {}, composed {}, \
                                  records {}->{}) refused: {refusal}",
                                 log_time(),
@@ -1178,7 +1178,7 @@ impl Lane {
                             None => None,
                         };
                         if let Some(refusal) = refusal {
-                            eprintln!(
+                            ak::warnln!(
                                 "{} hover lane: box of style node {} refused: {refusal}",
                                 log_time(),
                                 row.style_node
@@ -1249,7 +1249,7 @@ impl Lane {
             && let Err(super::Park(reason)) = self.find_inheriting_again(state)
         {
             if logs_hover() {
-                eprintln!("{} hover lane: move left to the host: {reason}", log_time());
+                ak::warnln!("{} hover lane: move left to the host: {reason}", log_time());
             }
             self.parked = true;
             return Err(HoverDeclined::Park(reason));
@@ -1261,7 +1261,7 @@ impl Lane {
         for (node, rebuild) in rebuilt_elements {
             if state.engine_mut().show_boxes_a_hover_builds(node, rebuild).is_err() {
                 if logs_hover() {
-                    eprintln!(
+                    ak::warnln!(
                         "{} hover lane: boxes of style node {} left to the host: boxes only the host builds",
                         log_time(),
                         node.raw()
@@ -1283,7 +1283,7 @@ impl Lane {
         let marked = self.mark_all_for_tree_build(state, marks);
         if let Err(super::Park(reason)) = marked {
             if logs_hover() {
-                eprintln!("{} hover lane: boxes left to the host: {reason}", log_time());
+                ak::warnln!("{} hover lane: boxes left to the host: {reason}", log_time());
             }
             self.parked = true;
             return Err(HoverDeclined::Park("a box the host builds"));
@@ -1295,7 +1295,7 @@ impl Lane {
             && let Err(super::Park(reason)) = self.sample_started_transitions(state, timestamp)
         {
             if logs_hover() {
-                eprintln!("{} hover lane: transitions left to the host: {reason}", log_time());
+                ak::warnln!("{} hover lane: transitions left to the host: {reason}", log_time());
             }
             self.parked = true;
             return Err(HoverDeclined::Park(reason));

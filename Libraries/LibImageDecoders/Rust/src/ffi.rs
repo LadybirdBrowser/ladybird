@@ -12,11 +12,11 @@ pub(crate) fn catch_panic_or<F: FnOnce() -> R, R>(fallback: R, f: F) -> R {
         Ok(result) => result,
         Err(payload) => {
             if let Some(message) = payload.downcast_ref::<&str>() {
-                eprintln!("Rust panic at image decoder FFI boundary: {message}");
+                ak::warnln!("Rust panic at image decoder FFI boundary: {message}");
             } else if let Some(message) = payload.downcast_ref::<String>() {
-                eprintln!("Rust panic at image decoder FFI boundary: {message}");
+                ak::warnln!("Rust panic at image decoder FFI boundary: {message}");
             } else {
-                eprintln!("Rust panic at image decoder FFI boundary");
+                ak::warnln!("Rust panic at image decoder FFI boundary");
             }
             fallback
         }
@@ -30,7 +30,7 @@ pub(crate) unsafe fn bytes_from_raw<'a>(bytes: *const u8, len: usize) -> Option<
         return Some(&[]);
     }
     if bytes.is_null() {
-        eprintln!("bytes_from_raw: null pointer with non-zero length {len}");
+        ak::warnln!("bytes_from_raw: null pointer with non-zero length {len}");
         return None;
     }
 

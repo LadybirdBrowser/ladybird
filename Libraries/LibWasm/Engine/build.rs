@@ -7,6 +7,8 @@
 //! Compiles the interpreter, Libraries/LibWasm/Interpreter/interpreter.flap, against the layout constants of
 //! ../Module/src/abi.rs, and assembles it into the crate. Also generates the C++ header of the C ABI in src/capi.rs.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::fs;
 use std::path::PathBuf;

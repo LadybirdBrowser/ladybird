@@ -451,7 +451,7 @@ impl Lane {
                 Ok(false) => "unmoved",
                 Err(LeftToHost(reason)) => reason,
             };
-            eprintln!(
+            ak::warnln!(
                 "{} hover lane: drag to {:?}: {outcome} in {} us",
                 hover::log_time(),
                 pointer.position,

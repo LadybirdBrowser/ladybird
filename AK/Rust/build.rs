@@ -7,6 +7,8 @@
 //! Compiles AK/MathFunctions.cpp so that unit tests link without AK. A CMake build links AK and skips this, as does a
 //! build without the LLVM libc headers, which only cargo check and clippy can use.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};

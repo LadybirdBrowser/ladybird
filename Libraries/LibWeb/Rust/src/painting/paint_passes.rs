@@ -466,7 +466,7 @@ fn update_visual_contexts(
         return;
     };
     if let Some(started) = started {
-        eprintln!(
+        ak::warnln!(
             "AVC_UPDATE rust={} µs {}",
             started.elapsed().as_micros(),
             if outcome.performed_full_build {

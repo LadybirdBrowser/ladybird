@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::process::Command;
 

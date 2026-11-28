@@ -12,6 +12,8 @@
 //! osr_check [--threads N] [--stress-registers] [--dump FUNCTION:PC] MODULE...
 //! ```
 
+#![allow(clippy::disallowed_macros)]
+
 use libwasm_jit::decode::{Decoder, Instruction};
 use libwasm_jit::{CompileContext, CompileFailure, CompileRequest, Options, RuntimeInfo};
 use std::sync::Arc;

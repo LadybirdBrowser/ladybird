@@ -9,6 +9,8 @@
 //! the offsets, sizes and constants of the runtime's structures that an embedder reads or writes directly, from the
 //! layout module, which the runtime's own build script also compiles to check the same layout against its types.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::fs;
 use std::path::PathBuf;

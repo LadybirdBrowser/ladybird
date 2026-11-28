@@ -523,6 +523,6 @@ impl Drop for ExecutableMemory {
 fn write_perf_map_entry(address: *const u8, size: usize, name: &str) {
     let name = if name.is_empty() { "<anonymous>" } else { name };
     if ak::perf_map::write_perf_map_entry(address as usize, size, &format!("JIT {name}")).is_err() {
-        eprintln!("LIBJS_JIT: Unable to write /tmp/perf-{}.map", std::process::id());
+        ak::warnln!("LIBJS_JIT: Unable to write /tmp/perf-{}.map", std::process::id());
     }
 }

@@ -72,7 +72,7 @@ impl SpeechSynthesis {
 
     // https://wicg.github.io/speech-api/#dom-speechsynthesis-cancel
     pub(crate) fn cancel(&self, _: &mut CallContext) -> WebIdlResult<()> {
-        eprintln!("FIXME: Implement SpeechSynthesis::cancel()");
+        ak::warnln!("FIXME: Implement SpeechSynthesis::cancel()");
         Ok(())
     }
 

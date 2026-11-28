@@ -15,6 +15,8 @@
 //! bench_check [--timeout SECONDS] [--compiled-only] MODULE ENTRY [MODULE ENTRY]...
 //! ```
 
+#![allow(clippy::disallowed_macros)]
+
 #[path = "../tests/harness/mod.rs"]
 mod harness;
 
