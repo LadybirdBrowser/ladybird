@@ -2800,6 +2800,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "CollectionCore".to_string(),
         "CollectionNames".to_string(),
         "ToggleAttributeForce".to_string(),
+        "LocatedNamespace".to_string(),
+        "LocatedNamespaceKind".to_string(),
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
@@ -2858,6 +2860,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/element_core.rs"),
             manifest_dir.join("src/dom/attributes.rs"),
             manifest_dir.join("src/dom/character_data.rs"),
+            manifest_dir.join("src/dom/queries.rs"),
             manifest_dir.join("src/dom/dispatch.rs"),
             manifest_dir.join("src/dom/event.rs"),
             manifest_dir.join("src/dom/event_target.rs"),

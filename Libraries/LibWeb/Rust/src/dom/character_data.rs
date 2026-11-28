@@ -21,8 +21,9 @@ use super::mutation_observers::character_data_mutation_record_is_heard;
 use super::node::NodeCell;
 use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
 use super::node_core::DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT;
-use super::node_core::NodeType;
 use super::node_ref::NodeRef;
+use super::queries::concatenated_data;
+use super::queries::is_text;
 use super::range::adjust_live_ranges_for_replaced_data;
 use super::range::adjust_live_ranges_for_split_text;
 use super::strings::BorrowedString;
@@ -334,64 +335,20 @@ pub unsafe extern "C" fn rust_dom_whole_text(node: &NodeCell) -> usize {
     let main_thread = unsafe { main_thread() };
     // SAFETY: The node is live.
     let node = unsafe { NodeRef::from_cell(node, &main_thread) };
-    let is_text = |node: &NodeRef| matches!(node.node_type(), NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE);
-
     // The wholeText getter steps are to return the concatenation of the data of the contiguous Text nodes of this, in
     // tree order.
     // https://dom.spec.whatwg.org/#contiguous-text-nodes
     // The contiguous Text nodes of a node node are node, node's previous sibling Text node, if any, and its contiguous
     // Text nodes, and node's next sibling Text node, if any, and its contiguous Text nodes, avoiding any duplicates.
     let mut first = node;
-    while let Some(previous) = first.previous_sibling().filter(is_text) {
+    while let Some(previous) = first.previous_sibling().filter(|node| is_text(*node)) {
         first = previous;
     }
-    let mut last = node;
-    while let Some(next) = last.next_sibling().filter(is_text) {
-        last = next;
-    }
-    let data_of = |node: NodeRef| node.read(&main_thread).data();
-    if first == last {
-        return data_of(node).to_utf16_string().into_raw();
-    }
-    let nodes = || {
-        let mut current = Some(first);
-        core::iter::from_fn(move || {
-            let node = current?;
-            current = (node != last).then(|| node.next_sibling()).flatten();
-            Some(node)
-        })
-    };
-    let length = nodes().map(|node| units_length(&data_of(node).units())).sum();
-    let mut is_ascii = true;
-    let mut is_latin1 = true;
-    for node in nodes() {
-        match data_of(node).units() {
-            Utf16StringUnits::Ascii(_) => {}
-            Utf16StringUnits::Latin1(units) => is_ascii &= units.is_ascii(),
-            Utf16StringUnits::Utf16(_) => is_latin1 = false,
-        }
-    }
-    let string = match is_latin1 {
-        true => ak::Utf16String::from_latin1_concatenation(
-            length,
-            is_ascii,
-            nodes().map(|node| match data_of(node).units() {
-                Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units,
-                Utf16StringUnits::Utf16(_) => unreachable!("every data is Latin-1"),
-            }),
-        ),
-        false => {
-            let mut code_units = Vec::with_capacity(length);
-            for node in nodes() {
-                match data_of(node).units() {
-                    Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => {
-                        code_units.extend(units.iter().map(|&unit| u16::from(unit)));
-                    }
-                    Utf16StringUnits::Utf16(units) => code_units.extend_from_slice(units),
-                }
-            }
-            ak::Utf16String::from_utf16(&code_units)
-        }
-    };
-    string.into_raw()
+    let mut current = Some(first);
+    let nodes = core::iter::from_fn(move || {
+        let node = current?;
+        current = node.next_sibling().filter(|node| is_text(*node));
+        Some(node)
+    });
+    concatenated_data(&main_thread, nodes).into_raw()
 }

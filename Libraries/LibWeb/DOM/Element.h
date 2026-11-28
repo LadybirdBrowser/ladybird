@@ -214,8 +214,6 @@ public:
 
     void set_prefix(Optional<Utf16FlyString> value);
 
-    Optional<Utf16String> locate_a_namespace_prefix(Optional<Utf16View> namespace_) const;
-
     // NOTE: This is for the JS bindings
     Optional<Utf16FlyString> const& namespace_uri() const { return m_element_core.qualified_name.namespace_(); }
 

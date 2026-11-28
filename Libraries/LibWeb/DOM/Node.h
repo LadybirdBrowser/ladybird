@@ -272,6 +272,9 @@ public:
 
     u16 compare_document_position(GC::Ptr<Node> other);
 
+    bool is_before(Node const&) const;
+    bool is_following(Node const&) const;
+
     WebIDL::ExceptionOr<GC::Ref<Node>> replace_child(GC::Ref<Node> node, GC::Ref<Node> child);
 
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(GC::Ptr<Document> document = nullptr, bool subtree = false, GC::Ptr<Node> parent = nullptr, GC::Ptr<HTML::CustomElementRegistry> fallback_registry = nullptr) const;
