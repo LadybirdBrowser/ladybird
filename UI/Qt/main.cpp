@@ -98,7 +98,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             app->new_window({ file_url });
         };
 
-        // NB: URLs from outside the browser, such as a link clicked in another app, never open in a private window.
+        // NB: A request for a regular tab can arrive while a private window is active.
         app->on_new_tab = [&](auto const& urls) {
             auto* non_private_window = app->non_private_window_if_any();
             if (!non_private_window) {
@@ -115,12 +115,19 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             window.raise();
         };
 
-        app->on_new_window = [&](auto const& urls) {
-            app->new_window(urls, app->configuration_for_new_window());
+        app->on_new_window = [&](auto const& urls, WebView::IsPrivate is_private) {
+            app->new_window(urls, app->configuration_for_new_window(), Ladybird::BrowserWindow::IsPopupWindow::No, is_private);
         };
 
         auto configuration = app->configuration_for_new_window();
-        if (auto* restored_window = app->restore_previous_session(configuration)) {
+
+        // FIXME: On private launch, defer regular session recovery until the user opens a regular window.
+        auto* restored_window = app->restore_previous_session(configuration);
+
+        if (browser_options.new_window == WebView::NewWindow::Private) {
+            app->offer_to_restore_unexpectedly_closed_tabs();
+            app->on_new_window(browser_options.urls, WebView::IsPrivate::Yes);
+        } else if (restored_window) {
             // A whole restored session replaces the usual startup tab, so only the URLs the user passed open with it.
             // With only pinned tabs restored, the usual startup tabs open after them. A restart passes on the URLs
             // that the browser was started with, which are among the restored tabs already.
@@ -128,11 +135,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             auto restored_everything = app->launch_restore_policy() == Ladybird::SessionLaunchPolicy::Everything;
             if (!follows_restart && (!restored_everything || !browser_options.raw_urls.is_empty()))
                 app->open_startup_tabs(*restored_window, browser_options.urls);
-            app->offer_to_restore_unexpectedly_closed_tabs(*restored_window);
+            app->offer_to_restore_unexpectedly_closed_tabs();
         } else {
             auto& window = app->new_window(browser_options.urls, configuration);
             window.setWindowTitle(BROWSER_PRODUCT_NAME);
-            app->offer_to_restore_unexpectedly_closed_tabs(window);
+            app->offer_to_restore_unexpectedly_closed_tabs();
         }
     }
 

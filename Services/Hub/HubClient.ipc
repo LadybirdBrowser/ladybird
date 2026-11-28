@@ -159,6 +159,7 @@ struct Hub::InitialState {
     Vector<Hub::DownloadState> downloads;
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
+    WebView::NewWindow new_window;
     ByteString crash_report_directory;
     Optional<u16> devtools_port;
     ByteString profile_identifier;
@@ -247,7 +248,7 @@ endpoint HubClient
     crash_reports_changed() =|
     request_finished(u64 request_id, bool had_network_error, Optional<u32> response_code, Vector<HTTP::Header> response_headers, ByteString body) =|
     app_open_new_tab(Vector<URL::URL> urls) =|
-    app_open_new_window(Vector<URL::URL> urls) =|
+    app_open_new_window(Vector<URL::URL> urls, WebView::IsPrivate is_private) =|
     view_selected_text(u64 view_id, u64 request_id, Optional<ByteString> text) =|
     view_close_preflight_finished(u64 view_id, u64 request_id, bool may_close) =|
     view_page_dumps(u64 view_id, u64 request_id, Optional<String> dumps) =|

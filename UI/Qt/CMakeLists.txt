@@ -288,6 +288,11 @@ endif()
 qt_add_executable(ladybird main.cpp ladybird.qrc)
 target_link_libraries(ladybird PRIVATE ladybird_impl)
 
+if (LINUX AND TARGET TestUIQt)
+    # TestUIQt also launches the browser offscreen. Static Qt needs the plugin in both executables.
+    ladybird_import_qt_plugin(ladybird QOffscreenIntegrationPlugin)
+endif()
+
 if (LINUX AND NOT BUILD_SHARED_LIBS AND NOT (ENABLE_ADDRESS_SANITIZER OR ENABLE_MEMORY_SANITIZER OR ENABLE_THREAD_SANITIZER OR ENABLE_UNDEFINED_SANITIZER))
     target_link_options(ladybird PRIVATE "LINKER:--exclude-libs=ALL")
 endif()

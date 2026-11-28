@@ -1,4 +1,6 @@
+#include <LibWebView/BrowsingSession.h>
+
 endpoint UIProcessServer {
     create_new_tab(Vector<ByteString> urls) => ()
-    create_new_window(Vector<ByteString> urls) => ()
+    create_new_window(Vector<ByteString> urls, WebView::IsPrivate is_private) => ()
 }

@@ -393,7 +393,8 @@ static BrowserProcess::Handover hand_over(UIProcessClient& client, Vector<ByteSt
     bool done = false;
     switch (new_window) {
     case NewWindow::Yes:
-        done = client.send_sync_until<Messages::UIProcessServer::CreateNewWindow>(deadline, raw_urls);
+    case NewWindow::Private:
+        done = client.send_sync_until<Messages::UIProcessServer::CreateNewWindow>(deadline, raw_urls, new_window == NewWindow::Private ? IsPrivate::Yes : IsPrivate::No);
         break;
     case NewWindow::No:
         done = client.send_sync_until<Messages::UIProcessServer::CreateNewTab>(deadline, raw_urls);
@@ -495,9 +496,9 @@ void BrowserProcess::accept_transport(NonnullOwnPtr<IPC::Transport> transport)
             this->on_new_tab(raw_urls);
     };
 
-    client->on_new_window = [this](auto raw_urls) {
+    client->on_new_window = [this](auto raw_urls, IsPrivate is_private) {
         if (this->on_new_window)
-            this->on_new_window(raw_urls);
+            this->on_new_window(raw_urls, is_private);
     };
 }
 
@@ -574,10 +575,10 @@ void UIProcessConnectionFromClient::create_new_tab(Vector<ByteString> urls)
         on_new_tab(sanitize_urls(urls));
 }
 
-void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls)
+void UIProcessConnectionFromClient::create_new_window(Vector<ByteString> urls, IsPrivate is_private)
 {
     if (on_new_window)
-        on_new_window(sanitize_urls(urls));
+        on_new_window(sanitize_urls(urls), is_private);
 }
 
 }

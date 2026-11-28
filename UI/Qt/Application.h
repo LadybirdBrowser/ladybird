@@ -101,7 +101,7 @@ public:
     ErrorOr<int> execute();
 
     Function<void(Vector<URL::URL> const&)> on_new_tab;
-    Function<void(Vector<URL::URL> const&)> on_new_window;
+    Function<void(Vector<URL::URL> const&, WebView::IsPrivate)> on_new_window;
     static WebView::Settings& settings() { return *s_the->m_settings; }
     static Bookmarks& bookmarks() { return *s_the->m_bookmarks; }
     static BookmarkStore& bookmark_store() { return *s_the->m_bookmark_store; }
@@ -133,7 +133,7 @@ public:
     // Opens the windows startup recovery kept open, and returns the frontmost one, if any.
     BrowserWindow* restore_previous_session(WindowConfiguration const& frontmost_window_configuration);
     // After the last run ended unexpectedly, offers to restore the tabs it left open that didn't come back by themselves.
-    void offer_to_restore_unexpectedly_closed_tabs(BrowserWindow&);
+    void offer_to_restore_unexpectedly_closed_tabs();
     void open_startup_tabs(BrowserWindow&, Vector<URL::URL> const&);
     SessionLaunchPolicy launch_restore_policy() const;
 
