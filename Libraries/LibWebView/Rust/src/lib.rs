@@ -17,3 +17,4 @@ pub mod authenticator;
 pub mod cbor;
 pub mod client_data;
 pub mod ffi_bytes;
+pub mod security_key;

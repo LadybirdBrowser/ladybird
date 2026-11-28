@@ -140,6 +140,11 @@ pub struct Argon2Inputs<'a> {
     pub tag_length: u32,
 }
 
+/// Overwrites `bytes` with zeros in a way the compiler does not remove.
+pub fn clear_secret(bytes: &mut [u8]) {
+    key::clear(bytes);
+}
+
 pub fn fill_with_random(bytes: &mut [u8]) -> Result<(), CryptoError> {
     openssl::fill_with_random(bytes)
 }
