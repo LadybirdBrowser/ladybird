@@ -44,6 +44,7 @@ set(SOURCES
     ContentSecurityPolicy/FetchIntegration.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
+    ContentSecurityPolicy/RequestViolation.cpp
     ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
     ContentSecurityPolicy/Violation.cpp
     CookieStore/CookieStore.cpp

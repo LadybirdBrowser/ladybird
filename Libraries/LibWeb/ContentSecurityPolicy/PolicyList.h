@@ -20,6 +20,7 @@ public:
     explicit PolicyList(Vector<SerializedPolicy> const&);
 
     [[nodiscard]] Vector<NonnullRefPtr<Policy const>> const& policies() const { return m_policies; }
+    [[nodiscard]] u64 index_of(Policy const&) const;
 
     [[nodiscard]] bool contains_header_delivered_policy() const;
     [[nodiscard]] HTML::SandboxingFlagSet csp_derived_sandboxing_flags() const;

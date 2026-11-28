@@ -58,20 +58,6 @@ static Utf16FlyString const& directive_name(RemoteViolationDirective directive)
     VERIFY_NOT_REACHED();
 }
 
-static u64 index_of_policy(PolicyList const& policy_list, Policy const& policy)
-{
-    auto const& policies = policy_list.policies();
-    auto policy_index = policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
-    VERIFY(policy_index.has_value());
-    return *policy_index;
-}
-
-static u64 index_of_policy_in_requests_csp_list(Fetch::Infrastructure::Request const& request, Policy const& policy)
-{
-    // NB: Request's policy container is a copy of the client's, which lists the policies in the same order.
-    return index_of_policy(request.policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list, policy);
-}
-
 // AD-HOC: A client another process hosts has its global object there, so its page reports the violation to that
 //         process, by the violated policy's index in the client's CSP list.
 static void report_a_violation_of_a_remote_client(Page& page, u64 policy_index, Optional<HTML::RemoteClientNavigation> const& navigation, Utf16FlyString const& directive, URL::URL const& url)
@@ -108,35 +94,6 @@ static void report_a_violation_of_a_container_document(Page& page, RequestViolat
         return;
     auto url_is_https = violation.resource.scheme() == "https"sv;
     page.client().page_did_report_navigation_violation_of_container_document(container.navigable_id, *container.navigation_id, container.policy_index, *remote_directive, url_is_https);
-}
-
-RequestViolation violation_of_request(Fetch::Infrastructure::Request const& request, NonnullRefPtr<Policy const> policy)
-{
-    // https://w3c.github.io/webappsec-csp/#create-violation-for-request
-    // 1. Let directive be the result of executing § 6.8.1 Get the effective directive for request on request.
-    auto effective_directive = Directives::get_the_effective_directive_for_request(request);
-
-    // NOTE: The spec assumes that the effective directive of a Violation is a non-empty string.
-    //       See the definition of m_effective_directive.
-    VERIFY(effective_directive.has_value());
-
-    auto reported_to = [&] -> RequestViolation::ReportedTo {
-        if (auto const& navigation = request.child_navigable_navigation(); navigation.has_value()) {
-            // NB: The request's copy of the container document's CSP list lists the policies in the same order.
-            auto policy_index = index_of_policy(navigation->container_document_csp_list, policy);
-            return RequestViolation::ContainerDocument { navigation->navigable_id, navigation->navigation_id, policy_index };
-        }
-        if (Fetch::Fetching::remote_client(request))
-            return RequestViolation::RemoteClient { index_of_policy_in_requests_csp_list(request, policy), request.remote_client_navigation() };
-        return RequestViolation::LocalClient { request.client()->get<HTML::EnvironmentSettingsObjectAddress>() };
-    }();
-
-    return RequestViolation {
-        .policy = move(policy),
-        .effective_directive = effective_directive.release_value(),
-        .resource = request.url(),
-        .reported_to = move(reported_to),
-    };
 }
 
 void report_a_violation_of_a_request(JS::Realm& realm, RequestViolation const& violation)

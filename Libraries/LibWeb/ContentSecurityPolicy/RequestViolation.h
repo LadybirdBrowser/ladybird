@@ -17,6 +17,12 @@
 #include <LibWeb/HTML/Scripting/RemoteClientNavigation.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+
+}
+
 namespace Web::ContentSecurityPolicy {
 
 // A violation of a policy for a request, with what reporting it needs from the request.
@@ -44,5 +50,10 @@ struct RequestViolation {
     URL::URL resource;
     ReportedTo reported_to;
 };
+
+[[nodiscard]] RequestViolation violation_of_request(Fetch::Infrastructure::Request const&, NonnullRefPtr<Policy const>);
+
+// The policy's index in the request's CSP list, which is a copy of its client's.
+[[nodiscard]] u64 index_of_policy_in_requests_csp_list(Fetch::Infrastructure::Request const&, Policy const&);
 
 }
