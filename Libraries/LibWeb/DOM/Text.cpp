@@ -125,22 +125,8 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
         //    increase its start offset by 1.
         // 5. For each live range whose end node is parent and end offset is equal to the index of node plus 1, increase
         //    its end offset by 1.
-        // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-        auto node_index = index();
-        for (auto& range : document().live_ranges()) {
-            if (range.start_container().ptr() == this && range.start_offset() > offset) {
-                range.set_start_node(*new_node);
-                range.decrease_start_offset(offset);
-            }
-            if (range.end_container().ptr() == this && range.end_offset() > offset) {
-                range.set_end_node(*new_node);
-                range.decrease_end_offset(offset);
-            }
-            if (range.start_container().ptr() == parent.ptr() && range.start_offset() == node_index + 1)
-                range.increase_start_offset(1);
-            if (range.end_container().ptr() == parent.ptr() && range.end_offset() == node_index + 1)
-                range.increase_end_offset(1);
-        }
+        // NB: libweb_rust runs these steps, see Rust/src/dom/range.rs.
+        RustFFI::rust_dom_live_ranges_split_text(this, new_node.ptr(), offset, parent.ptr());
     }
 
     // 8. Replace data with node node, offset offset, count count, and data the empty string.

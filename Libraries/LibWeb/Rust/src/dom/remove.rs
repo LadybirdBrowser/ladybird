@@ -12,6 +12,8 @@ use super::hooks::IsSubtreeRoot;
 use super::links;
 use super::node::NodeCell;
 use super::node_ref::NodeRef;
+use super::range::live_range_pre_remove_steps;
+use super::range::live_range_pre_remove_steps_for_all_children;
 use super::steps::assign_slottables_after_removal_does_nothing;
 use super::steps::removing_steps_do_nothing;
 use super::tree::for_each_shadow_including_descendant;
@@ -29,12 +31,16 @@ pub(crate) fn remove(main_thread: &mut MainThread<'_>, node: NodeRef, suppress_o
     // 2. Assert: parent is non-null.
     let parent = parent.expect("a removed node has a parent");
 
+    // NB: The callback does what the removal does for the editing history, the page, list numbering, slots, layout and
+    //     the style engine while the subtree still stands where it did, see hooks::prepare_removal().
+    let facts = hooks::prepare_removal(main_thread, node, parent, None);
+
     // 3. Run the live range pre-remove steps, given node.
+    live_range_pre_remove_steps(main_thread, node);
+
     // 4. For each NodeIterator object iterator whose root’s node document is node’s node document: run the NodeIterator
     //    pre-remove steps given node and iterator.
-    // NB: The callback also does what the removal does for the editing history, the page, list numbering, slots, layout
-    //     and the style engine while the subtree still stands where it did, see hooks::prepare_removal().
-    let facts = hooks::prepare_removal(main_thread, node, parent, None);
+    // NB: The callback above runs these steps, for now.
 
     // 5. Let oldPreviousSibling be node’s previous sibling.
     let old_previous_sibling = node.previous_sibling();
@@ -91,13 +97,16 @@ pub(crate) fn remove_all_children(main_thread: &mut MainThread<'_>, parent: Node
         return;
     }
 
-    // 3. Run the live range pre-remove steps, given node.
-    // NB: Run once for all of the children before any is removed, by the callback, which also tells the editing
-    //     history and consumes the deferred style change events. Each child is the first child when its turn comes,
-    //     and the steps for every child together leave each boundary point that was in a child or on parent at
-    //     (parent, 0).
+    // NB: The callback tells the editing history and consumes the deferred style change events, once for all of the
+    //     children.
     let mut children_removal = hooks::begin_removing_all_children(main_thread, parent);
     let parent_root = parent.root();
+
+    // 3. Run the live range pre-remove steps, given node.
+    // NB: Run once for all of the children before any is removed. Each child is the first child when its turn comes,
+    //     and the steps for every child together leave each boundary point that was in a child or on parent at
+    //     (parent, 0).
+    live_range_pre_remove_steps_for_all_children(main_thread, parent);
 
     while let Some(node) = parent.first_child() {
         // 1. Let parent be node’s parent.

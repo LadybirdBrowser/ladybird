@@ -24,8 +24,87 @@ impl<'a> Node<'a> {
     }
 
     /// https://dom.spec.whatwg.org/#concept-tree-inclusive-ancestor
+    #[inline(always)]
     pub fn is_inclusive_ancestor_of(self, other: Node<'a>) -> bool {
-        other.inclusive_ancestors().any(|ancestor| ancestor == self)
+        other == self || self.is_ancestor_of(other)
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-ancestor
+    pub fn is_ancestor_of(self, other: Node<'a>) -> bool {
+        // OPTIMIZATION: Each link is tested for null while it is still compressed, and then decoded without a null
+        //               check, so each step up is one load, one test, one decode and one compare, as in C++'s
+        //               TreeNode::is_ancestor_of().
+        let mut node = other;
+        while let Some(parent) = node.parent() {
+            if parent == self {
+                return true;
+            }
+            node = parent;
+        }
+        false
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-index
+    pub fn index(self) -> usize {
+        // The index of an object is its number of preceding siblings, or 0 if it has none.
+        core::iter::successors(self.previous_sibling(), |sibling| sibling.previous_sibling()).count()
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-following
+    pub fn is_following(self, other: Node<'a>) -> bool {
+        // An object A is following an object B if A and B are in the same tree and A comes after B in tree order.
+        other.is_preceding(self)
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-preceding
+    pub fn is_preceding(self, other: Node<'a>) -> bool {
+        // An object A is preceding an object B if A and B are in the same tree and A comes before B in tree order.
+        // OPTIMIZATION: The order is read off the ancestor chains, which are as long as the tree is deep, rather than
+        //               off a walk in tree order from one to the other, which can be as long as the tree is large.
+        if self == other {
+            return false;
+        }
+        let depth_and_root = |node: Node<'a>| {
+            let mut depth = 0;
+            let mut root = node;
+            while let Some(parent) = root.parent() {
+                depth += 1;
+                root = parent;
+            }
+            (depth, root)
+        };
+        let (mut depth, root) = depth_and_root(self);
+        let (mut other_depth, other_root) = depth_and_root(other);
+        if root != other_root {
+            return false;
+        }
+
+        // An inclusive ancestor comes before its descendants.
+        let (mut ancestor, mut other_ancestor) = (self, other);
+        while depth > other_depth {
+            ancestor = ancestor.parent().expect("a node is no deeper than its depth");
+            depth -= 1;
+        }
+        if ancestor == other {
+            return false;
+        }
+        while other_depth > depth {
+            other_ancestor = other_ancestor.parent().expect("a node is no deeper than its depth");
+            other_depth -= 1;
+        }
+        if other_ancestor == self {
+            return true;
+        }
+
+        // Otherwise, the children of the nodes' deepest common ancestor that hold them come in their order.
+        while ancestor.parent() != other_ancestor.parent() {
+            ancestor = ancestor.parent().expect("nodes of one tree have a common ancestor");
+            other_ancestor = other_ancestor
+                .parent()
+                .expect("nodes of one tree have a common ancestor");
+        }
+        core::iter::successors(ancestor.next_sibling(), |sibling| sibling.next_sibling())
+            .any(|sibling| sibling == other_ancestor)
     }
 
     /// https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor
@@ -94,7 +173,7 @@ impl<'a> Node<'a> {
     /// The node after this one in tree order: its first child, or else the next sibling of its nearest inclusive
     /// ancestor that has one.
     /// https://dom.spec.whatwg.org/#concept-tree-order
-    fn next_in_tree_order(self) -> Option<Node<'a>> {
+    pub fn next_in_tree_order(self) -> Option<Node<'a>> {
         self.first_child()
             .or_else(|| self.inclusive_ancestors().find_map(|ancestor| ancestor.next_sibling()))
     }
@@ -102,7 +181,7 @@ impl<'a> Node<'a> {
     /// The node before this one in tree order: the last inclusive descendant of its previous sibling, along last
     /// children, or else its parent.
     /// https://dom.spec.whatwg.org/#concept-tree-order
-    fn previous_in_tree_order(self) -> Option<Node<'a>> {
+    pub fn previous_in_tree_order(self) -> Option<Node<'a>> {
         let Some(previous_sibling) = self.previous_sibling() else {
             return self.parent();
         };

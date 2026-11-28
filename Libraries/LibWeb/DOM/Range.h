@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <AK/IntrusiveList.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/DOM/AbstractRange.h>
@@ -28,14 +27,16 @@ enum class ParserScriptingMode : u8;
 
 namespace Web::DOM {
 
-enum class RelativeBoundaryPointPosition {
-    Equal,
-    Before,
-    After,
-};
+// NB: libweb_rust defines the type, see Rust/src/dom/range.rs.
+using RelativeBoundaryPointPosition = RustFFI::RelativeBoundaryPointPosition;
 
 // https://dom.spec.whatwg.org/#concept-range-bp-position
-RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b);
+inline RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b)
+{
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
+    return RustFFI::rust_dom_position_of_boundary_point(a.node.ptr(), a.offset, b.node.ptr(), b.offset);
+}
+
 Optional<RelativeBoundaryPointPosition> position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(BoundaryPoint a, BoundaryPoint b);
 
 class WEB_API Range final : public AbstractRange {
@@ -118,13 +119,13 @@ public:
     template<typename Callback>
     void for_each_contained(Callback callback)
     {
-        GC::Ptr<Node> end = m_end_container;
+        GC::Ptr<Node> end = end_container();
         while (end && !end->next_sibling())
             end = end->parent();
         if (end)
             end = end->next_sibling();
 
-        for (GC::Ptr<Node> node = m_start_container; node && node != end; node = node->next_in_pre_order()) {
+        for (GC::Ptr<Node> node = start_container(); node && node != end; node = node->next_in_pre_order()) {
             if (contains_node(*node)) {
                 if (callback(*node) == IterationDecision::Break)
                     return;
@@ -133,43 +134,20 @@ public:
     }
 
 private:
-    friend class CharacterData;
-    friend class Node;
-    friend class Text;
+    friend class Document;
 
     explicit Range(Document&);
     Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual void finalize() override;
 
     GC::Ref<Node> root() const;
 
     void update_associated_selection();
     void update_associated_highlights(GC::Ptr<Document> previous_owner_document);
 
-    enum class StartOrEnd {
-        Start,
-        End,
-    };
-
-    void set_start_node(GC::Ref<Node> node)
-    {
-        m_start_container = node;
-        update_owner_document();
-    }
-    void set_start_offset(WebIDL::UnsignedLong offset) { m_start_offset = offset; }
-    void set_end_node(GC::Ref<Node> node)
-    {
-        m_end_container = node;
-        update_owner_document();
-    }
-    void set_end_offset(WebIDL::UnsignedLong offset) { m_end_offset = offset; }
-
-    void increase_start_offset(WebIDL::UnsignedLong count) { m_start_offset += count; }
-    void increase_end_offset(WebIDL::UnsignedLong count) { m_end_offset += count; }
-    void decrease_start_offset(WebIDL::UnsignedLong count) { m_start_offset -= count; }
-    void decrease_end_offset(WebIDL::UnsignedLong count) { m_end_offset -= count; }
+    // NB: libweb_rust defines the type, see Rust/src/dom/range.rs.
+    using StartOrEnd = RustFFI::StartOrEnd;
 
     WebIDL::ExceptionOr<void> set_start_or_end(GC::Ref<Node> node, u32 offset, StartOrEnd start_or_end);
     WebIDL::ExceptionOr<void> select(GC::Ref<Node> node);
@@ -185,10 +163,11 @@ private:
     GC::Member<Selection::Selection> m_associated_selection;
     GC::Member<Document> m_owner_document;
 
-    IntrusiveListNode<Range> m_live_range_list_node;
-
-public:
-    using DocumentLiveRangeList = IntrusiveList<&Range::m_live_range_list_node>;
+    // NB: The index of the range's entry in the live ranges of its owner document, see WeakCellRegistry.
+    template<typename>
+    friend class WeakCellRegistry;
+    size_t& weak_cell_registry_index() { return m_weak_cell_registry_index; }
+    size_t m_weak_cell_registry_index { 0 };
 };
 
 }

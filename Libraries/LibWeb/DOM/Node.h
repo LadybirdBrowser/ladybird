@@ -691,11 +691,7 @@ private:
 
     void queue_tree_mutation_record(ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
-    void live_range_pre_remove();
-    void live_range_pre_remove_all_children();
-
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
-    void adjust_live_ranges_for_insertion(Node& child, size_t count);
     void insert_node_into_children(GC::Ref<Node>, GC::Ptr<Node> child);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
@@ -704,7 +700,7 @@ private:
     void begin_child_index_generation();
 
     void begin_move(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent);
-    void after_move_unlink(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child);
+    void after_move_unlink(MoveScope&, Node& old_parent, Node& old_parent_root);
     void after_move_link(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child);
     void end_move(MoveScope&, Node& old_parent, Node& new_parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling, GC::Ptr<Node> new_previous_sibling, GC::Ptr<Node> child);
 

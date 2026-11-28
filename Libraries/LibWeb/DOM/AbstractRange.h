@@ -10,6 +10,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
@@ -26,23 +27,23 @@ class WEB_API AbstractRange : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(AbstractRange, Bindings::GCAllocatedWrappable);
 
 public:
-    static constexpr GC::MemberOffset start_container_offset() { return GC_FIELD_OFFSET(AbstractRange, m_start_container); }
-    static constexpr GC::MemberOffset end_container_offset() { return GC_FIELD_OFFSET(AbstractRange, m_end_container); }
+    static constexpr GC::MemberOffset start_container_offset() { return GC_FIELD_OFFSET(AbstractRange, m_range_core.start_container); }
+    static constexpr GC::MemberOffset end_container_offset() { return GC_FIELD_OFFSET(AbstractRange, m_range_core.end_container); }
     virtual ~AbstractRange() override;
 
-    BoundaryPoint start() const { return { m_start_container, m_start_offset }; }
-    GC::Ref<Node> start_container() const { return m_start_container; }
-    WebIDL::UnsignedLong start_offset() const { return m_start_offset; }
+    BoundaryPoint start() const { return { start_container(), start_offset() }; }
+    GC::Ref<Node> start_container() const { return *m_range_core.start_container; }
+    WebIDL::UnsignedLong start_offset() const { return m_range_core.start_offset; }
 
-    BoundaryPoint end() const { return { m_end_container, m_end_offset }; }
-    GC::Ref<Node> end_container() const { return m_end_container; }
-    WebIDL::UnsignedLong end_offset() const { return m_end_offset; }
+    BoundaryPoint end() const { return { end_container(), end_offset() }; }
+    GC::Ref<Node> end_container() const { return *m_range_core.end_container; }
+    WebIDL::UnsignedLong end_offset() const { return m_range_core.end_offset; }
 
     // https://dom.spec.whatwg.org/#range-collapsed
     bool collapsed() const
     {
         // A range is collapsed if its start node is its end node and its start offset is its end offset.
-        return start_container() == end_container() && start_offset() == end_offset();
+        return m_range_core.start_container == m_range_core.end_container && start_offset() == end_offset();
     }
 
     bool operator==(AbstractRange const& other) const
@@ -58,11 +59,13 @@ protected:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    GC::NonnullMember<Node> m_start_container;
-    WebIDL::UnsignedLong m_start_offset;
+    void set_start_container(GC::Ref<Node> node) { m_range_core.start_container = node; }
+    void set_start_offset(WebIDL::UnsignedLong offset) { m_range_core.start_offset = offset; }
+    void set_end_container(GC::Ref<Node> node) { m_range_core.end_container = node; }
+    void set_end_offset(WebIDL::UnsignedLong offset) { m_range_core.end_offset = offset; }
 
-    GC::NonnullMember<Node> m_end_container;
-    WebIDL::UnsignedLong m_end_offset;
+    // NB: libweb_rust reads and writes the boundary points in place, see Rust/src/dom/range.rs.
+    RustFFI::RangeCore m_range_core;
 };
 
 }

@@ -7,6 +7,7 @@
 //! Trees of nodes for unit tests: real cores, in cells of an arena that stands in for the GC heap region, which the
 //! nodes' compressed pointers are offsets into.
 
+use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
 use core::mem::offset_of;
 use std::sync::OnceLock;
@@ -37,8 +38,9 @@ use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
 
 /// A node's cell, with its core where DOM::Node has it, a character data core where DOM::CharacterData has it, which
-/// only a CharacterData node's cell holds, a fragment core where DOM::DocumentFragment has it, a document core where
-/// DOM::Document has it, and an element core where DOM::Element has it, which only an element's cell holds.
+/// only a CharacterData node's cell holds, a fragment core where DOM::DocumentFragment has it, and then either a document
+/// core where DOM::Document has it, which only a document's cell holds, or an element core where DOM::Element has it,
+/// which only an element's cell holds.
 #[repr(C, align(8))]
 struct TestCell {
     header: [u8; NODE_CORE_OFFSET],
@@ -49,16 +51,27 @@ struct TestCell {
         [u8; DOCUMENT_FRAGMENT_CORE_OFFSET - CHARACTER_DATA_CORE_OFFSET - size_of::<CharacterDataCore>()],
     fragment_core: DocumentFragmentCore,
     fragment_fields: [u8; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
-    document_core: DocumentCore,
-    element_fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET - size_of::<DocumentCore>()],
-    element_core: MaybeUninit<ElementCore>,
+    tail: TestCellTail,
+}
+
+/// What a document's cell and an element's cell hold past the fragment core, where the two overlap.
+#[repr(C)]
+union TestCellTail {
+    document_core: ManuallyDrop<DocumentCore>,
+    element: ManuallyDrop<ElementTail>,
+}
+
+#[repr(C)]
+struct ElementTail {
+    fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET],
+    core: MaybeUninit<ElementCore>,
 }
 
 const _: () = assert!(offset_of!(TestCell, core) == NODE_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, character_data_core) == CHARACTER_DATA_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, fragment_core) == DOCUMENT_FRAGMENT_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, document_core) == DOCUMENT_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, element_core) == ELEMENT_CORE_OFFSET);
+const _: () = assert!(offset_of!(TestCell, tail) == DOCUMENT_CORE_OFFSET);
+const _: () = assert!(DOCUMENT_CORE_OFFSET + offset_of!(ElementTail, core) == ELEMENT_CORE_OFFSET);
 
 const ARENA_CELLS: usize = 1 << 14;
 
@@ -162,6 +175,15 @@ fn new_node<'a>(
     initialize: impl FnOnce(&mut NodeCore),
     element_core: Option<ElementCore>,
 ) -> Node<'a> {
+    // NB: Every node but a document gets a document of its own, whose core the DOM algorithms read.
+    let document = (node_type != NodeType::DOCUMENT_NODE).then(|| {
+        pointer_of(new_node(
+            main_thread,
+            NodeType::DOCUMENT_NODE,
+            (|_| {}) as fn(&mut NodeCore),
+            None,
+        ))
+    });
     let arena = arena();
     let index = arena.next.fetch_add(1, Ordering::Relaxed);
     assert!(index < ARENA_CELLS, "the test arena is full");
@@ -169,8 +191,19 @@ fn new_node<'a>(
     let cell = unsafe { &mut *arena.cells.add(index) };
     // SAFETY: A test cell starts with its node's cell.
     let pointer = compress(unsafe { &*(cell as *mut MaybeUninit<TestCell> as *const NodeCell) });
-    let mut core = NodeCore::for_test(node_type, pointer);
+    let mut core = NodeCore::for_test(node_type, pointer, document.unwrap_or(pointer));
     initialize(&mut core);
+    let tail = match element_core {
+        Some(element_core) => TestCellTail {
+            element: ManuallyDrop::new(ElementTail {
+                fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET],
+                core: MaybeUninit::new(element_core),
+            }),
+        },
+        None => TestCellTail {
+            document_core: ManuallyDrop::new(DocumentCore::for_test()),
+        },
+    };
     let cell = cell.write(TestCell {
         header: [0; NODE_CORE_OFFSET],
         core,
@@ -181,13 +214,28 @@ fn new_node<'a>(
             - size_of::<CharacterDataCore>()],
         fragment_core: DocumentFragmentCore::null_for_test(),
         fragment_fields: [0; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
-        document_core: DocumentCore::for_test(),
-        element_fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET - size_of::<DocumentCore>()],
-        element_core: element_core.map_or(MaybeUninit::uninit(), MaybeUninit::new),
+        tail,
     });
     // SAFETY: The cell lives for the rest of the process, and only the test that made it changes its tree, which it
     //         does not while it reads it.
     unsafe { Node::from_cell(&*(cell as *const TestCell as *const NodeCell), main_thread) }
+}
+
+/// The core of a document of a test tree.
+pub(crate) fn document_core<'a>(document: Node<'a>) -> &'a DocumentCore {
+    assert_eq!(document.node_type(), NodeType::DOCUMENT_NODE);
+    // SAFETY: Every node of a test tree is a TestCell, and a document's holds a document core.
+    unsafe {
+        &(*(document.cell() as *const NodeCell as *const TestCell))
+            .tail
+            .document_core
+    }
+}
+
+/// Makes `document` the node document of `node`.
+pub(crate) fn set_document(node: Node<'_>, document: Node<'_>) {
+    assert_eq!(document.node_type(), NodeType::DOCUMENT_NODE);
+    node.core().set_document_for_test(pointer_of(document));
 }
 
 /// Gives the node the identity `node` in its document's style engine, or none.

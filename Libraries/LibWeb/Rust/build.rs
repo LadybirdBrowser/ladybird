@@ -2789,6 +2789,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "DocumentCore".to_string(),
         "ElementCore".to_string(),
         "InsertionKind".to_string(),
+        "RangeCore".to_string(),
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
@@ -2812,6 +2813,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
         ("StringField", "AK::Utf16String"),
         ("MoveScope", "Web::DOM::MoveScope"),
+        ("RangeCell", "Web::DOM::AbstractRange"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2820,7 +2822,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AttributeList; class Document; class Element; class Node; class ShadowRoot; struct MoveScope; }",
+        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Node; class ShadowRoot; struct MoveScope; }",
     );
     generate_ffi_header_strict(
         dom_config,
@@ -2833,9 +2835,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/node_core.rs"),
             manifest_dir.join("src/dom/node_ref.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
+            manifest_dir.join("src/dom/range.rs"),
             manifest_dir.join("src/dom/remove.rs"),
             manifest_dir.join("src/dom/replace.rs"),
             manifest_dir.join("src/dom/adopt.rs"),
+            manifest_dir.join("src/dom/weak_cells.rs"),
         ],
         &out_dir,
         Path::new("DOM/RustFFI.h"),

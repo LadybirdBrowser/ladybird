@@ -77,13 +77,6 @@ Range::Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, G
 
 Range::~Range() = default;
 
-void Range::finalize()
-{
-    Base::finalize();
-    if (m_owner_document)
-        m_owner_document->detach_range({}, *this);
-}
-
 void Range::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
@@ -93,7 +86,7 @@ void Range::visit_edges(GC::Cell::Visitor& visitor)
 
 void Range::update_owner_document()
 {
-    auto& document = m_start_container->document();
+    auto& document = start_container()->document();
     if (&document == m_owner_document.ptr())
         return;
     if (m_owner_document)
@@ -122,7 +115,7 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
         update_associated_selection();
     } else if (had_selection) {
         // The range this selection painted through is no longer its range; take the highlight back.
-        auto& document = m_start_container->document();
+        auto& document = start_container()->document();
         document.note_selection_changed();
 
         // https://w3c.github.io/selection-api/#selectionchange-event
@@ -139,7 +132,7 @@ void Range::update_associated_selection()
     if (!m_associated_selection)
         return;
 
-    auto& document = m_start_container->document();
+    auto& document = start_container()->document();
 
     document.note_selection_changed();
 
@@ -162,58 +155,7 @@ void Range::update_associated_selection()
 GC::Ref<Node> Range::root() const
 {
     // The root of a live range is the root of its start node.
-    return m_start_container->root();
-}
-
-// https://dom.spec.whatwg.org/#concept-range-bp-position
-RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b)
-{
-    // 1. Assert: nodeA and nodeB have the same root.
-    //    NOTE: Nodes may not share the same root if they belong to different shadow trees,
-    //          so we assert that they share the same shadow-including root instead.
-    VERIFY(&a.node->shadow_including_root() == &b.node->shadow_including_root());
-
-    // 2. If nodeA is nodeB, then return equal if offsetA is offsetB, before if offsetA is less than offsetB, and after if offsetA is greater than offsetB.
-    if (a.node == b.node) {
-        if (a.offset == b.offset)
-            return RelativeBoundaryPointPosition::Equal;
-
-        if (a.offset < b.offset)
-            return RelativeBoundaryPointPosition::Before;
-
-        return RelativeBoundaryPointPosition::After;
-    }
-
-    // 3. If nodeA is following nodeB, then if the position of (nodeB, offsetB) relative to (nodeA, offsetA) is before, return after, and if it is after, return before.
-    if (a.node->is_following(b.node)) {
-        auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(b, a);
-
-        if (relative_position == RelativeBoundaryPointPosition::Before)
-            return RelativeBoundaryPointPosition::After;
-
-        if (relative_position == RelativeBoundaryPointPosition::After)
-            return RelativeBoundaryPointPosition::Before;
-    }
-
-    // 4. If nodeA is an ancestor of nodeB:
-    if (a.node->is_ancestor_of(b.node)) {
-        // 1. Let child be nodeB.
-        GC::Ref<Node const> child = b.node;
-
-        // 2. While child is not a child of nodeA, set child to its parent.
-        while (!a.node->is_parent_of(child)) {
-            auto* parent = child->parent();
-            VERIFY(parent);
-            child = *parent;
-        }
-
-        // 3. If child’s index is less than offsetA, then return after.
-        if (child->index() < a.offset)
-            return RelativeBoundaryPointPosition::After;
-    }
-
-    // 5. Return before.
-    return RelativeBoundaryPointPosition::Before;
+    return start_container()->root();
 }
 
 static bool children_are_outside_flat_tree(Node const& node)
@@ -296,48 +238,30 @@ Optional<RelativeBoundaryPointPosition> position_of_boundary_point_relative_to_o
     return a_indices.size() < b_indices.size() ? RelativeBoundaryPointPosition::Before : RelativeBoundaryPointPosition::After;
 }
 
+// The DOMException a range method throws, as libweb_rust answers it, given the argument that caused it.
+static WebIDL::ExceptionOr<void> throw_range_exception(RustFFI::RangeException exception, u32 argument)
+{
+    switch (exception) {
+    case RustFFI::RangeException::None:
+        return {};
+    case RustFFI::RangeException::InvalidNodeTypeError:
+        return WebIDL::InvalidNodeTypeError::create("Node cannot be a DocumentType."_utf16);
+    case RustFFI::RangeException::IndexSizeError:
+        return WebIDL::IndexSizeError::create(Utf16String::formatted("Node does not contain a child at offset {}", argument));
+    case RustFFI::RangeException::NotSupportedError:
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Expected 'how' to be one of START_TO_START (0), START_TO_END (1), END_TO_END (2) or END_TO_START (3), got {}", argument));
+    case RustFFI::RangeException::WrongDocumentError:
+        return WebIDL::WrongDocumentError::create("Given node is not in the same tree as the range."_utf16);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // https://dom.spec.whatwg.org/#concept-range-bp-set
 WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset, StartOrEnd start_or_end)
 {
-    // To set the start or end of a range to a boundary point (node, offset), run these steps:
-
-    // 1. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create("Node cannot be a DocumentType."_utf16);
-
-    // 2. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
-    if (offset > node->length())
-        return WebIDL::IndexSizeError::create(Utf16String::formatted("Node does not contain a child at offset {}", offset));
-
-    // 3. Let bp be the boundary point (node, offset).
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
     GC::Ptr<Document> previous_owner_document = m_owner_document;
-
-    if (start_or_end == StartOrEnd::Start) {
-        // -> If these steps were invoked as "set the start"
-
-        // 1. If range’s root is not equal to node’s root, or if bp is after the range’s end, set range’s end to bp.
-        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, end()) == RelativeBoundaryPointPosition::After) {
-            m_end_container = node;
-            m_end_offset = offset;
-        }
-
-        // 2. Set range’s start to bp.
-        m_start_container = node;
-        m_start_offset = offset;
-    } else {
-        // -> If these steps were invoked as "set the end"
-        VERIFY(start_or_end == StartOrEnd::End);
-
-        // 1. If range’s root is not equal to node’s root, or if bp is before the range’s start, set range’s start to bp.
-        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start()) == RelativeBoundaryPointPosition::Before) {
-            m_start_container = node;
-            m_start_offset = offset;
-        }
-
-        // 2. Set range’s end to bp.
-        m_end_container = node;
-        m_end_offset = offset;
-    }
+    TRY(throw_range_exception(RustFFI::rust_dom_range_set_start_or_end(this, node.ptr(), offset, start_or_end), offset));
 
     update_owner_document();
     update_associated_selection();
@@ -418,88 +342,10 @@ WebIDL::ExceptionOr<void> Range::set_end_after(GC::Ref<Node> node)
 // https://dom.spec.whatwg.org/#dom-range-compareboundarypoints
 WebIDL::ExceptionOr<WebIDL::Short> Range::compare_boundary_points(WebIDL::UnsignedShort how, Range const& source_range) const
 {
-    // 1. If how is not one of
-    //      - START_TO_START,
-    //      - START_TO_END,
-    //      - END_TO_END, and
-    //      - END_TO_START,
-    //    then throw a "NotSupportedError" DOMException.
-    if (how != HowToCompareBoundaryPoints::START_TO_START && how != HowToCompareBoundaryPoints::START_TO_END && how != HowToCompareBoundaryPoints::END_TO_END && how != HowToCompareBoundaryPoints::END_TO_START)
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Expected 'how' to be one of START_TO_START (0), START_TO_END (1), END_TO_END (2) or END_TO_START (3), got {}", how));
-
-    // 2. If this’s root is not the same as sourceRange’s root, then throw a "WrongDocumentError" DOMException.
-    if (root() != source_range.root())
-        return WebIDL::WrongDocumentError::create("This range is not in the same tree as the source range."_utf16);
-
-    GC::Ptr<Node> this_point_node;
-    u32 this_point_offset = 0;
-
-    GC::Ptr<Node> other_point_node;
-    u32 other_point_offset = 0;
-
-    // 3. If how is:
-    switch (how) {
-    case HowToCompareBoundaryPoints::START_TO_START:
-        // -> START_TO_START:
-        //    Let this point be this’s start. Let other point be sourceRange’s start.
-        this_point_node = m_start_container;
-        this_point_offset = m_start_offset;
-
-        other_point_node = source_range.m_start_container;
-        other_point_offset = source_range.m_start_offset;
-        break;
-    case HowToCompareBoundaryPoints::START_TO_END:
-        // -> START_TO_END:
-        //    Let this point be this’s end. Let other point be sourceRange’s start.
-        this_point_node = m_end_container;
-        this_point_offset = m_end_offset;
-
-        other_point_node = source_range.m_start_container;
-        other_point_offset = source_range.m_start_offset;
-        break;
-    case HowToCompareBoundaryPoints::END_TO_END:
-        // -> END_TO_END:
-        //    Let this point be this’s end. Let other point be sourceRange’s end.
-        this_point_node = m_end_container;
-        this_point_offset = m_end_offset;
-
-        other_point_node = source_range.m_end_container;
-        other_point_offset = source_range.m_end_offset;
-        break;
-    case HowToCompareBoundaryPoints::END_TO_START:
-        // -> END_TO_START:
-        //    Let this point be this’s start. Let other point be sourceRange’s end.
-        this_point_node = m_start_container;
-        this_point_offset = m_start_offset;
-
-        other_point_node = source_range.m_end_container;
-        other_point_offset = source_range.m_end_offset;
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-    VERIFY(this_point_node);
-    VERIFY(other_point_node);
-
-    // 4. If the position of this point relative to other point is
-    auto relative_position = position_of_boundary_point_relative_to_other_boundary_point({ *this_point_node, this_point_offset }, { *other_point_node, other_point_offset });
-    switch (relative_position) {
-    case RelativeBoundaryPointPosition::Before:
-        // -> before
-        //    Return −1.
-        return -1;
-    case RelativeBoundaryPointPosition::Equal:
-        // -> equal
-        //    Return 0.
-        return 0;
-    case RelativeBoundaryPointPosition::After:
-        // -> after
-        //    Return 1.
-        return 1;
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
+    auto comparison = RustFFI::rust_dom_range_compare_boundary_points(this, how, &source_range);
+    TRY(throw_range_exception(comparison.exception, how));
+    return comparison.value;
 }
 
 // https://dom.spec.whatwg.org/#concept-range-select
@@ -517,12 +363,12 @@ WebIDL::ExceptionOr<void> Range::select(GC::Ref<Node> node)
     GC::Ptr<Document> previous_owner_document = m_owner_document;
 
     // 4. Set range’s start to boundary point (parent, index).
-    m_start_container = *parent;
-    m_start_offset = index;
+    set_start_container(*parent);
+    set_start_offset(index);
 
     // 5. Set range’s end to boundary point (parent, index plus 1).
-    m_end_container = *parent;
-    m_end_offset = index + 1;
+    set_end_container(*parent);
+    set_end_offset(index + 1);
 
     update_owner_document();
     update_associated_selection();
@@ -542,11 +388,11 @@ void Range::collapse(bool to_start)
 {
     // The collapse(toStart) method steps are to, if toStart is true, set end to start; otherwise set start to end.
     if (to_start) {
-        m_end_container = m_start_container;
-        m_end_offset = m_start_offset;
+        set_end_container(start_container());
+        set_end_offset(start_offset());
     } else {
-        m_start_container = m_end_container;
-        m_start_offset = m_end_offset;
+        set_start_container(end_container());
+        set_start_offset(end_offset());
     }
     update_associated_selection();
     update_associated_highlights(m_owner_document);
@@ -564,12 +410,12 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
     GC::Ptr<Document> previous_owner_document = m_owner_document;
 
     // 3. Set start to the boundary point (node, 0).
-    m_start_container = node;
-    m_start_offset = 0;
+    set_start_container(node);
+    set_start_offset(0);
 
     // 4. Set end to the boundary point (node, length).
-    m_end_container = node;
-    m_end_offset = length;
+    set_end_container(node);
+    set_end_offset(length);
 
     update_owner_document();
     update_associated_selection();
@@ -579,104 +425,39 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 
 GC::Ref<Range> Range::clone_range() const
 {
-    return Range::create(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
+    return Range::create(start_container(), start_offset(), end_container(), end_offset());
 }
 
 // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer
 GC::Ref<Node> Range::common_ancestor_container() const
 {
-    // 1. Let container be start node.
-    GC::Ref<Node> container = m_start_container;
-
-    // 2. While container is not an inclusive ancestor of end node, let container be container’s parent.
-    while (!container->is_inclusive_ancestor_of(m_end_container)) {
-        VERIFY(container->parent());
-        container = *container->parent();
-    }
-
-    // 3. Return container.
-    return container;
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
+    return const_cast<Node&>(*RustFFI::rust_dom_range_common_ancestor(this));
 }
 
 // https://dom.spec.whatwg.org/#dom-range-intersectsnode
 bool Range::intersects_node(GC::Ref<Node> node) const
 {
-    // 1. If node’s root is different from this’s root, return false.
-    if (&node->root() != root().ptr())
-        return false;
-
-    // 2. Let parent be node’s parent.
-    auto* parent = node->parent();
-
-    // 3. If parent is null, return true.
-    if (!parent)
-        return true;
-
-    // 4. Let offset be node’s index.
-    WebIDL::UnsignedLong offset = node->index();
-
-    // 5. If (parent, offset) is before end and (parent, offset plus 1) is after start, return true
-    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point({ *parent, offset }, end());
-    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ *parent, offset + 1 }, start());
-    if (relative_position_to_end == RelativeBoundaryPointPosition::Before && relative_position_to_start == RelativeBoundaryPointPosition::After)
-        return true;
-
-    // 6. Return false.
-    return false;
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
+    return RustFFI::rust_dom_range_intersects_node(this, node.ptr());
 }
 
 // https://dom.spec.whatwg.org/#dom-range-ispointinrange
 WebIDL::ExceptionOr<bool> Range::is_point_in_range(GC::Ref<Node> node, WebIDL::UnsignedLong offset) const
 {
-    // 1. If node’s root is different from this’s root, return false.
-    if (&node->root() != root().ptr())
-        return false;
-
-    // 2. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create("Node cannot be a DocumentType."_utf16);
-
-    // 3. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
-    if (offset > node->length())
-        return WebIDL::IndexSizeError::create(Utf16String::formatted("Node does not contain a child at offset {}", offset));
-
-    // 4. If (node, offset) is before start or after end, return false.
-    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start());
-    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, end());
-    if (relative_position_to_start == RelativeBoundaryPointPosition::Before || relative_position_to_end == RelativeBoundaryPointPosition::After)
-        return false;
-
-    // 5. Return true.
-    return true;
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
+    auto comparison = RustFFI::rust_dom_range_is_point_in_range(this, node.ptr(), offset);
+    TRY(throw_range_exception(comparison.exception, offset));
+    return comparison.value != 0;
 }
 
 // https://dom.spec.whatwg.org/#dom-range-comparepoint
 WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebIDL::UnsignedLong offset) const
 {
-    // 1. If node’s root is different from this’s root, then throw a "WrongDocumentError" DOMException.
-    if (&node->root() != root().ptr())
-        return WebIDL::WrongDocumentError::create("Given node is not in the same document as the range."_utf16);
-
-    // 2. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(*node))
-        return WebIDL::InvalidNodeTypeError::create("Node cannot be a DocumentType."_utf16);
-
-    // 3. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
-    if (offset > node->length())
-        return WebIDL::IndexSizeError::create(Utf16String::formatted("Node does not contain a child at offset {}", offset));
-
-    // 4. If (node, offset) is before start, return −1.
-    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start());
-    if (relative_position_to_start == RelativeBoundaryPointPosition::Before)
-        return -1;
-
-    // 5. If (node, offset) is after end, return 1.
-    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, end());
-    if (relative_position_to_end == RelativeBoundaryPointPosition::After)
-        return 1;
-
-    // 6. Return 0.
-    return 0;
+    // NB: libweb_rust runs the steps, see Rust/src/dom/range.rs.
+    auto comparison = RustFFI::rust_dom_range_compare_point(this, node.ptr(), offset);
+    TRY(throw_range_exception(comparison.exception, offset));
+    return comparison.value;
 }
 
 // https://dom.spec.whatwg.org/#dom-range-stringifier
@@ -757,10 +538,10 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
 
     // 3. Let originalStartNode, originalStartOffset, originalEndNode, and originalEndOffset be range’s start node,
     //    start offset, end node, and end offset, respectively.
-    GC::Ref<Node> original_start_node = m_start_container;
-    auto original_start_offset = m_start_offset;
-    GC::Ref<Node> original_end_node = m_end_container;
-    auto original_end_offset = m_end_offset;
+    GC::Ref<Node> original_start_node = start_container();
+    auto original_start_offset = start_offset();
+    GC::Ref<Node> original_end_node = end_container();
+    auto original_end_offset = end_offset();
 
     // 4. If originalStartNode is originalEndNode and it is a CharacterData node:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
@@ -962,7 +743,7 @@ bool Range::partially_contains_node(GC::Ref<Node> node) const
 {
     // A node is partially contained in a live range if it’s an inclusive ancestor of the live range’s start node but
     // not its end node, or vice versa.
-    return node->is_inclusive_ancestor_of(m_start_container) != node->is_inclusive_ancestor_of(m_end_container);
+    return node->is_inclusive_ancestor_of(start_container()) != node->is_inclusive_ancestor_of(end_container());
 }
 
 // https://dom.spec.whatwg.org/#dom-range-insertnode
@@ -975,9 +756,9 @@ WebIDL::ExceptionOr<void> Range::insert_node(GC::Ref<Node> node)
 WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
 {
     // 1. If range’s start node is a ProcessingInstruction or Comment node, is a Text node whose parent is null, or is node, then throw a "HierarchyRequestError" DOMException.
-    if ((is<ProcessingInstruction>(*m_start_container) || is<Comment>(*m_start_container))
-        || (is<Text>(*m_start_container) && !m_start_container->parent_node())
-        || m_start_container.ptr() == node.ptr()) {
+    if ((is<ProcessingInstruction>(*start_container()) || is<Comment>(*start_container()))
+        || (is<Text>(*start_container()) && !start_container()->parent_node())
+        || start_container().ptr() == node.ptr()) {
         return WebIDL::HierarchyRequestError::create("Range has inappropriate start node for insertion"_utf16);
     }
 
@@ -985,18 +766,18 @@ WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
     GC::Ptr<Node> reference_node;
 
     // 3. If range’s start node is a Text node, set referenceNode to that Text node.
-    if (is<Text>(*m_start_container)) {
-        reference_node = m_start_container;
+    if (is<Text>(*start_container())) {
+        reference_node = start_container();
     }
     // 4. Otherwise, set referenceNode to the child of start node whose index is start offset, and null if there is no such child.
     else {
-        reference_node = m_start_container->child_at_index(m_start_offset);
+        reference_node = start_container()->child_at_index(start_offset());
     }
 
     // 5. Let parent be range’s start node if referenceNode is null, and referenceNode’s parent otherwise.
     GC::Ptr<Node> parent;
     if (!reference_node)
-        parent = m_start_container;
+        parent = start_container();
     else
         parent = reference_node->parent();
 
@@ -1004,8 +785,8 @@ WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
     TRY(parent->ensure_pre_insertion_validity(node, reference_node));
 
     // 7. If range’s start node is a Text node, set referenceNode to the result of splitting it with offset range’s start offset.
-    if (is<Text>(*m_start_container))
-        reference_node = TRY(static_cast<Text&>(*m_start_container).split_text(m_start_offset));
+    if (is<Text>(*start_container()))
+        reference_node = TRY(static_cast<Text&>(*start_container()).split_text(start_offset()));
 
     // 8. If node is referenceNode, set referenceNode to its next sibling.
     if (node == reference_node)
@@ -1090,10 +871,10 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
 
     // 3. Let original start node, original start offset, original end node, and original end offset
     //    be range’s start node, start offset, end node, and end offset, respectively.
-    GC::Ref<Node> original_start_node = m_start_container;
-    auto original_start_offset = m_start_offset;
-    GC::Ref<Node> original_end_node = m_end_container;
-    auto original_end_offset = m_end_offset;
+    GC::Ref<Node> original_start_node = start_container();
+    auto original_start_offset = start_offset();
+    GC::Ref<Node> original_end_node = end_container();
+    auto original_end_offset = end_offset();
 
     // 4. If original start node is original end node and it is a CharacterData node, then:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
@@ -1243,10 +1024,10 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
 
     // 2. Let originalStartNode, originalStartOffset, originalEndNode, and originalEndOffset be this’s start node,
     //    start offset, end node, and end offset, respectively.
-    GC::Ref<Node> original_start_node = m_start_container;
-    auto original_start_offset = m_start_offset;
-    GC::Ref<Node> original_end_node = m_end_container;
-    auto original_end_offset = m_end_offset;
+    GC::Ref<Node> original_start_node = start_container();
+    auto original_start_offset = start_offset();
+    GC::Ref<Node> original_end_node = end_container();
+    auto original_end_offset = end_offset();
 
     // 3. If originalStartNode is originalEndNode and it is a CharacterData node:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
@@ -1341,7 +1122,7 @@ Vector<Gfx::DoubleRect> Range::client_rects()
 
     GC::Ptr<Node> start_node = start_container();
     if (!is<DOM::Text>(*start_node)) {
-        auto* start_child = start_node->child_at_index(m_start_offset);
+        auto* start_child = start_node->child_at_index(start_offset());
         if (start_child) {
             start_node = *start_child;
         } else if (start_node->last_child()) {
@@ -1354,19 +1135,19 @@ Vector<Gfx::DoubleRect> Range::client_rects()
     // The first node in tree order that follows the range. An element end offset counts children, so every
     // descendant of the children before it is inside the range.
     GC::Ptr<Node> stop_node;
-    if (is<CharacterData>(*m_end_container)) {
-        stop_node = m_end_container->next_in_pre_order();
-    } else if (auto* end_child = m_end_container->child_at_index(m_end_offset)) {
+    if (is<CharacterData>(*end_container())) {
+        stop_node = end_container()->next_in_pre_order();
+    } else if (auto* end_child = end_container()->child_at_index(end_offset())) {
         stop_node = end_child;
     } else {
-        stop_node = next_after_subtree(*m_end_container);
+        stop_node = next_after_subtree(*end_container());
     }
 
     for (GC::Ptr<Node> node = start_node; node && node != stop_node; node = node->next_in_pre_order()) {
         // NB: Only a boundary point's own container is partially selected. The offsets of an element container
         //     count children, so the child nodes they select are selected in full.
-        auto const is_start_container = node.ptr() == m_start_container.ptr();
-        auto const is_end_container = node.ptr() == m_end_container.ptr();
+        auto const is_start_container = node.ptr() == start_container().ptr();
+        auto const is_end_container = node.ptr() == end_container().ptr();
         auto selection_state = Painting::SelectionState::Full;
         if (is_start_container && is_end_container) {
             selection_state = Painting::SelectionState::StartAndEnd;

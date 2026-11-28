@@ -12,6 +12,7 @@ use core::mem::offset_of;
 use core::num::NonZeroU32;
 
 use super::strings::StringField;
+use super::weak_cells::WeakCellSpan;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
 
@@ -163,12 +164,30 @@ pub const DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER: u8 = 1 << 0;
 pub struct DocumentCore {
     /// The DOCUMENT_* flags.
     flags: Cell<u8>,
+    /// The live ranges whose start node's node document is the document, as its DOM::WeakCellRegistry of them mirrors
+    /// them, see weak_cells.rs.
+    /// https://dom.spec.whatwg.org/#concept-live-range
+    live_ranges: WeakCellSpan,
+    /// The NodeIterator objects whose root's node document is the document, as its DOM::WeakCellRegistry of them
+    /// mirrors them.
+    /// https://dom.spec.whatwg.org/#nodeiterator
+    node_iterators: WeakCellSpan,
 }
 
 impl DocumentCore {
     #[inline(always)]
     pub fn may_have_blocking_wheel_event_listener(&self) -> bool {
         self.flags.get() & DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER != 0
+    }
+
+    #[inline(always)]
+    pub fn live_ranges(&self) -> &WeakCellSpan {
+        &self.live_ranges
+    }
+
+    #[inline(always)]
+    pub fn node_iterators(&self) -> &WeakCellSpan {
+        &self.node_iterators
     }
 }
 
@@ -364,6 +383,13 @@ impl NodeCore {
 }
 
 #[cfg(test)]
+impl NodeMember {
+    pub(crate) fn null_for_test() -> Self {
+        Self(Cell::new(0))
+    }
+}
+
+#[cfg(test)]
 impl ShadowRootMember {
     pub(crate) fn null_for_test() -> Self {
         Self(Cell::new(0))
@@ -404,7 +430,11 @@ impl DocumentFragmentCore {
 #[cfg(test)]
 impl DocumentCore {
     pub(crate) fn for_test() -> Self {
-        Self { flags: Cell::new(0) }
+        Self {
+            flags: Cell::new(0),
+            live_ranges: WeakCellSpan::empty_for_test(),
+            node_iterators: WeakCellSpan::empty_for_test(),
+        }
     }
 
     pub(crate) fn set_may_have_blocking_wheel_event_listener_for_test(&self) {
@@ -419,6 +449,10 @@ impl NodeCore {
         self.style_node_id.0.set(node.map_or(0, StyleNodeID::raw));
     }
 
+    pub(crate) fn set_document_for_test(&self, document: NodePointer) {
+        self.document.0.set(document.compressed());
+    }
+
     pub(crate) fn set_is_connected_for_test(&self) {
         self.flags.set(self.flags.get() | NODE_IS_CONNECTED);
     }
@@ -427,9 +461,9 @@ impl NodeCore {
         self.flags.set(self.flags.get() | NODE_IS_SHADOW_ROOT);
     }
 
-    /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own and its own node
-    /// document.
-    pub(crate) fn for_test(node_type: NodeType, node: NodePointer) -> Self {
+    /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own, whose node document is
+    /// `document`.
+    pub(crate) fn for_test(node_type: NodeType, node: NodePointer, document: NodePointer) -> Self {
         let member = |node: Option<NodePointer>| NodeMember(Cell::new(node.map_or(0, NodePointer::compressed)));
         Self {
             parent: member(None),
@@ -437,7 +471,7 @@ impl NodeCore {
             last_child: member(None),
             next_sibling: member(None),
             previous_sibling: member(None),
-            document: DocumentMember(Cell::new(node.compressed())),
+            document: DocumentMember(Cell::new(document.compressed())),
             root: member(Some(node)),
             style_node_id: StyleNodeField(Cell::new(0)),
             node_type,
@@ -461,8 +495,10 @@ const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<Docum
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
 const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
 // NB: Document.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentCore>() == 1 && align_of::<DocumentCore>() == 1);
+const _: () = assert!(size_of::<DocumentCore>() == 40 && align_of::<DocumentCore>() == 8);
 const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
+const _: () = assert!(offset_of!(DocumentCore, live_ranges) == 8);
+const _: () = assert!(offset_of!(DocumentCore, node_iterators) == 24);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);
