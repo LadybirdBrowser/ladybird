@@ -1371,8 +1371,8 @@ void FileDownloader::persist_download_snapshot(u64 id, PersistUrgency urgency)
         .id = static_cast<i64>(download->id),
         .url = active->effective_url.serialize(),
         .display_url = download->url.serialize(),
-        .destination = String::from_byte_string(download->destination.string()).release_value_but_fixme_should_propagate_errors(),
-        .temporary_destination = String::from_byte_string(active->temporary_destination.string()).release_value_but_fixme_should_propagate_errors(),
+        .destination = download->destination.string(),
+        .temporary_destination = active->temporary_destination.string(),
         .total_size = static_cast<i64>(*download->total_size),
         .etag = active->range_support.validator.etag,
         .last_modified = active->range_support.validator.last_modified,
@@ -1407,7 +1407,7 @@ void FileDownloader::restore_persisted_downloads()
     HashTable<ByteString> temporary_paths_in_use;
 
     for (auto& record : m_download_store->resumable_downloads()) {
-        LexicalPath temporary_destination { record.temporary_destination.to_byte_string() };
+        LexicalPath temporary_destination { record.temporary_destination };
         directories.set(temporary_destination.dirname());
 
         if (restore_persisted_download(record)) {
@@ -1470,7 +1470,7 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
     if (!url.has_value() || !effective_url.has_value())
         return false;
 
-    LexicalPath temporary_destination { record.temporary_destination.to_byte_string() };
+    LexicalPath temporary_destination { record.temporary_destination };
 
     auto size = FileSystem::size_from_stat(temporary_destination.string());
     if (size.is_error() || static_cast<u64>(size.value()) < highest_next_offset)
@@ -1480,7 +1480,7 @@ bool FileDownloader::restore_persisted_download(DownloadRecord& record)
         .id = id,
         .is_private = IsPrivate::No,
         .url = url.release_value(),
-        .destination = LexicalPath { record.destination.to_byte_string() },
+        .destination = LexicalPath { record.destination },
         .status = DownloadStatus::Paused,
         .total_size = total_size,
         .error = {},

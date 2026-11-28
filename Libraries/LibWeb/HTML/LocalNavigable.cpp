@@ -453,7 +453,7 @@ no_proposed_filename:
 sanitize:
 
     // 14. Adjust filename to be suitable for the local file system.
-    filename = sanitize_suggested_download_filename(filename.value_or({}));
+    filename = sanitize_suggested_download_filename(filename.value_or({})).to_byte_string();
 
     // FIXME: 15. If the platform conventions do not in any way use extensions to determine the types of file on
     //        the file system, then return filename as the filename.
