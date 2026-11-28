@@ -82,6 +82,10 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     if (!is_cacheable(method, request_headers))
         return {};
 
+    // AD-HOC: Client preconditions could make a 304 refer to a different representation. Let the origin evaluate them.
+    if (has_preconditions(request_headers))
+        return {};
+
     auto serialized_url = serialize_url_for_cache_storage(url);
     auto cache_key = create_cache_key(serialized_url, method);
 
