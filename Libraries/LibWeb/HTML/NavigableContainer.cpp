@@ -164,7 +164,7 @@ DOM::Document const* NavigableContainer::content_document() const
         return nullptr;
 
     // 3. If document's origin and container's node document's origin are not same origin-domain, then return null.
-    if (!document->origin().is_same_origin_domain(m_document->origin()))
+    if (!document->origin().is_same_origin_domain(this->document().origin()))
         return nullptr;
 
     // 4. Return document.

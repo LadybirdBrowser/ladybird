@@ -16,6 +16,7 @@
 #include <AK/Vector.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapRegion.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Animations/RecordHandles.h>
@@ -119,6 +120,11 @@ namespace Web::DOM {
 static_assert(sizeof(Node) == 88);
 #endif
 
+// NB: libweb_rust follows the compressed node pointers of the cores with a copy of the heap region base of its own,
+//     which LibGC fills in before any node exists. See Rust/src/dom/node.rs.
+extern "C" FlatPtr rust_dom_heap_region_base;
+static GC::HeapRegionBaseCopyRegistration s_rust_dom_heap_region_base_registration { rust_dom_heap_region_base };
+
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
 {
     auto list_owner = list_item.parent_element();
@@ -214,13 +220,12 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
 
 Node::Node(Document& document, NodeType type)
     : EventTarget()
-    , m_document(&document)
-    , m_root(this)
-    , m_type(type)
 {
+    m_core.document = &document;
+    m_core.root = this;
+    m_core.node_type = type;
     // A Document is its own shadow-including root, so it is always connected.
-    if (type == NodeType::DOCUMENT_NODE)
-        m_is_connected = true;
+    m_core.is_connected = type == NodeType::DOCUMENT_NODE;
 }
 
 Node::~Node() = default;
@@ -376,8 +381,8 @@ void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     TreeNode::visit_edges(visitor);
-    visitor.visit(m_document);
-    visitor.visit(m_root);
+    visitor.visit(m_core.document);
+    visitor.visit(m_core.root);
     if (m_rare_data)
         m_rare_data->visit_edges(visitor);
 }
@@ -1803,7 +1808,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     // boolean subtree (default false), node-or-null parent (default null), and null or a CustomElementRegistry object
     // fallbackRegistry (default null):
     if (!document)
-        document = m_document;
+        document = m_core.document;
 
     // 1. Assert: node is not a document or node is document.
     VERIFY(!is_document() || this == document.ptr());
@@ -2319,14 +2324,14 @@ void Node::set_document(Badge<Document, NamedNodeMap>, Document& document)
 
 void Node::set_document(Document& document)
 {
-    if (m_document.ptr() == &document)
+    if (m_core.document.ptr() == &document)
         return;
 
     // A layout node belongs to its document's layout node arena, so the node let go of any before it moves.
     VERIFY(!m_has_layout_box && !m_has_committed_box);
 
-    auto& old_document = *m_document;
-    m_document = &document;
+    auto& old_document = *m_core.document;
+    m_core.document = &document;
 
     if (auto* element = as_if<Element>(*this)) {
         // NB: The note is settled against the style engine of the document the element is in, and it has left that one.
@@ -2697,9 +2702,9 @@ void Node::inserted()
     //     so by the time we get here, our parent (or host, for shadow roots) has already had
     //     its connected flag updated, and we can just inherit from it.
     if (auto* shadow_root = as_if<ShadowRoot>(*this))
-        m_is_connected = shadow_root->host() && shadow_root->host()->is_connected();
+        m_core.is_connected = shadow_root->host() && shadow_root->host()->is_connected();
     else if (parent())
-        m_is_connected = parent()->is_connected();
+        m_core.is_connected = parent()->is_connected();
 
     if (is_connected())
         document().page().keyboard_scroll_dom_tree_changed(*this);
@@ -2764,7 +2769,7 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
             CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
     }
 
-    m_is_connected = false;
+    m_core.is_connected = false;
     m_in_editable_subtree = false;
 
     // The nodes of a shadow tree count the versions of their tree on the document while they are connected, and on
@@ -3212,7 +3217,7 @@ GC::Ptr<Document> Node::owner_document() const
     // The ownerDocument getter steps are to return null, if this is a document; otherwise this’s node document.
     if (is_document())
         return nullptr;
-    return m_document;
+    return m_core.document;
 }
 
 // This function tells us whether a node is interesting enough to show up
@@ -3974,7 +3979,7 @@ Layout::Node* Node::layout_node(Layout::BegunRead const& read)
 // bound to a viewport. Any other node without one has no layout node, which needs no question to the arena.
 Layout::Node const* Node::unsafe_layout_node(Layout::BegunRead const& read) const
 {
-    auto* arena = m_document->layout_node_arena_if_created();
+    auto* arena = m_core.document->layout_node_arena_if_created();
     if (!arena)
         return nullptr;
     return NodeIdentity::of(*this).bound_layout_node(read, *arena);
@@ -4210,7 +4215,7 @@ void Node::change_associated_animation_count_in_subtree(i32 delta)
 void Node::set_root_for_subtree(Node& new_root)
 {
     for_each_in_inclusive_subtree([&](Node& node) {
-        node.m_root = new_root;
+        node.m_core.root = new_root;
         return TraversalDecision::Continue;
     });
 }

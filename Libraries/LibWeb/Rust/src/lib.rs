@@ -28,6 +28,7 @@ pub(crate) use libcompositing_rust::fast_hash;
 
 pub(crate) mod animations;
 pub(crate) mod css;
+pub mod dom;
 pub(crate) mod layout;
 pub(crate) mod paint_stage;
 pub(crate) mod painting;
