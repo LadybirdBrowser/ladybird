@@ -30,6 +30,11 @@ impl NodePointer {
 /// Where DOM::Node embeds its core, in bytes from the start of the node's cell, which Node.h asserts.
 pub const NODE_CORE_OFFSET: usize = 32;
 
+/// Where DOM::DocumentFragment keeps its host, a GC::Member<Element>, in bytes from the start of the fragment's cell,
+/// which DocumentFragment.cpp asserts.
+/// https://dom.spec.whatwg.org/#concept-documentfragment-host
+pub const DOCUMENT_FRAGMENT_HOST_OFFSET: usize = 104;
+
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
 /// node, so it is a Cell.
@@ -92,6 +97,8 @@ pub struct NodeCore {
     // NB: The type is set as the node is made, and never changes.
     node_type: NodeType,
     is_connected: Cell<bool>,
+    // NB: C++ sets this as it constructs a shadow root, and never changes it.
+    is_shadow_root: bool,
 }
 
 impl NodeCore {
@@ -117,6 +124,12 @@ impl NodeCore {
     #[inline(always)]
     pub fn is_connected(&self) -> bool {
         self.is_connected.get()
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-shadow-root
+    #[inline(always)]
+    pub fn is_shadow_root(&self) -> bool {
+        self.is_shadow_root
     }
 
     #[inline(always)]
@@ -154,6 +167,10 @@ impl NodePointer {
 
 #[cfg(test)]
 impl NodeMember {
+    pub(crate) fn null_for_test() -> Self {
+        Self(Cell::new(0))
+    }
+
     pub(crate) fn set(&self, node: Option<NodePointer>) {
         self.0.set(node.map_or(0, NodePointer::compressed));
     }
@@ -172,6 +189,10 @@ pub(crate) struct TestLinks<'a> {
 
 #[cfg(test)]
 impl NodeCore {
+    pub(crate) fn set_is_shadow_root_for_test(&mut self) {
+        self.is_shadow_root = true;
+    }
+
     /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own and its own node
     /// document.
     pub(crate) fn for_test(node_type: NodeType, node: NodePointer) -> Self {
@@ -186,6 +207,7 @@ impl NodeCore {
             root: member(Some(node)),
             node_type,
             is_connected: Cell::new(false),
+            is_shadow_root: false,
         }
     }
 
@@ -215,6 +237,7 @@ const _: () = assert!(offset_of!(NodeCore, document) == 20);
 const _: () = assert!(offset_of!(NodeCore, root) == 24);
 const _: () = assert!(offset_of!(NodeCore, node_type) == 28);
 const _: () = assert!(offset_of!(NodeCore, is_connected) == 30);
+const _: () = assert!(offset_of!(NodeCore, is_shadow_root) == 31);
 
 #[cfg(test)]
 mod tests {
@@ -252,6 +275,7 @@ mod tests {
             root: member(0x2000_0006),
             node_type: NodeType::TEXT_NODE,
             is_connected: Cell::new(true),
+            is_shadow_root: true,
         };
         assert_eq!(core.parent(), Some(pointer(0x2000_0001)));
         assert_eq!(core.first_child(), Some(pointer(0x2000_0002)));
@@ -262,5 +286,6 @@ mod tests {
         assert_eq!(core.root(), pointer(0x2000_0006));
         assert_eq!(core.node_type(), NodeType::TEXT_NODE);
         assert!(core.is_connected());
+        assert!(core.is_shadow_root());
     }
 }

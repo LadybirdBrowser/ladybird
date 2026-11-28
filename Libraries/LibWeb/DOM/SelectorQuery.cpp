@@ -113,19 +113,9 @@ namespace {
 
 // Every node crosses to the DOM matcher as a Node pointer, and an element is downcast from one where the matcher asks
 // about an element.
-Node const& node_from_ffi(void const* node)
+Element const& element_from_ffi(Node const* element)
 {
-    return *static_cast<Node const*>(node);
-}
-
-Element const& element_from_ffi(void const* element)
-{
-    return static_cast<Element const&>(node_from_ffi(element));
-}
-
-void const* node_to_ffi(Node const* node)
-{
-    return node;
+    return static_cast<Element const&>(*element);
 }
 
 CSS::SelectorFFI::FfiUtf16View utf16_view_to_ffi(Utf16View view)
@@ -140,7 +130,7 @@ CSS::SelectorFFI::FfiUtf16View utf16_view_to_ffi(Utf16View view)
 static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
 
 constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
-    .element = [](void const* pointer, uintptr_t const* names, size_t name_count, CSS::SelectorFFI::DomAttribute* attributes, size_t capacity, CSS::SelectorFFI::FfiDomElement* facts) {
+    .element = [](Node const* pointer, uintptr_t const* names, size_t name_count, CSS::SelectorFFI::DomAttribute* attributes, size_t capacity, CSS::SelectorFFI::FfiDomElement* facts) {
         auto const& element = element_from_ffi(pointer);
         auto const& namespace_uri = element.namespace_uri();
         auto const& classes = element.class_names();
@@ -170,28 +160,11 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             .class_count = classes.size(),
             .attribute_count = attribute_count,
         }; },
-    .same_type = [](void const* element, void const* other) {
+    .same_type = [](Node const* element, Node const* other) {
         auto const& a = element_from_ffi(element);
         auto const& b = element_from_ffi(other);
         return a.local_name() == b.local_name() && a.namespace_uri() == b.namespace_uri(); },
-    .parent = [](void const* pointer) -> void const* {
-        // The node is an element or a shadow root, and a shadow root has no parent here.
-        auto const& node = node_from_ffi(pointer);
-        if (!node.is_element())
-            return nullptr;
-        auto const* parent = node.parent();
-        if (!parent || !(parent->is_element() || is<ShadowRoot>(*parent)))
-            return nullptr;
-        return node_to_ffi(parent);
-    },
-    .previous_element_sibling = [](void const* element) { return node_to_ffi(element_from_ffi(element).previous_element_sibling()); },
-    .next_element_sibling = [](void const* element) { return node_to_ffi(element_from_ffi(element).next_element_sibling()); },
-    .first_element_child = [](void const* node) { return node_to_ffi(node_from_ffi(node).first_child_of_type<Element>()); },
-    .first_element_sibling = [](void const* pointer) {
-        auto const& node = node_from_ffi(pointer);
-        auto const* parent = node.parent();
-        return node_to_ffi(parent ? parent->first_child_of_type<Element>() : &node); },
-    .child_index = [](void const* element, CSS::SelectorFFI::FfiChildIndex which) {
+    .child_index = [](Node const* element, CSS::SelectorFFI::FfiChildIndex which) {
         using enum CSS::SelectorFFI::FfiChildIndex;
         using enum Element::ChildIndexAmong;
         auto const& subject = element_from_ffi(element);
@@ -206,9 +179,9 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             return subject.child_index_from_end(SiblingsOfType);
         }
         VERIFY_NOT_REACHED(); },
-    .next_element_in_subtree = [](void const* node, void const* root, uintptr_t local_name, uintptr_t class_name, u64 names) -> void const* {
-        auto const& stay_within = node_from_ffi(root);
-        auto const* next = node_from_ffi(node).next_in_pre_order(&stay_within);
+    .next_element_in_subtree = [](Node const* node, Node const* root, uintptr_t local_name, uintptr_t class_name, u64 names) -> Node const* {
+        auto const& stay_within = *root;
+        auto const* next = node->next_in_pre_order(&stay_within);
         while (next) {
             auto const* element = as_if<Element>(*next);
             if (element && (element->subtree_name_filter() & names) != names) {
@@ -220,15 +193,15 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             }
             if (element && (!local_name || element->local_name().raw_identity() == local_name)
                 && (!class_name || any_of(element->class_names(), [&](auto const& name) { return name.raw_identity() == class_name; })))
-                return node_to_ffi(element);
+                return element;
             next = next->next_in_pre_order(&stay_within);
         }
         return nullptr;
     },
     .name_filter_bit = [](uintptr_t local_name) { return Element::name_filter_bit(Utf16FlyString::from_raw(local_name)); },
-    .tree_name_filter = [](void const* node) -> u64 {
+    .tree_name_filter = [](Node const* node) -> u64 {
         // The filter of a document's one element child holds every name of the document's tree.
-        auto const& root = node_from_ffi(node).root();
+        auto const& root = node->root();
         if (auto const* document = as_if<Document>(root)) {
             auto const* document_element = document->document_element();
             return document_element ? document_element->subtree_name_filter() : 0;
@@ -237,38 +210,34 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             return element->subtree_name_filter();
         return NumericLimits<u64>::max();
     },
-    .shadow_root = [](void const* element) { return node_to_ffi(element_from_ffi(element).shadow_root().ptr()); },
-    .host = [](void const* shadow_root) { return node_to_ffi(static_cast<ShadowRoot const&>(node_from_ffi(shadow_root)).host()); },
-    .id_or_class_equals_ignoring_ascii_case = [](void const* pointer, bool is_class, uintptr_t name_identity) {
+    .shadow_root = [](Node const* element) -> Node const* { return element_from_ffi(element).shadow_root().ptr(); },
+    .id_or_class_equals_ignoring_ascii_case = [](Node const* pointer, bool is_class, uintptr_t name_identity) {
         auto const& element = element_from_ffi(pointer);
         auto name = Utf16FlyString::from_raw(name_identity);
         if (!is_class)
             return element.id().has_value() && element.id()->equals_ignoring_ascii_case(name);
         return any_of(element.class_names(), [&](auto const& class_name) { return class_name.equals_ignoring_ascii_case(name); }); },
-    .matches_state = [](void const* element, u8 state) { return SelectorMatching::element_matches_state(element_from_ffi(element), pseudo_classes_by_state_fact[state]); },
-    .language = [](void const* element) -> CSS::SelectorFFI::FfiUtf16View {
+    .matches_state = [](Node const* element, u8 state) { return SelectorMatching::element_matches_state(element_from_ffi(element), pseudo_classes_by_state_fact[state]); },
+    .language = [](Node const* element) -> CSS::SelectorFFI::FfiUtf16View {
         auto language = element_from_ffi(element).lang_view();
         if (!language.has_value())
             return {};
         return utf16_view_to_ffi(*language);
     },
-    .directionality = [](void const* element) -> size_t {
+    .directionality = [](Node const* element) -> size_t {
         auto const& directionality = element_from_ffi(element).directionality() == Element::Directionality::Rtl ? "rtl"_utf16_fly_string : "ltr"_utf16_fly_string;
         return directionality.raw_identity(); },
-    .heading_level = [](void const* element) -> u32 {
+    .heading_level = [](Node const* element) -> u32 {
         auto const* heading = as_if<HTML::HTMLHeadingElement>(element_from_ffi(element));
         return heading ? heading->heading_level() : 0;
     },
-    .has_custom_state = [](void const* element, uintptr_t state) {
+    .has_custom_state = [](Node const* element, size_t state) {
         auto states = element_from_ffi(element).custom_state_set();
         return states && states->has_state(Utf16FlyString::from_raw(state)); },
-    .is_empty = [](void const* pointer) {
+    .is_empty = [](Node const* pointer) {
         // An element is never its own child, so ignoring itself ignores nothing.
         auto const& element = element_from_ffi(pointer);
         return SelectorMatching::element_is_empty_ignoring_child(element, element); },
-    .is_document_element = [](void const* element) {
-        auto const* parent = element_from_ffi(element).parent();
-        return parent && parent->is_document(); },
 };
 
 // A selector query as the DOM matcher takes it, made in the context of the tree `node` is in and scoped to `scope`.
@@ -287,20 +256,20 @@ public:
         m_query = {
             .program = &program,
             .callbacks = &dom_selector_callbacks,
-            .scope = node_to_ffi(scope_element ? scope_element : document.document_element()),
-            .shadow_root = node_to_ffi(as_if<ShadowRoot>(node.root())),
+            .scope = scope_element ? scope_element : document.document_element(),
+            .shadow_root = as_if<ShadowRoot>(node.root()),
             .ids_and_classes_ignore_case = document.in_quirks_mode(),
         };
     }
 
     bool matches(Element const& element) const
     {
-        return CSS::SelectorFFI::rust_dom_selector_query_matches(&m_query, node_to_ffi(&element));
+        return CSS::SelectorFFI::rust_dom_selector_query_matches(&m_query, &element);
     }
 
     GC::Ptr<Element const> closest(Element const& element) const
     {
-        auto const* found = CSS::SelectorFFI::rust_dom_selector_query_closest(&m_query, node_to_ffi(&element));
+        auto const* found = CSS::SelectorFFI::rust_dom_selector_query_closest(&m_query, &element);
         return found ? &element_from_ffi(found) : nullptr;
     }
 
@@ -382,7 +351,7 @@ private:
     template<typename Callback>
     void for_each_in_subtree(ParentNode& root, Callback callback) const
     {
-        CSS::SelectorFFI::rust_dom_selector_query_subtree(&m_query, node_to_ffi(&root), &callback, [](void* context, void const* element) {
+        CSS::SelectorFFI::rust_dom_selector_query_subtree(&m_query, &root, &callback, [](void* context, Node const* element) {
             return (*static_cast<Callback*>(context))(const_cast<Element&>(element_from_ffi(element)));
         });
     }

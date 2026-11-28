@@ -52,3 +52,5 @@ disallowed-methods = [
     { path = "f64::acosh", reason = "the C library of each platform computes this differently: use ak::math::acosh" },
     { path = "f64::atanh", reason = "the C library of each platform computes this differently: use ak::math::atanh" },
 ]
+# A DOM node handle hashes and compares by the node it names, which stays the same while the node's state changes.
+ignore-interior-mutability = ["libweb_rust::dom::node::Node"]

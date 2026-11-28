@@ -13,8 +13,10 @@ use core::hash::Hasher;
 use core::marker::PhantomData;
 use core::marker::PhantomPinned;
 
+use super::node_core::DOCUMENT_FRAGMENT_HOST_OFFSET;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
+use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use crate::stage::MainThread;
@@ -83,13 +85,6 @@ impl<'a> Node<'a> {
     /// # Safety
     ///
     /// `cell` must be a live node, and the DOM must not change for `'a`.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "FFI entry points of the DOM will make nodes of the cells they take"
-        )
-    )]
     #[inline(always)]
     pub(crate) unsafe fn from_cell(cell: &'a NodeCell, _main_thread: &'a MainThread<'_>) -> Self {
         Self { cell }
@@ -133,6 +128,35 @@ impl<'a> Node<'a> {
     #[inline(always)]
     pub fn node_type(self) -> NodeType {
         self.core().node_type()
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-element
+    #[inline(always)]
+    pub fn is_element(self) -> bool {
+        self.node_type() == NodeType::ELEMENT_NODE
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-shadow-root
+    #[inline(always)]
+    pub fn is_shadow_root(self) -> bool {
+        self.core().is_shadow_root()
+    }
+
+    /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps DOCUMENT_FRAGMENT_HOST_OFFSET bytes into
+    /// its cell.
+    /// https://dom.spec.whatwg.org/#concept-documentfragment-host
+    #[inline(always)]
+    pub fn host(self) -> Option<Node<'a>> {
+        assert!(self.node_type() == NodeType::DOCUMENT_FRAGMENT_NODE);
+        // SAFETY: A fragment's cell holds its host, a GC::Member<Element>, at this offset, which DocumentFragment.cpp
+        //         asserts. An element starts with its node, which DocumentFragment::set_host() verifies, so the member
+        //         names the host as a node.
+        let host = unsafe {
+            &*(self.cell as *const NodeCell)
+                .byte_add(DOCUMENT_FRAGMENT_HOST_OFFSET)
+                .cast::<NodeMember>()
+        };
+        self.follow(host.get())
     }
 
     /// https://dom.spec.whatwg.org/#concept-tree-parent

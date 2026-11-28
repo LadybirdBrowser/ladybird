@@ -483,7 +483,8 @@ public:
     template<typename T>
     T const* fast_as() const = delete;
 
-    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, bool exclude_all_children = false) const;
+    using ChildrenToExclude = RustFFI::ChildrenToExclude;
+    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, ChildrenToExclude = ChildrenToExclude::Nothing) const;
 
     bool is_host_including_inclusive_ancestor_of(Node const&) const;
 
@@ -726,6 +727,7 @@ static_assert(offsetof(RustFFI::NodeCore, document) == 20);
 static_assert(offsetof(RustFFI::NodeCore, root) == 24);
 static_assert(offsetof(RustFFI::NodeCore, node_type) == 28);
 static_assert(offsetof(RustFFI::NodeCore, is_connected) == 30);
+static_assert(offsetof(RustFFI::NodeCore, is_shadow_root) == 31);
 // NB: libweb_rust finds the core of a node at this offset into the node's cell.
 static_assert(Node::parent_node_offset().value == RustFFI::NODE_CORE_OFFSET + offsetof(RustFFI::NodeCore, parent));
 

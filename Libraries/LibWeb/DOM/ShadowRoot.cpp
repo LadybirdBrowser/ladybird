@@ -45,6 +45,7 @@ ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
     , m_mode(mode)
     , m_style_scope(*this)
 {
+    m_core.is_shadow_root = true;
     document.register_shadow_root({}, *this);
     set_host(&host);
 }
