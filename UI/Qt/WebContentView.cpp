@@ -2471,10 +2471,21 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
         case Gfx::StandardCursor::DragCopy:
             setCursor(Qt::DragCopyCursor);
             break;
+        case Gfx::StandardCursor::DragLink:
+            setCursor(Qt::DragLinkCursor);
+            break;
         case Gfx::StandardCursor::Move:
-            setCursor(Qt::DragMoveCursor);
+            setCursor(Qt::SizeAllCursor);
             break;
         case Gfx::StandardCursor::Wait:
+#ifdef AK_OS_MACOS
+            // NB: macOS has no native wait cursor for apps, and Qt draws its own image for Qt::WaitCursor there.
+            setCursor(Qt::BusyCursor);
+#else
+            setCursor(Qt::WaitCursor);
+#endif
+            break;
+        case Gfx::StandardCursor::Progress:
             setCursor(Qt::BusyCursor);
             break;
         case Gfx::StandardCursor::Disallowed:
