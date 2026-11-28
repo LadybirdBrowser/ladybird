@@ -638,53 +638,6 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 }
 
 // https://dom.spec.whatwg.org/#concept-node-insert
-void Node::insert_node_into_children(GC::Ref<Node> node, GC::Ptr<Node> child)
-{
-    // NB: libweb_rust adopts node into parent’s node document before this, see Rust/src/dom/insert.rs.
-
-    // 2. If child is null, then append node to parent’s children.
-    // 3. Otherwise, insert node into parent’s children before child’s index.
-    insert_before_impl(node, child);
-
-    // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
-    //    assign a slot for node.
-    if (auto* element = as_if<DOM::Element>(*this)) {
-        auto is_named_shadow_host = element->is_shadow_host()
-            && element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
-
-        if (is_named_shadow_host && node->is_slottable())
-            assign_a_slot(node->as_slottable());
-    }
-
-    // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-    //    signal a slot change for parent.
-    if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
-        this_slot_element->assign_slottables_if_needed();
-        if (this_slot_element->assigned_nodes_internal().is_empty())
-            signal_a_slot_change(*this_slot_element);
-    }
-
-    // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
-    //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
-    auto& inserted_root = node->root();
-    auto* inserted_shadow_root = as_if<ShadowRoot>(inserted_root);
-    bool inserted_subtree_has_slot = false;
-    if (inserted_shadow_root) {
-        node->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-            inserted_shadow_root->assign_slottables_if_needed();
-            inserted_shadow_root->register_slot(slot);
-            inserted_subtree_has_slot = true;
-            return TraversalDecision::Continue;
-        });
-    }
-
-    // 6. Run assign slottables for a tree with node’s root.
-    // OPTIMIZATION: Inserting into a named shadow tree only changes slot assignments when the subtree holds a slot.
-    if (!inserted_shadow_root || inserted_subtree_has_slot || inserted_shadow_root->slot_assignment() == SlotAssignmentMode::Manual)
-        assign_slottables_for_a_tree(inserted_root);
-}
-
-// https://dom.spec.whatwg.org/#concept-node-insert
 static void run_post_connection_steps(ReadonlySpan<GC::Ref<Node>> nodes)
 {
     // 10. Let staticNodeList be a list of nodes, initially « ».
@@ -895,78 +848,13 @@ void Node::detach_remaining_layout_nodes_for_removal()
     Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), style_nodes.span());
 }
 
-static GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> inclusive_descendant_slots(Node& node)
+// The chain :focus-within leaves as a subtree does starts at the slot its root was assigned to, where it was an element
+// assigned to one, which nothing can tell once the root has left.
+static GC::Ptr<Node> old_flat_tree_parent_for_focus_within(Node& node, Node& parent, GC::Ptr<Node> old_assigned_slot)
 {
-    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> slots;
-    node.for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-        slots.append(slot);
-        return TraversalDecision::Continue;
-    });
-    return slots;
-}
-
-GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> Node::descendant_slots_before_removal(Node& parent_root)
-{
-    // AD-HOC: Assigned nodes are recomputed lazily.
-    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
-    if (auto* shadow_root = as_if<ShadowRoot>(parent_root)) {
-        descendant_slots = inclusive_descendant_slots(*this);
-        if (!descendant_slots.is_empty())
-            shadow_root->assign_slottables_if_needed();
-    }
-    return descendant_slots;
-}
-
-// Whether the node has an inclusive descendant that is a slot of the shadow tree it leaves, whose assignments are then
-// brought up to date first, as descendant_slots_before_removal() does, without collecting the slots.
-bool Node::settle_descendant_slots_before_removal(Node& parent_root)
-{
-    // AD-HOC: Assigned nodes are recomputed lazily.
-    auto* shadow_root = as_if<ShadowRoot>(parent_root);
-    if (!shadow_root)
-        return false;
-    bool has_descendant_slots = false;
-    for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto&) {
-        has_descendant_slots = true;
-        return TraversalDecision::Break;
-    });
-    if (has_descendant_slots)
-        shadow_root->assign_slottables_if_needed();
-    return has_descendant_slots;
-}
-
-// The chain :focus-within leaves as a subtree does starts at the slot its root is assigned to, where it is one, which
-// nothing can tell once the root has left.
-static GC::Ptr<Node> old_flat_tree_parent_for_focus_within(Node& node, Node& parent)
-{
-    if (auto const* element = as_if<Element>(node); element && element->has_assigned_slot())
-        return element->assigned_slot_internal();
+    if (old_assigned_slot && is<Element>(node))
+        return old_assigned_slot;
     return parent;
-}
-
-void Node::assign_slottables_after_removal(Node& parent, Node& parent_root, ReadonlySpan<GC::Ref<HTML::HTMLSlotElement>> descendant_slots)
-{
-    // AD-HOC: Assigned nodes are recomputed lazily.
-    unassign_a_slot(*this);
-
-    if (auto* parent_slot_element = as_if<HTML::HTMLSlotElement>(parent); parent_slot_element && parent_root.is_shadow_root()) {
-        parent_slot_element->assign_slottables_if_needed();
-        if (parent_slot_element->assigned_nodes_internal().is_empty())
-            signal_a_slot_change(*parent_slot_element);
-    }
-
-    if (auto* shadow_root = as_if<ShadowRoot>(parent_root); shadow_root && !descendant_slots.is_empty()) {
-        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
-        for (auto const& slot : descendant_slots)
-            shadow_root->unregister_slot(slot);
-
-        // 1. Run assign slottables for a tree with parent’s root.
-        assign_slottables_for_a_tree(parent_root);
-
-        // 2. Run assign slottables for a tree with node.
-        for (auto const& slot : descendant_slots)
-            assign_slottables(slot);
-    }
 }
 
 // https://dom.spec.whatwg.org/#add-transient-registered-observers
@@ -1105,7 +993,6 @@ struct MoveScope {
     GC::Ptr<Element> moved_from_slot;
 
     bool holds_a_propagating_state_source { false };
-    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
 };
 
 // https://dom.spec.whatwg.org/#move
@@ -1164,8 +1051,6 @@ void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root,
     if (old_parent.is_connected() && node_contributes_to_layout_tree(*this))
         old_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
 
-    scope.descendant_slots = descendant_slots_before_removal(old_parent_root);
-
     // A move into another tree scope keeps the style of the elements it takes along, so nothing unregisters the anchor
     // names they registered in the old scope. The elements of shadow trees inside the moved subtree stay in their own
     // scope. The moving steps register the names in the new scope.
@@ -1180,33 +1065,9 @@ void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root,
 }
 
 // https://dom.spec.whatwg.org/#move
-void Node::after_move_unlink(MoveScope& scope, Node& old_parent, Node& old_parent_root)
+void Node::after_move_unlink(Node& old_parent)
 {
-    // 14. If node is assigned, then run assign slottables for node’s assigned slot.
-    // AD-HOC: Assigned nodes are recomputed lazily.
-    unassign_a_slot(*this);
-
-    // 15. If oldParent’s root is a shadow root, and oldParent is a slot whose assigned nodes is empty, then run signal
-    //     a slot change for oldParent.
-    if (auto* old_parent_slot_element = as_if<HTML::HTMLSlotElement>(old_parent); old_parent_slot_element && old_parent_root.is_shadow_root()) {
-        old_parent_slot_element->assign_slottables_if_needed();
-        if (old_parent_slot_element->assigned_nodes_internal().is_empty())
-            signal_a_slot_change(*old_parent_slot_element);
-    }
-
-    // 16. If node has an inclusive descendant that is a slot:
-    if (auto* shadow_root = as_if<ShadowRoot>(old_parent_root); shadow_root && !scope.descendant_slots.is_empty()) {
-        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
-        for (auto const& slot : scope.descendant_slots)
-            shadow_root->unregister_slot(slot);
-
-        // 1. Run assign slottables for a tree with oldParent’s root.
-        assign_slottables_for_a_tree(old_parent_root);
-
-        // 2. Run assign slottables for a tree with node.
-        for (auto const& slot : scope.descendant_slots)
-            assign_slottables(slot);
-    }
+    // NB: libweb_rust runs steps 14 to 16 before this, see Rust/src/dom/move_node.rs.
 
     // 17. Add transient registered observers given node and oldParent.
     add_transient_registered_observers(old_parent);
@@ -1239,42 +1100,7 @@ void Node::after_move_link(MoveScope& scope, Node& old_parent, Node& old_parent_
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
-    // 22. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
-    //     assign a slot for node.
-    if (auto* new_parent_element = as_if<Element>(new_parent)) {
-        auto is_named_shadow_host = new_parent_element->is_shadow_host()
-            && new_parent_element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
-
-        if (is_named_shadow_host && is_slottable())
-            assign_a_slot(as_slottable());
-    }
-
-    // AD-HOC: Register any slot elements in the moved subtree with the shadow root's slot registry so the registry is
-    //         up-to-date.
-    auto& new_root = root();
-    auto* new_shadow_root = as_if<ShadowRoot>(new_root);
-    bool moved_subtree_has_slot = false;
-    if (new_shadow_root) {
-        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-            new_shadow_root->assign_slottables_if_needed();
-            new_shadow_root->register_slot(slot);
-            moved_subtree_has_slot = true;
-            return TraversalDecision::Continue;
-        });
-    }
-
-    // 23. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal
-    //     a slot change for newParent.
-    if (auto* new_parent_slot_element = as_if<HTML::HTMLSlotElement>(new_parent); new_parent_slot_element && new_root.is_shadow_root()) {
-        new_parent_slot_element->assign_slottables_if_needed();
-        if (new_parent_slot_element->assigned_nodes_internal().is_empty())
-            signal_a_slot_change(*new_parent_slot_element);
-    }
-
-    // 24. Run assign slottables for a tree with node’s root.
-    // OPTIMIZATION: Moving into a named shadow tree only changes slot assignments when the moved subtree holds a slot.
-    if (!new_shadow_root || moved_subtree_has_slot || new_shadow_root->slot_assignment() == SlotAssignmentMode::Manual)
-        assign_slottables_for_a_tree(new_root);
+    // NB: libweb_rust runs steps 22 to 24 after this, see Rust/src/dom/move_node.rs.
 
     // NB: Refresh lookup caches before moving steps can query the completed tree change.
     document().subtree_was_moved({}, *this, old_parent_root);
@@ -1995,11 +1821,8 @@ void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
         // Assigned nodes are outside the slot's DOM subtree, but their wheel events pass through it.
         if (auto* slot = as_if<HTML::HTMLSlotElement>(node); slot && flipped) {
             slot->assign_slottables_if_needed();
-            for (auto const& assigned : slot->assigned_nodes_internal()) {
-                assigned.visit([](auto const& assigned_node) {
-                    assigned_node->update_inside_blocking_wheel_event_handler_state_for_subtree();
-                });
-            }
+            for (auto const& assigned : slot->assigned_nodes_internal())
+                assigned->update_inside_blocking_wheel_event_handler_state_for_subtree();
         }
         if (!flipped)
             return TraversalDecision::Continue;
@@ -2055,7 +1878,7 @@ ParentNode* Node::flat_tree_parent()
     //     If no slottables were found for pending node, instead append its children to pending nodes, with pending
     //     node as their associated parent.
     if (auto* slot = as_if<HTML::HTMLSlotElement>(parent()))
-        return find_slottables(*slot).is_empty() ? slot : nullptr;
+        return RustFFI::rust_dom_slot_finds_slottables(slot) ? nullptr : slot;
 
     // pending node is a shadow host
     //     Append the child nodes of the shadow root of the shadow tree it hosts to pending nodes, with pending node as
@@ -3007,14 +2830,6 @@ void Node::append_child_impl(GC::Ref<Node> node)
     account_for_linked_child(node);
 }
 
-void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
-{
-    if (!child)
-        return append_child_impl(move(node));
-    RustFFI::rust_dom_insert_child(this, node.ptr(), child.ptr());
-    account_for_linked_child(node);
-}
-
 // Puts node, which has just joined this node's children, in the C++ state that follows the children: the animation
 // counts and the attribute name filters.
 void Node::account_for_linked_child(Node& node)
@@ -3780,9 +3595,12 @@ public:
 
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static void insert_node_into_children(Node* parent, Node* node, Node* child, bool* any_node_has_post_connection_steps)
+    static void inserted_into_children(Node* parent, Node* node, bool* any_node_has_post_connection_steps)
     {
-        parent->insert_node_into_children(node, child);
+        // NB: libweb_rust has run steps 7.2 to 7.6 before this, see Rust/src/dom/insert.rs, which leave node out of
+        //     the children of a document that does not allow it.
+        if (node->parent() == parent)
+            parent->account_for_linked_child(*node);
 
         // NB: The parser's insertions leave out the style engine's records, see RustFFI::InsertionKind::Parser.
         if constexpr (kind == RustFFI::InsertionKind::Parser) {
@@ -3963,9 +3781,6 @@ public:
             facts.holds_a_propagating_state_source = children_removal->a_child_holds_a_propagating_state_source && CSS::Invalidation::holds_a_propagating_state_source(*node);
         }
 
-        facts.has_descendant_slots = node->settle_descendant_slots_before_removal(parent->root());
-        facts.is_assigned = node->has_assigned_slot();
-
         if (facts.was_tracked_by_style_engine) {
             // Layout goes first, while the removed nodes still have the StyleNodeIDs the style engine retires.
             node->update_layout_tree_for_removal(*parent);
@@ -3978,20 +3793,10 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
-    static void assign_slottables_after_removal(Node* node, Node* parent, Node* parent_root, RustFFI::RemovalFacts facts)
+    static void after_removal_unlink(Node* node, Node* parent, Node* old_assigned_slot, RustFFI::RemovalFacts facts)
     {
-        // NB: The node's assigned slot stays until the steps below unassign it.
-        auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*node, *parent);
-
-        // 8. If node is assigned, then run assign slottables for node’s assigned slot.
-        // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-        //    signal a slot change for parent.
-        // 10. If node has an inclusive descendant that is a slot, then:
-        // OPTIMIZATION: Only a subtree that has a slot needs a vector of them.
-        if (facts.has_descendant_slots)
-            node->assign_slottables_after_removal(*parent, *parent_root, inclusive_descendant_slots(*node));
-        else
-            node->assign_slottables_after_removal(*parent, *parent_root, {});
+        // NB: libweb_rust has run steps 8 to 10 before this, see Rust/src/dom/remove.rs.
+        auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*node, *parent, old_assigned_slot);
 
         if (!facts.was_connected)
             pin_bound_box_style_records_for_detachment(*node);
@@ -4050,9 +3855,9 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#move
-    static void after_move_unlink(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root)
+    static void after_move_unlink(Node* node, Node* old_parent)
     {
-        node->after_move_unlink(*scope, *old_parent, *old_parent_root);
+        node->after_move_unlink(*old_parent);
     }
 
     // https://dom.spec.whatwg.org/#move
@@ -4157,6 +3962,49 @@ public:
         return true;
     }
 
+    // https://dom.spec.whatwg.org/#slotable-assigned-slot
+    static void assigned_slot_changed(Node* slottable, Node* old_slot, Node* new_slot)
+    {
+        auto* new_slot_element = static_cast<HTML::HTMLSlotElement*>(new_slot);
+        if (auto* element = as_if<Element>(*slottable)) {
+            element->set_assigned_slot(new_slot_element);
+            CSS::record_element_assigned_slot_changed(*element, static_cast<Element*>(old_slot));
+            return;
+        }
+        as<Text>(*slottable).set_assigned_slot(new_slot_element);
+    }
+
+    static void slot_changed(Node* slot, u8 steps)
+    {
+        auto& slot_element = static_cast<HTML::HTMLSlotElement&>(*slot);
+
+        // https://dom.spec.whatwg.org/#signal-a-slot-change
+        if (steps & RustFFI::SLOT_CHANGE_SIGNAL) {
+            // 1. Append slot to slot's relevant agent's signal slots.
+            // NB: signal_slots is supposed to be a set, so ensure the slot is not already there.
+            auto& signal_slots = HTML::relevant_similar_origin_window_agent(slot_element).signal_slots;
+            if (!signal_slots.contains_slow(GC::Ref { slot_element }))
+                signal_slots.append(slot_element);
+
+            // 2. Queue a mutation observer microtask.
+            queue_mutation_observer_microtask(HTML::relevant_similar_origin_window_agent(slot_element));
+        }
+
+        // AD-HOC: The style engine is told the whole ordered list of the slot's assigned nodes.
+        if (steps & RustFFI::SLOT_CHANGE_RECORD_ASSIGNED_NODES)
+            CSS::record_slot_assignment_changed(slot_element);
+
+        if (steps & RustFFI::SLOT_CHANGE_INVALIDATE) {
+            slot_element.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange);
+            CSS::Invalidation::invalidate_style_after_slot_assignment_change(slot_element);
+        }
+    }
+
+    static void shadow_root_needs_slot_assignment(Node* shadow_root)
+    {
+        static_cast<ShadowRoot&>(*shadow_root).did_start_needing_slot_assignment();
+    }
+
     // https://dom.spec.whatwg.org/#live-range-pre-remove-steps
     static void live_range_boundary_points_set(Node* document)
     {
@@ -4194,7 +4042,7 @@ public:
 template<RustFFI::InsertionKind kind>
 static constexpr RustFFI::InsertionHooks s_rust_insertion_hooks {
     .begin_insertion = RustDOMHooks::begin_insertion<kind>,
-    .insert_node_into_children = RustDOMHooks::insert_node_into_children<kind>,
+    .inserted_into_children = RustDOMHooks::inserted_into_children<kind>,
     .run_insertion_steps = RustDOMHooks::run_insertion_steps<kind>,
     .end_insertion = RustDOMHooks::end_insertion<kind>,
     .finish_insertion = RustDOMHooks::finish_insertion<kind>,
@@ -4206,7 +4054,7 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     .begin_removing_all_children = RustDOMHooks::begin_removing_all_children,
     .end_removing_all_children = RustDOMHooks::end_removing_all_children,
     .prepare_removal = RustDOMHooks::prepare_removal,
-    .assign_slottables_after_removal = RustDOMHooks::assign_slottables_after_removal,
+    .after_removal_unlink = RustDOMHooks::after_removal_unlink,
     .finish_removal = RustDOMHooks::finish_removal,
     .run_removing_steps = RustDOMHooks::run_removing_steps,
     .adopt_from_other_document = RustDOMHooks::adopt_from_other_document,
@@ -4221,6 +4069,11 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
         .clone_single_node = RustDOMHooks::clone_single_node,
         .run_element_cloning_steps = RustDOMHooks::run_element_cloning_steps,
         .attach_shadow_root_copy = RustDOMHooks::attach_shadow_root_copy,
+    },
+    .slots = {
+        .assigned_slot_changed = RustDOMHooks::assigned_slot_changed,
+        .slot_changed = RustDOMHooks::slot_changed,
+        .shadow_root_needs_slot_assignment = RustDOMHooks::shadow_root_needs_slot_assignment,
     },
     .live_range_boundary_points_set = RustDOMHooks::live_range_boundary_points_set,
     .call_node_filter = RustDOMHooks::call_node_filter,

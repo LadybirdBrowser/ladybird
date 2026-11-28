@@ -43,6 +43,7 @@ use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
 use super::node_core::DOCUMENT_IS_HTML_DOCUMENT;
 use super::node_ref::NodeRef;
 use super::qualified_name::QualifiedNameImpl;
+use super::slots;
 use super::strings::BorrowedString;
 use super::strings::ascii_lowercase_short_raw;
 use super::strings::is_short_raw;
@@ -461,8 +462,11 @@ fn handle_attribute_changes(
         );
     }
 
-    // NB: The attribute change steps of every element that C++ does not run: the collections whose filters read the
-    //     attribute, and the DOM tree version, see below.
+    // NB: The attribute change steps of every element that C++ does not run: those of slots and slottables, the
+    //     collections whose filters read the attribute, and the DOM tree version, see below.
+    if parts.namespace().is_none() {
+        slots::run_attribute_change_steps(main_thread, element, parts.local_name().units(), old_value, new_value);
+    }
     if value_changed {
         if parts.namespace().is_none() {
             let attribute_types = collection_attribute_types(parts.local_name().units());
@@ -508,7 +512,7 @@ fn run_core_attribute_change_steps(
 
 /// The interned string with the code units of the string `string`.
 #[inline(always)]
-fn fly_string_of(string: BorrowedString) -> ak::Utf16FlyString {
+pub(super) fn fly_string_of(string: BorrowedString) -> ak::Utf16FlyString {
     if is_short_raw(string.raw()) {
         // SAFETY: A short string is its own interned string, and owns no storage.
         return unsafe { ak::Utf16FlyString::from_raw_owned(string.raw()) };
@@ -679,8 +683,8 @@ fn has_base_attribute_change_steps(
         return false;
     };
     match ascii {
-        // NB: The steps for an element's id and its slot do nothing where the value stays the same.
-        b"id" | b"slot" => value_changed,
+        // NB: The steps for an element's id do nothing where the value stays the same.
+        b"id" => value_changed,
         // The names DOM::Element::attribute_changed() acts on.
         b"blocking" | b"name" | b"class" | b"style" | b"dir" | b"lang" | b"part" | b"exportparts" => true,
         // The ARIA attributes that reflect elements, whose explicitly set attr-elements their changes reset.

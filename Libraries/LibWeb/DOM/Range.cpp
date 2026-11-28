@@ -177,10 +177,11 @@ static Optional<size_t> index_in_flat_tree(Node& node)
 {
     if (auto slot = assigned_slot_for_node(node)) {
         auto assigned_nodes = slot->assigned_nodes_internal();
-        auto index = find_index(assigned_nodes.begin(), assigned_nodes.end(), node.as_slottable());
-        if (index == assigned_nodes.size())
-            return {};
-        return index;
+        for (size_t index = 0; index < assigned_nodes.size(); ++index) {
+            if (assigned_nodes[index] == &node)
+                return index;
+        }
+        return {};
     }
     if (auto const* parent = node.parent(); parent && children_are_outside_flat_tree(*parent))
         return {};

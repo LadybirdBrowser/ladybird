@@ -9,12 +9,14 @@
 
 use super::hooks;
 use super::hooks::IsSubtreeRoot;
+use super::hooks::RemovalFacts;
 use super::links;
 use super::node::NodeCell;
 use super::node_ref::NodeRef;
 use super::range::live_range_pre_remove_steps;
 use super::range::live_range_pre_remove_steps_for_all_children;
-use super::steps::assign_slottables_after_removal_does_nothing;
+use super::slots::assign_slots_after_unlinking;
+use super::steps::after_removal_unlink_does_nothing;
 use super::steps::removing_steps_do_nothing;
 use super::traversal::run_node_iterator_pre_remove_steps;
 use super::tree::for_each_shadow_including_descendant;
@@ -61,10 +63,7 @@ pub(crate) fn remove(main_thread: &mut MainThread<'_>, node: NodeRef, suppress_o
     // 10. If node has an inclusive descendant that is a slot:
     //     1. Run assign slottables for a tree with parent’s root.
     //     2. Run assign slottables for a tree with node.
-    // OPTIMIZATION: The cores and the facts tell when the callback has nothing to do, see steps.rs.
-    if !assign_slottables_after_removal_does_nothing(node, parent_root, facts) {
-        hooks::assign_slottables_after_removal(main_thread, node, parent, parent_root, facts);
-    }
+    assign_slots_and_finish_unlinking(main_thread, node, parent, parent_root, facts);
 
     run_removing_steps_for_subtree(
         main_thread,
@@ -144,10 +143,7 @@ pub(crate) fn remove_all_children(main_thread: &mut MainThread<'_>, parent: Node
         // 10. If node has an inclusive descendant that is a slot:
         //     1. Run assign slottables for a tree with parent’s root.
         //     2. Run assign slottables for a tree with node.
-        // OPTIMIZATION: The cores and the facts tell when the callback has nothing to do, see steps.rs.
-        if !assign_slottables_after_removal_does_nothing(node, parent_root, facts) {
-            hooks::assign_slottables_after_removal(main_thread, node, parent, parent_root, facts);
-        }
+        assign_slots_and_finish_unlinking(main_thread, node, parent, parent_root, facts);
 
         // 11. Let isParentConnected be parent’s connected.
         // 12. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with
@@ -186,6 +182,27 @@ pub(crate) fn remove_all_children(main_thread: &mut MainThread<'_>, parent: Node
     hooks::end_removing_all_children(main_thread, parent);
 
     bump_dom_tree_version(main_thread, parent);
+}
+
+/// Steps 8 to 10 of removing `node`, which has just left the children of `parent`, whose root is `parent_root`. Then
+/// the C++ steps that come after them, which the callback runs where `facts` and the cores say they do something.
+/// https://dom.spec.whatwg.org/#concept-node-remove
+#[inline(always)]
+fn assign_slots_and_finish_unlinking(
+    main_thread: &mut MainThread<'_>,
+    node: NodeRef,
+    parent: NodeRef,
+    parent_root: NodeRef,
+    facts: RemovalFacts,
+) {
+    // NB: The chain :focus-within leaves starts at the slot an element was assigned to, which nothing can tell once
+    //     the slottables are assigned.
+    let old_assigned_slot = node.assigned_slot();
+    assign_slots_after_unlinking(main_thread, node, parent, parent_root);
+    // OPTIMIZATION: The cores and the facts tell when the callback has nothing to do, see steps.rs.
+    if !after_removal_unlink_does_nothing(node, facts) {
+        hooks::after_removal_unlink(main_thread, node, parent, old_assigned_slot, facts);
+    }
 }
 
 /// https://dom.spec.whatwg.org/#concept-node-pre-remove

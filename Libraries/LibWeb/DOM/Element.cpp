@@ -1970,8 +1970,8 @@ static void for_each_inclusive_descendant_element_in_flat_tree(Element& root, Ca
             return decision;
         if (auto* slot = as_if<HTML::HTMLSlotElement>(*element)) {
             for (auto const& assigned_node : slot->assigned_nodes_internal()) {
-                if (auto const* assigned_element = assigned_node.get_pointer<GC::Ref<Element>>())
-                    for_each_inclusive_descendant_element_in_flat_tree(**assigned_element, callback);
+                if (auto* assigned_element = as_if<Element>(*assigned_node))
+                    for_each_inclusive_descendant_element_in_flat_tree(*assigned_element, callback);
             }
         }
         return TraversalDecision::Continue;
@@ -6153,7 +6153,7 @@ Element::Directionality Element::parent_directionality() const
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
-void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const&, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     // AD-HOC: Everything below requires that there is no namespace, so return early if there is one.
     //         `xml:lang` is the one exception: it is the element's language exactly as a bare `lang`
@@ -6169,41 +6169,6 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     // value is changed so that el is no longer potentially render-blocking, then unblock rendering on el.
     if (local_name == HTML::AttributeNames::blocking && document().is_render_blocking_element(*this) && !is_potentially_render_blocking())
         unblock_rendering();
-
-    // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-change-ext①
-    // 1. If localName is slot and namespace is null, then:
-    if (local_name == HTML::AttributeNames::slot) {
-        // 1. If value is oldValue, then return.
-        if (value == old_value)
-            return;
-
-        // 2. If value is null and oldValue is the empty string, then return.
-        if (!value.has_value() && old_value == Utf16String {})
-            return;
-
-        // 3. If value is the empty string and oldValue is null, then return.
-        if (value == Utf16String {} && !old_value.has_value())
-            return;
-
-        // AD-HOC: Assigned nodes are recomputed lazily.
-        if (auto assigned_slot = assigned_slot_internal())
-            assigned_slot->assign_slottables_if_needed();
-
-        // 4. If value is null or the empty string, then set element’s name to the empty string.
-        if (!value.has_value() || value->is_empty())
-            set_slottable_name({});
-        // 5. Otherwise, set element’s name to value.
-        else
-            set_slottable_name(*value);
-
-        // 6. If element is assigned, then run assign slottables for element’s assigned slot.
-        if (auto assigned_slot = assigned_slot_internal())
-            assign_slottables(*assigned_slot);
-
-        // 7. Run assign a slot for element.
-        assign_a_slot(GC::Ref { *this });
-        return;
-    }
 
     auto value_or_empty = value.has_value() ? value->utf16_view() : u""sv;
 

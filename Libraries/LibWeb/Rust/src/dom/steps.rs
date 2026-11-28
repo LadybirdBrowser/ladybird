@@ -198,20 +198,14 @@ fn shadow_including_subtree_has_style_node(node: NodeRef) -> bool {
     false
 }
 
-/// Whether the steps of removing `node`, which has just left a parent whose root is `parent_root`, that
-/// hooks::assign_slottables_after_removal() runs with `facts` have nothing to do:
+/// Whether the steps of removing `node`, which has just left its parent, that hooks::after_removal_unlink() runs with
+/// `facts` have nothing to do:
 ///
-/// - Only a node that `facts` tell is assigned to a slot has a slot to be unassigned from, and only a shadow tree has
-///   slots for the removal to assign slottables for or signal a slot change for.
 /// - Only the boxes of nodes that have an identity in the style engine have style records to pin, which is done for a
 ///   subtree that was not connected.
 /// - Only a subtree that holds the focused or hovered node takes their state out of its old ancestors.
-pub(super) fn assign_slottables_after_removal_does_nothing(
-    node: NodeRef,
-    parent_root: NodeRef,
-    facts: RemovalFacts,
-) -> bool {
-    if facts.is_assigned || parent_root.is_shadow_root() || facts.holds_a_propagating_state_source {
+pub(super) fn after_removal_unlink_does_nothing(node: NodeRef, facts: RemovalFacts) -> bool {
+    if facts.holds_a_propagating_state_source {
         return false;
     }
     facts.was_connected || !shadow_including_subtree_has_style_node(node)
@@ -401,48 +395,32 @@ mod tests {
     }
 
     #[test]
-    fn slottables_need_no_assigning_after_a_plain_node_leaves_a_tree_without_slots() {
+    fn nothing_follows_the_unlinking_of_a_plain_subtree() {
         let main_thread = MainThread::for_test();
-        let parent = NodeRef::from(html_element(&main_thread));
         let facts = RemovalFacts {
             was_connected: false,
             was_tracked_by_style_engine: false,
             holds_a_propagating_state_source: false,
-            has_descendant_slots: false,
-            is_assigned: false,
         };
         let subtree = html_element(&main_thread);
         let text = node(&main_thread, NodeType::TEXT_NODE);
         append_child(subtree, text);
         let subtree = NodeRef::from(subtree);
-        assert!(assign_slottables_after_removal_does_nothing(subtree, parent, facts));
+        assert!(after_removal_unlink_does_nothing(subtree, facts));
 
-        let assigned = RemovalFacts {
-            is_assigned: true,
-            ..facts
-        };
-        assert!(!assign_slottables_after_removal_does_nothing(subtree, parent, assigned));
         let holding = RemovalFacts {
             holds_a_propagating_state_source: true,
             ..facts
         };
-        assert!(!assign_slottables_after_removal_does_nothing(subtree, parent, holding));
-
-        let host = html_element(&main_thread);
-        let shadow_root = NodeRef::from(shadow_root(&main_thread, host));
-        assert!(!assign_slottables_after_removal_does_nothing(
-            subtree,
-            shadow_root,
-            facts
-        ));
+        assert!(!after_removal_unlink_does_nothing(subtree, holding));
 
         // NB: The callback pins style records only for a subtree that was not connected.
         set_style_node_id(text, StyleNodeID::from_raw(1));
-        assert!(!assign_slottables_after_removal_does_nothing(subtree, parent, facts));
+        assert!(!after_removal_unlink_does_nothing(subtree, facts));
         let connected = RemovalFacts {
             was_connected: true,
             ..facts
         };
-        assert!(assign_slottables_after_removal_does_nothing(subtree, parent, connected));
+        assert!(after_removal_unlink_does_nothing(subtree, connected));
     }
 }

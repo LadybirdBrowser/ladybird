@@ -67,7 +67,7 @@ static void for_each_flat_tree_inclusive_descendant(DOM::Node& node, Callback co
     }
     if (auto* slot = as_if<HTML::HTMLSlotElement>(node); slot && !slot->assigned_nodes_internal().is_empty()) {
         for (auto const& slottable : slot->assigned_nodes_internal())
-            slottable.visit([&](auto const& assigned) { for_each_flat_tree_inclusive_descendant(static_cast<DOM::Node&>(*assigned), callback); });
+            for_each_flat_tree_inclusive_descendant(*slottable, callback);
         return;
     }
     visit_children_of(node);

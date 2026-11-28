@@ -16,7 +16,6 @@
 #include <LibWeb/DOM/DocumentOrShadowRoot.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/DOM/SlotRegistry.h>
 #include <LibWeb/DOM/Utils.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
@@ -45,11 +44,17 @@ ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
     , m_mode(mode)
     , m_style_scope(*this)
 {
+    static_assert(offsetof(ShadowRoot, m_shadow_root_core) == RustFFI::SHADOW_ROOT_CORE_OFFSET);
     m_core.flags |= RustFFI::NODE_IS_SHADOW_ROOT;
     if (mode == ShadowRootMode::Closed)
         m_core.flags |= RustFFI::NODE_IS_CLOSED_SHADOW_ROOT;
     document.register_shadow_root({}, *this);
     set_host(&host);
+}
+
+ShadowRoot::~ShadowRoot()
+{
+    RustFFI::rust_dom_shadow_root_core_destroy(&m_shadow_root_core);
 }
 
 void ShadowRoot::finalize()
@@ -67,7 +72,7 @@ void ShadowRoot::adopted_from(Document& old_document)
     // tree-scoped name lookups), so adoption has to move this shadow root to the new document's list.
     old_document.unregister_shadow_root({}, *this);
     document().register_shadow_root({}, *this);
-    if (!m_slots_needing_assignment.is_empty()) {
+    if (m_shadow_root_core.flags & RustFFI::SHADOW_ROOT_HAS_SLOTS_NEEDING_ASSIGNMENT) {
         old_document.remove_shadow_root_needing_slot_assignment({}, *this);
         document().add_shadow_root_needing_slot_assignment({}, *this);
     }
@@ -245,7 +250,9 @@ void ShadowRoot::visit_edges(Visitor& visitor)
     }
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_radio_button_group_registry);
-    visitor.visit(m_slots_needing_assignment);
+    // NB: The buffer of the slots is allocated by libweb_rust, which holds them in it strongly.
+    for (u32 i = 0; i < m_shadow_root_core.slots.size; ++i)
+        visitor.visit(m_shadow_root_core.slots.items[i]);
 }
 
 HTML::RadioButtonGroupRegistry& ShadowRoot::ensure_radio_button_group_registry()
@@ -296,41 +303,16 @@ ElementByIdMap& ShadowRoot::element_by_id() const
     return *m_element_by_id;
 }
 
-void ShadowRoot::register_slot(HTML::HTMLSlotElement& slot)
+void ShadowRoot::did_start_needing_slot_assignment()
 {
-    if (!m_slot_registry)
-        m_slot_registry = make<SlotRegistry>();
-    m_slot_registry->add(slot);
-}
-
-void ShadowRoot::unregister_slot(HTML::HTMLSlotElement& slot)
-{
-    if (m_slot_registry)
-        m_slot_registry->remove(slot);
-}
-
-GC::Ptr<HTML::HTMLSlotElement> ShadowRoot::first_slot_with_name(Utf16View name) const
-{
-    if (!m_slot_registry)
-        return nullptr;
-    return m_slot_registry->first_slot_with_name(name);
-}
-
-void ShadowRoot::set_needs_slot_assignment(HTML::HTMLSlotElement& slot)
-{
-    if (m_slots_needing_assignment.contains_slow(GC::Ref { slot }))
-        return;
-    if (m_slots_needing_assignment.is_empty())
-        document().add_shadow_root_needing_slot_assignment({}, *this);
-    m_slots_needing_assignment.append(slot);
+    document().add_shadow_root_needing_slot_assignment({}, *this);
 }
 
 void ShadowRoot::assign_slottables_if_needed()
 {
+    // AD-HOC: Assigned nodes are recomputed lazily, see Rust/src/dom/slots.rs.
     document().remove_shadow_root_needing_slot_assignment({}, *this);
-    GC::RootVector slots { move(m_slots_needing_assignment) };
-    for (auto slot : slots)
-        assign_slottables(slot, SignalSlotChange::No);
+    RustFFI::rust_dom_assign_slottables_if_needed(this);
 }
 
 // https://drafts.csswg.org/css-shadow-1/#shadow-root-part-element-map
