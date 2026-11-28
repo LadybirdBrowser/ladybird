@@ -24,7 +24,6 @@
 #include <LibWeb/Fetch/Engine/EngineCommand.h>
 #include <LibWeb/Fetch/Engine/EngineCommandSink.h>
 #include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
-#include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>

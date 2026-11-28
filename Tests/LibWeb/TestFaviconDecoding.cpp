@@ -10,7 +10,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Fetch/Fetching/FetchEngine.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>

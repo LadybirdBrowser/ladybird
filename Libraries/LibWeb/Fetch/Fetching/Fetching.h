@@ -38,6 +38,8 @@ void main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::Viola
 void populate_request_from_client(Infrastructure::Request&, Optional<HTML::FetchClient> const& client);
 // Runs the steps of fetch response handover that follow the response's delivery to the agent that started the fetch.
 void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController>, Engine::Event::ResponseDelivery);
+// Creates an executor that runs a fetch engine on the current thread's event loop.
+WEB_API NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<Engine::NetworkActivityObservers const>);
 // on_network_settled runs at most once: when the network completes the body, or with an error when the body fails
 // or is stopped.
 WEB_API GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm&, Infrastructure::Response&, Optional<Utf16String> const& request_server_top_level_site, Requests::RequestTransferLeaseKey, RefPtr<Infrastructure::FetchTimingInfo>, GC::Ref<GC::Function<void(Optional<StringView> error)>> on_network_settled);

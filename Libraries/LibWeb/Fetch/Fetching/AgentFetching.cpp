@@ -11,6 +11,7 @@
 
 #include <AK/Debug.h>
 #include <AK/kmalloc.h>
+#include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -28,9 +29,11 @@
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/FetchExecutor.h>
+#include <LibWeb/Fetch/Engine/InlineFetchExecutor.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Fetching/BodyStreamPullSource.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
+#include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/FetchEventSink.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
@@ -1045,6 +1048,33 @@ void clear_http_memory_cache()
 {
     clear_http_memory_cache_entries();
     HTML::CompiledScriptCache::the().clear();
+}
+
+class ResourceLoaderKnownHSTSHostProvider final : public Engine::KnownHSTSHostProvider {
+public:
+    virtual Optional<bool> known_answer(String const& host) const override
+    {
+        if (ResourceLoader::is_preloaded_hsts_host(host))
+            return true;
+        if (!ResourceLoader::is_initialized())
+            return false;
+        return {};
+    }
+
+    virtual void look_up(Infrastructure::FetchParams const& fetch_params, String const& host, Function<void(bool is_known)> on_answer) override
+    {
+        auto network_isolation_key = Infrastructure::determine_the_network_partition_key(fetch_params.request());
+        ResourceLoader::the().look_up_known_hsts_host(network_isolation_key, host, move(on_answer));
+    }
+};
+
+NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<Engine::NetworkActivityObservers const> network_activity_observers)
+{
+    Engine::FetchExecutorServices services {
+        .event_loop = Core::EventLoop::current_weak(),
+        .known_hsts_host_provider = make_ref_counted<ResourceLoaderKnownHSTSHostProvider>(),
+    };
+    return Engine::InlineFetchExecutor::create(move(services), make<FetchEngine>(move(network_activity_observers), make<Engine::FetchEngineRecords::Agent>()));
 }
 
 }

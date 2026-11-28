@@ -28,7 +28,4 @@ private:
     Engine::FetchEngineRecords m_records;
 };
 
-// Creates an executor that runs a fetch engine on the current thread's event loop.
-WEB_API NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<Engine::NetworkActivityObservers const>);
-
 }
