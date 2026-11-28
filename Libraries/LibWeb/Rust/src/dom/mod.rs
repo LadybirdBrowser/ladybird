@@ -10,6 +10,7 @@
 pub mod element;
 pub mod element_core;
 pub mod hooks;
+pub mod insert;
 pub mod links;
 pub mod node;
 pub mod node_core;

@@ -150,6 +150,7 @@ ffi_entry!(crate::css::dom_selector_matching::MainThreadFfiEntry);
 ffi_entry!(crate::css::style::dom_inputs::MainThreadFfiEntry);
 ffi_entry!(crate::dom::links::MainThreadFfiEntry);
 ffi_entry!(crate::dom::pre_insert::MainThreadFfiEntry);
+ffi_entry!(crate::dom::insert::MainThreadFfiEntry);
 ffi_entry!(crate::dom::remove::MainThreadFfiEntry);
 
 #[cfg(test)]
