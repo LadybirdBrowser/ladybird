@@ -16,7 +16,6 @@ class HTMLStyleElement final
     : public HTMLElement
     , public DOM::StyleElementBase {
     WEB_WRAPPABLE(HTMLStyleElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLStyleElement);
 
 public:
     virtual ~HTMLStyleElement() override;
@@ -33,7 +32,7 @@ public:
     virtual bool is_implicitly_potentially_render_blocking() const override;
 
 private:
-    HTMLStyleElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLStyleElement(DOM::RustMadePrefix);
 
     GC::Ptr<DOM::DOMTokenList> m_blocking;
 

@@ -13,10 +13,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEConvolveMatrixElement);
-
-SVGFEConvolveMatrixElement::SVGFEConvolveMatrixElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEConvolveMatrixElement::SVGFEConvolveMatrixElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

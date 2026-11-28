@@ -24,10 +24,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLDialogElement);
-
-HTMLDialogElement::HTMLDialogElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLDialogElement::HTMLDialogElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

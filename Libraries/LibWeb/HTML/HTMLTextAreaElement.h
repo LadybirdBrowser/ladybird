@@ -27,7 +27,6 @@ class WEB_API HTMLTextAreaElement final
     , public FormAssociatedTextControlElement
     , public AutocompleteElement {
     WEB_WRAPPABLE(HTMLTextAreaElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLTextAreaElement);
 
 public:
@@ -154,7 +153,7 @@ public:
     Optional<Utf16String> placeholder_value() const;
 
 private:
-    HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTextAreaElement(DOM::RustMadePrefix);
 
     virtual EventResult handle_return_key(Utf16FlyString const& ui_input_type) override;
 

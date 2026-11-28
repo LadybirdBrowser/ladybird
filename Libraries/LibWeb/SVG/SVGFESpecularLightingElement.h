@@ -17,7 +17,6 @@ class SVGFESpecularLightingElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFESpecularLightingElement> {
     WEB_WRAPPABLE(SVGFESpecularLightingElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFESpecularLightingElement);
 
 public:
     virtual ~SVGFESpecularLightingElement() override = default;
@@ -30,7 +29,7 @@ public:
     GC::Ref<SVGAnimatedNumber> kernel_unit_length_y();
 
 private:
-    SVGFESpecularLightingElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFESpecularLightingElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

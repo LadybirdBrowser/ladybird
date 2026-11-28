@@ -10,20 +10,22 @@
 #include <AK/Utf16View.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ElementLayout.h>
 #include <LibWeb/Export.h>
 
 namespace Web::DOM {
 
 // A new element of the class T with the node document `document` and the name `qualified_name`, as T's constructor
-// makes it: one that libweb_rust makes, with one call, for a class whose objects it defines (see
-// Rust/src/dom/element_objects.rs), and one that C++ allocates for any other.
+// makes it. libweb_rust allocates every element (see Rust/src/dom/element_objects.rs), and makes it whole, or makes its
+// prefix, over which C++ then constructs the payload of T.
 template<typename T>
-GC::Ref<T> allocate_element(Document& document, QualifiedName qualified_name)
+GC::Ref<T> allocate_element(Document& document, QualifiedName const& qualified_name)
 {
-    if constexpr (NodeClassTraits<T>::rust_owned)
-        return static_cast<T&>(*RustFFI::rust_dom_create_element(&document, NodeClassTraits<T>::id, qualified_name.identity()));
+    auto& element = *RustFFI::rust_dom_create_element(&document, NodeClassTraits<T>::id, qualified_name.identity());
+    if constexpr (element_class_has_payload<T>)
+        return GC::CellConstructionHook<T>::construct_payload(element);
     else
-        return GC::Heap::the().allocate<T>(document, move(qualified_name));
+        return static_cast<T&>(element);
 }
 
 WEB_API ErrorOr<FixedArray<Utf16FlyString>> valid_local_names_for_given_html_element_interface(Utf16View html_element_interface_name);

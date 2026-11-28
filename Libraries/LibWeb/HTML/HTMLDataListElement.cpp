@@ -11,10 +11,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLDataListElement);
-
-HTMLDataListElement::HTMLDataListElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLDataListElement::HTMLDataListElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

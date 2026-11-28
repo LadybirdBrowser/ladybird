@@ -18,7 +18,6 @@ class SVGFEDropShadowElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEDropShadowElement> {
     WEB_WRAPPABLE(SVGFEDropShadowElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEDropShadowElement);
 
 public:
     virtual ~SVGFEDropShadowElement() override = default;
@@ -37,7 +36,7 @@ public:
     float flood_opacity() const;
 
 private:
-    SVGFEDropShadowElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEDropShadowElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

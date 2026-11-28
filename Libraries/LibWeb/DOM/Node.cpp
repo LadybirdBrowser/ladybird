@@ -221,6 +221,7 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
 
 Node::Node(Document& document, NodeType type)
     : EventTarget()
+    , m_core {}
 {
     // NB: libweb_rust reads a node as the NodePrefix it starts with.
     static_assert(sizeof(Node) == sizeof(RustFFI::NodePrefix));
@@ -228,6 +229,16 @@ Node::Node(Document& document, NodeType type)
     static_assert(offsetof(Node, m_associated_animation_count_in_subtree) == offsetof(RustFFI::NodePrefix, associated_animation_count_in_subtree));
     static_assert(offsetof(Node, m_node_directory_slot) == offsetof(RustFFI::NodePrefix, node_directory_slot));
     static_assert(offsetof(Node, m_rare_data) == offsetof(RustFFI::NodePrefix, rare_data));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Node, m_core) >= sizeof(EventTarget));
+    // NB: The fields of the cores are of the C++ types libweb_rust names its field types as, see Rust/build.rs, which
+    //     are laid out as those.
+    static_assert(sizeof(GC::Member<Node>) == 4 && alignof(GC::Member<Node>) == 4);
+    static_assert(sizeof(NodeType) == 2 && alignof(NodeType) == 2);
+    static_assert(sizeof(CSS::StyleNodeID) == 4 && alignof(CSS::StyleNodeID) == 4);
+    static_assert(sizeof(CSS::TreeScopeID) == 4 && alignof(CSS::TreeScopeID) == 4);
 
     m_core.document = &document;
     m_core.root = this;
@@ -240,6 +251,12 @@ Node::Node(Document& document, NodeType type)
 
 Node::Node(VtableProbe)
     : EventTarget()
+    , m_core {}
+{
+}
+
+Node::Node(RustMadePrefix prefix)
+    : EventTarget(prefix)
 {
 }
 

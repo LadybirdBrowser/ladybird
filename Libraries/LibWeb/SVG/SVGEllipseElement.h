@@ -13,7 +13,6 @@ namespace Web::SVG {
 
 class SVGEllipseElement final : public SVGGeometryElement {
     WEB_WRAPPABLE(SVGEllipseElement, SVGGeometryElement);
-    GC_DECLARE_ALLOCATOR(SVGEllipseElement);
 
 public:
     virtual ~SVGEllipseElement() override = default;
@@ -35,7 +34,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, SVGLengthValue::number(0));
 
 private:
-    SVGEllipseElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGEllipseElement(DOM::RustMadePrefix);
 };
 
 }

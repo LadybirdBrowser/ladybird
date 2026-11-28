@@ -310,16 +310,9 @@ def write_html_constructor_steps(
         // 3. Set element's namespace to the HTML namespace.
         // 4. Set element's namespace prefix to null.
         // 5. Set element's local name to definition's local name.
-        // NB: A class whose objects libweb_rust defines keeps JS::Cell::initialize(), which does nothing, see
-        //     GC::CellConstructionHook::adds_nothing_to().
-        auto element = [&] -> GC::Ref<{fully_qualified_name_for_interface(interface)}> {{
-            using ElementType = {fully_qualified_name_for_interface(interface)};
-            DOM::QualifiedName qualified_name {{ definition->local_name(), {{}}, Namespace::HTML }};
-            if constexpr (DOM::NodeClassTraits<ElementType>::rust_owned)
-                return DOM::allocate_element<ElementType>(window.associated_document(), move(qualified_name));
-            else
-                return realm.create<ElementType>(window.associated_document(), move(qualified_name));
-        }}();
+        // NB: Every class of elements keeps JS::Cell::initialize(), which does nothing, see
+        //     RustElementObjectHooks::is_payload_class() in DOM/ElementObjects.cpp.
+        auto element = DOM::allocate_element<{fully_qualified_name_for_interface(interface)}>(window.associated_document(), DOM::QualifiedName {{ definition->local_name(), {{}}, Namespace::HTML }});
 
         auto wrapper = wrap(host_defined_wrapper_world(realm), realm, element);
 

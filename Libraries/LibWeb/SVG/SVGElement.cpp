@@ -38,8 +38,6 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGElement);
-
 struct SVGElement::RareData final : DOM::Element::RareData {
     AK_ALLOC_WITH_KMALLOC;
 
@@ -75,8 +73,8 @@ void SVGElement::set_corresponding_element(Badge<SVGUseElement>, SVGElement& cor
     static_cast<RareData&>(corresponding_element.ensure_rare_data()).element_instances.set(*this);
 }
 
-SVGElement::SVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : Element(document, move(qualified_name))
+SVGElement::SVGElement(DOM::RustMadePrefix prefix)
+    : Element(prefix)
 {
 }
 

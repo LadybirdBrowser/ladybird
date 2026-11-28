@@ -15,7 +15,6 @@ namespace Web::HTML {
 
 class HTMLTableSectionElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTableSectionElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTableSectionElement);
 
 public:
     virtual ~HTMLTableSectionElement() override;
@@ -30,7 +29,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::rowgroup; }
 
 private:
-    HTMLTableSectionElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTableSectionElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

@@ -16,7 +16,6 @@ class HTMLBodyElement final
     : public HTMLElement
     , public WindowEventHandlers {
     WEB_WRAPPABLE(HTMLBodyElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLBodyElement);
 
 public:
     virtual ~HTMLBodyElement() override;
@@ -29,7 +28,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::generic; }
 
 private:
-    HTMLBodyElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLBodyElement(DOM::RustMadePrefix);
 
     // ^DOM::Node
 

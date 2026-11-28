@@ -9,10 +9,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGMarkerElement);
-
-SVGMarkerElement::SVGMarkerElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGMarkerElement::SVGMarkerElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

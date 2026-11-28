@@ -14,7 +14,6 @@ namespace Web::HTML {
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class WEB_API HTMLFrameElement final : public NavigableContainer {
     WEB_WRAPPABLE(HTMLFrameElement, NavigableContainer);
-    GC_DECLARE_ALLOCATOR(HTMLFrameElement);
 
 public:
     virtual ~HTMLFrameElement() override;
@@ -22,7 +21,7 @@ public:
     virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
-    HTMLFrameElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLFrameElement(DOM::RustMadePrefix);
 
     // ^DOM::Element
     virtual void post_connection() override;

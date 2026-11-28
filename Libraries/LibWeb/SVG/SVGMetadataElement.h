@@ -13,10 +13,9 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/struct.html#InterfaceSVGMetadataElement
 class SVGMetadataElement final : public SVGElement {
     WEB_WRAPPABLE(SVGMetadataElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGMetadataElement);
 
 private:
-    SVGMetadataElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGMetadataElement(DOM::RustMadePrefix);
     virtual CSS::ElementBoxKind box_kind() const override;
 };
 

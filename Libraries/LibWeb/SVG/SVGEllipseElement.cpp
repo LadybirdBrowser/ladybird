@@ -11,10 +11,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGEllipseElement);
-
-SVGEllipseElement::SVGEllipseElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGeometryElement(document, qualified_name)
+SVGEllipseElement::SVGEllipseElement(DOM::RustMadePrefix prefix)
+    : SVGGeometryElement(prefix)
 {
 }
 

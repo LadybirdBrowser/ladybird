@@ -14,7 +14,6 @@ namespace Web::HTML {
 
 class WEB_API HTMLTemplateElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTemplateElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTemplateElement);
 
 public:
     virtual ~HTMLTemplateElement() override;
@@ -30,7 +29,7 @@ public:
     virtual WebIDL::ExceptionOr<void> cloned(Node& copy, bool clone_children) const override;
 
 private:
-    HTMLTemplateElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTemplateElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;

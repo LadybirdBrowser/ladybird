@@ -46,7 +46,7 @@ public:
     ReadonlyBytes color_table();
 
 protected:
-    SVGComponentTransferFunctionElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGComponentTransferFunctionElement(DOM::RustMadePrefix);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

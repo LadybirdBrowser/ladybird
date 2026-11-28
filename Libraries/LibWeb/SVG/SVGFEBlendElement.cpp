@@ -13,10 +13,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEBlendElement);
-
-SVGFEBlendElement::SVGFEBlendElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEBlendElement::SVGFEBlendElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

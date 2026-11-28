@@ -22,10 +22,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLFrameSetElement);
-
-HTMLFrameSetElement::HTMLFrameSetElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLFrameSetElement::HTMLFrameSetElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

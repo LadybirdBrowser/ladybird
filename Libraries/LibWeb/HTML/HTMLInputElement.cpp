@@ -98,8 +98,6 @@ bool is_integral_multiple(double value, double step)
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLInputElement);
-
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name, DOM::EventInit const& event_init = {})
 {
     return DOM::Event::create(
@@ -108,8 +106,8 @@ static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16F
         HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
 }
 
-HTMLInputElement::HTMLInputElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLInputElement::HTMLInputElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

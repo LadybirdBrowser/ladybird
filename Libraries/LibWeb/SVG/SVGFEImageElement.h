@@ -20,7 +20,6 @@ class SVGFEImageElement final
     , public SVGFilterPrimitiveStandardAttributes<SVGFEImageElement>
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_WRAPPABLE(SVGFEImageElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEImageElement);
 
 public:
     virtual ~SVGFEImageElement() override = default;
@@ -30,7 +29,7 @@ public:
     GC::Ref<SVGAnimatedPreserveAspectRatio> preserve_aspect_ratio_for_bindings();
 
 private:
-    SVGFEImageElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEImageElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;

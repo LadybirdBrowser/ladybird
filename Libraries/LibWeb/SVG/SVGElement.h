@@ -29,7 +29,6 @@ class WEB_API SVGElement
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<SVGElement> {
     WEB_WRAPPABLE(SVGElement, DOM::Element);
-    GC_DECLARE_ALLOCATOR(SVGElement);
 
 public:
     virtual CSS::ElementBoxKind box_kind() const override;
@@ -74,7 +73,7 @@ public:
     RefPtr<CSS::StyleValue const> parse_presentation_attribute(CSS::PropertyID, Utf16View) const;
 
 protected:
-    SVGElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;

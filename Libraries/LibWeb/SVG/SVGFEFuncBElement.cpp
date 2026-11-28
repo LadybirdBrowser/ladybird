@@ -8,10 +8,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEFuncBElement);
-
-SVGFEFuncBElement::SVGFEFuncBElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGComponentTransferFunctionElement(document, qualified_name)
+SVGFEFuncBElement::SVGFEFuncBElement(DOM::RustMadePrefix prefix)
+    : SVGComponentTransferFunctionElement(prefix)
 {
 }
 

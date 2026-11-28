@@ -32,8 +32,8 @@
 
 namespace Web::SVG {
 
-SVGGraphicsElement::SVGGraphicsElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, move(qualified_name))
+SVGGraphicsElement::SVGGraphicsElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

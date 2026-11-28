@@ -8,10 +8,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGRectElement);
-
-SVGRectElement::SVGRectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGeometryElement(document, qualified_name)
+SVGRectElement::SVGRectElement(DOM::RustMadePrefix prefix)
+    : SVGGeometryElement(prefix)
 {
 }
 

@@ -13,7 +13,6 @@ namespace Web::HTML {
 
 class HTMLTitleElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTitleElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTitleElement);
 
 public:
     virtual ~HTMLTitleElement() override;
@@ -22,7 +21,7 @@ public:
     void set_text(Utf16View value);
 
 private:
-    HTMLTitleElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTitleElement(DOM::RustMadePrefix);
 
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;

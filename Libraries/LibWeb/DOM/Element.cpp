@@ -330,41 +330,6 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
     }
 }
 
-Element::Element(Document& document, DOM::QualifiedName qualified_name)
-    : ParentNode(document, NodeType::ELEMENT_NODE)
-    , m_element_core {
-        .qualified_name = move(qualified_name),
-        .id = {},
-        .classes = {},
-        .attributes = {},
-        .subtree_name_filter = 0,
-        .style_attribute_is_dirty = false,
-        .flags = 0,
-        .reflection_flags = 0,
-        .shadow_root = {},
-        .parent_child_index_generation = 0,
-        .child_index = 0,
-        .child_index_of_type = 0,
-        .assigned_slot = {},
-    }
-{
-    // NB: libweb_rust reads an element as the ElementPrefix it starts with.
-    static_assert(sizeof(Element) == sizeof(RustFFI::ElementPrefix));
-    static_assert(offsetof(Element, m_element_core) == offsetof(RustFFI::ElementPrefix, core));
-    static_assert(offsetof(Element, m_inline_declarations) == offsetof(RustFFI::ElementPrefix, inline_declarations));
-    static_assert(offsetof(Element, m_installed_style) == offsetof(RustFFI::ElementPrefix, installed_style));
-    static_assert(offsetof(Element, m_animation_style_generation) == offsetof(RustFFI::ElementPrefix, animation_style_generation));
-    static_assert(offsetof(Element, m_animation_subtree_style_generation) == offsetof(RustFFI::ElementPrefix, animation_subtree_style_generation));
-    static_assert(offsetof(Element, m_published_presentational_hint_properties) == offsetof(RustFFI::ElementPrefix, published_presentational_hint_properties));
-    static_assert(offsetof(Element, m_custom_element_state) == offsetof(RustFFI::ElementPrefix, custom_element_state));
-    static_assert(offsetof(Element, m_inline_style) == offsetof(RustFFI::ElementPrefix, inline_style));
-    static_assert(offsetof(Element, m_lang_value) == offsetof(RustFFI::ElementPrefix, lang_value));
-
-    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
-    //     its tail padding, where only the Itanium ABI could.
-    static_assert(offsetof(Element, m_element_core) >= sizeof(ParentNode));
-}
-
 Element::Element(VtableProbe probe)
     : ParentNode(probe)
     , m_element_core {
@@ -385,7 +350,33 @@ Element::Element(VtableProbe probe)
 {
 }
 
-Element::~Element() = default;
+// NB: Leaves the core of the element as libweb_rust made it. The default member initializers give the other members the
+//     values libweb_rust gave them, which for an element of a class with a payload include the custom element state
+//     "undefined".
+Element::Element(RustMadePrefix prefix)
+    : ParentNode(prefix)
+{
+    // NB: libweb_rust reads an element as the ElementPrefix it starts with.
+    static_assert(sizeof(Element) == sizeof(RustFFI::ElementPrefix));
+    static_assert(offsetof(Element, m_element_core) == offsetof(RustFFI::ElementPrefix, core));
+    static_assert(offsetof(Element, m_inline_declarations) == offsetof(RustFFI::ElementPrefix, inline_declarations));
+    static_assert(offsetof(Element, m_installed_style) == offsetof(RustFFI::ElementPrefix, installed_style));
+    static_assert(offsetof(Element, m_animation_style_generation) == offsetof(RustFFI::ElementPrefix, animation_style_generation));
+    static_assert(offsetof(Element, m_animation_subtree_style_generation) == offsetof(RustFFI::ElementPrefix, animation_subtree_style_generation));
+    static_assert(offsetof(Element, m_published_presentational_hint_properties) == offsetof(RustFFI::ElementPrefix, published_presentational_hint_properties));
+    static_assert(offsetof(Element, m_custom_element_state) == offsetof(RustFFI::ElementPrefix, custom_element_state));
+    static_assert(offsetof(Element, m_inline_style) == offsetof(RustFFI::ElementPrefix, inline_style));
+    static_assert(offsetof(Element, m_lang_value) == offsetof(RustFFI::ElementPrefix, lang_value));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Element, m_element_core) >= sizeof(ParentNode));
+}
+
+Element::~Element()
+{
+    m_element_core.~ElementCore();
+}
 
 void Element::finalize()
 {

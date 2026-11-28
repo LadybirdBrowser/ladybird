@@ -34,10 +34,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLEmbedElement);
-
-HTMLEmbedElement::HTMLEmbedElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : NavigableContainer(document, move(qualified_name))
+HTMLEmbedElement::HTMLEmbedElement(DOM::RustMadePrefix prefix)
+    : NavigableContainer(prefix)
 {
 }
 

@@ -16,7 +16,6 @@ class SVGFEFloodElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEFloodElement> {
     WEB_WRAPPABLE(SVGFEFloodElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEFloodElement);
 
 public:
     virtual ~SVGFEFloodElement() override = default;
@@ -25,7 +24,7 @@ public:
     float flood_opacity() const;
 
 private:
-    SVGFEFloodElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEFloodElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

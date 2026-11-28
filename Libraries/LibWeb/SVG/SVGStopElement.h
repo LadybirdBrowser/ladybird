@@ -16,7 +16,6 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/pservers.html#GradientStops
 class SVGStopElement final : public SVGElement {
     WEB_WRAPPABLE(SVGStopElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGStopElement);
 
 public:
     virtual ~SVGStopElement() override = default;
@@ -28,7 +27,7 @@ public:
     float stop_opacity() const;
 
 private:
-    SVGStopElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGStopElement(DOM::RustMadePrefix);
     virtual void visit_edges(Visitor&) override;
 
     GC::Ptr<SVGAnimatedNumber> m_stop_offset;

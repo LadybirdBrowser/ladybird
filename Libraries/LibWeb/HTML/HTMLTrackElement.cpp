@@ -30,10 +30,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLTrackElement);
-
-HTMLTrackElement::HTMLTrackElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLTrackElement::HTMLTrackElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

@@ -11,10 +11,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEDisplacementMapElement);
-
-SVGFEDisplacementMapElement::SVGFEDisplacementMapElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEDisplacementMapElement::SVGFEDisplacementMapElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

@@ -15,7 +15,6 @@ namespace Web::SVG {
 class SVGFEDistantLightElement final
     : public SVGElement {
     WEB_WRAPPABLE(SVGFEDistantLightElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEDistantLightElement);
 
 public:
     virtual ~SVGFEDistantLightElement() override = default;
@@ -24,7 +23,7 @@ public:
     GC::Ref<SVGAnimatedNumber> elevation();
 
 private:
-    SVGFEDistantLightElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEDistantLightElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedNumber> m_azimuth;

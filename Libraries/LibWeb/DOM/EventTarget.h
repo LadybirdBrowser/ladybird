@@ -21,6 +21,9 @@
 
 namespace Web::DOM {
 
+// See DOM/Node.h.
+struct RustMadePrefix;
+
 // The bit of an event type in the listener type summaries of an event target's core (see Rust/src/dom/event_target.rs):
 // one of 16, picked from the type's interned identity, which is the same for every equal type.
 inline u16 event_type_summary_bit(Utf16FlyString const& type)
@@ -97,6 +100,7 @@ public:
 
 protected:
     EventTarget();
+    explicit EventTarget(RustMadePrefix);
 
     // Says what the target's class is, which its constructor does. See the EVENT_TARGET_* flags.
     void set_event_target_core_flag(u8 flag) { m_event_target_core.flags |= flag; }
@@ -132,8 +136,11 @@ private:
     template<typename>
     friend struct GC::CellConstructionHook;
 
-    // NB: The core comes first, so that it fills the padding at the end of the cell's header.
-    RustFFI::EventTargetCore m_event_target_core {};
+    // NB: The core comes first, right after all of the base class (see the static_asserts in EventTarget()). It is in a
+    //     union, so that EventTarget(RustMadePrefix) can leave it as libweb_rust made it.
+    union {
+        RustFFI::EventTargetCore m_event_target_core;
+    };
     OwnPtr<Data> m_data;
 
     WebIDL::CallbackType* get_current_value_of_event_handler(Utf16FlyString const& name);

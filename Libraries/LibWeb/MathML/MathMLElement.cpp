@@ -20,13 +20,13 @@ namespace Web::MathML {
 
 MathMLElement::~MathMLElement() = default;
 
-MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : DOM::Element(document, move(qualified_name))
+MathMLElement::MathMLElement(DOM::VtableProbe probe)
+    : DOM::Element(probe)
 {
 }
 
-MathMLElement::MathMLElement(DOM::VtableProbe probe)
-    : DOM::Element(probe)
+MathMLElement::MathMLElement(DOM::RustMadePrefix prefix)
+    : DOM::Element(prefix)
 {
 }
 

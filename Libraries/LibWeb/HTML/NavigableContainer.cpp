@@ -44,8 +44,8 @@ HashTable<NavigableContainer*>& NavigableContainer::all_instances()
     return *set;
 }
 
-NavigableContainer::NavigableContainer(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+NavigableContainer::NavigableContainer(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
     all_instances().set(this);
 }

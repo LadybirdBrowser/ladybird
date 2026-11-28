@@ -16,7 +16,6 @@ class HTMLAnchorElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
     WEB_WRAPPABLE(HTMLAnchorElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLAnchorElement);
 
 public:
     virtual ~HTMLAnchorElement() override;
@@ -43,7 +42,7 @@ public:
     }
 
 private:
-    HTMLAnchorElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLAnchorElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

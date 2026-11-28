@@ -19,10 +19,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGAElement);
-
-SVGAElement::SVGAElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGraphicsElement(document, move(qualified_name))
+SVGAElement::SVGAElement(DOM::RustMadePrefix prefix)
+    : SVGGraphicsElement(prefix)
 {
 }
 

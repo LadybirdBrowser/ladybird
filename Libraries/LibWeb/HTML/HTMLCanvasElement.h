@@ -21,7 +21,6 @@ class HTMLCanvasElement final
     : public HTMLElement
     , public CanvasHost {
     WEB_WRAPPABLE(HTMLCanvasElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
     using RenderingContext = Variant<GC::Ref<CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, GC::Ref<ImageBitmapRenderingContext>, Empty>;
@@ -87,7 +86,7 @@ public:
     void ensure_backing_storage();
 
 private:
-    HTMLCanvasElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLCanvasElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void finalize() override;

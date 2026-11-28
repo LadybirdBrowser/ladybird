@@ -17,7 +17,6 @@ class SVGFEColorMatrixElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEColorMatrixElement> {
     WEB_WRAPPABLE(SVGFEColorMatrixElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEColorMatrixElement);
 
 public:
     virtual ~SVGFEColorMatrixElement() override = default;
@@ -34,7 +33,7 @@ public:
     GC::Ref<SVGAnimatedNumberList> values();
 
 private:
-    SVGFEColorMatrixElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEColorMatrixElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

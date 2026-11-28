@@ -947,9 +947,9 @@ public:
     void unregister_anchor_names_before_leaving_tree_scope(Badge<Node>, Node& tree_root);
 
 protected:
-    Element(Document&, DOM::QualifiedName);
     explicit Element(VtableProbe);
-    virtual ~Element() override;
+    explicit Element(RustMadePrefix);
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~Element() override;
 
     bool has_element_core_flag(u8 flag) const { return m_element_core.flags & flag; }
     void set_element_core_flag(u8 flag, bool value) { m_element_core.flags = static_cast<u8>(value ? (m_element_core.flags | flag) : (m_element_core.flags & ~flag)); }
@@ -1028,7 +1028,10 @@ private:
 
     // The state that names the element, whose layout libweb_rust defines (see Rust/src/dom/element_core.rs), which reads
     // it in place.
-    RustFFI::ElementCore m_element_core;
+    // NB: In a union, so that Element(RustMadePrefix) can leave it as libweb_rust made it. ~Element() destroys it.
+    union {
+        RustFFI::ElementCore m_element_core;
+    };
 
     // NB: The declarations of a style attribute, until something asks for their CSSOM object (m_inline_style), which
     //     takes them over. At most one of the two is set.

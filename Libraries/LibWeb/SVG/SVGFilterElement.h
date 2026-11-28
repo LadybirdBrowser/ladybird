@@ -20,7 +20,6 @@ class SVGFilterElement final
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::No> {
     WEB_WRAPPABLE(SVGFilterElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFilterElement);
 
 public:
     virtual ~SVGFilterElement() override = default;
@@ -45,7 +44,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::percentage(120));
 
 private:
-    SVGFilterElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFilterElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

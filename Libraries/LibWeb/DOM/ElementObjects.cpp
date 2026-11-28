@@ -4,60 +4,58 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ElementLayout.h>
 #include <LibWeb/DOM/NodeClassHeadersGenerated.h>
 
 namespace Web::DOM {
 
-// The layout class of the class T of elements: the nearest class it derives from whose prefix lays out the elements of
-// T in libweb_rust (see Rust/src/dom/prefix.rs), and the object Rust makes of each.
-template<typename T>
-struct ElementLayout {
-    using Class = Element;
-    using RustObject = RustFFI::ElementObject;
-};
-
-template<typename T>
-requires(IsBaseOf<HTML::HTMLElement, T>)
-struct ElementLayout<T> {
-    using Class = HTML::HTMLElement;
-    using RustObject = RustFFI::HTMLElementObject;
-};
-
-template<typename T>
-requires(IsBaseOf<MathML::MathMLElement, T>)
-struct ElementLayout<T> {
-    using Class = MathML::MathMLElement;
-    using RustObject = RustFFI::MathMLElementObject;
-};
-
 // The C++ half of the elements whose objects libweb_rust defines (see Rust/src/dom/element_objects.rs): the vtable
-// pointers of their classes, and what C++ does with the members it keeps in the opaque slots of their prefixes.
+// pointers of their classes, and what C++ does with the members it keeps in the opaque slots of their prefixes and in
+// their payloads.
 struct RustElementObjectHooks {
-    // Whether libweb_rust can define the objects of the class T of elements, as those of its layout class: T is a
-    // layout class, or adds nothing to its layout class.
-    template<typename T>
-    static constexpr bool can_be_rust_owned()
-    {
-        using Layout = typename ElementLayout<T>::Class;
-        if constexpr (IsSame<T, Layout>)
-            return true;
-        else
-            return GC::CellConstructionHook<T>::template adds_nothing_to<Layout>();
-    }
-
     // Whether T is the C++ shell of a class of elements whose objects libweb_rust defines: one the object of its layout
     // class lays out whole, which C++ can neither allocate nor destroy. NB: Its destructor, which libweb_rust skips for
     //     an element whose slots hold nothing to release, is the defaulted one.
     template<typename T>
     static constexpr bool is_shell()
     {
-        return can_be_rust_owned<T>() && is_shell_of_rust_object<T, typename ElementLayout<T>::RustObject>;
+        return !element_class_has_payload<T> && is_shell_of_rust_object<T, typename ElementLayout<T>::RustObject>;
+    }
+
+    // Whether T is a class of elements with a payload whose objects libweb_rust defines: one C++ can only construct over
+    // the prefix libweb_rust made, unless it is abstract, and cannot allocate, whose cells LibGC can hold, and whose
+    // initialize(), which DOM::allocate_element() leaves out as it does for every element whose objects libweb_rust
+    // defines, is that of its layout class.
+    template<typename T>
+    static constexpr bool is_payload_class()
+    {
+        using Layout = typename ElementLayout<T>::Class;
+        constexpr bool is_constructible = __is_abstract(T) || GC::CellConstructionHook<T>::constructs_over_rust_made_prefix;
+        constexpr bool has_allocator = requires { requires IsSame<typename T::gc_allocator_marker, T>; };
+        constexpr bool keeps_initialize = IsSame<decltype(&T::initialize), decltype(&Layout::initialize)>;
+        return element_class_has_payload<T> && is_constructible && !has_allocator && alignof(T) == alignof(Layout) && keeps_initialize;
+    }
+
+    // What libweb_rust needs to know of each class of elements whose objects it defines, by class id.
+    template<typename T>
+    static constexpr RustFFI::ElementClassFacts facts_of()
+    {
+        u32 flags = 0;
+        if constexpr (element_class_has_payload<T>)
+            flags = GC::CellConstructionHook<T>::template element_payload_flags<typename ElementLayout<T>::Class>();
+        return { .cell_size = static_cast<u32>(sizeof(T)), .flags = flags };
     }
 
     static Element& element_of(Node const* node)
     {
         return const_cast<Element&>(static_cast<Element const&>(*node));
+    }
+
+    // Visits the cells of an element whose class has traced members in its payload, through the visit_edges() of its
+    // class.
+    static void visit_edges(Node const* node, GCVisitor* gc_visitor)
+    {
+        element_of(node).visit_edges(*reinterpret_cast<GC::Cell::Visitor*>(gc_visitor));
     }
 
     // What DOM::Element::visit_edges() visits beyond what libweb_rust traces of an element.
@@ -109,8 +107,19 @@ struct RustElementObjectHooks {
         return vtable_pointer;
     }
 
+    // The vtable pointers that libweb_rust writes into the elements of the class T, which C++ writes itself into an
+    // element with a payload as it constructs it.
     template<typename T>
     static RustFFI::ElementClassVtables vtables_of()
+    {
+        if constexpr (element_class_has_payload<T>)
+            return {};
+        else
+            return vtables_of_probe<T>();
+    }
+
+    template<typename T>
+    static RustFFI::ElementClassVtables vtables_of_probe()
     {
         auto const& element = probe<T>();
         RustFFI::ElementClassVtables vtables {
@@ -141,6 +150,7 @@ struct RustElementObjectHooks {
         return {
             .classes = classes,
             .class_count = array_size(classes),
+            .visit_edges = visit_edges,
             .visit_slot_edges = visit_slot_edges,
             .finalize = finalize,
             .external_memory_size = external_memory_size,
@@ -150,25 +160,24 @@ struct RustElementObjectHooks {
 };
 
 #define __ENUMERATE_RUST_OWNED_ELEMENT_CLASS(T) \
-    static_assert(RustElementObjectHooks::is_shell<T>(), #T " is a class of elements whose objects libweb_rust defines, see DOM/NodeClasses.json");
+    static_assert(RustElementObjectHooks::is_shell<T>() || RustElementObjectHooks::is_payload_class<T>(), #T " must be a shell, or a class with a payload that C++ only constructs over the prefix libweb_rust makes");
 ENUMERATE_RUST_OWNED_ELEMENT_CLASSES(__ENUMERATE_RUST_OWNED_ELEMENT_CLASS)
 #undef __ENUMERATE_RUST_OWNED_ELEMENT_CLASS
 
-// NB: DOM/NodeClasses.json marks every class of elements whose objects libweb_rust can define, so a class that comes to
-//     add nothing to its layout class becomes one.
-template<typename T>
-consteval bool is_rust_owned_exactly_where_it_can_be()
+// The facts of each class of elements whose objects libweb_rust defines, by class id, which it reads as it registers
+// the classes (see Rust/src/dom/element_objects.rs). The entries of other classes are empty.
+static consteval Array<RustFFI::ElementClassFacts, node_class_id_count> compute_element_class_facts()
 {
-    if constexpr (IsBaseOf<Element, T>)
-        return NodeClassTraits<T>::rust_owned == RustElementObjectHooks::can_be_rust_owned<T>();
-    else
-        return !NodeClassTraits<T>::rust_owned;
+    Array<RustFFI::ElementClassFacts, node_class_id_count> facts {};
+#define __ENUMERATE_RUST_OWNED_ELEMENT_CLASS(T) \
+    facts[to_underlying(NodeClassTraits<T>::id)] = RustElementObjectHooks::facts_of<T>();
+    ENUMERATE_RUST_OWNED_ELEMENT_CLASSES(__ENUMERATE_RUST_OWNED_ELEMENT_CLASS)
+#undef __ENUMERATE_RUST_OWNED_ELEMENT_CLASS
+    return facts;
 }
 
-#define __ENUMERATE_NODE_CLASS(T) \
-    static_assert(is_rust_owned_exactly_where_it_can_be<T>(), #T " must be marked \"@rust_owned\" in DOM/NodeClasses.json exactly where it adds nothing to its layout class");
-ENUMERATE_NODE_CLASSES(__ENUMERATE_NODE_CLASS)
-#undef __ENUMERATE_NODE_CLASS
+extern "C" WEB_API Array<RustFFI::ElementClassFacts, node_class_id_count> const ladybird_dom_element_class_facts;
+constinit Array<RustFFI::ElementClassFacts, node_class_id_count> const ladybird_dom_element_class_facts = compute_element_class_facts();
 
 // NB: libweb_rust asserts the sizes and alignments of the objects of the layout classes.
 static_assert(sizeof(Element) == sizeof(RustFFI::ElementObject) && alignof(Element) == alignof(RustFFI::ElementObject));

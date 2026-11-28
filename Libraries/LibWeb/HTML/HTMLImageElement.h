@@ -33,7 +33,6 @@ class HTMLImageElement final
     , public DOM::ViewportClient
     , public DecodedImageData::Client {
     WEB_WRAPPABLE(HTMLImageElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
 public:
@@ -140,7 +139,7 @@ private:
     Dimensions dimensions(DOM::UpdateLayoutReason) const;
     Dimensions determine_the_dimensions(Optional<CSSPixelSize> natural_dimensions, DOM::UpdateLayoutReason) const;
 
-    HTMLImageElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLImageElement(DOM::RustMadePrefix);
 
     void update_the_image_data_impl(bool restart_the_animations, bool maybe_omit_events, u64 update_the_image_data_count);
 

@@ -15,7 +15,6 @@ namespace Web::HTML {
 
 class HTMLMeterElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLMeterElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLMeterElement);
 
 public:
     virtual ~HTMLMeterElement() override;
@@ -54,7 +53,7 @@ public:
     ValueState value_state() const { return m_cached_value_state; }
 
 private:
-    HTMLMeterElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLMeterElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void computed_properties_changed() override;

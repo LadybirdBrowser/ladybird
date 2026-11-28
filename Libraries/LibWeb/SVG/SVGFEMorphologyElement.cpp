@@ -9,10 +9,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEMorphologyElement);
-
-SVGFEMorphologyElement::SVGFEMorphologyElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEMorphologyElement::SVGFEMorphologyElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

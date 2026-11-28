@@ -2569,8 +2569,7 @@ struct NodeClass {
     parent: Option<usize>,
     /// The index of the last class in the list that descends from this one, or this one's if none does.
     last_descendant: usize,
-    /// Whether the list marks the class with "@rust_owned", as a class of elements whose objects libweb_rust defines
-    /// (see src/dom/element_objects.rs).
+    /// Whether the class is a class of elements, whose objects libweb_rust defines (see src/dom/element_objects.rs).
     rust_owned: bool,
 }
 
@@ -2583,10 +2582,6 @@ fn collect_node_classes(
     list: &mut Vec<NodeClass>,
 ) -> Result<(), Box<dyn Error>> {
     for (qualified_name, subclasses) in classes {
-        // NB: A key that starts with "@" marks the class whose subclasses it is among.
-        if qualified_name.starts_with('@') {
-            continue;
-        }
         let (namespace, name) = qualified_name
             .split_once("::")
             .ok_or_else(|| format!("{qualified_name} in DOM/NodeClasses.json has no namespace"))?;
@@ -2599,32 +2594,7 @@ fn collect_node_classes(
         let subclasses = subclasses
             .as_object()
             .ok_or_else(|| format!("the subclasses of {qualified_name} in DOM/NodeClasses.json are no JSON object"))?;
-        let rust_owned = match subclasses.get("@rust_owned") {
-            None => false,
-            Some(serde_json::Value::Bool(true)) => true,
-            Some(_) => {
-                return Err(
-                    format!("{qualified_name} in DOM/NodeClasses.json has a \"@rust_owned\" that is not true").into(),
-                );
-            }
-        };
-        if let Some(marker) = subclasses
-            .keys()
-            .find(|key| key.starts_with('@') && *key != "@rust_owned")
-        {
-            return Err(format!("{qualified_name} in DOM/NodeClasses.json has the unknown marker {marker}").into());
-        }
-        // NB: The prefix of a layout class lays out the class, and every other class whose objects libweb_rust defines
-        //     adds nothing to the class it derives from, which DOM/ElementObjects.cpp checks.
-        if rust_owned
-            && !ELEMENT_LAYOUT_CLASSES.contains(&name)
-            && !parent.is_some_and(|parent: usize| list[parent].rust_owned)
-        {
-            return Err(format!(
-                "{qualified_name} in DOM/NodeClasses.json is \"@rust_owned\", but neither a layout class nor derived from a \"@rust_owned\" class"
-            )
-            .into());
-        }
+        let rust_owned = name == "Element" || parent.is_some_and(|parent: usize| list[parent].rust_owned);
         let index = list.len();
         list.push(NodeClass {
             namespace: namespace.to_string(),
@@ -2692,7 +2662,7 @@ fn generate_node_classes(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<
     };
     let rust_owned: Vec<usize> = (0..classes.len()).filter(|&index| classes[index].rust_owned).collect();
     if rust_owned.len() >= usize::from(u8::MAX) {
-        return Err("DOM/NodeClasses.json marks too many classes \"@rust_owned\"".into());
+        return Err("DOM/NodeClasses.json lists too many classes of elements".into());
     }
     writeln!(
         rust,
@@ -2752,9 +2722,8 @@ fn generate_node_classes(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<
             "template<>\nstruct NodeClassTraits<Web::{}::{}> {{\n    \
              static constexpr NodeClassId id = NodeClassId::{};\n    \
              static constexpr NodeClassId parent = NodeClassId::{parent};\n    \
-             static constexpr NodeClassId last_descendant = NodeClassId::{};\n    \
-             static constexpr bool rust_owned = {};\n}};\n",
-            class.namespace, class.name, class.name, classes[class.last_descendant].name, class.rust_owned
+             static constexpr NodeClassId last_descendant = NodeClassId::{};\n}};\n",
+            class.namespace, class.name, class.name, classes[class.last_descendant].name
         )?;
     }
     cpp.push_str("// Calls X with each class, in the order of the ids.\n#define ENUMERATE_NODE_CLASSES(X)");
@@ -2951,6 +2920,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "HTMLElementObject".to_string(),
         "MathMLElementObject".to_string(),
         "ElementClassVtables".to_string(),
+        "ElementClassFacts".to_string(),
         "ElementObjectHooks".to_string(),
         "EventListenerList".to_string(),
         "EventCore".to_string(),

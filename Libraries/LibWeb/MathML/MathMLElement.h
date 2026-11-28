@@ -23,7 +23,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override;
 
 protected:
-    MathMLElement(DOM::Document&, DOM::QualifiedName);
+    explicit MathMLElement(DOM::RustMadePrefix);
     explicit MathMLElement(DOM::VtableProbe);
     virtual ~MathMLElement() override;
 

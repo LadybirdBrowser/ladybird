@@ -19,7 +19,6 @@ class SVGFETurbulenceElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFETurbulenceElement> {
     WEB_WRAPPABLE(SVGFETurbulenceElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFETurbulenceElement);
 
 public:
     enum class TurbulenceType {
@@ -44,7 +43,7 @@ public:
     GC::Ref<SVGAnimatedEnumeration> type();
 
 protected:
-    SVGFETurbulenceElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFETurbulenceElement(DOM::RustMadePrefix);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

@@ -16,7 +16,6 @@ namespace Web::HTML {
 class HTMLFieldSetElement final
     : public HTMLElement {
     WEB_WRAPPABLE(HTMLFieldSetElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLFieldSetElement);
 
 public:
     virtual ~HTMLFieldSetElement() override;
@@ -47,7 +46,7 @@ public:
     void refresh_disabled_state_of_descendant_form_controls();
 
 private:
-    HTMLFieldSetElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLFieldSetElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&) override;

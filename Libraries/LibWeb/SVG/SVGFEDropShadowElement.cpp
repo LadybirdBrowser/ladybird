@@ -8,10 +8,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEDropShadowElement);
-
-SVGFEDropShadowElement::SVGFEDropShadowElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, move(qualified_name))
+SVGFEDropShadowElement::SVGFEDropShadowElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

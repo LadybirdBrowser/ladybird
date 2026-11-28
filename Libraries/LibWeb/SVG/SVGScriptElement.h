@@ -18,7 +18,6 @@ class SVGScriptElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public HTML::HTMLOrSVGScriptElement {
     WEB_WRAPPABLE(SVGScriptElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGScriptElement);
 
 public:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
@@ -27,7 +26,7 @@ public:
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
 protected:
-    SVGScriptElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGScriptElement(DOM::RustMadePrefix);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

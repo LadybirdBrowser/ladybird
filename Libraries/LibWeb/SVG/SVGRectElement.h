@@ -13,7 +13,6 @@ namespace Web::SVG {
 // https://www.w3.org/TR/SVG11/shapes.html#RectElement
 class SVGRectElement final : public SVGGeometryElement {
     WEB_WRAPPABLE(SVGRectElement, SVGGeometryElement);
-    GC_DECLARE_ALLOCATOR(SVGRectElement);
 
 public:
     virtual ~SVGRectElement() override = default;
@@ -41,7 +40,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, SVGLengthValue::number(0));
 
 private:
-    SVGRectElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGRectElement(DOM::RustMadePrefix);
 };
 
 }

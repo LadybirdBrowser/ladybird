@@ -16,7 +16,6 @@ class HTMLFrameSetElement final
     : public HTMLElement
     , public WindowEventHandlers {
     WEB_WRAPPABLE(HTMLFrameSetElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLFrameSetElement);
 
 public:
     virtual ~HTMLFrameSetElement() override;
@@ -28,7 +27,7 @@ public:
     void layout_data_changed();
 
 private:
-    HTMLFrameSetElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLFrameSetElement(DOM::RustMadePrefix);
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;

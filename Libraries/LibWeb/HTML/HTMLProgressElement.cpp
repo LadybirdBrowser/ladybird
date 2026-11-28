@@ -20,10 +20,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLProgressElement);
-
-HTMLProgressElement::HTMLProgressElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLProgressElement::HTMLProgressElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

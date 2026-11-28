@@ -16,13 +16,12 @@ class SVGFEMergeElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEMergeElement> {
     WEB_WRAPPABLE(SVGFEMergeElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEMergeElement);
 
 public:
     virtual ~SVGFEMergeElement() override = default;
 
 private:
-    SVGFEMergeElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEMergeElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 };
 

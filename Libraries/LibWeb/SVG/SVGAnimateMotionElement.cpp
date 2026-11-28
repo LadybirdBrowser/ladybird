@@ -19,10 +19,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGAnimateMotionElement);
-
-SVGAnimateMotionElement::SVGAnimateMotionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGAnimationElement(document, move(qualified_name))
+SVGAnimateMotionElement::SVGAnimateMotionElement(DOM::RustMadePrefix prefix)
+    : SVGAnimationElement(prefix)
 {
 }
 

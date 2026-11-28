@@ -13,14 +13,13 @@ namespace Web::SVG {
 
 class SVGAnimateMotionElement final : public SVGAnimationElement {
     WEB_WRAPPABLE(SVGAnimateMotionElement, SVGAnimationElement);
-    GC_DECLARE_ALLOCATOR(SVGAnimateMotionElement);
 
 public:
     void schedule_referenced_motion_path_update();
     void update_referenced_motion_path();
 
 private:
-    SVGAnimateMotionElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGAnimateMotionElement(DOM::RustMadePrefix);
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 

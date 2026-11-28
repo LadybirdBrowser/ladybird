@@ -9,10 +9,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEDiffuseLightingElement);
-
-SVGFEDiffuseLightingElement::SVGFEDiffuseLightingElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEDiffuseLightingElement::SVGFEDiffuseLightingElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

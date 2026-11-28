@@ -16,7 +16,6 @@ class HTMLAreaElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
     WEB_WRAPPABLE(HTMLAreaElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLAreaElement);
 
 public:
     virtual ~HTMLAreaElement() override;
@@ -32,7 +31,7 @@ public:
     Vector<double> shape_coords() const;
 
 private:
-    HTMLAreaElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLAreaElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

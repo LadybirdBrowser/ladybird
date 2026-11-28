@@ -15,7 +15,6 @@ namespace Web::SVG {
 class SVGFESpotLightElement final
     : public SVGElement {
     WEB_WRAPPABLE(SVGFESpotLightElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFESpotLightElement);
 
 public:
     virtual ~SVGFESpotLightElement() override = default;
@@ -30,7 +29,7 @@ public:
     GC::Ref<SVGAnimatedNumber> limiting_cone_angle();
 
 private:
-    SVGFESpotLightElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFESpotLightElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedNumber> m_x;

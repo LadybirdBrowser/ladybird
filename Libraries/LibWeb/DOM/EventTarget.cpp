@@ -214,6 +214,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(EventTarget);
 
 EventTarget::EventTarget()
+    : m_event_target_core {}
 {
     // NB: libweb_rust reads an event target as the EventTargetPrefix it starts with, and finds the target's event
     //     listener list at the start of the data the prefix points to.
@@ -239,6 +240,10 @@ ReadonlySpan<GC::Member<DOMEventListener>> EventTarget::event_listeners() const
     if (!m_data)
         return {};
     return { m_data->event_listener_list.items, m_data->event_listener_list.size };
+}
+
+EventTarget::EventTarget(RustMadePrefix)
+{
 }
 
 EventTarget::~EventTarget() = default;

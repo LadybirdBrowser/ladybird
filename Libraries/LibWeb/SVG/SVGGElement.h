@@ -12,7 +12,6 @@ namespace Web::SVG {
 
 class SVGGElement final : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGGElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGGElement);
 
 public:
     virtual ~SVGGElement() override = default;
@@ -20,7 +19,7 @@ public:
     virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
-    SVGGElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGGElement(DOM::RustMadePrefix);
 };
 
 }

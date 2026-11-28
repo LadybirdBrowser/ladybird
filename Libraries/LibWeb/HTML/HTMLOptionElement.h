@@ -16,7 +16,6 @@ namespace Web::HTML {
 
 class WEB_API HTMLOptionElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLOptionElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLOptionElement);
 
 public:
     virtual ~HTMLOptionElement() override;
@@ -57,7 +56,7 @@ public:
 private:
     friend class HTMLSelectElement;
 
-    HTMLOptionElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLOptionElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

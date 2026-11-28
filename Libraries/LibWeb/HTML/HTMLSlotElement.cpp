@@ -19,10 +19,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLSlotElement);
-
-HTMLSlotElement::HTMLSlotElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLSlotElement::HTMLSlotElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
     // NB: libweb_rust reads a slot as the HTMLSlotElementPrefix it starts with.
     static_assert(sizeof(HTMLSlotElement) == sizeof(DOM::RustFFI::HTMLSlotElementPrefix));

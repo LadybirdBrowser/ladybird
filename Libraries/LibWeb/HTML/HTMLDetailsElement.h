@@ -17,7 +17,6 @@ namespace Web::HTML {
 
 class HTMLDetailsElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLDetailsElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLDetailsElement);
 
 public:
     virtual ~HTMLDetailsElement() override;
@@ -28,7 +27,7 @@ public:
     bool is_default_summary(HTMLSummaryElement const& summary) const;
 
 private:
-    HTMLDetailsElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLDetailsElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void inserted() override;

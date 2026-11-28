@@ -10,10 +10,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGRadialGradientElement);
-
-SVGRadialGradientElement::SVGRadialGradientElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGradientElement(document, qualified_name)
+SVGRadialGradientElement::SVGRadialGradientElement(DOM::RustMadePrefix prefix)
+    : SVGGradientElement(prefix)
 {
 }
 

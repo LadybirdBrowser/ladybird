@@ -14,7 +14,6 @@ namespace Web::HTML {
 
 class HTMLHeadingElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLHeadingElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLHeadingElement);
 
 public:
     virtual ~HTMLHeadingElement() override;
@@ -37,7 +36,7 @@ public:
     }
 
 private:
-    HTMLHeadingElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLHeadingElement(DOM::RustMadePrefix);
 
     mutable WebIDL::UnsignedLong m_cached_heading_level { 0 };
     mutable Optional<u64> m_dom_tree_version_for_cached_heading_level;

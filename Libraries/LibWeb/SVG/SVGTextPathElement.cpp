@@ -12,10 +12,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGTextPathElement);
-
-SVGTextPathElement::SVGTextPathElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGTextContentElement(document, move(qualified_name))
+SVGTextPathElement::SVGTextPathElement(DOM::RustMadePrefix prefix)
+    : SVGTextContentElement(prefix)
 {
 }
 

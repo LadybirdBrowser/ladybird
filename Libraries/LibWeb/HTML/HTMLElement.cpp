@@ -159,8 +159,13 @@ static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& stri
     return string->utf16_view();
 }
 
-HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : Element(document, move(qualified_name))
+HTMLElement::HTMLElement(DOM::VtableProbe probe)
+    : Element(probe)
+{
+}
+
+HTMLElement::HTMLElement(DOM::RustMadePrefix prefix)
+    : Element(prefix)
 {
     // NB: libweb_rust reads a slot as the HTMLSlotElementPrefix it starts with, which starts with an HTMLElementPrefix.
     static_assert(sizeof(HTMLElement) == sizeof(DOM::RustFFI::HTMLElementPrefix));
@@ -172,11 +177,6 @@ HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_n
     // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
     //     its tail padding, where only the Itanium ABI could.
     static_assert(offsetof(HTMLElement, m_content_editable_state) >= sizeof(DOM::Element));
-}
-
-HTMLElement::HTMLElement(DOM::VtableProbe probe)
-    : Element(probe)
-{
 }
 
 HTMLElement::~HTMLElement() = default;

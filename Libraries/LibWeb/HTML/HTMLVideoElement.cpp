@@ -48,10 +48,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLVideoElement);
-
-HTMLVideoElement::HTMLVideoElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLMediaElement(document, move(qualified_name))
+HTMLVideoElement::HTMLVideoElement(DOM::RustMadePrefix prefix)
+    : HTMLMediaElement(prefix)
 {
 }
 

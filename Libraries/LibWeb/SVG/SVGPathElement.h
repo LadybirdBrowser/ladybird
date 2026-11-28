@@ -13,13 +13,12 @@ namespace Web::SVG {
 
 class SVGPathElement final : public SVGGeometryElement {
     WEB_WRAPPABLE(SVGPathElement, SVGGeometryElement);
-    GC_DECLARE_ALLOCATOR(SVGPathElement);
 
 public:
     virtual ~SVGPathElement() override = default;
 
 private:
-    SVGPathElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGPathElement(DOM::RustMadePrefix);
 };
 
 }

@@ -31,12 +31,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLOptionElement);
-
 static u64 m_next_selectedness_update_index = 1;
 
-HTMLOptionElement::HTMLOptionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLOptionElement::HTMLOptionElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

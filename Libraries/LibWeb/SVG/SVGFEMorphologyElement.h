@@ -20,7 +20,6 @@ class SVGFEMorphologyElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEMorphologyElement> {
     WEB_WRAPPABLE(SVGFEMorphologyElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEMorphologyElement);
 
 public:
     static constexpr u16 SVG_MORPHOLOGY_OPERATOR_UNKNOWN = 0;
@@ -38,7 +37,7 @@ public:
     GC::Ref<SVGAnimatedNumber> radius_y();
 
 private:
-    SVGFEMorphologyElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEMorphologyElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<Utf16FlyString> const& namespace_) override;

@@ -206,8 +206,8 @@ public:
     WebIDL::UnsignedLong computed_heading_offset() const;
 
 protected:
-    HTMLElement(DOM::Document&, DOM::QualifiedName);
     explicit HTMLElement(DOM::VtableProbe);
+    explicit HTMLElement(DOM::RustMadePrefix);
     virtual ~HTMLElement() override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;

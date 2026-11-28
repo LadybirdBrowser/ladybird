@@ -17,6 +17,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <LibGC/DeferGC.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -150,6 +151,13 @@ enum class SetNeedsLayoutTreeUpdateReason {
 // take: C++ only ever constructs a probe of such a class, from which it reads the vtable pointers that Rust writes into
 // every object of the class.
 struct VtableProbe { };
+
+// What the constructors take that construct an element over the prefix libweb_rust made for it (see
+// Rust/src/dom/element_objects.rs): libweb_rust allocated the element, made the part of it that the prefix of its
+// layout class lays out, and C++ constructs the members that come after that, its payload, in place. The constructors
+// of the classes of the prefix leave what libweb_rust owns as it is, and give C++'s own members in the prefix the
+// values libweb_rust gave them.
+struct RustMadePrefix { };
 
 // The C++ half of the elements whose objects libweb_rust defines (see DOM/ElementObjects.cpp), which the shells of
 // their classes befriend.
@@ -654,6 +662,7 @@ protected:
 
     Node(Document&, NodeType);
     explicit Node(VtableProbe);
+    explicit Node(RustMadePrefix);
 
     void set_document(Document&);
 
@@ -668,7 +677,10 @@ protected:
 
     // The tree state of the node, whose layout libweb_rust defines (see Rust/src/dom/node_core.rs), which reads it in
     // place.
-    RustFFI::NodeCore m_core {};
+    // NB: In a union, so that Node(RustMadePrefix) can leave it as libweb_rust made it.
+    union {
+        RustFFI::NodeCore m_core;
+    };
 
     void set_core_flag(u8 flag, bool value) { m_core.flags = static_cast<u8>(value ? (m_core.flags | flag) : (m_core.flags & ~flag)); }
     // Which narrower rebuilds the layout tree update marks collected so far still permit.
@@ -840,6 +852,40 @@ struct CellConstructionHook<T> {
             && IsSame<decltype(&T::initialize), decltype(&L::initialize)>
             && IsSame<decltype(&T::initialize_element), decltype(&L::initialize_element)>
             && IsSame<decltype(&T::cloned), decltype(&L::cloned)>;
+    }
+
+    // The RustFFI::ELEMENT_CLASS_* bits of T, a class of elements with a payload after the prefix of L, its layout class:
+    // which of the functions that trace, measure and finalize an element T or a class between L and T overrides, which
+    // libweb_rust then calls for every element of T. NB: C++ cannot tell whether the members of T beyond L are trivially
+    //     destructible while the destructor of L is virtual, so the destructor of every element with a payload runs.
+    template<typename L>
+    static constexpr u32 element_payload_flags()
+    {
+        static_assert(IsBaseOf<L, T> && !adds_nothing_to<L>());
+        using namespace Web::DOM::RustFFI;
+        u32 flags = ELEMENT_CLASS_HAS_PAYLOAD;
+        if (!IsSame<decltype(&T::visit_edges), decltype(&L::visit_edges)>)
+            flags |= ELEMENT_CLASS_PAYLOAD_HAS_EDGES;
+        if (!IsSame<decltype(&T::external_memory_size), decltype(&L::external_memory_size)>)
+            flags |= ELEMENT_CLASS_PAYLOAD_HAS_EXTERNAL_MEMORY;
+        if (!IsSame<decltype(&T::finalize), decltype(&L::finalize)>)
+            flags |= ELEMENT_CLASS_PAYLOAD_NEEDS_FINALIZE;
+        return flags;
+    }
+
+    // Whether the constructor that makes an element of T over the prefix libweb_rust made is one C++ can call here.
+    static constexpr bool constructs_over_rust_made_prefix = requires(void* storage) { ::new (storage) T(Web::DOM::RustMadePrefix {}); };
+
+    // Constructs the payload of `node`, a new element of T whose prefix libweb_rust made (see Web::DOM::RustMadePrefix),
+    // as Heap::allocate() constructs a cell: with collections deferred until the constructor is done, so that none
+    // traces a payload half made.
+    static T& construct_payload(Web::DOM::Node& node)
+    {
+        static_assert(T::cell_kind_for_class == CellKind::Other, "libweb_rust makes an element a cell of GC::CellKind::Other");
+        DeferGC defer_gc { node.heap() };
+        auto& element = *::new (static_cast<void*>(&node)) T(Web::DOM::RustMadePrefix {});
+        did_construct(element);
+        return element;
     }
 
     static void did_construct(T& node)

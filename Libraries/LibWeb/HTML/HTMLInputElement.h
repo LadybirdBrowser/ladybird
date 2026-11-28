@@ -67,7 +67,6 @@ class WEB_API HTMLInputElement final
     , public PopoverTargetAttributes
     , public AutocompleteElement {
     WEB_WRAPPABLE(HTMLInputElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLInputElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLInputElement);
 
 public:
@@ -325,7 +324,7 @@ public:
     bool is_allowed_to_be_readonly() const;
 
 private:
-    HTMLInputElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLInputElement(DOM::RustMadePrefix);
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
     RadioButtonGroupRegistry* radio_button_group_registry();

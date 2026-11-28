@@ -28,6 +28,7 @@ GC_DEFINE_ALLOCATOR(ParentNode);
 
 ParentNode::ParentNode(Document& document, NodeType type)
     : Node(document, type)
+    , m_parent_node_core {}
 {
     // NB: libweb_rust reads a ParentNode as the ParentNodePrefix it starts with.
     static_assert(sizeof(ParentNode) == sizeof(RustFFI::ParentNodePrefix));
@@ -40,6 +41,12 @@ ParentNode::ParentNode(Document& document, NodeType type)
 
 ParentNode::ParentNode(VtableProbe probe)
     : Node(probe)
+    , m_parent_node_core {}
+{
+}
+
+ParentNode::ParentNode(RustMadePrefix prefix)
+    : Node(prefix)
 {
 }
 

@@ -24,8 +24,8 @@ use super::event::EventCore;
 use super::node::heap_region_base;
 use super::node_class::NodeClassId;
 use super::prefix::{
-    AttrPrefix, CharacterDataPrefix, DocumentFragmentPrefix, DocumentPrefix, ElementPrefix, EventTargetPrefix,
-    HTMLSlotElementPrefix, NodePrefix, ShadowRootPrefix, TextPrefix,
+    AttrPrefix, CharacterDataPrefix, DocumentFragmentPrefix, DocumentPrefix, EventTargetPrefix, NodePrefix,
+    ShadowRootPrefix, TextPrefix,
 };
 use super::range::RangeCore;
 use super::traversal::{NodeIteratorCore, TreeWalkerCore};
@@ -84,7 +84,7 @@ pub(super) use fields_without_cells;
 pub(super) use member_fields;
 
 /// Traces the fields Rust defines of the event target `cell`: those of its EventTargetPrefix, and of every prefix of a
-/// node class that it starts with.
+/// node class that it starts with, unless it is an element, which its own trace traces.
 ///
 /// # Safety
 ///
@@ -101,11 +101,8 @@ pub unsafe extern "C" fn rust_dom_trace_event_target(cell: *const c_void, visito
         if class_id == NodeClassId::NotANode {
             trace_as::<EventTargetPrefix>(cell, &mut visitor);
         } else if class_id.is_a(NodeClassId::Element) {
-            if class_id.is_a(NodeClassId::HTMLSlotElement) {
-                trace_as::<HTMLSlotElementPrefix>(cell, &mut visitor);
-            } else {
-                trace_as::<ElementPrefix>(cell, &mut visitor);
-            }
+            // NB: Every element is an object Rust defines, whose trace traces its prefixes before it calls into the
+            //     C++ visit_edges() that calls this, see element_objects.rs.
         } else if class_id.is_a(NodeClassId::Text) {
             trace_as::<TextPrefix>(cell, &mut visitor);
         } else if class_id.is_a(NodeClassId::CharacterData) {
@@ -217,6 +214,7 @@ mod tests {
     use super::*;
     use crate::dom::node::Node;
     use crate::dom::node_core::NodeType;
+    use crate::dom::prefix::ElementPrefix;
     use crate::dom::test_tree::{append_child, node, set_assigned_slot, shadow_root};
     use crate::stage::MainThread;
 
@@ -224,8 +222,15 @@ mod tests {
     fn traced(node: Node<'_>) -> Vec<usize> {
         let mut recording = RecordingVisitor::new();
         let visitor = recording.raw();
+        let cell = core::ptr::from_ref(node.cell()).cast::<c_void>();
         // SAFETY: The node is live, and the visitor outlives the call.
-        unsafe { rust_dom_trace_event_target(core::ptr::from_ref(node.cell()).cast(), visitor) };
+        unsafe {
+            if node.is_element() {
+                trace_as::<ElementPrefix>(cell, &mut Visitor::from_raw(visitor));
+            } else {
+                rust_dom_trace_event_target(cell, visitor);
+            }
+        }
         recording.take_visited()
     }
 

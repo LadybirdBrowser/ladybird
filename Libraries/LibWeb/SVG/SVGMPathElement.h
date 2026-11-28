@@ -15,13 +15,12 @@ class SVGMPathElement final
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_WRAPPABLE(SVGMPathElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGMPathElement);
 
 public:
     GC::Ptr<DOM::Element> referenced_element();
 
 private:
-    SVGMPathElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGMPathElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void inserted() override;

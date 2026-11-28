@@ -11,10 +11,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGPolylineElement);
-
-SVGPolylineElement::SVGPolylineElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGeometryElement(document, qualified_name)
+SVGPolylineElement::SVGPolylineElement(DOM::RustMadePrefix prefix)
+    : SVGGeometryElement(prefix)
 {
 }
 

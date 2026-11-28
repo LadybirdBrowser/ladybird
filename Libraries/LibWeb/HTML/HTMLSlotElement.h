@@ -26,7 +26,6 @@ namespace Web::HTML {
 // https://dom.spec.whatwg.org/#concept-slot
 class HTMLSlotElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLSlotElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLSlotElement);
 
 public:
     // NB: The buffers of the core are freed when the cell is swept, not when it is finalized, as the C++ members that
@@ -56,7 +55,7 @@ public:
     void assign_slottables_if_needed() const;
 
 private:
-    HTMLSlotElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLSlotElement(DOM::RustMadePrefix);
 
     // NB: The slot's name and its lists of nodes, see Rust/src/dom/slots.rs.
     DOM::RustFFI::SlotCore m_slot_core {};

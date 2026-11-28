@@ -14,13 +14,12 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/text.html#InterfaceSVGTextElement
 class SVGTextElement : public SVGTextPositioningElement {
     WEB_WRAPPABLE(SVGTextElement, SVGTextPositioningElement);
-    GC_DECLARE_ALLOCATOR(SVGTextElement);
 
 public:
     virtual CSS::ElementBoxKind box_kind() const override;
 
 protected:
-    SVGTextElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGTextElement(DOM::RustMadePrefix);
 
 private:
 };

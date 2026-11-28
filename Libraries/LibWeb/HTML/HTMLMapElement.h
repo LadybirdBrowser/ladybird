@@ -15,7 +15,6 @@ namespace Web::HTML {
 
 class HTMLMapElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLMapElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLMapElement);
 
 public:
     virtual ~HTMLMapElement() override;
@@ -36,7 +35,7 @@ public:
     GC::Ptr<HTMLImageElement> first_painted_image_with_focusable_shapes(Layout::BegunRead const& read) const;
 
 private:
-    HTMLMapElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLMapElement(DOM::RustMadePrefix);
 
     // ^DOM::Node
     virtual void inserted() override;

@@ -19,8 +19,8 @@
 
 namespace Web::SVG {
 
-SVGTextPositioningElement::SVGTextPositioningElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGTextContentElement(document, move(qualified_name))
+SVGTextPositioningElement::SVGTextPositioningElement(DOM::RustMadePrefix prefix)
+    : SVGTextContentElement(prefix)
 {
 }
 

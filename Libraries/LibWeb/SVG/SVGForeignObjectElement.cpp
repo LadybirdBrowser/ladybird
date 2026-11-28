@@ -14,10 +14,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGForeignObjectElement);
-
-SVGForeignObjectElement::SVGForeignObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGraphicsElement(document, move(qualified_name))
+SVGForeignObjectElement::SVGForeignObjectElement(DOM::RustMadePrefix prefix)
+    : SVGGraphicsElement(prefix)
 {
 }
 

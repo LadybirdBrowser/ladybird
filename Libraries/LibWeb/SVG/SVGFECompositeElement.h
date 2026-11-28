@@ -17,7 +17,6 @@ class SVGFECompositeElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFECompositeElement> {
     WEB_WRAPPABLE(SVGFECompositeElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFECompositeElement);
 
 public:
     virtual ~SVGFECompositeElement() override = default;
@@ -44,7 +43,7 @@ public:
     GC::Ref<SVGAnimatedEnumeration> operator_for_bindings();
 
 private:
-    SVGFECompositeElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFECompositeElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<Utf16FlyString> const& namespace_) override;

@@ -17,7 +17,6 @@ class HTMLEmbedElement final
     : public NavigableContainer
     , public Layout::ImageProvider {
     WEB_WRAPPABLE(HTMLEmbedElement, NavigableContainer);
-    GC_DECLARE_ALLOCATOR(HTMLEmbedElement);
 
 public:
     virtual ~HTMLEmbedElement() override;
@@ -28,7 +27,7 @@ public:
     void ancestor_object_started_showing_fallback_content();
 
 private:
-    HTMLEmbedElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLEmbedElement(DOM::RustMadePrefix);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
