@@ -29,6 +29,10 @@ Among others, these include Alpine Linux, FreeBSD, OpenBSD, and Haiku. Support f
 meaning there is no regular CI to ensure that each master branch commit maintains their functionality.
 Contributions to restore or improve compatibility are welcome!
 
+There is currently one experimental platform port:
+
+- Windows: The native Windows platform port.
+
 ## Porting Steps
 
 ### UI ports
