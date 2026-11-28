@@ -16,6 +16,7 @@ use super::range::live_range_pre_remove_steps;
 use super::range::live_range_pre_remove_steps_for_all_children;
 use super::steps::assign_slottables_after_removal_does_nothing;
 use super::steps::removing_steps_do_nothing;
+use super::traversal::run_node_iterator_pre_remove_steps;
 use super::tree::for_each_shadow_including_descendant;
 use crate::stage::MainThread;
 
@@ -40,7 +41,7 @@ pub(crate) fn remove(main_thread: &mut MainThread<'_>, node: NodeRef, suppress_o
 
     // 4. For each NodeIterator object iterator whose root’s node document is node’s node document: run the NodeIterator
     //    pre-remove steps given node and iterator.
-    // NB: The callback above runs these steps, for now.
+    run_node_iterator_pre_remove_steps(main_thread, node);
 
     // 5. Let oldPreviousSibling be node’s previous sibling.
     let old_previous_sibling = node.previous_sibling();
@@ -113,12 +114,13 @@ pub(crate) fn remove_all_children(main_thread: &mut MainThread<'_>, parent: Node
         // 2. Assert: parent is non-null.
         // NB: The parent is the parent of every child removed here.
 
+        // NB: The callback does what the removal does for the page, list numbering, slots, layout and the style engine
+        //     while the subtree still stands where it did, and keeps what every child shares in children_removal.
+        let facts = hooks::prepare_removal(main_thread, node, parent, Some(&mut children_removal));
+
         // 4. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
         //    NodeIterator pre-remove steps given node and iterator.
-        // NB: The callback also does what the removal does for the page, list numbering, slots, layout and the style
-        //     engine while the subtree still stands where it did, and keeps what every child shares in
-        //     children_removal.
-        let facts = hooks::prepare_removal(main_thread, node, parent, Some(&mut children_removal));
+        run_node_iterator_pre_remove_steps(main_thread, node);
 
         // 5. Let oldPreviousSibling be node’s previous sibling.
         // NB: The child removed is always the first, so oldPreviousSibling is always null.
@@ -195,6 +197,7 @@ fn pre_remove(main_thread: &mut MainThread<'_>, child: NodeRef, parent: NodeRef)
 /// The steps of removing `node`, which has left `parent`'s children, that run the removing steps for it and its
 /// shadow-including descendants and enqueue their "disconnectedCallback" reactions.
 /// https://dom.spec.whatwg.org/#concept-node-remove
+#[inline]
 fn run_removing_steps_for_subtree(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,

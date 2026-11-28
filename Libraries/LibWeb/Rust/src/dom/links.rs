@@ -19,15 +19,18 @@ crate::stage::main_thread_ffi_entries!(without_host);
 ///
 /// NB: The links are written in place and nothing is called that could run script or allocate, so the read handles the
 ///     main thread token lends cannot live across it, which the token's mutable borrow says.
+#[inline(always)]
 pub(crate) fn insert_child(_main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef, child: Option<NodeRef>) {
     link_child(parent, node, child);
 }
 
 /// Removes `node` from `parent`'s children, and makes `node` the root of every node of its subtree.
+#[inline(always)]
 pub(crate) fn remove_child(_main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef) {
     unlink_child(parent, node);
 }
 
+#[inline]
 fn link_child(parent: NodeRef, node: NodeRef, child: Option<NodeRef>) {
     assert!(node.parent().is_none(), "an inserted node has no parent");
     let node_core = node.core();
@@ -61,6 +64,7 @@ fn link_child(parent: NodeRef, node: NodeRef, child: Option<NodeRef>) {
     set_root_for_subtree(node, parent.core().root());
 }
 
+#[inline]
 fn unlink_child(parent: NodeRef, node: NodeRef) {
     assert!(node.parent() == Some(parent), "a removed node is a child of the parent");
     let node_core = node.core();

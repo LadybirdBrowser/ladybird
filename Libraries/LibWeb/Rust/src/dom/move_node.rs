@@ -22,6 +22,7 @@ use super::pre_insert::is_text;
 use super::range::adjust_live_ranges_for_insertion;
 use super::range::live_range_pre_remove_steps;
 use super::steps::moving_steps_do_nothing;
+use super::traversal::run_node_iterator_pre_remove_steps;
 use super::tree::for_each_shadow_including_inclusive_descendant;
 use crate::stage::MainThread;
 
@@ -149,7 +150,7 @@ pub(crate) fn move_node(
 
     // 10. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
     //     NodeIterator pre-remove steps given node and iterator.
-    // NB: The callback above runs these steps, for now.
+    run_node_iterator_pre_remove_steps(main_thread, node);
 
     // 11. Let oldPreviousSibling be node’s previous sibling.
     let old_previous_sibling = node.previous_sibling();

@@ -5,8 +5,8 @@
  */
 
 //! The table of C++ callbacks through which the DOM algorithms in Rust run a node's virtual hooks, such as its insertion
-//! and removing steps, and the steps of the systems whose state is still C++'s: live ranges, NodeIterators, slots,
-//! mutation records, custom element reactions, the style engine's records, layout tree updates and collection caches.
+//! and removing steps, and the steps of the systems whose state C++ keeps: the selections and highlights of live
+//! ranges, the filters of traversers, slots, mutation records, custom element reactions, the style engine's records, layout tree updates and collection caches.
 //!
 //! C++ registers the table once, before any node exists. Every wrapper takes the main thread token mutably, so no read
 //! handle lives across a call into C++. The documentation of each wrapper says whether its callback can run script,
@@ -14,11 +14,14 @@
 //! needs again after it returns.
 
 use core::cell::UnsafeCell;
+use core::ffi::c_void;
+use core::ptr::NonNull;
 
 use super::node_ref::NodeRef;
 use super::node_ref::NullableNodeRef;
 use super::node_ref::RawNodeRef;
 use super::node_ref::RawNullableNodeRef;
+use super::traversal::NodeFilterCall;
 use crate::stage::MainThread;
 
 /// Whether a node a removing step runs for is the root of the subtree that is removed, laid out as C++'s
@@ -240,6 +243,8 @@ pub struct DomHooks {
     pub moving: MoveHooks,
     /// See [`live_range_boundary_points_set`].
     pub live_range_boundary_points_set: unsafe extern "C" fn(document: RawNodeRef),
+    /// See [`call_node_filter`].
+    pub call_node_filter: unsafe extern "C" fn(filter: *const c_void, node: RawNodeRef) -> NodeFilterCall,
     /// See [`queue_tree_mutation_record`].
     pub queue_tree_mutation_record: unsafe extern "C" fn(
         target: RawNodeRef,
@@ -513,8 +518,8 @@ pub(crate) fn run_removing_steps(
 
 /// Step 3 of adopting `node`, which has no parent, into `document`, which is not `old_document`, its node document
 /// before the adoption: runs the steps for each of its shadow-including inclusive descendants, and moves what the
-/// systems whose state is still C++'s keep for the subtree, such as adopted style sheets, NodeIterators and live
-/// ranges, from `old_document` to `document`.
+/// systems whose state C++ keeps keep for the subtree, such as adopted style sheets, and the document registries
+/// of NodeIterators and live ranges, from `old_document` to `document`.
 /// https://dom.spec.whatwg.org/#concept-node-adopt
 ///
 /// Can run script, allocate and change the tree.
@@ -652,6 +657,20 @@ pub(crate) fn end_move(
 pub(crate) fn live_range_boundary_points_set(main_thread: &mut MainThread<'_>, document: NodeRef) {
     // SAFETY: The callback is called on the main thread with a live node.
     unsafe { (hooks(main_thread).live_range_boundary_points_set)(document) }
+}
+
+/// Calls `filter`, a DOM::TraversalFilter, with `node`: the user object operation "acceptNode" of a traverser's
+/// filter, step 6 of filtering. Answers the result, or that it threw, in which case C++ keeps the exception.
+/// https://dom.spec.whatwg.org/#concept-node-filter
+///
+/// Can run script, allocate and change the tree.
+pub(crate) fn call_node_filter(
+    main_thread: &mut MainThread<'_>,
+    filter: NonNull<c_void>,
+    node: NodeRef,
+) -> NodeFilterCall {
+    // SAFETY: The callback is called on the main thread with a live filter and node.
+    unsafe { (hooks(main_thread).call_node_filter)(filter.as_ptr(), node) }
 }
 
 /// Queues a tree mutation record for `target` with `added_nodes`, `removed_nodes`, `previous_sibling` and

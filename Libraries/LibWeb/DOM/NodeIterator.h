@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/NodeFilter.h>
+#include <LibWeb/DOM/RustFFI.h>
 
 namespace Web::DOM {
 
@@ -17,16 +18,16 @@ class NodeIterator final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(NodeIterator);
 
 public:
-    static constexpr size_t root_offset() { return offsetof(NodeIterator, m_root); }
+    static constexpr GC::MemberOffset root_offset() { return GC_FIELD_OFFSET(NodeIterator, m_node_iterator_core.traverser.root); }
 
     static GC::Ref<NodeIterator> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~NodeIterator() override;
 
-    GC::Ref<Node> root() { return m_root; }
-    GC::Ref<Node> reference_node() { return m_reference.node; }
-    bool pointer_before_reference_node() const { return m_reference.pointer_before; }
-    unsigned what_to_show() const { return m_what_to_show; }
+    GC::Ref<Node> root() { return *m_node_iterator_core.traverser.root; }
+    GC::Ref<Node> reference_node() { return *m_node_iterator_core.reference; }
+    bool pointer_before_reference_node() const { return m_node_iterator_core.traverser.flags & RustFFI::NODE_ITERATOR_POINTER_BEFORE_REFERENCE; }
+    unsigned what_to_show() const { return m_node_iterator_core.traverser.what_to_show; }
 
     GC::Ptr<NodeFilter> filter() const;
 
@@ -35,47 +36,29 @@ public:
 
     void detach();
 
-    void run_pre_removing_steps(Node&);
-
 private:
-    struct NodePointer {
-        GC::Ref<Node> node;
-        bool pointer_before { true };
-    };
-
     explicit NodeIterator(Node& root);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual void finalize() override;
 
-    enum class Direction {
-        Next,
-        Previous,
-    };
-
-    TraversalResult traverse(TraversalFilter const&, Direction);
-
-    TraversalFilterResult filter(TraversalFilter const&, Node&);
+    TraversalResult traverse(TraversalFilter const&, RustFFI::NodeIteratorDirection);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
-    GC::Ref<Node> m_root;
-
-    NodePointer adjust_node_pointer(NodePointer, Node& to_be_removed_node);
-
-    // https://dom.spec.whatwg.org/#nodeiterator-reference
-    NodePointer m_reference;
-
-    // https://dom.spec.whatwg.org/#nodeiterator-candidate-reference
-    Optional<NodePointer> m_candidate_reference;
-
     // https://dom.spec.whatwg.org/#concept-traversal-whattoshow
-    unsigned m_what_to_show { 0 };
+    // https://dom.spec.whatwg.org/#concept-traversal-active
+    // https://dom.spec.whatwg.org/#nodeiterator-reference
+    // https://dom.spec.whatwg.org/#nodeiterator-candidate-reference
+    // NB: libweb_rust reads and writes these in place, see Rust/src/dom/traversal.rs.
+    RustFFI::NodeIteratorCore m_node_iterator_core;
 
     // https://dom.spec.whatwg.org/#concept-traversal-filter
     GC::Ptr<NodeFilter> m_filter;
 
-    // https://dom.spec.whatwg.org/#concept-traversal-active
-    bool m_active { false };
+    // NB: The index of the iterator's entry in the NodeIterators of its root's node document, see WeakCellRegistry.
+    template<typename>
+    friend class WeakCellRegistry;
+    size_t& weak_cell_registry_index() { return m_weak_cell_registry_index; }
+    size_t m_weak_cell_registry_index { 0 };
 };
 
 }

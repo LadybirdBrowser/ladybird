@@ -180,6 +180,7 @@ pub(super) fn moving_steps_do_nothing(node: NodeRef, is_subtree_root: IsSubtreeR
 }
 
 /// Whether `node` or a shadow-including descendant of it has an identity in the style engine.
+#[inline]
 fn shadow_including_subtree_has_style_node(node: NodeRef) -> bool {
     if node.core().style_node_id().is_some() {
         return true;

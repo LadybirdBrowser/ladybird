@@ -679,7 +679,6 @@ private:
     RustFFI::NodeCore& tree_node_links() { return m_core; }
     RustFFI::NodeCore const& tree_node_links() const { return m_core; }
 
-    void run_node_iterator_pre_removing_steps();
     bool schedule_list_item_renumber_for_removal();
     void report_removal_to_style_engine(Node& parent);
     void update_layout_tree_for_removal(Node& parent);

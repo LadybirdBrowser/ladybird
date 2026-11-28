@@ -39,7 +39,7 @@ JS::ThrowCompletionOr<DOM::NodeFilter::Result> accept_node(JS::Realm& realm, DOM
     return static_cast<DOM::NodeFilter::Result>(result_value);
 }
 
-static JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> traversal_result_to_node(JS::Realm& realm, DOM::TraversalResult result, Optional<JS::Completion>& callback_exception, Utf16String const& active_error_message)
+static JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> traversal_result_to_node(JS::Realm& realm, DOM::TraversalResult result, Optional<JS::Completion>& callback_exception, StringView active_error_message)
 {
     switch (result.type) {
     case DOM::TraversalResult::Type::Node:
@@ -47,7 +47,7 @@ static JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> traversal_result_to_node(JS::Re
     case DOM::TraversalResult::Type::Null:
         return nullptr;
     case DOM::TraversalResult::Type::AlreadyActive:
-        return throw_completion(realm, WebIDL::InvalidStateError::create(active_error_message));
+        return throw_completion(realm, WebIDL::InvalidStateError::create(Utf16String::from_utf8_without_validation(active_error_message)));
     case DOM::TraversalResult::Type::CallbackException:
         VERIFY(callback_exception.has_value());
         return callback_exception.release_value();
@@ -56,7 +56,7 @@ static JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> traversal_result_to_node(JS::Re
 }
 
 template<typename Traverser, typename Callback>
-static JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> traversal(JS::Realm& realm, Traverser& traverser, Callback callback, Utf16String const& active_error_message)
+static JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> traversal(JS::Realm& realm, Traverser& traverser, Callback callback, StringView active_error_message)
 {
     Optional<JS::Completion> callback_exception;
     DOM::TraversalFilter traversal_filter = [&](DOM::Node& node) -> Optional<DOM::NodeFilter::Result> {
@@ -81,7 +81,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_node(JS::Realm& realm, DOM::NodeI
         realm, iterator, [](DOM::NodeIterator& iterator, DOM::TraversalFilter const& traversal_filter) {
             return iterator.next_node(traversal_filter);
         },
-        "NodeIterator is already active"_utf16);
+        "NodeIterator is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_node(JS::Realm& realm, DOM::NodeIterator& iterator)
@@ -90,7 +90,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_node(JS::Realm& realm, DOM::N
         realm, iterator, [](DOM::NodeIterator& iterator, DOM::TraversalFilter const& traversal_filter) {
             return iterator.previous_node(traversal_filter);
         },
-        "NodeIterator is already active"_utf16);
+        "NodeIterator is already active"sv);
 }
 
 JS::Value filter(DOM::TreeWalker& tree_walker)
@@ -104,7 +104,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> parent_node(JS::Realm& realm, DOM::Tre
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.parent_node(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> first_child(JS::Realm& realm, DOM::TreeWalker& tree_walker)
@@ -113,7 +113,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> first_child(JS::Realm& realm, DOM::Tre
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.first_child(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> last_child(JS::Realm& realm, DOM::TreeWalker& tree_walker)
@@ -122,7 +122,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> last_child(JS::Realm& realm, DOM::Tree
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.last_child(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_sibling(JS::Realm& realm, DOM::TreeWalker& tree_walker)
@@ -131,7 +131,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_sibling(JS::Realm& realm, DOM
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.previous_sibling(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_sibling(JS::Realm& realm, DOM::TreeWalker& tree_walker)
@@ -140,7 +140,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_sibling(JS::Realm& realm, DOM::Tr
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.next_sibling(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_node(JS::Realm& realm, DOM::TreeWalker& tree_walker)
@@ -149,7 +149,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> previous_node(JS::Realm& realm, DOM::T
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.previous_node(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_node(JS::Realm& realm, DOM::TreeWalker& tree_walker)
@@ -158,7 +158,7 @@ JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> next_node(JS::Realm& realm, DOM::TreeW
         realm, tree_walker, [](DOM::TreeWalker& tree_walker, DOM::TraversalFilter const& traversal_filter) {
             return tree_walker.next_node(traversal_filter);
         },
-        "TreeWalker is already active"_utf16);
+        "TreeWalker is already active"sv);
 }
 
 }

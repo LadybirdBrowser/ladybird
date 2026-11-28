@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::DOM {
@@ -59,26 +60,6 @@ AK_ENUM_BITWISE_OPERATORS(NodeFilter::WhatToShow);
 
 using TraversalFilter = Function<Optional<NodeFilter::Result>(Node&)>;
 
-struct TraversalFilterResult {
-    enum class Type : u8 {
-        Result,
-        AlreadyActive,
-        CallbackException,
-    };
-
-    static TraversalFilterResult from_result(NodeFilter::Result result) { return { Type::Result, result }; }
-    static TraversalFilterResult accept() { return from_result(NodeFilter::Result::FILTER_ACCEPT); }
-    static TraversalFilterResult reject() { return from_result(NodeFilter::Result::FILTER_REJECT); }
-    static TraversalFilterResult skip() { return from_result(NodeFilter::Result::FILTER_SKIP); }
-    static TraversalFilterResult already_active() { return { Type::AlreadyActive, NodeFilter::Result::FILTER_SKIP }; }
-    static TraversalFilterResult callback_exception() { return { Type::CallbackException, NodeFilter::Result::FILTER_SKIP }; }
-
-    bool is(NodeFilter::Result result) const { return type == Type::Result && this->result == result; }
-
-    Type type;
-    NodeFilter::Result result;
-};
-
 struct TraversalResult {
     enum class Type : u8 {
         Node,
@@ -87,13 +68,19 @@ struct TraversalResult {
         CallbackException,
     };
 
-    static TraversalResult from_node(GC::Ptr<Node> node) { return { Type::Node, node }; }
-    static TraversalResult null() { return { Type::Null, nullptr }; }
-    static TraversalResult already_active() { return { Type::AlreadyActive, nullptr }; }
-    static TraversalResult callback_exception() { return { Type::CallbackException, nullptr }; }
+    // NB: libweb_rust answers how its traversals end, see Rust/src/dom/traversal.rs.
+    static TraversalResult from_rust(RustFFI::TraversalResult result) { return { static_cast<Type>(result.kind), static_cast<Node*>(result.node) }; }
 
     Type type;
     GC::Ptr<Node> node;
 };
+
+static_assert(to_underlying(TraversalResult::Type::Node) == to_underlying(RustFFI::TraversalResultType::Node));
+static_assert(to_underlying(TraversalResult::Type::Null) == to_underlying(RustFFI::TraversalResultType::Null));
+static_assert(to_underlying(TraversalResult::Type::AlreadyActive) == to_underlying(RustFFI::TraversalResultType::AlreadyActive));
+static_assert(to_underlying(TraversalResult::Type::CallbackException) == to_underlying(RustFFI::TraversalResultType::CallbackException));
+static_assert(to_underlying(NodeFilter::Result::FILTER_ACCEPT) == RustFFI::FILTER_ACCEPT);
+static_assert(to_underlying(NodeFilter::Result::FILTER_REJECT) == RustFFI::FILTER_REJECT);
+static_assert(to_underlying(NodeFilter::Result::FILTER_SKIP) == RustFFI::FILTER_SKIP);
 
 }

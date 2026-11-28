@@ -2790,6 +2790,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ElementCore".to_string(),
         "InsertionKind".to_string(),
         "RangeCore".to_string(),
+        "NodeIteratorCore".to_string(),
+        "TreeWalkerCore".to_string(),
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
@@ -2814,6 +2816,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("StringField", "AK::Utf16String"),
         ("MoveScope", "Web::DOM::MoveScope"),
         ("RangeCell", "Web::DOM::AbstractRange"),
+        ("NodeIteratorCell", "Web::DOM::NodeIterator"),
+        ("TreeWalkerCell", "Web::DOM::TreeWalker"),
+        // NB: A struct C++ gets by value holds no GC::Ptr, and the GC plugin rejects a raw cell pointer field.
+        ("TraversedNode", "void*"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2822,7 +2828,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Node; class ShadowRoot; struct MoveScope; }",
+        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct MoveScope; }",
     );
     generate_ffi_header_strict(
         dom_config,
@@ -2839,6 +2845,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/remove.rs"),
             manifest_dir.join("src/dom/replace.rs"),
             manifest_dir.join("src/dom/adopt.rs"),
+            manifest_dir.join("src/dom/traversal.rs"),
             manifest_dir.join("src/dom/weak_cells.rs"),
         ],
         &out_dir,

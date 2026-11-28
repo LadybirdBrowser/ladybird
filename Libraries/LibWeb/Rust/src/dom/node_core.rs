@@ -249,6 +249,12 @@ impl NodeType {
     pub const DOCUMENT_TYPE_NODE: Self = Self(10);
     pub const DOCUMENT_FRAGMENT_NODE: Self = Self(11);
     pub const NOTATION_NODE: Self = Self(12);
+
+    /// The nodeType attribute value.
+    #[inline(always)]
+    pub fn value(self) -> u16 {
+        self.0
+    }
 }
 
 /// The tree state of a node, which C++ embeds in DOM::Node as its only storage of it: the node's type, its node
