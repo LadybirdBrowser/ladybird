@@ -548,12 +548,16 @@ public:
     void clear_find_in_page_active_match();
 
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
-    void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
+    void set_listen_for_dom_mutations(bool);
 
     // True once an assistive technology has asked for the accessibility tree. Gates whether focus changes and DOM
     // changes reach the UI, so that only assistive-technology users pay for the focus reports and whole-tree rebuilds.
     bool accessibility_interested() const { return m_accessibility_interested; }
-    void set_accessibility_interested(bool accessibility_interested) { m_accessibility_interested = accessibility_interested; }
+    void set_accessibility_interested(bool);
+
+    // Tells the page's documents whether something but their observers hears of their mutations, see
+    // DOM::Document::has_mutation_listener().
+    void update_documents_with_mutation_listeners();
 
     void enqueue_fullscreen_enter(GC::Ref<DOM::Element>, GC::Ref<DOM::Document>, DOM::RequestFullscreenError, GC::Ptr<WebIDL::Promise>, Fullscreen::RequestType);
     void enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ptr<WebIDL::Promise>, Optional<HTML::CrossProcessId> requesting_navigable_id = {});

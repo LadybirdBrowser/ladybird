@@ -921,6 +921,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     // NB: libweb_rust finds the core of a document at this offset into the document's cell, which starts with its node.
     static_assert(offsetof(Document, m_document_core) == RustFFI::DOCUMENT_CORE_OFFSET);
     RustFFI::rust_dom_start_tree_versions_of_document(this);
+    update_has_mutation_listener();
 }
 
 // NB: The Rust definition of the core asserts the same layout.
@@ -1510,14 +1511,17 @@ Editing::SpellCheckController& Document::spell_check_controller()
 
 Translation::DocumentTranslator& Document::document_translator()
 {
-    if (!m_document_translator)
+    if (!m_document_translator) {
         m_document_translator = make<Translation::DocumentTranslator>(*this);
+        update_has_mutation_listener();
+    }
     return *m_document_translator;
 }
 
 void Document::forget_document_translator()
 {
     m_document_translator = nullptr;
+    update_has_mutation_listener();
 }
 
 Editing::WritingSuggestionController& Document::writing_suggestion_controller()
@@ -1983,22 +1987,31 @@ void Document::set_dir(Utf16View dir)
 void Document::add_mutation_observer_types(MutationObserverOptions const& options)
 {
     if (options.child_list)
-        m_mutation_observer_types |= to_underlying(MutationObserverType::ChildList);
+        m_document_core.flags |= RustFFI::DOCUMENT_OBSERVES_CHILD_LIST;
     if (options.attributes.value_or(false))
-        m_mutation_observer_types |= to_underlying(MutationObserverType::Attributes);
+        m_document_core.flags |= RustFFI::DOCUMENT_OBSERVES_ATTRIBUTES;
     if (options.character_data.value_or(false))
-        m_mutation_observer_types |= to_underlying(MutationObserverType::CharacterData);
+        m_document_core.flags |= RustFFI::DOCUMENT_OBSERVES_CHARACTER_DATA;
 }
 
 bool Document::has_mutation_observers_of_type(Utf16FlyString const& type) const
 {
     if (type == MutationType::childList)
-        return m_mutation_observer_types & to_underlying(MutationObserverType::ChildList);
+        return m_document_core.flags & RustFFI::DOCUMENT_OBSERVES_CHILD_LIST;
     if (type == MutationType::attributes)
-        return m_mutation_observer_types & to_underlying(MutationObserverType::Attributes);
+        return m_document_core.flags & RustFFI::DOCUMENT_OBSERVES_ATTRIBUTES;
     if (type == MutationType::characterData)
-        return m_mutation_observer_types & to_underlying(MutationObserverType::CharacterData);
+        return m_document_core.flags & RustFFI::DOCUMENT_OBSERVES_CHARACTER_DATA;
     return true;
+}
+
+void Document::update_has_mutation_listener()
+{
+    auto& page = this->page();
+    if (page.accessibility_interested() || page.listen_for_dom_mutations() || m_document_translator)
+        m_document_core.flags |= RustFFI::DOCUMENT_HAS_MUTATION_LISTENER;
+    else
+        m_document_core.flags &= ~RustFFI::DOCUMENT_HAS_MUTATION_LISTENER;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-body-element-2

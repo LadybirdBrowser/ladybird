@@ -19,6 +19,8 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use super::collection::CollectionCell;
+use super::mutation_observers::has_observed_inclusive_ancestor;
+use super::mutation_observers::tree_mutation_record_is_heard;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNodeRef;
 use super::node_ref::RawNullableNodeRef;
@@ -199,6 +201,7 @@ pub struct DomHooks {
         parent: RawNodeRef,
         old_previous_sibling: RawNullableNodeRef,
         old_next_sibling: RawNullableNodeRef,
+        parent_is_observed: bool,
         suppress_observers: bool,
         is_one_of_all_children: bool,
     ),
@@ -336,6 +339,8 @@ pub(crate) fn end_insertion<I: Inserter>(
     child: Option<NodeRef>,
     suppress_observers: bool,
 ) {
+    // OPTIMIZATION: A record no one hears is not queued, see mutation_observers.rs.
+    let suppress_observers = suppress_observers || !tree_mutation_record_is_heard(parent);
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe {
         (insertion_hooks::<I>(main_thread).end_insertion)(
@@ -423,8 +428,7 @@ pub(crate) fn assign_slottables_after_removal(
 }
 
 /// The last steps of removing `node` from `parent`: adds the transient registered observers, queues the tree mutation
-/// record unless `suppress_observers`, runs the children changed steps for `parent`, and invalidates the collection
-/// caches the removal changed.
+/// record unless `suppress_observers`, and runs the children changed steps for `parent`.
 ///
 /// For one of all the children of `parent`, `is_one_of_all_children` leaves out the steps for `parent`, which
 /// end_removing_all_children() runs once.
@@ -439,6 +443,10 @@ pub(crate) fn finish_removal(
     suppress_observers: bool,
     is_one_of_all_children: bool,
 ) {
+    // OPTIMIZATION: Only the registered observers of the inclusive ancestors of parent add transient ones, and a record
+    //               no one hears is not queued, see mutation_observers.rs.
+    let parent_is_observed = has_observed_inclusive_ancestor(parent);
+    let suppress_observers = suppress_observers || !tree_mutation_record_is_heard(parent);
     // SAFETY: The callback is called on the main thread with live nodes.
     unsafe {
         (hooks(main_thread).finish_removal)(
@@ -446,6 +454,7 @@ pub(crate) fn finish_removal(
             parent,
             old_previous_sibling.into(),
             old_next_sibling.into(),
+            parent_is_observed,
             suppress_observers,
             is_one_of_all_children,
         );
@@ -662,6 +671,10 @@ pub(crate) fn queue_tree_mutation_record(
     previous_sibling: Option<NodeRef>,
     next_sibling: Option<NodeRef>,
 ) {
+    // OPTIMIZATION: A record no one hears is not queued, see mutation_observers.rs.
+    if !tree_mutation_record_is_heard(target) {
+        return;
+    }
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe {
         (hooks(main_thread).queue_tree_mutation_record)(

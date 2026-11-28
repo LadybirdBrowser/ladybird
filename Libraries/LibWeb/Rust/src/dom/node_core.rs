@@ -161,6 +161,16 @@ pub const DOCUMENT_CORE_OFFSET: usize = 112;
 /// Whether the document may have a node with a blocking wheel event listener, which C++ sets as it adds the first such
 /// listener, and as it adopts a node from a document that may have one. It is never cleared.
 pub const DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER: u8 = 1 << 0;
+/// Whether an observer registered in the document has ever asked for "childList" records, which C++ sets as one does,
+/// and as it adopts a node one is registered on. It is never cleared. The same holds for the two flags below.
+pub const DOCUMENT_OBSERVES_CHILD_LIST: u8 = 1 << 1;
+/// Whether an observer registered in the document has ever asked for "attributes" records.
+pub const DOCUMENT_OBSERVES_ATTRIBUTES: u8 = 1 << 2;
+/// Whether an observer registered in the document has ever asked for "characterData" records.
+pub const DOCUMENT_OBSERVES_CHARACTER_DATA: u8 = 1 << 3;
+/// Whether something but the document's mutation observers hears of every mutation in it: an assistive technology,
+/// the document's translator or DevTools. C++ keeps it as their state changes.
+pub const DOCUMENT_HAS_MUTATION_LISTENER: u8 = 1 << 4;
 
 /// The state of a document that the DOM algorithms in Rust read, which C++ embeds in DOM::Document as its only storage
 /// of it.
@@ -192,6 +202,12 @@ pub struct DocumentCore {
 pub const COLLECTION_ATTRIBUTE_TYPE_COUNT: usize = 5;
 
 impl DocumentCore {
+    /// The DOCUMENT_* flags.
+    #[inline(always)]
+    pub fn flags(&self) -> u8 {
+        self.flags.get()
+    }
+
     #[inline(always)]
     pub fn may_have_blocking_wheel_event_listener(&self) -> bool {
         self.flags.get() & DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER != 0
@@ -273,6 +289,9 @@ pub const NODE_IS_CONNECTED: u8 = 1 << 0;
 pub const NODE_IS_SHADOW_ROOT: u8 = 1 << 1;
 /// Whether the node is in an editable subtree, as Node::recompute_editable_subtree_flag() works it out.
 pub const NODE_IN_EDITABLE_SUBTREE: u8 = 1 << 4;
+/// Whether the node's registered observer list, which C++ keeps, holds any registered observer, transient or not.
+/// https://dom.spec.whatwg.org/#registered-observer-list
+pub const NODE_HAS_REGISTERED_OBSERVERS: u8 = 1 << 6;
 
 /// The type of a node, laid out as C++'s DOM::NodeType, which is what C++ sees it as.
 /// https://dom.spec.whatwg.org/#dom-node-nodetype
@@ -349,6 +368,12 @@ impl NodeCore {
     #[inline(always)]
     fn has_flag(&self, flag: u8) -> bool {
         self.flags.get() & flag != 0
+    }
+
+    /// Whether the node's registered observer list holds any registered observer, see NODE_HAS_REGISTERED_OBSERVERS.
+    #[inline(always)]
+    pub fn has_registered_observers(&self) -> bool {
+        self.has_flag(NODE_HAS_REGISTERED_OBSERVERS)
     }
 
     /// https://dom.spec.whatwg.org/#connected
@@ -538,6 +563,10 @@ impl DocumentCore {
         }
     }
 
+    pub(crate) fn set_flags_for_test(&self, flags: u8) {
+        self.flags.set(self.flags.get() | flags);
+    }
+
     pub(crate) fn set_may_have_blocking_wheel_event_listener_for_test(&self) {
         self.flags
             .set(self.flags.get() | DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER);
@@ -546,6 +575,10 @@ impl DocumentCore {
 
 #[cfg(test)]
 impl NodeCore {
+    pub(crate) fn set_has_registered_observers_for_test(&self) {
+        self.flags.set(self.flags.get() | NODE_HAS_REGISTERED_OBSERVERS);
+    }
+
     pub(crate) fn set_style_node_id_for_test(&self, node: Option<StyleNodeID>) {
         self.style_node_id.0.set(node.map_or(0, StyleNodeID::raw));
     }

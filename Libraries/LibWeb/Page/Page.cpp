@@ -3033,4 +3033,25 @@ NonnullRefPtr<Audio::RecordStream::CreatePromise> PageClient::create_audio_recor
     VERIFY_NOT_REACHED();
 }
 
+void Page::set_listen_for_dom_mutations(bool listen_for_dom_mutations)
+{
+    m_listen_for_dom_mutations = listen_for_dom_mutations;
+    update_documents_with_mutation_listeners();
+}
+
+void Page::set_accessibility_interested(bool accessibility_interested)
+{
+    m_accessibility_interested = accessibility_interested;
+    update_documents_with_mutation_listeners();
+}
+
+void Page::update_documents_with_mutation_listeners()
+{
+    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop_matching([&](auto& document) {
+        return &document.page() == this;
+    });
+    for (auto& document : documents)
+        document->update_has_mutation_listener();
+}
+
 }

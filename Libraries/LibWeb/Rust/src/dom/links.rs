@@ -133,21 +133,6 @@ pub unsafe extern "C" fn rust_dom_insert_child(parent: &NodeCell, node: &NodeCel
     insert_child(&mut main_thread, parent, node, child);
 }
 
-/// Removes `node` from `parent`'s children, for DOM::Node.
-///
-/// # Safety
-///
-/// The nodes must be live, `node` must be a child of `parent`, and the call must be made on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_remove_child(parent: &NodeCell, node: &NodeCell) {
-    // SAFETY: Guaranteed by the caller.
-    let mut main_thread = unsafe { main_thread() };
-    // SAFETY: The nodes are live.
-    let reference = |cell| unsafe { NodeRef::from_cell(cell, &main_thread) };
-    let (parent, node) = (reference(parent), reference(node));
-    remove_child(&mut main_thread, parent, node);
-}
-
 /// Appends `node`, the root of a tree of its own, to `parent`'s children, for a test tree, whose read handles stay
 /// across the write.
 #[cfg(test)]
