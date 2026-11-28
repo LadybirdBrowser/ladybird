@@ -2811,6 +2811,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("ClassNamesField", "Web::DOM::ClassNames"),
         ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
         ("StringField", "AK::Utf16String"),
+        ("MoveScope", "Web::DOM::MoveScope"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2819,7 +2820,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AttributeList; class Document; class Element; class Node; class ShadowRoot; }",
+        "\nnamespace Web::DOM { class AttributeList; class Document; class Element; class Node; class ShadowRoot; struct MoveScope; }",
     );
     generate_ffi_header_strict(
         dom_config,
@@ -2828,11 +2829,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/hooks.rs"),
             manifest_dir.join("src/dom/insert.rs"),
             manifest_dir.join("src/dom/links.rs"),
+            manifest_dir.join("src/dom/move_node.rs"),
             manifest_dir.join("src/dom/node_core.rs"),
             manifest_dir.join("src/dom/node_ref.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
             manifest_dir.join("src/dom/remove.rs"),
             manifest_dir.join("src/dom/replace.rs"),
+            manifest_dir.join("src/dom/adopt.rs"),
         ],
         &out_dir,
         Path::new("DOM/RustFFI.h"),

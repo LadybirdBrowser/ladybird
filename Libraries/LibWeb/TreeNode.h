@@ -107,17 +107,6 @@ public:
         return false;
     }
 
-    // https://dom.spec.whatwg.org/#concept-tree-following (Object A is 'typename U' and Object B is 'this')
-    template<typename U>
-    bool has_following_node_of_type_in_tree_order() const
-    {
-        for (auto* node = next_in_pre_order(); node; node = node->next_in_pre_order()) {
-            if (is<U>(node))
-                return true;
-        }
-        return false;
-    }
-
     bool is_parent_of(TreeNode const& other) const
     {
         for (auto* child = first_child(); child; child = child->next_sibling()) {
@@ -496,8 +485,13 @@ inline void TreeNode<T>::append_child(GC::Ref<T> node)
 template<typename T>
 inline bool TreeNode<T>::is_ancestor_of(TreeNode<T> const& other) const
 {
-    for (auto* ancestor = other.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor == this)
+    // OPTIMIZATION: Each link is tested for null while it is still compressed, and then decoded without a null check,
+    //               and the ancestors are compared as Ts, so each step up is one load, one test, one decode and one
+    //               compare.
+    auto const* target = static_cast<T const*>(this);
+    for (auto const* node = static_cast<T const*>(&other); node->links().parent;) {
+        node = &*node->links().parent;
+        if (node == target)
             return true;
     }
     return false;

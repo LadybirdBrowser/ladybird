@@ -700,7 +700,13 @@ private:
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
     void prepare_to_unlink_child(Node&);
+    void account_for_linked_child(Node&, GC::Ptr<Node> child);
     void begin_child_index_generation();
+
+    void begin_move(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent);
+    void after_move_unlink(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child);
+    void after_move_link(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child);
+    void end_move(MoveScope&, Node& old_parent, Node& new_parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling, GC::Ptr<Node> new_previous_sibling, GC::Ptr<Node> child);
 
     mutable OwnPtr<RareData> m_rare_data;
 };
@@ -746,9 +752,9 @@ namespace GC {
 template<typename T>
 requires(IsBaseOf<Web::DOM::Node, T>)
 struct CellConstructionHook<T> {
-    // Whether T has insertion steps, removing steps or post-connection steps beyond those of DOM::Node, DOM::Element
-    // and HTML::HTMLElement, which libweb_rust knows to do nothing for some nodes, or is form-associated, whose steps
-    // HTML::HTMLElement runs.
+    // Whether T has insertion steps, removing steps, moving steps or post-connection steps beyond those of DOM::Node,
+    // DOM::Element and HTML::HTMLElement, which libweb_rust knows to do nothing for some nodes, or is form-associated,
+    // whose steps HTML::HTMLElement runs, or is a body or frameset element, whose moving steps DOM::Node runs.
     static constexpr bool has_own_tree_steps()
     {
         using namespace Web;
@@ -757,6 +763,10 @@ struct CellConstructionHook<T> {
         if (!IsOneOf<decltype(&T::inserted), void (Node::*)(), void (DOM::Element::*)(), void (HTML::HTMLElement::*)()>)
             return true;
         if (!IsOneOf<decltype(&T::removed_from), void (Node::*)(IsSubtreeRoot, Node*, Node&), void (DOM::Element::*)(IsSubtreeRoot, Node*, Node&), void (HTML::HTMLElement::*)(IsSubtreeRoot, Node*, Node&)>)
+            return true;
+        if (!IsOneOf<decltype(&T::moved_from), void (Node::*)(IsSubtreeRoot, GC::Ptr<Node>), void (DOM::Element::*)(IsSubtreeRoot, GC::Ptr<Node>), void (HTML::HTMLElement::*)(IsSubtreeRoot, GC::Ptr<Node>)>)
+            return true;
+        if (!IsSame<decltype(&T::is_html_body_element), bool (Node::*)() const> || !IsSame<decltype(&T::is_html_frameset_element), bool (Node::*)() const>)
             return true;
         if (!IsSame<decltype(&T::has_post_connection_steps), bool (Node::*)() const>)
             return true;

@@ -153,6 +153,8 @@ ffi_entry!(crate::dom::pre_insert::MainThreadFfiEntry);
 ffi_entry!(crate::dom::insert::MainThreadFfiEntry);
 ffi_entry!(crate::dom::remove::MainThreadFfiEntry);
 ffi_entry!(crate::dom::replace::MainThreadFfiEntry);
+ffi_entry!(crate::dom::adopt::MainThreadFfiEntry);
+ffi_entry!(crate::dom::move_node::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

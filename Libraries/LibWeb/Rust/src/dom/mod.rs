@@ -7,11 +7,13 @@
 //! The DOM, whose node and element state this crate defines the layout of. C++ embeds the structures in its DOM
 //! objects, which include them from the generated header LibWeb/DOM/RustFFI.h.
 
+pub mod adopt;
 pub mod element;
 pub mod element_core;
 pub mod hooks;
 pub mod insert;
 pub mod links;
+pub mod move_node;
 pub mod node;
 pub mod node_core;
 pub mod node_ref;

@@ -127,9 +127,10 @@ const _: () = assert!(size_of::<AttributeListField>() == 8 && align_of::<Attribu
 
 /// Whether the element is a DOM::HTMLElement, which C++ sets as it constructs one, and never changes.
 pub const ELEMENT_IS_HTML_ELEMENT: u8 = 1 << 0;
-/// Whether the element has insertion steps, removing steps or post-connection steps beyond those of every element and
-/// every HTML element, as its class has, or as a form-associated element has. C++ sets it as it constructs an element of
-/// such a class, and as a form-associated custom element definition is attached to an element. It is never cleared.
+/// Whether the element has insertion steps, removing steps, moving steps or post-connection steps beyond those of every
+/// element and every HTML element, as its class has, or as a form-associated, body or frameset element has. C++ sets it
+/// as it constructs an element of such a class, and as a form-associated custom element definition is attached to an
+/// element. It is never cleared.
 pub const ELEMENT_HAS_OWN_TREE_STEPS: u8 = 1 << 1;
 /// Whether the element is an inert HTML element.
 /// https://html.spec.whatwg.org/multipage/interaction.html#inert

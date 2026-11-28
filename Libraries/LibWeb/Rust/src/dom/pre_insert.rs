@@ -231,18 +231,18 @@ fn pre_insert(
 }
 
 /// https://dom.spec.whatwg.org/#concept-doctype
-fn is_doctype(node: Node<'_>) -> bool {
+pub(super) fn is_doctype(node: Node<'_>) -> bool {
     node.node_type() == NodeType::DOCUMENT_TYPE_NODE
 }
 
 /// Whether the node is a Text node, which a CDATASection node is too.
 /// https://dom.spec.whatwg.org/#text
-fn is_text(node: Node<'_>) -> bool {
+pub(super) fn is_text(node: Node<'_>) -> bool {
     matches!(node.node_type(), NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE)
 }
 
 /// https://dom.spec.whatwg.org/#characterdata
-fn is_character_data(node: Node<'_>) -> bool {
+pub(super) fn is_character_data(node: Node<'_>) -> bool {
     matches!(
         node.node_type(),
         NodeType::TEXT_NODE

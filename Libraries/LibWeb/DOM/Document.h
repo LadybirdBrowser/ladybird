@@ -844,6 +844,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, ImportNodeOptions const&);
     WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, Variant<bool, ImportNodeOptions> const&);
     void adopt_node_steps(Node&);
+    void adopt_node_from_other_document(Node&, Document& old_document);
     WebIDL::ExceptionOr<GC::Ref<Node>> adopt_node(GC::Ref<Node>);
 
     DocumentType const* doctype() const;

@@ -112,6 +112,64 @@ pub struct ChildrenRemoval {
     pub list_owner_renumber_scheduled: bool,
 }
 
+/// What the C++ side of moving a node keeps across the move, opaque to Rust: DOM::MoveScope, which lives in the C++ frame
+/// below the Rust code that moves the node, and so roots the nodes it holds for as long as the move takes.
+#[repr(C)]
+pub struct MoveScope {
+    _private: [u8; 0],
+    // NB: The marker makes the scope neither Send, Sync nor Unpin, as C++ owns it.
+    _marker: core::marker::PhantomData<(*mut u8, core::marker::PhantomPinned)>,
+}
+
+/// The callbacks of moving a node.
+#[repr(C)]
+pub struct MoveHooks {
+    /// See [`begin_move`].
+    pub begin_move: unsafe extern "C" fn(
+        scope: &mut MoveScope,
+        node: RawNodeRef,
+        old_parent: RawNodeRef,
+        old_parent_root: RawNodeRef,
+        new_parent: RawNodeRef,
+    ),
+    /// See [`after_move_unlink`].
+    pub after_unlink: unsafe extern "C" fn(
+        scope: &mut MoveScope,
+        node: RawNodeRef,
+        old_parent: RawNodeRef,
+        old_parent_root: RawNodeRef,
+        new_parent: RawNodeRef,
+        child: RawNullableNodeRef,
+    ),
+    /// See [`after_move_link`].
+    pub after_link: unsafe extern "C" fn(
+        scope: &mut MoveScope,
+        node: RawNodeRef,
+        old_parent: RawNodeRef,
+        old_parent_root: RawNodeRef,
+        new_parent: RawNodeRef,
+        child: RawNullableNodeRef,
+    ),
+    /// See [`run_moving_steps`].
+    pub run_moving_steps: unsafe extern "C" fn(
+        node: RawNodeRef,
+        is_subtree_root: IsSubtreeRoot,
+        old_parent: RawNodeRef,
+        new_parent: RawNodeRef,
+    ),
+    /// See [`end_move`].
+    pub end_move: unsafe extern "C" fn(
+        scope: &mut MoveScope,
+        node: RawNodeRef,
+        old_parent: RawNodeRef,
+        new_parent: RawNodeRef,
+        old_previous_sibling: RawNullableNodeRef,
+        old_next_sibling: RawNullableNodeRef,
+        new_previous_sibling: RawNullableNodeRef,
+        child: RawNullableNodeRef,
+    ),
+}
+
 /// The callbacks of one kind of insertion, see InsertionKind.
 #[repr(C)]
 pub struct InsertionHooks {
@@ -185,8 +243,11 @@ pub struct DomHooks {
         was_tracked_by_style_engine: bool,
         is_parent_connected: bool,
     ),
-    /// See [`adopt_into_document_of`].
-    pub adopt_into_document_of: unsafe extern "C" fn(node: RawNodeRef, parent: RawNodeRef),
+    /// See [`adopt_from_other_document`].
+    pub adopt_from_other_document:
+        unsafe extern "C" fn(node: RawNodeRef, old_document: RawNodeRef, document: RawNodeRef),
+    /// The callbacks of moving a node.
+    pub moving: MoveHooks,
     /// See [`queue_tree_mutation_record`].
     pub queue_tree_mutation_record: unsafe extern "C" fn(
         target: RawNodeRef,
@@ -256,10 +317,10 @@ pub(crate) fn begin_insertion<I: Inserter>(
     }
 }
 
-/// Steps 7.1 to 7.6 of inserting nodes for `node`: adopts it into `parent`'s node document, inserts it into `parent`'s
-/// children before `child`, or appends it if `child` is null, and assigns the slots and slottables that changes. Then
-/// records the arrival of the subtree for the style engine, and runs step 7.7 through rust_dom_run_insertion_steps(),
-/// inside a C++ scope that serves the insertion steps of the subtree.
+/// Steps 7.2 to 7.6 of inserting nodes for `node`, which has been adopted into `parent`'s node document: inserts it
+/// into `parent`'s children before `child`, or appends it if `child` is null, and assigns the slots and slottables that
+/// changes. Then records the arrival of the subtree for the style engine, and runs step 7.7 through
+/// rust_dom_run_insertion_steps(), inside a C++ scope that serves the insertion steps of the subtree.
 ///
 /// NB: Node::append_child_impl() leaves out a node that is not allowed as a child of `parent`.
 ///
@@ -463,13 +524,143 @@ pub(crate) fn run_removing_steps(
     }
 }
 
-/// Adopts `node` into `parent`'s node document.
+/// Step 3 of adopting `node`, which has no parent, into `document`, which is not `old_document`, its node document
+/// before the adoption: runs the steps for each of its shadow-including inclusive descendants, and moves what the
+/// systems whose state is still C++'s keep for the subtree, such as adopted style sheets, NodeIterators and live
+/// ranges, from `old_document` to `document`.
 /// https://dom.spec.whatwg.org/#concept-node-adopt
 ///
 /// Can run script, allocate and change the tree.
-pub(crate) fn adopt_into_document_of(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRef) {
+pub(crate) fn adopt_from_other_document(
+    main_thread: &mut MainThread<'_>,
+    node: NodeRef,
+    old_document: NodeRef,
+    document: NodeRef,
+) {
     // SAFETY: The callback is called on the main thread with live nodes.
-    unsafe { (hooks(main_thread).adopt_into_document_of)(node, parent) }
+    unsafe { (hooks(main_thread).adopt_from_other_document)(node, old_document, document) }
+}
+
+/// Steps 9 and 10 of moving `node` from `old_parent`, whose root is `old_parent_root`, into `new_parent`: runs the live
+/// range pre-remove steps and the NodeIterator pre-remove steps given `node`. Before them, tells the page of the move,
+/// consumes the deferred style change events of the document, and keeps in `scope` whether the move affects the element
+/// children of the parents and the `:read-write` state of the elements of a subtree that changes editability. After
+/// them, has the style engine take in its pending arrivals, keeps in `scope` where an element was and whether the
+/// subtree holds the focused or hovered node, marks the layout tree of `old_parent`, settles and keeps in `scope` the
+/// slots of the subtree, unregisters the anchor names a subtree that leaves its tree scope registered, and takes `node`
+/// out of the C++ state that follows the children of `old_parent`.
+/// https://dom.spec.whatwg.org/#move
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn begin_move(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut MoveScope,
+    node: NodeRef,
+    old_parent: NodeRef,
+    old_parent_root: NodeRef,
+    new_parent: NodeRef,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
+    unsafe { (hooks(main_thread).moving.begin_move)(scope, node, old_parent, old_parent_root, new_parent) }
+}
+
+/// Steps 14 to 18 of moving `node`, which has left the children of `old_parent`, whose root is `old_parent_root`, into
+/// `new_parent` before `child`: assigns the slottables and signals the slot changes the removal causes, adds the
+/// transient registered observers given `node` and `old_parent`, and if `child` is non-null, increases the offsets of
+/// the live ranges in `new_parent` past `child`'s index by 1.
+/// https://dom.spec.whatwg.org/#move
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn after_move_unlink(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut MoveScope,
+    node: NodeRef,
+    old_parent: NodeRef,
+    old_parent_root: NodeRef,
+    new_parent: NodeRef,
+    child: Option<NodeRef>,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
+    unsafe {
+        (hooks(main_thread).moving.after_unlink)(scope, node, old_parent, old_parent_root, new_parent, child.into());
+    }
+}
+
+/// Steps 22 to 24 of moving `node`, which has joined the children of `new_parent` before `child`, from `old_parent`,
+/// whose root was `old_parent_root`: assigns a slot for `node`, signals the slot change and assigns the slottables the
+/// insertion causes. Before them, puts `node` in the C++ state that follows the children of `new_parent`, records the
+/// move for the style engine and marks the layout tree. After them, refreshes the lookup caches of the document, and
+/// gives the old ancestors of a subtree that holds the focused or hovered node their state back.
+/// https://dom.spec.whatwg.org/#move
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn after_move_link(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut MoveScope,
+    node: NodeRef,
+    old_parent: NodeRef,
+    old_parent_root: NodeRef,
+    new_parent: NodeRef,
+    child: Option<NodeRef>,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
+    unsafe {
+        (hooks(main_thread).moving.after_link)(scope, node, old_parent, old_parent_root, new_parent, child.into());
+    }
+}
+
+/// Steps 25.2 and 25.3 of moving a node from `old_parent` into `new_parent`, for `inclusive_descendant`, a
+/// shadow-including inclusive descendant of the moved node: if `inclusive_descendant` is custom and `new_parent` is
+/// connected, enqueues a custom element callback reaction with it, callback name "connectedMoveCallback", and « », and
+/// then runs the moving steps with `inclusive_descendant`, `is_subtree_root` and `old_parent`.
+/// https://dom.spec.whatwg.org/#move
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn run_moving_steps(
+    main_thread: &mut MainThread<'_>,
+    inclusive_descendant: NodeRef,
+    is_subtree_root: IsSubtreeRoot,
+    old_parent: NodeRef,
+    new_parent: NodeRef,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes.
+    unsafe {
+        (hooks(main_thread).moving.run_moving_steps)(inclusive_descendant, is_subtree_root, old_parent, new_parent);
+    }
+}
+
+/// Steps 26 and 27 of moving `node` from `old_parent` into `new_parent`: queues the tree mutation records for
+/// `old_parent` and `new_parent`. Before them, invalidates the styles of the elements whose `:read-write` state the
+/// move changed, and after them, invalidates the collection caches and moves the tree versions of the parents, and does
+/// for an <html> or media element parent what the children changed steps, which a move does not run, would have done.
+/// https://dom.spec.whatwg.org/#move
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn end_move(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut MoveScope,
+    node: NodeRef,
+    old_parent: NodeRef,
+    new_parent: NodeRef,
+    old_previous_sibling: Option<NodeRef>,
+    old_next_sibling: Option<NodeRef>,
+    new_previous_sibling: Option<NodeRef>,
+    child: Option<NodeRef>,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
+    unsafe {
+        (hooks(main_thread).moving.end_move)(
+            scope,
+            node,
+            old_parent,
+            new_parent,
+            old_previous_sibling.into(),
+            old_next_sibling.into(),
+            new_previous_sibling.into(),
+            child.into(),
+        );
+    }
 }
 
 /// Queues a tree mutation record for `target` with `added_nodes`, `removed_nodes`, `previous_sibling` and

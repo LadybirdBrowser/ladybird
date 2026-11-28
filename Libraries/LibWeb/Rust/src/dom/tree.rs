@@ -48,6 +48,19 @@ impl<'a> Node<'a> {
         }
     }
 
+    /// https://dom.spec.whatwg.org/#concept-shadow-including-root
+    pub fn shadow_including_root(self) -> Node<'a> {
+        // The shadow-including root of an object is its root’s host’s shadow-including root, if the object’s root is a
+        // shadow root; otherwise its root.
+        let mut root = self.root();
+        while root.is_shadow_root()
+            && let Some(host) = root.host()
+        {
+            root = host.root();
+        }
+        root
+    }
+
     /// The nodes that come after this node in tree order, in tree order.
     /// https://dom.spec.whatwg.org/#concept-tree-following
     pub fn following(self) -> impl Iterator<Item = Node<'a>> {
