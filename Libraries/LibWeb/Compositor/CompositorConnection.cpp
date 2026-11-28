@@ -721,8 +721,10 @@ void CompositorConnection::hurry_rendering_opportunity(Web::CompositorContextId 
 void CompositorConnection::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void(ScreenshotResult)>&& callback)
 {
     if (!can_send_message_to_compositor()) {
+        // A transport that has closed may not have told the page yet.
+        did_lose_compositor();
         if (callback)
-            callback(ScreenshotResult::Failed);
+            callback(ScreenshotResult::CompositorLost);
         return;
     }
 
@@ -874,18 +876,19 @@ void CompositorConnection::did_lose_compositor()
     stop_registering_resources_with_compositor(*m_poster);
     m_poster->detach_from_transport();
 
+    // The page hears of the loss first, so that what fails below can tell that it failed for want of a compositor.
+    if (on_compositor_lost)
+        on_compositor_lost();
+
     for (auto& entry : m_screenshots) {
         if (entry.value.callback)
-            entry.value.callback(ScreenshotResult::Failed);
+            entry.value.callback(ScreenshotResult::CompositorLost);
     }
     m_screenshots.clear();
 
     // Nothing will answer the preparations now, and a screenshot that waits for one goes on without a compositor.
     for (auto& entry : exchange(m_remote_descendant_preparations, {}))
         entry.value();
-
-    if (on_compositor_lost)
-        on_compositor_lost();
 }
 
 bool CompositorConnection::can_send_message_to_compositor() const

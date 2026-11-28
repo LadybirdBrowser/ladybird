@@ -46,7 +46,11 @@ PageClient& PageHost::create_page(Web::PageId page_id, Optional<Web::HTML::Cross
     VERIFY(page_id > 0);
     VERIFY(!m_pages.contains(page_id));
     m_pages.set(page_id, PageClient::create(*this, page_id, pending_root_navigable_id));
-    return *m_pages.get(page_id).value();
+    auto& page = *m_pages.get(page_id).value();
+    // A page created while the Compositor process is lost waits for the relaunched one like the others.
+    if (m_compositor_lost)
+        page.page().did_lose_compositor();
+    return page;
 }
 
 Web::HTML::CrossProcessId PageHost::allocate_cross_process_id()
@@ -102,10 +106,17 @@ void PageHost::ensure_compositor_host()
 
 void PageHost::compositor_process_reconnected()
 {
+    // Every page counts as reconnected before any of them is brought up to date, so that a loss of the relaunched
+    // process along the way leaves them all lost, and what waits on any of them goes on waiting.
+    m_compositor_lost = false;
+    for (auto& [_, page] : m_pages)
+        page->page().did_reconnect_compositor();
     if (m_compositor_host)
         m_compositor_host->register_animated_images_with_new_compositor();
     for (auto& [_, page] : m_pages)
         page->compositor_process_reconnected();
+    for (auto& [_, page] : m_pages)
+        page->page().did_finish_reconnecting_compositor();
 }
 
 void PageHost::invalidate_user_style()
@@ -116,6 +127,7 @@ void PageHost::invalidate_user_style()
 
 void PageHost::compositor_process_lost()
 {
+    m_compositor_lost = true;
     for (auto& [_, page] : m_pages)
         page->compositor_process_lost();
 }

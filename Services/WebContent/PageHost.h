@@ -62,6 +62,7 @@ private:
     ConnectionFromClient& m_client;
     OwnPtr<Web::Compositor::CompositorHost> m_compositor_host;
     HashMap<Web::PageId, GC::Root<PageClient>> m_pages;
+    bool m_compositor_lost { false };
     Optional<Web::HTML::CrossProcessIdAllocator> m_cross_process_id_allocator;
 };
 

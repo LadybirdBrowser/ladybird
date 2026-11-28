@@ -463,6 +463,16 @@ public:
     void notify_all_canvas_elements_of_lost_backing_storage();
     void notify_all_webgl_contexts_lost();
 
+    // Between the loss of the Compositor process and the relaunched one taking over, nothing can paint or take a
+    // screenshot.
+    bool is_compositor_lost() const { return m_compositor_lost; }
+    void did_lose_compositor();
+    void did_reconnect_compositor();
+    // Runs the callback once a relaunched Compositor process has taken over from the one that was lost, or right away
+    // if one has already.
+    void when_compositor_reconnects(Function<void()>);
+    void did_finish_reconnecting_compositor();
+
     struct ContextMenuRequest {
         enum class Kind : u8 {
             Page,
@@ -767,6 +777,9 @@ private:
     ViewportIsFullscreen m_viewport_is_fullscreen { ViewportIsFullscreen::No };
     bool m_fullscreen_ipc_sent_to_ui { false };
     bool m_processing_fullscreen_operations { false };
+
+    bool m_compositor_lost { false };
+    Vector<Function<void()>> m_waiting_for_compositor_reconnection;
 };
 
 class WEB_API PageClient : public JS::Cell {

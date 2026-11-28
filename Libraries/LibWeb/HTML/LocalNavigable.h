@@ -462,6 +462,7 @@ protected:
     Variant<Empty, Traversal, Utf16String> m_ongoing_navigation;
 
 private:
+    void render_screenshot_once(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void(Compositor::ScreenshotResult)>&& callback);
     void render_screenshot_of_painted_subtree(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void(Compositor::ScreenshotResult)>&& callback);
     void record_rendering_invalidation();
 

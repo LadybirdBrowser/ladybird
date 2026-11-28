@@ -44,6 +44,8 @@ class CompositorHost;
 enum class ScreenshotResult : u8 {
     Taken,
     Failed,
+    // The Compositor process went away before it took the screenshot. The browser relaunches it.
+    CompositorLost,
 };
 
 struct PlaceholderCanvasLink {
@@ -107,6 +109,7 @@ public:
     void prepare_remote_descendants_for_screenshot(Function<void()>&& callback);
     // Sends the canvas commands a frame may sample ahead of it, and answers whether the compositor can be reached.
     bool ready_for_frame();
+    bool has_compositor_connection() const;
 
 private:
     friend class CompositorHost;

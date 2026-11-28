@@ -7484,6 +7484,35 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
 
 void LocalNavigable::render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig paint_config, Function<void(Compositor::ScreenshotResult)>&& callback)
 {
+    // The Compositor process exits when its GPU context is lost, and the browser relaunches it. A screenshot that it
+    // didn't take waits for the relaunched process, and is taken from that one, once.
+    render_screenshot_once(target, paint_config, [weak_this = GC::Weak { *this }, target, paint_config, callback = move(callback)](auto result) mutable {
+        if (!weak_this || weak_this->has_been_destroyed()) {
+            callback(result == Compositor::ScreenshotResult::Taken ? result : Compositor::ScreenshotResult::Failed);
+            return;
+        }
+        // NB: A transport that has closed leaves no connection behind, possibly before the page hears of the loss.
+        if (result == Compositor::ScreenshotResult::Failed && weak_this->has_compositor_context() && !weak_this->compositor_context().has_compositor_connection())
+            weak_this->page().did_lose_compositor();
+        auto compositor_was_lost = result == Compositor::ScreenshotResult::CompositorLost || weak_this->page().is_compositor_lost();
+        if (result == Compositor::ScreenshotResult::Taken || !compositor_was_lost) {
+            callback(result);
+            return;
+        }
+        weak_this->page().when_compositor_reconnects([weak_this, target = move(target), paint_config, callback = move(callback)]() mutable {
+            if (!weak_this || weak_this->has_been_destroyed()) {
+                callback(Compositor::ScreenshotResult::Failed);
+                return;
+            }
+            weak_this->render_screenshot_once(move(target), paint_config, [callback = move(callback)](auto result) {
+                callback(result == Compositor::ScreenshotResult::CompositorLost ? Compositor::ScreenshotResult::Failed : result);
+            });
+        });
+    });
+}
+
+void LocalNavigable::render_screenshot_once(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig paint_config, Function<void(Compositor::ScreenshotResult)>&& callback)
+{
     if (!has_compositor_context()) {
         callback(Compositor::ScreenshotResult::Failed);
         return;

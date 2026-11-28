@@ -546,6 +546,7 @@ void PageClient::set_window_size(Web::DevicePixelSize size)
 
 void PageClient::compositor_process_lost()
 {
+    page().did_lose_compositor();
     page().notify_all_webgl_contexts_lost();
     page().detach_all_media_element_video_sinks_after_compositor_lost();
 
