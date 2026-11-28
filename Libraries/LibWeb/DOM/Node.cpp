@@ -4467,6 +4467,8 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     .attribute_changed = RustAttributeHooks::attribute_changed,
     .synchronize_style_attribute = RustAttributeHooks::synchronize_style_attribute,
     .release_qualified_name = RustAttributeHooks::release_qualified_name,
+    .character_data_replaced = RustCharacterDataHooks::character_data_replaced,
+    .selection_range = RustCharacterDataHooks::selection_range,
 };
 
 static struct RustDOMHooksRegistration {

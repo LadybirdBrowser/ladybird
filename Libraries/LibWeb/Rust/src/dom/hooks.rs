@@ -25,6 +25,7 @@ use super::node_ref::NodeRef;
 use super::node_ref::RawNodeRef;
 use super::node_ref::RawNullableNodeRef;
 use super::qualified_name::QualifiedNameImpl;
+use super::range::RangeCell;
 use super::traversal::NodeFilterCall;
 use crate::stage::MainThread;
 
@@ -253,7 +254,31 @@ pub struct DomHooks {
     pub synchronize_style_attribute: unsafe extern "C" fn(element: RawNodeRef),
     /// Drops the last reference to a qualified name's parts, which frees them. Runs no script.
     pub release_qualified_name: unsafe extern "C" fn(name: NonNull<QualifiedNameImpl>),
+    /// Runs what replacing `count` code units from `offset` of the data of a CharacterData node with data
+    /// `data_length` code units long does beyond the data and the live ranges, which `steps` names (see
+    /// CHARACTER_DATA_*). `old_data` is the raw word of the data before. Can run script.
+    pub character_data_replaced: unsafe extern "C" fn(
+        node: RawNodeRef,
+        old_data: usize,
+        offset: usize,
+        count: usize,
+        data_length: usize,
+        steps: u8,
+    ),
+    /// The range of the document's selection, or null. Runs no script.
+    pub selection_range: unsafe extern "C" fn(document: RawNodeRef) -> Option<NonNull<RangeCell>>,
 }
+
+// What the character_data_replaced hook runs, a bit each in its steps byte.
+
+/// Tell the document's editing history of the mutation.
+pub const CHARACTER_DATA_NOTIFY_EDITING_HISTORY: u8 = 1 << 0;
+/// Queue a mutation record of "characterData".
+pub const CHARACTER_DATA_QUEUE_MUTATION_RECORD: u8 = 1 << 1;
+/// Run the children changed steps for the node's parent.
+pub const CHARACTER_DATA_RUN_CHILDREN_CHANGED_STEPS: u8 = 1 << 2;
+/// The data is not what it was, so its spelling markers, its style, its layout and its version move.
+pub const CHARACTER_DATA_DATA_CHANGED: u8 = 1 << 3;
 
 // The steps of handling attribute changes that the attribute_changed hook runs, a bit each in its steps byte, and what
 // the values it is given are.
@@ -797,4 +822,27 @@ pub(crate) fn release_qualified_name(main_thread: &mut MainThread<'_>, name: Non
     }
     // SAFETY: The callback is called on the main thread with the last reference to the parts, which it takes over.
     unsafe { (hooks(main_thread).release_qualified_name)(name) }
+}
+
+/// Runs the C++ steps of replacing the data of a CharacterData node, see DomHooks::character_data_replaced. The
+/// callback can run script.
+#[inline]
+pub(crate) fn character_data_replaced(
+    main_thread: &mut MainThread<'_>,
+    node: NodeRef,
+    old_data: usize,
+    offset: usize,
+    count: usize,
+    data_length: usize,
+    steps: u8,
+) {
+    // SAFETY: The callback is called on the main thread with a live node, whose old data the caller holds.
+    unsafe { (hooks(main_thread).character_data_replaced)(node, old_data, offset, count, data_length, steps) }
+}
+
+/// The range of the document's selection, which the selection keeps alive while nothing changes it.
+#[inline]
+pub(crate) fn selection_range(main_thread: &mut MainThread<'_>, document: NodeRef) -> Option<NonNull<RangeCell>> {
+    // SAFETY: The callback is called on the main thread with a live document.
+    unsafe { (hooks(main_thread).selection_range)(document) }
 }

@@ -2857,6 +2857,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[
             manifest_dir.join("src/dom/element_core.rs"),
             manifest_dir.join("src/dom/attributes.rs"),
+            manifest_dir.join("src/dom/character_data.rs"),
             manifest_dir.join("src/dom/dispatch.rs"),
             manifest_dir.join("src/dom/event.rs"),
             manifest_dir.join("src/dom/event_target.rs"),

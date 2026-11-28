@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const script = document.createElement("script");
+        script.type = "text/plain";
+        const text = new Text("window.ran = true; window.splitTarget.data = '';");
+        window.splitTarget = text;
+        script.append(text);
+        document.body.append(script);
+        script.type = "text/javascript";
+        try {
+            text.splitText(8);
+            println("splitText() did not throw");
+        } catch (e) {
+            println(`splitText() threw ${e.name}`);
+        }
+        println(`ran: ${window.ran}, data: "${text.data}", sibling: "${text.nextSibling.data}"`);
+    });
+</script>

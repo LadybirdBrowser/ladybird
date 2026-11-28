@@ -116,7 +116,7 @@ pub struct RangeCell {
 
 impl RangeCell {
     #[inline(always)]
-    fn core(&self) -> &RangeCore {
+    pub(super) fn core(&self) -> &RangeCore {
         // SAFETY: Every range embeds its core RANGE_CORE_OFFSET bytes into its cell, which AbstractRange.cpp asserts.
         unsafe { &*(self as *const Self).byte_add(RANGE_CORE_OFFSET).cast::<RangeCore>() }
     }
@@ -458,7 +458,7 @@ fn run_live_range_pre_remove_steps_for_all_children(main_thread: &MainThread<'_>
 /// Steps 8 to 11 of replacing data of `node` with `offset`, `count`, which is clamped to the node's length already, and
 /// data whose length is `data_length`, for each live range but `range_to_skip`.
 /// https://dom.spec.whatwg.org/#concept-cd-replace
-fn adjust_live_ranges_for_replaced_data(
+pub(super) fn adjust_live_ranges_for_replaced_data(
     main_thread: &MainThread<'_>,
     node: Node<'_>,
     replace_offset: usize,
@@ -512,7 +512,7 @@ fn adjust_live_ranges_for_replaced_data(
 /// Steps 7.2 to 7.5 of splitting `node` at `split_offset`, after `new_node` has been inserted into `parent`, node's
 /// parent.
 /// https://dom.spec.whatwg.org/#concept-text-split
-fn adjust_live_ranges_for_split_text(
+pub(super) fn adjust_live_ranges_for_split_text(
     main_thread: &MainThread<'_>,
     node: Node<'_>,
     new_node: Node<'_>,
@@ -963,54 +963,6 @@ pub unsafe extern "C" fn rust_dom_range_intersects_node(range: &RangeCell, node:
     // SAFETY: The node is live, and nothing changes the DOM while the token is borrowed.
     let node = unsafe { Node::from_cell(node, &main_thread) };
     intersects_node(&main_thread, range.core(), node)
-}
-
-/// Runs steps 8 to 11 of replacing data of `node`, a CharacterData node, with `offset`, `count`, clamped to the node's
-/// length, and data `data_length` code units long, for each live range but `range_to_skip`, for DOM::CharacterData.
-///
-/// # Safety
-///
-/// The node and range must be live, and the call must be made on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_live_ranges_replace_data(
-    node: &NodeCell,
-    offset: usize,
-    count: usize,
-    data_length: usize,
-    range_to_skip: Option<&RangeCell>,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let main_thread = unsafe { main_thread() };
-    // SAFETY: The node is live, and nothing changes the DOM while the token is borrowed.
-    let node = unsafe { Node::from_cell(node, &main_thread) };
-    adjust_live_ranges_for_replaced_data(
-        &main_thread,
-        node,
-        offset,
-        count,
-        data_length,
-        range_to_skip.map(RangeCell::core),
-    );
-}
-
-/// Runs steps 7.2 to 7.5 of splitting `node` at `offset`, after `new_node` has been inserted into `parent`, node's
-/// parent, for DOM::Text.
-///
-/// # Safety
-///
-/// The nodes must be live, and the call must be made on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_live_ranges_split_text(
-    node: &NodeCell,
-    new_node: &NodeCell,
-    offset: usize,
-    parent: &NodeCell,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let main_thread = unsafe { main_thread() };
-    // SAFETY: The nodes are live, and nothing changes the DOM while the token is borrowed.
-    let [node, new_node, parent] = [node, new_node, parent].map(|cell| unsafe { Node::from_cell(cell, &main_thread) });
-    adjust_live_ranges_for_split_text(&main_thread, node, new_node, offset, parent);
 }
 
 /// Runs steps 6.1 to 6.4 of normalizing for `current_node`, an exclusive Text node that follows `node`, whose data is
