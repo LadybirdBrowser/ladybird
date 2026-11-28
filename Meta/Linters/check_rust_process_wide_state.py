@@ -30,6 +30,7 @@ import sys
 # or a stub in a test binary.
 ALLOWED = {
     "Libraries/LibGfx/Rust/src/text_layout.rs:SHAPING_CACHE": "per-thread memo of a pure function; a second copy costs memory, never an answer",
+    "Libraries/LibGfx/Rust/src/glyph_ink.rs:INK_EXTENT_DRAW_FUNCS": "immutable HarfBuzz callback table built once; each copy builds the same table, so a second copy costs one more, never an answer",
     "AK/Rust/src/stack.rs:LOWEST_ADDRESS": "per-thread cache of the thread's stack bounds; each copy finds the same bounds, so a second copy costs only another lookup",
     "AK/Rust/src/row_block.rs:NEXT_BLOCK": "numbers the blocks, so that a block only gives the rows of its own lists; a block and its lists stay in the library that made them, so two copies never compare numbers; a block that another library reads needs the counter moved to C++",
     "AK/Rust/src/waiter_list.rs:LISTS": "only libjs_rust and libwasm_engine use it, which are in one library of a process, so they share a copy; a caller in another library needs the state moved to C++",

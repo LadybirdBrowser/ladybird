@@ -22,6 +22,7 @@ namespaces = ["Gfx", "FFI"]
 include = [
     "TextType",
     "JoiningContext",
+    "ShapedGlyph",
     "FilterOperationType",
     "ChannelSelector",
     "TurbulenceType",
@@ -33,6 +34,8 @@ include = [
     "HbGlyphInfo",
     "HbGlyphPosition",
     "HbFeature",
+    "HbGlyphExtents",
+    "HbDrawState",
 ]
 
 [parse]

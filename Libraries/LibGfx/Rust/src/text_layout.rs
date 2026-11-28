@@ -6,9 +6,8 @@
 
 use crate::font::{FontFacts, FontHandle};
 use crate::geometry::FloatRect;
-use crate::text_shaping;
+use crate::{glyph_ink, text_shaping};
 use hashbrown::hash_map::EntryRef;
-use std::ffi::c_void;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,7 +44,7 @@ pub struct JoiningContext {
     pub joins_after: bool,
 }
 
-/// A glyph as shaping makes it and as the glyph run readers in C++ read it.
+/// A glyph as shaping makes it, laid out as the C++ that shaping in Rust replaced reads it until it goes.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct ShapedGlyph {
@@ -154,33 +153,6 @@ impl GlyphPlacement {
     }
 }
 
-unsafe extern "C" {
-    fn ladybird_gfx_glyph_run_ink_bounding_box(
-        font: *const c_void,
-        glyphs: *const ShapedGlyph,
-        glyph_count: usize,
-        scale: f32,
-        out_rect: *mut f32,
-    );
-
-    fn ladybird_gfx_glyph_run_glyph_intercepts(
-        font: *const c_void,
-        glyphs: *const ShapedGlyph,
-        glyph_count: usize,
-        scale: f32,
-        origin_y: f32,
-        y_top: f32,
-        y_bottom: f32,
-        sink: *mut c_void,
-        push: unsafe extern "C" fn(*mut c_void, f32),
-    );
-}
-
-/// The glyphs of the run in the form that the glyph run readers in C++ read them.
-fn shaped_glyphs_of(glyphs: &GlyphBuffer) -> Vec<ShapedGlyph> {
-    glyphs.placed().map(ShapedGlyph::from).collect()
-}
-
 /// How far synthetic bold can spread the ink of a font's glyphs past their outlines, in device pixels. The rasterizer
 /// decides the stroke, so this allows for the widest it's known to use: It bounds what a run may paint, and isn't a
 /// measurement of its ink.
@@ -256,20 +228,7 @@ pub fn glyph_run_bounding_box(font: &FontHandle, glyphs: &GlyphBuffer, scale: f3
 /// `glyph_run_bounding_box()`, as x, y, width and height. Empty if no painted glyph has ink.
 #[must_use]
 pub fn glyph_run_ink_bounding_box(font: &FontHandle, glyphs: &GlyphBuffer, scale: f32) -> [f32; 4] {
-    let glyphs = shaped_glyphs_of(glyphs);
-    let mut out_rect = [0.0f32; 4];
-    // SAFETY: The handle keeps the font live and the glyph slice stays valid
-    // for the synchronous call, which fills the four floats out_rect points at.
-    unsafe {
-        ladybird_gfx_glyph_run_ink_bounding_box(
-            font.as_raw(),
-            glyphs.as_ptr(),
-            glyphs.len(),
-            scale,
-            out_rect.as_mut_ptr(),
-        );
-    }
-    out_rect
+    glyph_ink::ink_bounding_box(font, glyphs.placed(), scale)
 }
 
 /// Where the ink of the glyphs crosses the band from `y_top` to `y_bottom`, as pairs of left and right edges, leaving out
@@ -285,32 +244,8 @@ pub fn glyph_run_glyph_intercepts(
     y_bottom: f32,
     ignores_cluster: impl Fn(u32) -> bool,
 ) -> Vec<f32> {
-    unsafe extern "C" fn push(sink: *mut c_void, value: f32) {
-        // SAFETY: `sink` is the Vec passed below, live for the synchronous call.
-        unsafe { (*sink.cast::<Vec<f32>>()).push(value) };
-    }
-    let glyphs: Vec<ShapedGlyph> = glyphs
-        .placed()
-        .filter(|placed| !ignores_cluster(placed.cluster_start))
-        .map(ShapedGlyph::from)
-        .collect();
-    let mut intercepts: Vec<f32> = Vec::new();
-    // SAFETY: The handle keeps the font live and the glyph slice stays valid
-    // for the synchronous call; the push callback runs against the local Vec.
-    unsafe {
-        ladybird_gfx_glyph_run_glyph_intercepts(
-            font.as_raw(),
-            glyphs.as_ptr(),
-            glyphs.len(),
-            scale,
-            origin_y,
-            y_top,
-            y_bottom,
-            (&raw mut intercepts).cast(),
-            push,
-        );
-    }
-    intercepts
+    let glyphs = glyphs.placed().filter(|placed| !ignores_cluster(placed.cluster_start));
+    glyph_ink::glyph_intercepts(font, glyphs, scale, origin_y, y_top, y_bottom)
 }
 
 /// A glyph of a run, with where the run places it and what it stands for in the text.

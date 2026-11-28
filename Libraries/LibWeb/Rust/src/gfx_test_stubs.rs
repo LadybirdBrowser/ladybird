@@ -7,7 +7,7 @@
 //! Stand-ins for the LibGfx font, shaping and path entry points, which a unit test links through a document's render
 //! state, without the C++ runtime, but never reaches.
 
-use libgfx_rust::text_layout::{DrawGlyph, ShapedGlyph};
+use libgfx_rust::text_layout::DrawGlyph;
 use std::ffi::c_void;
 
 #[unsafe(no_mangle)]
@@ -109,32 +109,6 @@ extern "C" fn ladybird_gfx_code_point_has_cursive_script_extension(_code_point: 
 
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_code_point_is_default_ignorable(_code_point: u32) -> bool {
-    unreachable!("no unit test shapes text");
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn ladybird_gfx_glyph_run_ink_bounding_box(
-    _font: *const c_void,
-    _glyphs: *const ShapedGlyph,
-    _glyph_count: usize,
-    _scale: f32,
-    _out_rect: *mut f32,
-) {
-    unreachable!("no unit test shapes text");
-}
-
-#[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
-extern "C" fn ladybird_gfx_glyph_run_glyph_intercepts(
-    _font: *const c_void,
-    _glyphs: *const ShapedGlyph,
-    _glyph_count: usize,
-    _scale: f32,
-    _y_top: f32,
-    _y_bottom: f32,
-    _sink: *mut c_void,
-    _push: unsafe extern "C" fn(*mut c_void, f32),
-) {
     unreachable!("no unit test shapes text");
 }
 
