@@ -69,6 +69,7 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/PaintTiming/DocumentPaintTimingState.h>
 #include <LibWeb/Painting/DisplayListRecording.h>
+#include <LibWeb/Painting/DragImageOverlay.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
@@ -119,6 +120,7 @@ class ImageStyleValueResource;
 namespace Web::Painting {
 
 struct DisplayListDumpOptions;
+struct ElementRaster;
 
 }
 
@@ -256,6 +258,7 @@ enum class InvalidateLayoutTreeReason {
     X(NavigableViewportScroll, false)               \
     X(NodeNameOrDescription, false)                 \
     X(RangeGetClientRects, false)                   \
+    X(RasterizeElement, false)                      \
     X(ResolvedCSSStyleDeclarationProperty, false)   \
     X(SVGDecodedImageDataRender, false)             \
     X(ScrollCursorIntoView, false)                  \
@@ -1728,6 +1731,8 @@ public:
     TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
     void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
+    Optional<Painting::DragImageOverlay> const& drag_image_overlay() const { return m_drag_image_overlay; }
+    void set_drag_image_overlay(Optional<Painting::DragImageOverlay>);
 
     RenderingStats* rendering_stats() const { return m_rendering_stats.ptr(); }
     RenderingStats& ensure_rendering_stats() const;
@@ -1877,6 +1882,7 @@ public:
     void remove_from_script_blocking_style_sheet_set(Element&);
 
     Utf16String dump_display_list(Painting::DisplayListDumpOptions const&);
+    Optional<Painting::ElementRaster> rasterize_element(Element&, Optional<CSSPixelSize> maximum_size = {}, Optional<CSSPixelPoint> point_in_viewport = {});
     Utf16String dump_stacking_context_tree();
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
@@ -2541,6 +2547,7 @@ private:
     Optional<HitTestItemsOnScreen> m_hit_test_items_on_screen;
     [[nodiscard]] bool hit_test_items_on_screen_are_as_adopted() const;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
+    Optional<Painting::DragImageOverlay> m_drag_image_overlay;
 
     mutable StyleUpdateStatistics m_style_update_statistics;
 

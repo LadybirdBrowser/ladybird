@@ -155,6 +155,7 @@
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -11521,6 +11522,7 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
     }
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
+    overlay_inputs.drag_image = m_drag_image_overlay;
 
     return Painting::start_rust_display_list_recording(read, *this, visual_context_tree_structural_epoch, surface_clear_color, cache_mode, config, overlay_inputs, move(committed));
 }
@@ -11569,6 +11571,17 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
         return;
 
     m_caret_hit_test_debug_rect = rect;
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
+    page().client().request_frame_for(*this);
+}
+
+void Document::set_drag_image_overlay(Optional<Painting::DragImageOverlay> overlay)
+{
+    if (m_drag_image_overlay == overlay)
+        return;
+
+    m_drag_image_overlay = move(overlay);
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
     page().client().request_frame_for(*this);
@@ -12026,6 +12039,33 @@ Utf16String Document::dump_display_list(Painting::DisplayListDumpOptions const& 
         return "No display list"_utf16;
 
     return Painting::serialize_painting_dump(read, *this, options);
+}
+
+Optional<Painting::ElementRaster> Document::rasterize_element(Element& element, Optional<CSSPixelSize> maximum_size, Optional<CSSPixelPoint> point_in_viewport)
+{
+    Layout::ForcedReadScope read { *this };
+    update_layout(UpdateLayoutReason::RasterizeElement);
+
+    if (!has_committed_viewport_box() || !page().has_compositor_host())
+        return {};
+
+    auto const* layout_node = element.layout_node(read);
+    if (!layout_node || !Painting::has_committed_box(*layout_node))
+        return {};
+
+    update_highlight_states_if_needed(read);
+    Painting::publish_image_map_area_facts_if_needed(read, *this);
+    // Reading the epoch brings the visual context tree up to date, which the recording freezes.
+    (void)paint_state().visual_context_tree_structural_epoch(read);
+
+    element.for_each_shadow_including_inclusive_descendant([](Node& node) {
+        if (auto* canvas = as_if<HTML::HTMLCanvasElement>(node); canvas && canvas->canvas_rendering_context_2d())
+            canvas->prepare_for_compositing();
+        return TraversalDecision::Continue;
+    });
+    page().compositor_host().flush_canvas_2d_stream();
+
+    return Painting::rasterize_element(read, *this, *layout_node, maximum_size, point_in_viewport);
 }
 
 Utf16String Document::dump_stacking_context_tree()

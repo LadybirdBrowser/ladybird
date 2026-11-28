@@ -14,12 +14,18 @@ use crate::layout::grid_formatting_context;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{ContextRef, DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
+use crate::painting::display_list::recorder::IsolatedGroupEffects;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
-use crate::painting::record::inputs::{InspectorHighlight, OverlayLabelFonts};
-use libgfx_rust::{Color, FloatPoint, GlyphRunOrientation, IntPoint, IntRect, LineStyle};
+use crate::painting::record::inputs::{DragImageOverlay, InspectorHighlight, OverlayLabelFonts};
+use libgfx_rust::{
+    Color, CompositingAndBlendingOperator, FloatPoint, GlyphRunOrientation, IntPoint, IntRect, LineStyle, MaskKind,
+    ScalingMode,
+};
+
+const DRAG_IMAGE_OPACITY: f32 = 0.75;
 
 pub(crate) fn record_inspector_overlays<O: Observer>(recorder: &mut PaintRecorder<'_, O>) {
     let inputs = recorder.inputs;
@@ -44,6 +50,34 @@ pub(crate) fn record_inspector_overlays<O: Observer>(recorder: &mut PaintRecorde
     if let Some(rect) = inputs.caret_debug_rect {
         paint_caret_debug_marker(recorder, rect);
     }
+    if let Some(drag_image) = &inputs.drag_image {
+        paint_drag_image(recorder, drag_image);
+    }
+}
+
+fn paint_drag_image<O: Observer>(recorder: &mut PaintRecorder<'_, O>, drag_image: &DragImageOverlay) {
+    let frame_id = recorder.register_image_frame(&drag_image.frame);
+    let rect = recorder.converter.enclosing_device_rect(drag_image.rect).to_float();
+    let group = recorder.recorder.begin_isolated_group();
+    recorder.recorder.draw_scaled_decoded_image_frame(
+        rect,
+        None,
+        frame_id,
+        ScalingMode::Bilinear,
+        CompositingAndBlendingOperator::Normal,
+        None,
+        ForceDarkRole::None,
+    );
+    recorder.recorder.finish_group_with_effects(
+        group,
+        IsolatedGroupEffects {
+            clip_rect: rect,
+            opacity: DRAG_IMAGE_OPACITY,
+            filter: None,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            mask_kind: MaskKind::Alpha,
+        },
+    );
 }
 
 fn with_highlight_context<O: Observer>(

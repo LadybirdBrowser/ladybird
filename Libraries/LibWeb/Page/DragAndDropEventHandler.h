@@ -27,7 +27,7 @@ public:
 
     static GC::Ptr<HTML::HTMLElement> first_draggable_inclusive_ancestor(DOM::Node&);
 
-    EventResult handle_drag_start(JS::Object const& relevant_global_object, GC::Ptr<DOM::Node> drag_target, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
+    EventResult handle_drag_start(JS::Object const& relevant_global_object, GC::Ptr<DOM::Node> drag_target, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, CSSPixelPoint drag_origin, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
     EventResult handle_drag_move(JS::Object const& relevant_global_object, GC::Ref<DOM::Node>, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_drag_leave(JS::Object const& relevant_global_object, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_drag_cancel(JS::Object const& relevant_global_object, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
@@ -57,7 +57,13 @@ private:
 
     bool allow_text_drop(GC::Ref<DOM::Node>) const;
 
+    void update_default_feedback(DOM::Element&, CSSPixelPoint drag_origin);
+    void show_drag_feedback(CSSPixelPoint client_offset);
+
     RefPtr<HTML::DragDataStore> m_drag_data_store;
+
+    Optional<HTML::DragFeedback> m_drag_feedback;
+    GC::Ptr<DOM::Document> m_drag_feedback_document;
 
     // https://html.spec.whatwg.org/multipage/dnd.html#source-node
     GC::Ptr<DOM::EventTarget> m_source_node;

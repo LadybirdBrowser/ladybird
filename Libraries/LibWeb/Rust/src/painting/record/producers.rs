@@ -18,7 +18,9 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::paint_order_plan::{PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan};
+use crate::painting::paint_order_plan::{
+    PaintOrderInputs, PaintOrderItem, PaintProducer, PaintScope, PaintScopePlan, PlanLeavesOut,
+};
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
 use crate::painting::record::change_ticks::RowChanges;
 use crate::painting::record::paint::background_resolution::root_paint_covers_canvas;
@@ -32,6 +34,25 @@ use std::sync::Arc;
 /// than a row is walked on its own, and a run ends where the next item starts in another row, so a run records about
 /// a row of the document.
 const GRID_ROW_HEIGHT_IN_CSS_PIXELS: i64 = 512;
+
+fn is_in_or_contains(source: &PaintSource<'_>, subtree: NodeSlotId, node: NodeSlotId) -> bool {
+    source.is_inclusive_ancestor_of(subtree, node) || source.is_inclusive_ancestor_of(node, subtree)
+}
+
+struct LeavesOutAllButSubtree<'a, 'b> {
+    source: &'a PaintSource<'b>,
+    subtree: NodeSlotId,
+}
+
+impl PlanLeavesOut for LeavesOutAllButSubtree<'_, '_> {
+    fn leaves_out_child_scope(&mut self, child: PaintScope, _: PaintOrderInputs) -> bool {
+        !is_in_or_contains(self.source, self.subtree, child.owner)
+    }
+
+    fn leaves_out_line(&mut self, _: NodeSlotId, _: u32) -> bool {
+        false
+    }
+}
 
 fn draw_phase(kind: ProducerKind) -> Option<PaintPhase> {
     match kind {
@@ -146,6 +167,45 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn producer_is_skipped(&mut self, owner: NodeSlotId, kind: ProducerKind) -> bool {
         draw_phase(kind).is_some_and(|phase| self.base_paint_facts(owner).paint_phase_mask & phase.bit() == 0)
+            || (kind != ProducerKind::Svg
+                && !self.is_recording_svg_resource_content()
+                && self.inputs.isolated_subtree.is_some()
+                && self.leaves_out_own_painting_of(self.node_painted_by(owner, kind)))
+    }
+
+    fn node_painted_by(&self, owner: NodeSlotId, kind: ProducerKind) -> NodeSlotId {
+        let (ProducerKind::InlinePiece(index) | ProducerKind::TextFragment(index)) = kind else {
+            return owner;
+        };
+        let root = if crate::painting::node_painting::has_lines(self.source, owner) {
+            owner
+        } else {
+            self.data(owner).containing_block
+        };
+        let side = self.source.committed_side_data(root);
+        let Some(content) = side.inline_content.as_ref() else {
+            return owner;
+        };
+        let node = match kind {
+            ProducerKind::InlinePiece(_) => content.inline_box_pieces.get(index as usize).map(|piece| piece.node),
+            _ => content
+                .fragments
+                .get(index as usize)
+                .map(|fragment| fragment.layout_node),
+        };
+        node.unwrap_or(owner)
+    }
+
+    pub(crate) fn leaves_out_own_painting_of(&self, node: NodeSlotId) -> bool {
+        self.inputs
+            .isolated_subtree
+            .is_some_and(|subtree| !self.source.is_inclusive_ancestor_of(subtree, node))
+    }
+
+    pub(crate) fn paints_any_of(&self, node: NodeSlotId) -> bool {
+        self.inputs
+            .isolated_subtree
+            .is_none_or(|subtree| is_in_or_contains(self.source, subtree, node))
     }
 
     /// The commands of a box phase inside a resource walk, which records into the referencing
@@ -166,7 +226,18 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
 impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
     fn plan_scope(&mut self, scope: PaintScope) -> ScopePlan {
-        let plan = PaintScopePlan::build(self.source, scope, self.inputs.should_paint_overlay);
+        let plan = match self.inputs.isolated_subtree {
+            Some(subtree) => PaintScopePlan::build_leaving_out(
+                self.source,
+                scope,
+                self.inputs.should_paint_overlay,
+                &mut LeavesOutAllButSubtree {
+                    source: self.source,
+                    subtree,
+                },
+            ),
+            None => PaintScopePlan::build(self.source, scope, self.inputs.should_paint_overlay),
+        };
         let active = !plan.establishes_stacking_context
             || crate::painting::hit_test::walk::stacking_context_paints(self.source, scope.owner);
         ScopePlan {

@@ -55,6 +55,8 @@ pub struct RecordingOutput {
     pub(crate) root_background_canvas_rect: CssPixelRect,
     /// The name of the chunk the canvas was recorded into, outside the walked scopes, or none where it drew nothing.
     pub(crate) prologue_id: Option<crate::painting::display_list::chunks::ChunkId>,
+    /// Whether the recording drew the inspector's overlays.
+    pub(crate) has_inspector_overlays: bool,
     pub root_group_color: libgfx_rust::Color,
     /// The rows' hit-test items stamp of the frame the recording recorded: hit testing walks its rows, which place
     /// other items in a frame with another stamp or another visual context tree.

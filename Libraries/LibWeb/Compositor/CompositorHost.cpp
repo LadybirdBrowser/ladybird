@@ -10,6 +10,7 @@
 #include <LibWeb/Compositor/CompositorConnection.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/Compositor/RenderClock.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 
 // The Paint stage keeps what the compositor keeps of the display lists sent for each context.
 extern "C" void paint_stage_forget_destroyed_compositor_context(u64 context_id);
@@ -212,6 +213,14 @@ bool CompositorHost::rasterize_last_recording(Layout::RustFFI::DocumentHost cons
     if (!connection)
         return false;
     return connection->rasterize_last_recording(document_host, read, move(target));
+}
+
+bool CompositorHost::rasterize_element(Layout::RustFFI::DocumentHost const& document_host, Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId viewport, Layout::RustFFI::FfiRecordingInputs const& inputs, Compositing::RustFFI::NodeSlotId element, Layout::RustFFI::FfiRecordingPublishCallbacks const& publish, Gfx::FloatPoint origin, float scale, NonnullRefPtr<Gfx::Bitmap> target) const
+{
+    auto* connection = compositor_connection();
+    if (!connection)
+        return false;
+    return connection->rasterize_element(document_host, read, viewport, inputs, element, publish, origin, scale, move(target));
 }
 
 void CompositorHost::destroy_context(Web::CompositorContextId context_id)

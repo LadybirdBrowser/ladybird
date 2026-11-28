@@ -719,6 +719,159 @@ pub unsafe extern "C" fn render_state_record_display_list(
     FfiRecordingStart::Recorded
 }
 
+/// The rect that a raster of the box `subtree` of `host`'s document alone covers, in CSS pixels in the document as it
+/// lies unscrolled, and where `point_in_viewport`, if given, lands in that rect. Answers false where the box has no
+/// committed paintable or the document's viewport `viewport` has no box to paint.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_element_raster_rect(
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    subtree: NodeSlotId,
+    point_in_viewport: Option<&crate::layout::used_values::FfiCssPixelPoint>,
+    out_rect: &mut crate::layout::used_values::FfiCssPixelRect,
+    out_point: &mut crate::layout::used_values::FfiCssPixelPoint,
+) -> bool {
+    use crate::painting::rasterize::{isolated_subtree_bounds, point_in_isolated_subtree, tree_for_isolated_subtree};
+
+    let frame_inputs = crate::painting::recording_slot::FrameInputs {
+        viewport,
+        css_viewport_rect: CssPixelRect::default(),
+        publishes_recording: false,
+        published_root_background_canvas_rect: None,
+    };
+    let Some(frozen) = read_arena(
+        host,
+        read,
+        frame_inputs,
+        crate::painting::recording_slot::freeze_recording_frame,
+    ) else {
+        return false;
+    };
+    let absolute_rects = core::cell::RefCell::default();
+    let source = crate::painting::paint_read::PaintSource::new(&frozen.frame, &absolute_rects);
+    if !source.paintable_row_is_populated(subtree) {
+        return false;
+    }
+    let device_pixels_per_css_pixel = frozen.tree_inputs.device_pixels_per_css_pixel;
+    let Some(tree) = tree_for_isolated_subtree(&source, subtree, &mut []) else {
+        return false;
+    };
+    let Some(rect) = isolated_subtree_bounds(&source, &tree, subtree, device_pixels_per_css_pixel) else {
+        return false;
+    };
+    let in_css_pixels = |value: f32| CssPixels::nearest_value_for(f64::from(value) / device_pixels_per_css_pixel);
+    *out_rect = CssPixelRect {
+        x: in_css_pixels(rect.x),
+        y: in_css_pixels(rect.y),
+        width: in_css_pixels(rect.width),
+        height: in_css_pixels(rect.height),
+    }
+    .into();
+    if let Some(point) = point_in_viewport {
+        let point = libgfx_rust::FloatPoint {
+            x: (point.x.to_double() * device_pixels_per_css_pixel) as f32,
+            y: (point.y.to_double() * device_pixels_per_css_pixel) as f32,
+        };
+        let Some(point) =
+            point_in_isolated_subtree(&source, &tree, host.scroll_state().device_offsets(), subtree, point)
+        else {
+            return false;
+        };
+        *out_point = crate::layout::used_values::FfiCssPixelPoint {
+            x: in_css_pixels(point.x - rect.x),
+            y: in_css_pixels(point.y - rect.y),
+        };
+    }
+    true
+}
+
+/// Records the box `subtree` of `host`'s document alone, with `inputs` and the viewport `viewport`, and has the
+/// compositor rasterize it under `token` into `target_bitmap`, a shareable `Gfx::Bitmap`, with what contains the box
+/// taken out, scaled by `scale` about `origin`, in device pixels in the document, which lands at the bitmap's origin.
+/// The recording is not published.
+///
+/// # Safety
+///
+/// As for [`render_state_record_display_list`]. `connection` must hold one reference to the live connection to the
+/// compositor of this thread, and `poster` one reference to a live poster on its transport, which the caller gives up,
+/// and `target_bitmap` must be live for the call.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn render_state_rasterize_element(
+    connection: libipc_rust::cpp_connection::FfiConnection,
+    poster: libipc_rust::cpp_connection::FfiThreadSafeMessagePoster,
+    token: u64,
+    host: &crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
+    viewport: NodeSlotId,
+    inputs: crate::painting::host::FfiRecordingInputs,
+    subtree: NodeSlotId,
+    publish: crate::painting::host::FfiRecordingPublishCallbacks,
+    origin: libgfx_rust::FloatPoint,
+    scale: f32,
+    target_bitmap: *const c_void,
+) -> crate::painting::rasterize::RasterizationOutcome {
+    use crate::painting::rasterize::{
+        RasterizationOutcome, place_isolated_subtree_on_bitmap, tree_for_isolated_subtree,
+    };
+
+    // SAFETY: Guaranteed by the caller.
+    let (connection, poster) = unsafe {
+        (
+            libipc_rust::cpp_connection::CppConnection::adopt(connection),
+            crate::paint_stage::CompositorPoster::adopt(poster),
+        )
+    };
+    // SAFETY: Guaranteed by the caller.
+    let main_thread = unsafe { main_thread(host) };
+    let mut recorder = crate::painting::record::recorder_state::RecorderState::default();
+    let frame_inputs = frame_inputs(viewport, &inputs, &recorder);
+    // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
+    let inputs = unsafe { inputs.recording_inputs() };
+    let Some(frozen) = read_arena(
+        host,
+        read,
+        frame_inputs,
+        crate::painting::recording_slot::freeze_recording_frame,
+    ) else {
+        return RasterizationOutcome::NotRasterized;
+    };
+    let mut scroll_offsets = host.scroll_state().device_offsets().to_vec();
+    let absolute_rects = core::cell::RefCell::default();
+    let Some(mut tree) = tree_for_isolated_subtree(
+        &crate::painting::paint_read::PaintSource::new(&frozen.frame, &absolute_rects),
+        subtree,
+        &mut scroll_offsets,
+    ) else {
+        return RasterizationOutcome::NotRasterized;
+    };
+    place_isolated_subtree_on_bitmap(&mut tree, origin, scale);
+    let mut inputs = inputs.for_frame(frozen.tree_inputs, frozen.root_background_source);
+    inputs.isolated_subtree = Some(subtree);
+    let frame = frozen.frame;
+    let (pending, recorder) = crate::paint_stage::paint_thread().run(move || {
+        let (pending, _) = crate::painting::recording_slot::record_frame(frame, &mut recorder, viewport, false, inputs);
+        (pending, recorder)
+    });
+    let output = crate::painting::record::publish::publish_to_host(pending, &recorder, &main_thread, &publish);
+    crate::painting::rasterize::rasterize(
+        &connection,
+        &poster,
+        token,
+        &output.display_list,
+        std::sync::Arc::new(tree),
+        scroll_offsets,
+        libgfx_rust::Color::TRANSPARENT,
+        &output.resources,
+        target_bitmap,
+    )
+}
+
 /// Commits the frame of `host`'s document as the rendering update leaves it to the render owner, with `recorder`, which
 /// samples it beside the event loop at `timestamp`, the time of the document's timeline the update sampled its
 /// animations at, and hands it to the Paint thread, which presents it as `seal` sealed it. The frame flies until the

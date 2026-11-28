@@ -271,6 +271,16 @@ impl MessagesFromWebContent<'_> {
             }
         };
         let tree = message.visual_context_tree;
+        let scroll_offsets = message.scroll_offsets;
+        if !scroll_offsets
+            .iter()
+            .all(|offset| offset.x.is_finite() && offset.y.is_finite())
+        {
+            raster.discard_staged_rasterization(client, token);
+            return Err(Misbehavior(
+                "WebContent asked to rasterize a display list with scroll offsets that are not finite",
+            ));
+        }
         if properties.compatible_visual_context_tree_structural_epoch != tree.structural_epoch
             || !tree.display_list_references_only_live_nodes(storage.runs())
         {
@@ -284,7 +294,10 @@ impl MessagesFromWebContent<'_> {
         }
         let time_ns = self.now.nanoseconds();
         let success = raster.rasterize_staged(client, token, |painter| {
-            let frame = ReplayFrame::unscrolled(time_ns);
+            let frame = ReplayFrame {
+                scroll_offsets: &scroll_offsets,
+                ..ReplayFrame::unscrolled(time_ns)
+            };
             replay_display_list(
                 &tree,
                 &storage,

@@ -1174,6 +1174,22 @@ Optional<Utf16String> Internals::current_cursor_pixel(i32 x, i32 y)
     return Utf16String::from_utf8(image_cursor->bitmap.bitmap()->get_pixel(x, y).to_string());
 }
 
+Optional<Utf16String> Internals::drag_image_rect()
+{
+    auto const& overlay = window().associated_document().drag_image_overlay();
+    if (!overlay.has_value())
+        return {};
+    return Utf16String::formatted("{}", overlay->rect);
+}
+
+Optional<Utf16String> Internals::drag_image_pixel(i32 x, i32 y)
+{
+    auto const& overlay = window().associated_document().drag_image_overlay();
+    if (!overlay.has_value())
+        return {};
+    return Utf16String::from_utf8(overlay->frame.bitmap_sharing_pixels()->get_pixel(x, y).to_string());
+}
+
 Utf16String Internals::theme_color()
 {
     auto& document = window().associated_document();

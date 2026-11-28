@@ -2631,11 +2631,13 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!target_layout_node)
         return EventResult::Dropped;
 
-    auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
-        return event_handler.handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
-    });
-    if (dispath_result.has_value())
-        return *dispath_result;
+    if (!m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation()) {
+        auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
+            return event_handler.handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
+        });
+        if (dispath_result.has_value())
+            return *dispath_result;
+    }
 
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
     auto offset = Painting::mouse_event_offset(*target_layout_node, viewport_position);
@@ -2646,8 +2648,10 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
             document.page().invalidate_compositor_keyboard_scroll_state_for_document(document);
     };
     switch (type) {
-    case DragEvent::Type::DragStart:
-        return m_drag_and_drop_event_handler->handle_drag_start(HTML::relevant_global_object(document), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
+    case DragEvent::Type::DragStart: {
+        auto drag_origin = m_mousedown_visual_viewport_position.has_value() ? document.visual_viewport()->map_to_layout_viewport(*m_mousedown_visual_viewport_position) : viewport_position;
+        return m_drag_and_drop_event_handler->handle_drag_start(HTML::relevant_global_object(document), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, drag_origin, button, buttons, modifiers, move(files));
+    }
     case DragEvent::Type::DragMove:
         return m_drag_and_drop_event_handler->handle_drag_move(HTML::relevant_global_object(document), *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::DragEnd:
@@ -3682,6 +3686,14 @@ static bool is_inside_button(GC::Ptr<DOM::Node const> node)
     return false;
 }
 
+static bool is_inside_non_editable_draggable_element(GC::Ptr<DOM::Node> node)
+{
+    if (!node || node->is_editable_or_editing_host())
+        return false;
+    auto draggable_element = DragAndDropEventHandler::first_draggable_inclusive_ancestor(*node);
+    return draggable_element && !draggable_element->is_editable_or_editing_host();
+}
+
 void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned modifiers, int click_count)
 {
     // NB: A press that ends a middle button scroll has no default actions, whichever document gets it.
@@ -3730,7 +3742,10 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
 
     // NB: Pressing a button activates it, so a drag that starts on one does not select its label or the page around
     //     it.
-    if (auto hit = document.hit_test(read, visual_viewport_position); hit.has_value() && is_inside_button(hit->dom_node()))
+    auto hit = document.hit_test(read, visual_viewport_position);
+    if (hit.has_value() && is_inside_button(hit->dom_node()))
+        return;
+    if (hit.has_value() && !(modifiers & UIEvents::KeyModifier::Mod_Alt) && is_inside_non_editable_draggable_element(hit->dom_node()))
         return;
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none

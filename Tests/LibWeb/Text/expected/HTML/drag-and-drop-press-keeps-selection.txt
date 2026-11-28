@@ -1,0 +1,7 @@
+Click on draggable text: Range in #other
+Double click on draggable text: Range in #other
+Press on draggable text and a move within the drag threshold: Range in #other
+Drag of draggable text: Range in #other
+Click on draggable text with Alt held: Caret in #draggable
+Click on a link: Range in #other
+Click on editable text inside a draggable element: Caret in #editable

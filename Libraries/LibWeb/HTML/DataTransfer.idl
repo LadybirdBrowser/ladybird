@@ -8,7 +8,7 @@ interface DataTransfer {
 
     [SameObject] readonly attribute DataTransferItemList items;
 
-    [FIXME] undefined setDragImage(Element image, long x, long y);
+    undefined setDragImage(Element image, long x, long y);
 
     // old interface
     [ReturnsJSValue] readonly attribute FrozenArray<DOMString> types;

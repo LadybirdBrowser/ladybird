@@ -10,6 +10,7 @@ use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::force_dark::ForceDarkSettings;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, RootBackgroundSource};
 use libgfx_rust::font::FontHandle;
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{Color, IntRect, IntSize};
 
 /// The inputs read by content that is recorded outside per-box captures: scroll metadata,
@@ -72,6 +73,8 @@ pub(crate) struct RecordingInputs {
     /// Records everything the document paints, wherever it is, and not just what shows in a window around the
     /// viewport: what a screenshot of more than the viewport and a dump of the display list read.
     pub records_whole_document: bool,
+    /// The box that a recording records alone, with what it contains.
+    pub isolated_subtree: Option<NodeSlotId>,
     /// Notes beside the records which box and phase recorded each and the text each glyph run draws, for the display
     /// list dump.
     pub notes_record_origins: bool,
@@ -109,6 +112,7 @@ pub(crate) struct RecordingInputs {
     // These array elements are already plain values without pointers or optional-value tags.
     pub flex_overlays: Box<[FfiFlexOverlayInput]>,
     pub caret_debug_rect: Option<CssPixelRect>,
+    pub drag_image: Option<DragImageOverlay>,
     pub caret: Option<CaretPaint>,
     pub focused_text_control: Option<FocusedTextControlSelection>,
     pub focused_area_outline: Option<FocusedAreaOutline>,
@@ -160,6 +164,12 @@ pub(crate) struct InspectorHighlight {
     pub paintable: NodeSlotId,
     pub label: String,
     pub fonts: OverlayLabelFonts,
+}
+
+#[derive(Clone)]
+pub(crate) struct DragImageOverlay {
+    pub frame: ImageFrameHandle,
+    pub rect: CssPixelRect,
 }
 
 #[derive(Clone)]

@@ -1,0 +1,26 @@
+Element outside the viewport: [140,145 60x20], (0, 0) rgb(0, 0, 255), (39, 19) rgb(0, 0, 255), (50, 5) rgb(255, 0, 0)
+img element at its natural size: [146,148 20x10], (0, 0) rgb(255, 0, 255), (19, 9) rgb(255, 0, 255)
+Canvas drawn in the same task: [150,150 40x20], (5, 5) rgb(0, 0, 255)
+Canvas inside the element: [150,150 40x23], (5, 5) rgb(0, 0, 255)
+Canvas inside the element drawn in the same task: [150,150 40x23], (5, 5) rgb(0, 0, 255)
+Transformed element: [150,150 40x20], (5, 5) rgb(0, 0, 255)
+Text overflowing its box: [150,150 86.71875x20]
+Scrolled element: [150,150 40x20], (5, 5) rgb(0, 255, 0)
+SVG element inside an svg element: [150,150 40x20], (5, 5) rgb(0, 0, 255)
+Inline element: [150,150 38.90625x20], (2, 10) rgba(0, 0, 0, 0), (20, 10) rgb(0, 0, 255)
+Inline element across two lines: [150,150 56.65625x40], (2, 10) rgba(0, 0, 0, 0), (50, 10) rgb(0, 0, 255), (2, 30) rgb(0, 0, 255), (50, 30) rgba(0, 0, 0, 0)
+Inline element holding an inline-block: [150,150 44.453125x34], (20, 5) rgb(0, 255, 0)
+Positioned inline element: [150,150 28.90625x20], (5, 5) rgb(0, 0, 255)
+img element whose image has not loaded: no drag image
+Element that renders nothing, after an image: [100,100 100x100], (0, 0) rgb(0, 128, 0)
+Constructed DataTransfer: no exception
+Default feedback: [100,100 100x100], (0, 0) rgb(0, 128, 0), (99, 99) rgb(0, 128, 0)
+Default feedback held where it was pressed: [190,190 100x100]
+Default feedback of an element in a scrolled container: [490,390 80x80], (0, 0) rgb(255, 165, 0)
+Default feedback of a wide image: [197.78125,199.78125 200x2]
+Default feedback of an element in a scaled container: [170,180 50x50], (0, 0) rgb(128, 0, 128)
+Default feedback of an inline element: [190,190 57.8125x20], (0, 0) rgb(255, 165, 0)
+Default feedback of a link: [187.8125,190 32.671875x20], (5, 5) rgb(128, 0, 128)
+Called from a drag event: [110,110 100x100], (0, 0) rgb(0, 128, 0)
+After the pointer moves over an iframe: [300,200 100x100]
+After the drop on the iframe: no drag image
