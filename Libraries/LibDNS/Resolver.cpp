@@ -447,10 +447,7 @@ void Resolver::resolve_with_system_resolver(u64 request, ByteString name, bool i
         if (abandoned->value.load())
             return;
         auto resolution = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream, family);
-        auto origin_event_loop = event_loop->take();
-        if (!origin_event_loop.is_alive())
-            return;
-        origin_event_loop->deferred_invoke([answer = move(answer), resolution = move(resolution)] mutable {
+        event_loop->deferred_invoke([answer = move(answer), resolution = move(resolution)] mutable {
             answer(move(resolution));
         });
     });

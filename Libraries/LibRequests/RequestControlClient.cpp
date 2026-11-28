@@ -102,10 +102,7 @@ void RequestControlClient::resolve_host_with_system_resolver(u64 resolution_id, 
             }
         }
 
-        auto origin_event_loop = event_loop->take();
-        if (!origin_event_loop.is_alive())
-            return;
-        origin_event_loop->deferred_invoke([weak_this = move(weak_this), resolution_id, addresses = move(addresses)] mutable {
+        event_loop->deferred_invoke([weak_this = move(weak_this), resolution_id, addresses = move(addresses)] mutable {
             if (auto self = weak_this.strong_ref())
                 self->async_resolved_host_with_system_resolver(resolution_id, move(addresses));
         });

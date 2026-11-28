@@ -31,10 +31,7 @@ public:
 private:
     void post(Function<void(FetchBodyDeliveryGate&)> command)
     {
-        auto loop = m_producer_loop->take();
-        if (!loop)
-            return;
-        loop->deferred_invoke([gate = m_gate, command = move(command)] { command(*gate); });
+        m_producer_loop->deferred_invoke([gate = m_gate, command = move(command)] { command(*gate); });
     }
 
     NonnullRefPtr<Core::WeakEventLoopReference> m_producer_loop;

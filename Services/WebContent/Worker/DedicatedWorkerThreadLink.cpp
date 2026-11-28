@@ -60,14 +60,12 @@ void DedicatedWorkerThreadLink::post_to_worker(WorkerConnectionTask task)
         m_tasks_posted_before_worker_attached.append(move(task));
         return;
     }
-    if (auto event_loop = m_worker_event_loop->take(); event_loop.is_alive())
-        event_loop->deferred_invoke(run_on_attached_worker_connection(move(task)));
+    m_worker_event_loop->deferred_invoke(run_on_attached_worker_connection(move(task)));
 }
 
 void DedicatedWorkerThreadLink::post_to_owner(Function<void()> function)
 {
-    if (auto event_loop = m_owner_event_loop->take(); event_loop.is_alive())
-        event_loop->deferred_invoke(move(function));
+    m_owner_event_loop->deferred_invoke(move(function));
 }
 
 void DedicatedWorkerThreadLink::terminate()

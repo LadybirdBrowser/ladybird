@@ -114,11 +114,7 @@ bool RenderClock::invoke_on_clock_thread(Function<void()> function)
     }
     if (!event_loop)
         return false;
-    auto strong_event_loop = event_loop->take();
-    if (!strong_event_loop)
-        return false;
-    strong_event_loop->deferred_invoke(move(function));
-    return true;
+    return event_loop->deferred_invoke(move(function));
 }
 
 ErrorOr<void> RenderClock::attach(IPC::TransportHandle handle)

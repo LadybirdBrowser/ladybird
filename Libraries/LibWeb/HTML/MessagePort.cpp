@@ -181,8 +181,7 @@ void web_bindings_message_port_release_event_loop(Core::WeakEventLoopReference* 
 
 void web_bindings_message_port_post_to_event_loop(Core::WeakEventLoopReference* event_loop, void (*steps)(u64), u64 argument)
 {
-    if (auto strong_event_loop = event_loop->take(); strong_event_loop.is_alive())
-        strong_event_loop->deferred_invoke([steps, argument] { steps(argument); });
+    event_loop->deferred_invoke([steps, argument] { steps(argument); });
 }
 
 // The rights of the transport's end as a handle, handed over, after its IO thread stops.
