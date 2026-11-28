@@ -511,6 +511,31 @@ TEST_CASE(reader_ignores_cue_positions_for_undeclared_tracks)
     EXPECT(!reader.cue_points_for_track(3).has_value());
 }
 
+TEST_CASE(reader_rejects_a_zero_timestamp_scale)
+{
+    ByteBuffer data;
+    auto ebml_header = begin_ebml_master(data, Media::Matroska::EBML_MASTER_ELEMENT_ID);
+    append_ebml_string(data, Media::Matroska::DOCTYPE_ELEMENT_ID, "webm"sv);
+    append_ebml_uint(data, Media::Matroska::DOCTYPE_VERSION_ELEMENT_ID, 4);
+    finish_ebml_master(data, ebml_header);
+
+    auto segment = begin_ebml_master(data, Media::Matroska::SEGMENT_ELEMENT_ID);
+    auto info = begin_ebml_master(data, Media::Matroska::SEGMENT_INFORMATION_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_SCALE_ID, 0);
+    append_ebml_string(data, Media::Matroska::MUXING_APP_ID, "Lavf58.0.0"sv);
+    finish_ebml_master(data, info);
+    append_empty_ebml_master(data, Media::Matroska::TRACK_ELEMENT_ID);
+    auto cluster = begin_ebml_master(data, Media::Matroska::CLUSTER_ELEMENT_ID);
+    append_ebml_uint(data, Media::Matroska::TIMESTAMP_ID, 0);
+    finish_ebml_master(data, cluster);
+    finish_ebml_master(data, segment);
+
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(data);
+    auto reader_or_error = Media::Matroska::Reader::from_stream(stream->create_cursor());
+    EXPECT(reader_or_error.is_error());
+    EXPECT_EQ(reader_or_error.error().category(), Media::DecoderErrorCategory::Corrupted);
+}
+
 TEST_CASE(streamer_read_element_id)
 {
     // 1-byte ID: 0xEC (Void)
