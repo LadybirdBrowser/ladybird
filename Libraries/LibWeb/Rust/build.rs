@@ -2724,17 +2724,28 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("SVG/ParserRustFFI.h"),
     );
 
-    // The node state that DOM::Node embeds, and the DOM algorithms that run on it - namespace Web::DOM::RustFFI. Its node
-    // fields are GC::Members to C++, which stores, compares and visits them as it does every other member.
+    // The node and element state that DOM::Node and DOM::Element embed, and the DOM algorithms that run on it - namespace
+    // Web::DOM::RustFFI. Its node fields are GC::Members to C++, which stores, compares and visits them as it does every
+    // other member, and its other fields are the AK and DOM types that C++ constructs, assigns and destroys.
     let mut dom_config = base_config.clone();
     dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
-    dom_config.includes = vec!["LibGC/Member.h".to_string(), "LibWebCommon/DOM/NodeType.h".to_string()];
-    dom_config.export.include = vec!["NodeCore".to_string()];
+    dom_config.includes = vec![
+        "AK/OwnPtr.h".to_string(),
+        "LibGC/Member.h".to_string(),
+        "LibWeb/DOM/ClassNames.h".to_string(),
+        "LibWeb/DOM/QualifiedName.h".to_string(),
+        "LibWebCommon/DOM/NodeType.h".to_string(),
+    ];
+    dom_config.export.include = vec!["NodeCore".to_string(), "ElementCore".to_string()];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
         ("NodeMember", "GC::Member<Web::DOM::Node>"),
         ("DocumentMember", "GC::Member<Web::DOM::Document>"),
         ("NodeType", "Web::DOM::NodeType"),
+        ("QualifiedNameField", "Web::DOM::QualifiedName"),
+        ("OptionalFlyStringField", "AK::Optional<AK::Utf16FlyString>"),
+        ("ClassNamesField", "Web::DOM::ClassNames"),
+        ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2745,10 +2756,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     dom_config
         .after_includes
         .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::DOM { class Document; class Node; }");
+        .push_str("\nnamespace Web::DOM { class AttributeList; class Document; class Node; }");
     generate_ffi_header_strict(
         dom_config,
         &[
+            manifest_dir.join("src/dom/element_core.rs"),
             manifest_dir.join("src/dom/node_core.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
         ],

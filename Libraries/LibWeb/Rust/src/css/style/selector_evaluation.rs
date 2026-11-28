@@ -219,8 +219,11 @@ pub(crate) trait SelectorSubject {
     fn tree(&self) -> Self::Tree;
 
     fn row(&mut self, node: Self::Node) -> Result<Self::Row, Self::Incomplete>;
-    /// Have the features of `row` answer for its attributes, which a test asks before it reads them.
-    fn read_attributes(&mut self, _row: Self::Row) {}
+    /// Have the features of `row` answer for its attributes, which a test asks before it reads them, or answer why they
+    /// cannot yet.
+    fn read_attributes(&mut self, _row: Self::Row) -> Result<(), Self::Incomplete> {
+        Ok(())
+    }
     fn features(&self, row: Self::Row) -> Self::Features<'_>;
     /// Whether two elements have the same local name and namespace.
     fn same_type(&self, row: Self::Row, other: Self::Row) -> bool;

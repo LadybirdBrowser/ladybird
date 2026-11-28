@@ -79,7 +79,7 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
     HashTable<Utf16FlyString> seen_names;
 
     for (size_t index = 0; index < length(); ++index) {
-        auto name = associated_element().m_attributes->at(index).name.as_string();
+        auto name = associated_element().m_element_core.attributes->at(index).name.as_string();
         if (seen_names.set(name) == HashSetResult::InsertedNewEntry)
             names.append(move(name));
     }
@@ -110,7 +110,7 @@ GC::Ptr<Attr> NamedNodeMap::item(u32 index) const
         return nullptr;
 
     // 2. Otherwise, return this’s attribute list[index].
-    auto name = associated_element().m_attributes->at(index).name;
+    auto name = associated_element().m_element_core.attributes->at(index).name;
     return ensure_attribute_node(move(name));
 }
 
@@ -176,7 +176,7 @@ GC::Ptr<Attr> NamedNodeMap::get_attribute(Utf16FlyString const& qualified_name, 
         return nullptr;
     if (item_index)
         *item_index = *index;
-    auto name = associated_element().m_attributes->at(*index).name;
+    auto name = associated_element().m_element_core.attributes->at(*index).name;
     return ensure_attribute_node(move(name));
 }
 
@@ -190,7 +190,7 @@ GC::Ptr<Attr> NamedNodeMap::get_attribute_ns(Optional<Utf16FlyString> const& nam
         return nullptr;
     if (item_index)
         *item_index = *index;
-    auto name = associated_element().m_attributes->at(*index).name;
+    auto name = associated_element().m_element_core.attributes->at(*index).name;
     return ensure_attribute_node(move(name));
 }
 
@@ -242,10 +242,10 @@ void NamedNodeMap::replace_attribute(GC::Ref<Attr> old_attribute, GC::Ref<Attr> 
     auto* element = old_attribute->owner_element();
 
     // 2. Replace oldAttribute by newAttribute in element’s attribute list.
-    auto old_value = element->m_attributes->at(old_attribute_index).value;
+    auto old_value = element->m_element_core.attributes->at(old_attribute_index).value;
     auto new_name = new_attribute->m_qualified_name;
     auto new_value = new_attribute->value();
-    element->m_attributes->at(old_attribute_index) = { new_name, new_value };
+    element->m_element_core.attributes->at(old_attribute_index) = { new_name, new_value };
 
     // 3. Set newAttribute’s element to element.
     new_attribute->set_owner_element(element);

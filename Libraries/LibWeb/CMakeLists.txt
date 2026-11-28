@@ -181,9 +181,11 @@ set(SOURCES
     DOM/AdoptedStyleSheets.cpp
     DOM/AnchorNameMap.cpp
     DOM/Attr.cpp
+    DOM/AttributeList.cpp
     DOM/CDATASection.cpp
     DOM/CaretPosition.cpp
     DOM/CharacterData.cpp
+    DOM/ClassNames.cpp
     DOM/Comment.cpp
     DOM/CommitMessages.cpp
     DOM/CustomEvent.cpp

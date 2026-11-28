@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
+#include <LibWeb/DOM/AttributeList.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -197,26 +198,26 @@ public:
 
     virtual Node& slottable_as_node() override { return *this; }
 
-    Utf16FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
-    QualifiedName::Impl const* qualified_name_identity() const { return m_qualified_name.identity(); }
+    Utf16FlyString const& qualified_name() const { return m_element_core.qualified_name.as_string(); }
+    QualifiedName::Impl const* qualified_name_identity() const { return m_element_core.qualified_name.identity(); }
     Utf16FlyString const& html_uppercased_qualified_name() const;
 
     virtual Utf16FlyString node_name() const final { return html_uppercased_qualified_name(); }
-    Utf16FlyString const& local_name() const { return m_qualified_name.local_name(); }
+    Utf16FlyString const& local_name() const { return m_element_core.qualified_name.local_name(); }
 
-    Utf16FlyString const& lowercased_local_name() const { return m_qualified_name.lowercased_local_name(); }
+    Utf16FlyString const& lowercased_local_name() const { return m_element_core.qualified_name.lowercased_local_name(); }
 
     // NOTE: This is for the JS bindings
     Utf16FlyString const& tag_name() const { return html_uppercased_qualified_name(); }
 
-    Optional<Utf16FlyString> const& prefix() const { return m_qualified_name.prefix(); }
+    Optional<Utf16FlyString> const& prefix() const { return m_element_core.qualified_name.prefix(); }
 
     void set_prefix(Optional<Utf16FlyString> value);
 
     Optional<Utf16String> locate_a_namespace_prefix(Optional<Utf16View> namespace_) const;
 
     // NOTE: This is for the JS bindings
-    Optional<Utf16FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
+    Optional<Utf16FlyString> const& namespace_uri() const { return m_element_core.qualified_name.namespace_(); }
 
     bool has_attribute(Utf16FlyString const& name) const;
     bool has_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name) const;
@@ -266,19 +267,16 @@ public:
     WebIDL::ExceptionOr<bool> toggle_attribute(Utf16FlyString const& name, Optional<bool> force);
     size_t attribute_list_size() const;
 
-    struct Attribute {
-        QualifiedName name;
-        Utf16String value;
-    };
+    using Attribute = AttributeList::Attribute;
 
     // The element's attributes in order, borrowed until they next change.
     ReadonlySpan<Attribute> attribute_list() const;
-    void const* attribute_list_memory() const { return m_attributes.ptr(); }
+    void const* attribute_list_memory() const { return m_element_core.attributes.ptr(); }
 
     // A filter over the local names of the attributes and the classes of this element and its descendants: a name whose
     // bit is clear is on none of them. Bits are only ever added, so a name may keep its bit after it is last removed.
     static u64 name_filter_bit(Utf16FlyString const& name) { return 1ull << (name.hash() % 64); }
-    u64 subtree_name_filter() const { return m_subtree_name_filter; }
+    u64 subtree_name_filter() const { return m_element_core.subtree_name_filter; }
     void add_to_subtree_name_filter(u64 bits);
 
     GC::Ptr<NamedNodeMap const> attributes() const;
@@ -349,7 +347,7 @@ public:
 
     bool has_class(Utf16View, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
-    ReadonlySpan<Utf16FlyString> class_names() const { return m_classes; }
+    ReadonlySpan<Utf16FlyString> class_names() const { return m_element_core.classes.span(); }
 
     // https://drafts.csswg.org/selectors/#child-index
     // The element's 1-based index among its inclusive element siblings, or among those with its type, counted from
@@ -853,7 +851,7 @@ public:
     Optional<Directionality> directionality_unless_from_parent() const;
     bool is_auto_directionality_form_associated_element() const;
 
-    Optional<Utf16FlyString> const& id() const { return m_id; }
+    Optional<Utf16FlyString> const& id() const { return m_element_core.id; }
     Optional<Utf16FlyString> name() const;
 
     virtual GC::Ptr<GC::Function<void()>> take_lazy_load_resumption_steps(Badge<DOM::Document>)
@@ -992,56 +990,6 @@ private:
     void publish_implicit_anchor_element();
     void bump_dom_tree_version_for_attribute_change();
     void clear_custom_highlight_styles();
-    // The attributes of an element, in order, in the same allocation as their count and capacity.
-    class AttributeList {
-        AK_MAKE_NONCOPYABLE(AttributeList);
-        AK_MAKE_NONMOVABLE(AttributeList);
-        AK_ALLOC_WITH_KMALLOC;
-
-    public:
-        static NonnullOwnPtr<AttributeList> create(size_t capacity);
-        ~AttributeList();
-
-        // Returns a list with room for one more attribute: this one, or a new one these attributes were moved into.
-        static NonnullOwnPtr<AttributeList> ensure_room_for_one_more(NonnullOwnPtr<AttributeList>);
-        NonnullOwnPtr<AttributeList> moved_into_new_list(size_t capacity);
-
-        void unchecked_append(QualifiedName, Utf16String value);
-        void remove(size_t index);
-
-        size_t size() const { return m_size; }
-        size_t capacity() const { return m_capacity; }
-        bool is_empty() const { return m_size == 0; }
-
-        Attribute& at(size_t index)
-        {
-            VERIFY(index < m_size);
-            return attributes()[index];
-        }
-        Attribute const& at(size_t index) const
-        {
-            VERIFY(index < m_size);
-            return attributes()[index];
-        }
-        Attribute& last() { return at(m_size - 1); }
-
-        Span<Attribute> span() { return { attributes(), m_size }; }
-        ReadonlySpan<Attribute> span() const { return { attributes(), m_size }; }
-
-    private:
-        explicit AttributeList(u32 capacity)
-            : m_capacity(capacity)
-        {
-        }
-
-        // The attributes follow the list in its allocation.
-        Attribute* attributes() { return reinterpret_cast<Attribute*>(this + 1); }
-        Attribute const* attributes() const { return reinterpret_cast<Attribute const*>(this + 1); }
-
-        u32 m_size { 0 };
-        u32 m_capacity { 0 };
-    };
-    static_assert(sizeof(AttributeList) % alignof(Attribute) == 0);
 
     void append_to_attribute_list(QualifiedName, Utf16String value);
 
@@ -1084,14 +1032,10 @@ private:
     Optional<Directionality> contained_text_auto_directionality(bool can_exclude_root) const;
     Directionality parent_directionality() const;
 
-    // Selector matching reads the name, the ID and the classes of one element after another, so they sit together,
-    // and the class of an element with one is stored in place.
-    QualifiedName m_qualified_name;
-    Optional<Utf16FlyString> m_id;
-    Vector<Utf16FlyString, 1> m_classes;
+    // The state that names the element, whose layout libweb_rust defines (see Rust/src/dom/element_core.rs), which reads
+    // it in place.
+    RustFFI::ElementCore m_element_core;
 
-    OwnPtr<AttributeList> m_attributes;
-    u64 m_subtree_name_filter { 0 };
     // NB: The declarations of a style attribute, until something asks for their CSSOM object (m_inline_style), which
     //     takes them over. At most one of the two is set.
     CSS::Parser::ValueParserFFI::DeclarationBlock* m_inline_declarations { nullptr };
@@ -1131,7 +1075,6 @@ private:
     bool m_fullscreen_flag : 1 { false };
     bool m_uses_document_global_custom_element_registry : 1 { false };
     bool m_has_name : 1 { false };
-    mutable bool m_style_attribute_is_dirty : 1 { false };
     bool m_is_in_set_of_elements_with_rendered_text : 1 { false };
     // Whether the style attribute was set while the element was not connected, so that whether Content Security
     // Policy blocks it is decided when the element is inserted.
@@ -1166,11 +1109,11 @@ inline GC::Ptr<Element const> Node::parent_element() const
 inline bool Element::has_class(Utf16View class_name, CaseSensitivity case_sensitivity) const
 {
     if (case_sensitivity == CaseSensitivity::CaseSensitive) {
-        return any_of(m_classes, [&](auto& it) {
+        return any_of(m_element_core.classes.span(), [&](auto& it) {
             return it == class_name;
         });
     }
-    return any_of(m_classes, [&](auto& it) {
+    return any_of(m_element_core.classes.span(), [&](auto& it) {
         return it.equals_ignoring_ascii_case(class_name);
     });
 }
@@ -1179,11 +1122,11 @@ inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity
 {
     if (case_sensitivity == CaseSensitivity::CaseSensitive) {
         // NB: Comparing two interned strings is a pointer comparison.
-        return any_of(m_classes, [&](auto& it) {
+        return any_of(m_element_core.classes.span(), [&](auto& it) {
             return it == class_name;
         });
     }
-    return any_of(m_classes, [&](auto& it) {
+    return any_of(m_element_core.classes.span(), [&](auto& it) {
         return it.equals_ignoring_ascii_case(class_name);
     });
 }

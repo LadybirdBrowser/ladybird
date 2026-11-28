@@ -59,6 +59,24 @@ impl<'a> Node<'a> {
         core::iter::successors(self.previous_in_tree_order(), |node| node.previous_in_tree_order())
     }
 
+    /// The node after this one in tree order that is a descendant of `root`, an inclusive ancestor of this one.
+    pub fn next_in_subtree(self, root: Node<'a>) -> Option<Node<'a>> {
+        self.first_child().or_else(|| self.next_after_subtree(root))
+    }
+
+    /// The node after this one and its descendants in tree order that is a descendant of `root`, an inclusive ancestor
+    /// of this one.
+    pub fn next_after_subtree(self, root: Node<'a>) -> Option<Node<'a>> {
+        let mut current = self;
+        while current != root {
+            if let Some(sibling) = current.next_sibling() {
+                return Some(sibling);
+            }
+            current = current.parent()?;
+        }
+        None
+    }
+
     /// The node after this one in tree order: its first child, or else the next sibling of its nearest inclusive
     /// ancestor that has one.
     /// https://dom.spec.whatwg.org/#concept-tree-order
@@ -166,6 +184,24 @@ mod tests {
         assert_eq!(head.following().collect::<Vec<_>>(), nodes[4..]);
         assert_eq!(text.following().collect::<Vec<_>>(), [body, comment]);
         assert_eq!(comment.following().next(), None);
+    }
+
+    #[test]
+    fn a_walk_of_a_subtree_stays_under_its_root() {
+        let main_thread = MainThread::for_test();
+        let nodes = document(&main_thread);
+        let [document, doctype, html, head, title, text, body, comment] = nodes;
+        fn walk(root: Node<'_>) -> impl Iterator<Item = Node<'_>> {
+            core::iter::successors(root.next_in_subtree(root), move |node| node.next_in_subtree(root))
+        }
+        assert_eq!(walk(document).collect::<Vec<_>>(), nodes[1..]);
+        assert_eq!(walk(head).collect::<Vec<_>>(), [title, text]);
+        assert_eq!(walk(comment).next(), None);
+        assert_eq!(head.next_after_subtree(html), Some(body));
+        assert_eq!(text.next_after_subtree(head), None);
+        assert_eq!(text.next_after_subtree(document), Some(body));
+        assert_eq!(doctype.next_after_subtree(document), Some(html));
+        assert_eq!(body.next_after_subtree(body), None);
     }
 
     #[test]

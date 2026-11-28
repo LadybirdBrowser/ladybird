@@ -130,40 +130,7 @@ CSS::SelectorFFI::FfiUtf16View utf16_view_to_ffi(Utf16View view)
 static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
 
 constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
-    .element = [](Node const* pointer, uintptr_t const* names, size_t name_count, CSS::SelectorFFI::DomAttribute* attributes, size_t capacity, CSS::SelectorFFI::FfiDomElement* facts) {
-        auto const& element = element_from_ffi(pointer);
-        auto const& namespace_uri = element.namespace_uri();
-        auto const& classes = element.class_names();
-        size_t attribute_count = 0;
-        if (name_count > 0) {
-            ReadonlySpan<uintptr_t> wanted_names { names, name_count };
-            for (auto const& attribute : element.attribute_list()) {
-                auto local_name = attribute.name.local_name().raw_identity();
-                if (!wanted_names.contains_slow(local_name))
-                    continue;
-                if (attribute_count < capacity) {
-                    auto const& attribute_namespace = attribute.name.namespace_();
-                    attributes[attribute_count] = {
-                        .local_name = local_name,
-                        .namespace_uri = attribute_namespace.has_value() && !attribute_namespace->is_empty() ? attribute_namespace->raw_identity() : 0,
-                        .value = utf16_view_to_ffi(attribute.value),
-                    };
-                }
-                ++attribute_count;
-            }
-        }
-        *facts = {
-            .local_name = element.local_name().raw_identity(),
-            .namespace_uri = namespace_uri.has_value() && !namespace_uri->is_empty() ? namespace_uri->raw_identity() : 0,
-            .id = element.id().has_value() ? element.id()->raw_identity() : 0,
-            .classes = reinterpret_cast<uintptr_t const*>(classes.data()),
-            .class_count = classes.size(),
-            .attribute_count = attribute_count,
-        }; },
-    .same_type = [](Node const* element, Node const* other) {
-        auto const& a = element_from_ffi(element);
-        auto const& b = element_from_ffi(other);
-        return a.local_name() == b.local_name() && a.namespace_uri() == b.namespace_uri(); },
+    .synchronize_style_attribute = [](Node const* element) { element_from_ffi(element).synchronize_all_attributes(); },
     .child_index = [](Node const* element, CSS::SelectorFFI::FfiChildIndex which) {
         using enum CSS::SelectorFFI::FfiChildIndex;
         using enum Element::ChildIndexAmong;
@@ -179,44 +146,8 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             return subject.child_index_from_end(SiblingsOfType);
         }
         VERIFY_NOT_REACHED(); },
-    .next_element_in_subtree = [](Node const* node, Node const* root, uintptr_t local_name, uintptr_t class_name, u64 names) -> Node const* {
-        auto const& stay_within = *root;
-        auto const* next = node->next_in_pre_order(&stay_within);
-        while (next) {
-            auto const* element = as_if<Element>(*next);
-            if (element && (element->subtree_name_filter() & names) != names) {
-                // No element of this subtree has every name, so skip past it.
-                while (next != &stay_within && !next->next_sibling())
-                    next = next->parent();
-                next = next == &stay_within ? nullptr : next->next_sibling();
-                continue;
-            }
-            if (element && (!local_name || element->local_name().raw_identity() == local_name)
-                && (!class_name || any_of(element->class_names(), [&](auto const& name) { return name.raw_identity() == class_name; })))
-                return element;
-            next = next->next_in_pre_order(&stay_within);
-        }
-        return nullptr;
-    },
     .name_filter_bit = [](uintptr_t local_name) { return Element::name_filter_bit(Utf16FlyString::from_raw(local_name)); },
-    .tree_name_filter = [](Node const* node) -> u64 {
-        // The filter of a document's one element child holds every name of the document's tree.
-        auto const& root = node->root();
-        if (auto const* document = as_if<Document>(root)) {
-            auto const* document_element = document->document_element();
-            return document_element ? document_element->subtree_name_filter() : 0;
-        }
-        if (auto const* element = as_if<Element>(root))
-            return element->subtree_name_filter();
-        return NumericLimits<u64>::max();
-    },
     .shadow_root = [](Node const* element) -> Node const* { return element_from_ffi(element).shadow_root().ptr(); },
-    .id_or_class_equals_ignoring_ascii_case = [](Node const* pointer, bool is_class, uintptr_t name_identity) {
-        auto const& element = element_from_ffi(pointer);
-        auto name = Utf16FlyString::from_raw(name_identity);
-        if (!is_class)
-            return element.id().has_value() && element.id()->equals_ignoring_ascii_case(name);
-        return any_of(element.class_names(), [&](auto const& class_name) { return class_name.equals_ignoring_ascii_case(name); }); },
     .matches_state = [](Node const* element, u8 state) { return SelectorMatching::element_matches_state(element_from_ffi(element), pseudo_classes_by_state_fact[state]); },
     .language = [](Node const* element) -> CSS::SelectorFFI::FfiUtf16View {
         auto language = element_from_ffi(element).lang_view();
