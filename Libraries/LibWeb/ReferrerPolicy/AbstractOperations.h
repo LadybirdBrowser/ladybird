@@ -8,8 +8,15 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <LibWeb/Forward.h>
+#include <LibURL/Forward.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+class Response;
+
+}
 
 namespace Web::ReferrerPolicy {
 

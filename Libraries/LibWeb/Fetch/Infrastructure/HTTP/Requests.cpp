@@ -7,13 +7,8 @@
 #include <AK/Array.h>
 #include <AK/CharacterTypes.h>
 #include <LibTextCodec/Encoder.h>
-#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
-#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/ContentSecurityPolicy/Violation.h>
-#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 
 namespace Web::Fetch::Infrastructure {
