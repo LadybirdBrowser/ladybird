@@ -906,6 +906,18 @@ void DisplayListPlayerSkia::play_command(PaintLinearGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
+// Skia scales the blur of a mask filter by how far apart the canvas matrix maps points around the origin of the local
+// coordinate system. A matrix with perspective maps them differently across the plane, so under one the blur is scaled
+// by how far apart the matrix maps points around the middle of the blurred shape instead.
+static sk_sp<SkMaskFilter> blur_mask_filter(SkCanvas const& canvas, float sigma, SkPoint middle_of_blurred_shape)
+{
+    auto matrix = canvas.getTotalMatrix();
+    if (!matrix.hasPerspective())
+        return SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, sigma);
+    matrix.preTranslate(middle_of_blurred_shape.x(), middle_of_blurred_shape.y());
+    return SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, matrix.mapRadius(sigma), false);
+}
+
 void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command)
 {
     auto content_rrect = to_skia_rrect(command.device_content_rect, command.content_corner_radii);
@@ -916,8 +928,8 @@ void DisplayListPlayerSkia::play_command(PaintOuterBoxShadow const& command)
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setColor(to_skia_color(command.color));
-    paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
     auto shadow_rounded_rect = to_skia_rrect(command.shadow_rect, command.shadow_corner_radii);
+    paint.setMaskFilter(blur_mask_filter(canvas, command.blur_radius / 2, shadow_rounded_rect.rect().center()));
     canvas.drawRRect(shadow_rounded_rect, paint);
     canvas.restore();
 }
@@ -959,7 +971,7 @@ void DisplayListPlayerSkia::play_command(PaintPathBoxShadow const& command)
     paint.setAntiAlias(true);
     paint.setColor(to_skia_color(command.color));
     if (command.blur_radius > 0)
-        paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
+        paint.setMaskFilter(blur_mask_filter(canvas, command.blur_radius / 2, shape.getBounds().center()));
     canvas.drawPath(shadow_shape, paint);
     canvas.restore();
 }
@@ -982,7 +994,7 @@ void DisplayListPlayerSkia::play_command(PaintInnerBoxShadow const& command)
     SkPaint path_paint;
     path_paint.setAntiAlias(true);
     path_paint.setColor(to_skia_color(command.color));
-    path_paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
+    path_paint.setMaskFilter(blur_mask_filter(canvas, command.blur_radius / 2, outer_rect.rect().center()));
     canvas.save();
     canvas.clipRRect(to_skia_rrect(command.device_content_rect, command.content_corner_radii), true);
     canvas.drawPath(result_path, path_paint);

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #scroller {
+        width: 300px;
+        height: 300px;
+        overflow: hidden;
+    }
+    .scene {
+        box-sizing: border-box;
+        width: 300px;
+        height: 300px;
+        padding: 75px;
+        perspective: 600px;
+    }
+    .tilted-box {
+        width: 150px;
+        height: 150px;
+        background: green;
+        transform: rotateX(-10deg);
+        box-shadow: 0 0 30px black;
+    }
+</style>
+<div id="scroller">
+    <div class="scene"><div class="tilted-box"></div></div>
+</div>
