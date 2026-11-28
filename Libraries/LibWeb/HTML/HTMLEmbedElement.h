@@ -37,7 +37,6 @@ private:
     virtual void initialize_element() override;
     virtual void adopted_from(DOM::Document&) override;
     virtual void post_connection() override;
-    virtual bool has_post_connection_steps() const override { return true; }
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
     virtual void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&) override;
     virtual CSS::ElementBoxKind box_kind() const override;

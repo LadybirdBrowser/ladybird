@@ -981,16 +981,6 @@ protected:
     struct RareData;
 
 private:
-    // Says that the element has insertion steps, removing steps, moving steps or post-connection steps beyond those of
-    // DOM::Element and HTML::HTMLElement. Without it, libweb_rust skips the steps for a node in a tree that is not connected (see
-    // Rust/src/dom/steps.rs). GC::CellConstructionHook says it for every class whose overrides add steps, as it
-    // constructs the element, and a form-associated custom element definition says it as it is attached.
-    void set_has_own_tree_steps() { set_element_core_flag(RustFFI::ELEMENT_HAS_OWN_TREE_STEPS, true); }
-    // Says that the element's attribute changes do something beyond what they do for every element and every HTML
-    // element, which libweb_rust otherwise does without calling into C++ (see Rust/src/dom/attributes.rs). Said as
-    // set_has_own_tree_steps() is.
-    void set_has_own_attribute_change_steps() { set_element_core_flag(RustFFI::ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS, true); }
-
     void publish_implicit_anchor_element();
     void bump_dom_tree_version_for_attribute_change();
     void clear_custom_highlight_styles();

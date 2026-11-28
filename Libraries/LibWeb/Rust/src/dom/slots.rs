@@ -34,13 +34,13 @@ use core::mem::offset_of;
 use ak::Utf16StringUnits;
 
 use super::attributes::fly_string_of;
-use super::element_core::ELEMENT_IS_HTML_ELEMENT;
 use super::hooks;
 use super::hooks::SLOT_CHANGE_INVALIDATE;
 use super::hooks::SLOT_CHANGE_RECORD_ASSIGNED_NODES;
 use super::hooks::SLOT_CHANGE_SIGNAL;
 use super::id_map::IdMapField;
 use super::node::NodeCell;
+use super::node_class::NodeClassId;
 use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
@@ -315,13 +315,7 @@ impl ShadowRootCore {
 /// Whether `node` is a slot: an HTML slot element.
 #[inline(always)]
 pub(super) fn is_slot(node: NodeRef) -> bool {
-    node.element_core().is_some_and(|core| {
-        core.flags() & ELEMENT_IS_HTML_ELEMENT != 0
-            && matches!(
-                core.qualified_name().local_name().units(),
-                Utf16StringUnits::Ascii(b"slot")
-            )
-    })
+    node.class_id().is_a(NodeClassId::HTMLSlotElement)
 }
 
 /// https://dom.spec.whatwg.org/#concept-slotable

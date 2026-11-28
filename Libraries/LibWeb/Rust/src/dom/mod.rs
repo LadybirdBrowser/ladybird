@@ -25,6 +25,7 @@ pub mod links;
 pub mod move_node;
 pub mod mutation_observers;
 pub mod node;
+pub mod node_class;
 pub mod node_core;
 pub mod node_ref;
 pub mod pre_insert;

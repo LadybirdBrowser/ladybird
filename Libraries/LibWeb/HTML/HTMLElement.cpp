@@ -164,7 +164,6 @@ static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& stri
 HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {
-    set_element_core_flag(DOM::RustFFI::ELEMENT_IS_HTML_ELEMENT, true);
 }
 
 HTMLElement::~HTMLElement() = default;

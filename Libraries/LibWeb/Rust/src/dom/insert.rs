@@ -8,7 +8,6 @@
 //! https://dom.spec.whatwg.org/#concept-node-insert
 
 use super::adopt::adopt;
-use super::element_core::ELEMENT_IS_HTML_ELEMENT;
 use super::hooks;
 use super::hooks::DomInserter;
 use super::hooks::Inserter;
@@ -17,6 +16,8 @@ use super::hooks::ParserInserter;
 use super::id_map;
 use super::links;
 use super::node::NodeCell;
+use super::node_class::NODE_CLASS_HAS_POST_CONNECTION_STEPS;
+use super::node_class::NodeClassId;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNullableNodeRef;
@@ -232,13 +233,7 @@ fn document_allows_child(parent: NodeRef, node: NodeRef) -> bool {
 /// Whether `node` is an li element in the HTML namespace.
 #[inline(always)]
 fn is_html_li_element(node: NodeRef) -> bool {
-    node.element_core().is_some_and(|core| {
-        core.flags() & ELEMENT_IS_HTML_ELEMENT != 0
-            && matches!(
-                core.qualified_name().local_name().units(),
-                ak::Utf16StringUnits::Ascii(b"li")
-            )
-    })
+    node.class_id().is_a(NodeClassId::HTMLLIElement)
 }
 
 /// Step 7.7 of inserting nodes: the walk over the shadow-including inclusive descendants of `node`, which has just
@@ -275,7 +270,8 @@ fn run_insertion_steps_for_subtree<I: Inserter>(
         if insertion_steps_do_nothing(inclusive_descendant) {
             return;
         }
-        if hooks::run_insertion_steps::<I>(main_thread, inclusive_descendant) {
+        hooks::run_insertion_steps::<I>(main_thread, inclusive_descendant);
+        if inclusive_descendant.class_id().steps() & NODE_CLASS_HAS_POST_CONNECTION_STEPS != 0 {
             *any_node_has_post_connection_steps = true;
         }
     });

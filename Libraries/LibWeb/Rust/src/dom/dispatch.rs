@@ -21,7 +21,6 @@ use super::event::EventCell;
 use super::event::EventPathItem;
 use super::event::EventRef;
 use super::event::RawEventRef;
-use super::event_target::EVENT_TARGET_HAS_ACTIVATION_BEHAVIOR;
 use super::event_target::EVENT_TARGET_HAS_GET_THE_PARENT;
 use super::event_target::EventTargetCell;
 use super::event_target::EventTargetMember;
@@ -29,6 +28,7 @@ use super::event_target::EventTargetRef;
 use super::event_target::NullableEventTargetRef;
 use super::event_target::RawEventTargetRef;
 use super::event_target::RawNullableEventTargetRef;
+use super::node_class::NODE_CLASS_HAS_ACTIVATION_BEHAVIOR;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use crate::stage::MainThread;
@@ -388,7 +388,7 @@ fn append_to_an_event_path(
 
 /// Whether `target` has activation behavior, asking C++ only for a node whose class can have it.
 fn target_has_activation_behavior(main_thread: &mut MainThread<'_>, target: EventTargetRef) -> bool {
-    target.core().flags() & EVENT_TARGET_HAS_ACTIVATION_BEHAVIOR != 0 && has_activation_behavior(main_thread, target)
+    target.class_id().steps() & NODE_CLASS_HAS_ACTIVATION_BEHAVIOR != 0 && has_activation_behavior(main_thread, target)
 }
 
 /// Whether `target` is an element that is a disabled form control.

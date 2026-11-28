@@ -383,9 +383,8 @@ public:
 
     MUST_UPCALL virtual void inserted();
     virtual void post_connection();
-    // Whether this node overrides post_connection(). Every override of post_connection() must also override this to
-    // return true, since insertions skip the post-connection steps when no inserted node has them.
-    virtual bool has_post_connection_steps() const { return false; }
+    // Whether the node's class overrides post_connection(), which insertions skip the post-connection steps without.
+    bool has_post_connection_steps() const { return node_class_steps(node_class_id()) & RustFFI::NODE_CLASS_HAS_POST_CONNECTION_STEPS; }
     using IsSubtreeRoot = RustFFI::IsSubtreeRoot;
     MUST_UPCALL virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root);
     MUST_UPCALL virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor);
@@ -718,90 +717,61 @@ static_assert(offsetof(RustFFI::NodeCore, cpp_flags) == 35);
 static_assert(offsetof(RustFFI::NodeCore, child_index_generation) == 36);
 // NB: libweb_rust finds the core of a node at this offset into the node's cell.
 static_assert(Node::parent_node_offset().value == RustFFI::NODE_CORE_OFFSET + offsetof(RustFFI::NodeCore, parent));
-
-}
-
-namespace Web::DOM {
-
-// Whether DOM/NodeClasses.json lists T, and every class T derives from, under the class it derives from.
-template<typename T>
-constexpr bool node_class_is_listed_under_its_base()
-{
-    if constexpr (!HasNodeClassId<T>)
-        return false;
-    else if constexpr (IsSame<T, Node>)
-        return NodeClassTraits<T>::parent == NodeClassId::NotANode;
-    else
-        return NodeClassTraits<T>::parent == NodeClassTraits<typename T::Base>::id && node_class_is_listed_under_its_base<typename T::Base>();
-}
+// NB: libweb_rust finds the class id of an event target at this offset into the target's cell.
+static_assert(GC::Cell::embedder_type_id_offset() == RustFFI::NODE_CLASS_ID_OFFSET);
 
 }
 
 namespace GC {
 
-// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and tells libweb_rust whether its
-// class has tree steps of its own (see Rust/src/dom/steps.rs) and activation behavior (see Rust/src/dom/event_target.rs),
-// which the class's overrides decide.
+// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and works out for
+// DOM/NodeClassSteps.cpp which steps its class has (see Rust/src/dom/node_class.rs), which the class's overrides decide.
+// Every cell class befriends it, so it can name the overrides a class keeps private.
 template<typename T>
 requires(IsBaseOf<Web::DOM::Node, T>)
 struct CellConstructionHook<T> {
-    // Whether T has insertion steps, removing steps, moving steps or post-connection steps beyond those of DOM::Node,
-    // DOM::Element and HTML::HTMLElement, which libweb_rust knows to do nothing for some nodes, or is form-associated,
-    // whose steps HTML::HTMLElement runs, or is a body or frameset element, whose moving steps DOM::Node runs.
-    static constexpr bool has_own_tree_steps()
+    // The RustFFI::NODE_CLASS_HAS_* bits of T.
+    static constexpr u8 node_class_steps()
     {
         using namespace Web;
+        using namespace Web::DOM::RustFFI;
         using DOM::Node;
         using IsSubtreeRoot = Node::IsSubtreeRoot;
-        if (!IsOneOf<decltype(&T::inserted), void (Node::*)(), void (DOM::Element::*)(), void (HTML::HTMLElement::*)()>)
-            return true;
-        if (!IsOneOf<decltype(&T::removed_from), void (Node::*)(IsSubtreeRoot, Node*, Node&), void (DOM::Element::*)(IsSubtreeRoot, Node*, Node&), void (HTML::HTMLElement::*)(IsSubtreeRoot, Node*, Node&)>)
-            return true;
-        if (!IsOneOf<decltype(&T::moved_from), void (Node::*)(IsSubtreeRoot, GC::Ptr<Node>), void (DOM::Element::*)(IsSubtreeRoot, GC::Ptr<Node>), void (HTML::HTMLElement::*)(IsSubtreeRoot, GC::Ptr<Node>)>)
-            return true;
-        if (!IsSame<decltype(&T::is_html_body_element), bool (Node::*)() const> || !IsSame<decltype(&T::is_html_frameset_element), bool (Node::*)() const>)
-            return true;
-        if (!IsSame<decltype(&T::has_post_connection_steps), bool (Node::*)() const>)
-            return true;
-        if constexpr (requires { &T::is_form_associated_element; })
-            return !IsSame<decltype(&T::is_form_associated_element), bool (HTML::FormAssociatedElement::*)() const>;
-        return false;
-    }
+        // NB: A form-associated class has the steps of a form-associated element, which HTML::HTMLElement runs.
+        constexpr bool is_form_associated = [] {
+            if constexpr (requires { &T::is_form_associated_element; })
+                return !IsSame<decltype(&T::is_form_associated_element), bool (HTML::FormAssociatedElement::*)() const>;
+            else
+                return false;
+        }();
 
-    // Whether T has attribute change steps beyond those of DOM::Element and HTML::HTMLElement, whose names libweb_rust
-    // knows (see Rust/src/dom/attributes.rs), or is form-associated, whose attribute change steps HTML::HTMLElement
-    // runs.
-    static constexpr bool has_own_attribute_change_steps()
-    {
-        using namespace Web;
-        using AttributeChanged = void (DOM::Element::*)(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
-        using HTMLElementAttributeChanged = void (HTML::HTMLElement::*)(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
-        if (!IsOneOf<decltype(&T::attribute_changed), AttributeChanged, HTMLElementAttributeChanged>)
-            return true;
-        if constexpr (requires { &T::is_form_associated_element; })
-            return !IsSame<decltype(&T::is_form_associated_element), bool (HTML::FormAssociatedElement::*)() const>;
-        return false;
+        u8 steps = 0;
+        if (is_form_associated || !IsOneOf<decltype(&T::inserted), void (Node::*)(), void (DOM::Element::*)(), void (HTML::HTMLElement::*)()>)
+            steps |= NODE_CLASS_HAS_INSERTION_STEPS;
+        if (is_form_associated || !IsOneOf<decltype(&T::removed_from), void (Node::*)(IsSubtreeRoot, Node*, Node&), void (DOM::Element::*)(IsSubtreeRoot, Node*, Node&), void (HTML::HTMLElement::*)(IsSubtreeRoot, Node*, Node&)>)
+            steps |= NODE_CLASS_HAS_REMOVING_STEPS;
+        // NB: The moving steps of DOM::Node tell the page of a body or frameset element.
+        if (is_form_associated || !IsOneOf<decltype(&T::moved_from), void (Node::*)(IsSubtreeRoot, GC::Ptr<Node>), void (DOM::Element::*)(IsSubtreeRoot, GC::Ptr<Node>), void (HTML::HTMLElement::*)(IsSubtreeRoot, GC::Ptr<Node>)>
+            || DOM::node_class_id_is_a<HTML::HTMLBodyElement>(DOM::NodeClassTraits<T>::id) || DOM::node_class_id_is_a<HTML::HTMLFrameSetElement>(DOM::NodeClassTraits<T>::id))
+            steps |= NODE_CLASS_HAS_MOVING_STEPS;
+        if (!IsSame<decltype(&T::post_connection), void (Node::*)()>)
+            steps |= NODE_CLASS_HAS_POST_CONNECTION_STEPS;
+        if constexpr (IsBaseOf<DOM::Element, T>) {
+            using AttributeChanged = void (DOM::Element::*)(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
+            using HTMLElementAttributeChanged = void (HTML::HTMLElement::*)(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
+            if (is_form_associated || !IsOneOf<decltype(&T::attribute_changed), AttributeChanged, HTMLElementAttributeChanged>)
+                steps |= NODE_CLASS_HAS_ATTRIBUTE_CHANGE_STEPS;
+        }
+        if (!IsSame<decltype(&T::has_activation_behavior), bool (DOM::EventTarget::*)() const>)
+            steps |= NODE_CLASS_HAS_ACTIVATION_BEHAVIOR;
+        return steps;
     }
 
     static void did_construct(T& node)
     {
         static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
-        static_assert(Web::DOM::node_class_is_listed_under_its_base<T>(), "DOM/NodeClasses.json must list each class of nodes under the class it derives from");
+        // NB: DOM/NodeClassSteps.cpp checks that the list has T under the class it derives from.
         static_cast<Web::Bindings::Wrappable&>(node).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
-
-        // NB: Only a class that overrides has_activation_behavior() can have activation behavior, which the dispatch
-        //     in libweb_rust asks only such a node about (see Rust/src/dom/event_target.rs).
-        if constexpr (!IsSame<decltype(&T::has_activation_behavior), bool (Web::DOM::EventTarget::*)() const>)
-            node.set_event_target_core_flag(Web::DOM::RustFFI::EVENT_TARGET_HAS_ACTIVATION_BEHAVIOR);
-        if constexpr (IsBaseOf<Web::DOM::Element, T>) {
-            if constexpr (has_own_tree_steps())
-                node.set_has_own_tree_steps();
-            if constexpr (has_own_attribute_change_steps())
-                node.set_has_own_attribute_change_steps();
-        } else {
-            // NB: libweb_rust takes the steps of character data and doctypes to be those of every node.
-            static_assert(!(IsBaseOf<Web::DOM::CharacterData, T> || IsBaseOf<Web::DOM::DocumentType, T>) || !has_own_tree_steps());
-        }
     }
 };
 

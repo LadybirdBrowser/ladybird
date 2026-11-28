@@ -17,12 +17,12 @@ use std::sync::atomic::Ordering;
 use super::element::Element;
 use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
-use super::event_target::EVENT_TARGET_CORE_OFFSET;
-use super::event_target::EVENT_TARGET_IS_NODE;
 use super::links::append_child_for_test;
 use super::node::Node;
 use super::node::NodeCell;
 use super::node::compress;
+use super::node_class::NODE_CLASS_ID_OFFSET;
+use super::node_class::NodeClassId;
 use super::node_core::CHARACTER_DATA_CORE_OFFSET;
 use super::node_core::CharacterDataCore;
 use super::node_core::DOCUMENT_CORE_OFFSET;
@@ -137,14 +137,14 @@ pub(crate) fn node<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType) -> 
         | NodeType::CDATA_SECTION_NODE
         | NodeType::PROCESSING_INSTRUCTION_NODE
         | NodeType::COMMENT_NODE => character_data(main_thread, node_type, ""),
-        _ => new_node(main_thread, node_type, |_| {}, None),
+        _ => new_node(main_thread, node_type, class_of(node_type), |_| {}, None),
     }
 }
 
 /// A new CharacterData node of `node_type` with the data `data`, the root of a tree of its own. A Text node has no
 /// assigned slot.
 pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType, data: &str) -> Node<'a> {
-    let node = new_node(main_thread, node_type, |_| {}, None);
+    let node = new_node(main_thread, node_type, class_of(node_type), |_| {}, None);
     // SAFETY: Every node of a test tree is a TestCell, and no reference to this one's character data core exists yet.
     unsafe {
         (*(node.cell() as *const NodeCell as *mut TestCell)).middle = TestCellMiddle {
@@ -162,14 +162,24 @@ pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: Nod
 
 /// A new element with the core `core`, the root of a tree of its own.
 pub(crate) fn element<'a>(main_thread: &'a MainThread<'_>, core: ElementCore) -> Element<'a> {
-    new_node(main_thread, NodeType::ELEMENT_NODE, |_| {}, Some(core))
+    element_of_class(main_thread, NodeClassId::Element, core)
+}
+
+/// A new element of the class `class_id`, with the core `core`, the root of a tree of its own.
+pub(crate) fn element_of_class<'a>(
+    main_thread: &'a MainThread<'_>,
+    class_id: NodeClassId,
+    core: ElementCore,
+) -> Element<'a> {
+    assert!(class_id.is_a(NodeClassId::Element));
+    new_node(main_thread, NodeType::ELEMENT_NODE, class_id, |_| {}, Some(core))
         .as_element()
         .unwrap()
 }
 
 /// A new shadow root of `host`, whose mode is "open".
 pub(crate) fn shadow_root<'a>(main_thread: &'a MainThread<'_>, host: Node<'a>) -> Node<'a> {
-    attach_shadow_root(main_thread, host, NodeCore::set_is_shadow_root_for_test)
+    attach_shadow_root(main_thread, host, |_| {})
 }
 
 /// A new shadow root of `host`, whose mode is "closed".
@@ -182,7 +192,13 @@ fn attach_shadow_root<'a>(
     host: Node<'a>,
     initialize: impl FnOnce(&mut NodeCore),
 ) -> Node<'a> {
-    let shadow_root = new_node(main_thread, NodeType::DOCUMENT_FRAGMENT_NODE, initialize, None);
+    let shadow_root = new_node(
+        main_thread,
+        NodeType::DOCUMENT_FRAGMENT_NODE,
+        NodeClassId::ShadowRoot,
+        initialize,
+        None,
+    );
     set_host(shadow_root, host);
     if let Some(element) = host.as_element() {
         element.core().set_shadow_root_for_test(Some(pointer_of(shadow_root)));
@@ -217,9 +233,26 @@ pub(crate) fn set_host(fragment: Node<'_>, host: Node<'_>) {
     cell.fragment_core.set_host_for_test(Some(pointer_of(host)));
 }
 
+/// The class of a node of `node_type` that is no shadow root, as the test trees have it.
+fn class_of(node_type: NodeType) -> NodeClassId {
+    match node_type {
+        NodeType::ELEMENT_NODE => NodeClassId::Element,
+        NodeType::ATTRIBUTE_NODE => NodeClassId::Attr,
+        NodeType::TEXT_NODE => NodeClassId::Text,
+        NodeType::CDATA_SECTION_NODE => NodeClassId::CDATASection,
+        NodeType::PROCESSING_INSTRUCTION_NODE => NodeClassId::ProcessingInstruction,
+        NodeType::COMMENT_NODE => NodeClassId::Comment,
+        NodeType::DOCUMENT_NODE => NodeClassId::Document,
+        NodeType::DOCUMENT_TYPE_NODE => NodeClassId::DocumentType,
+        NodeType::DOCUMENT_FRAGMENT_NODE => NodeClassId::DocumentFragment,
+        _ => panic!("no class of nodes has the type {node_type:?}"),
+    }
+}
+
 fn new_node<'a>(
     main_thread: &'a MainThread<'_>,
     node_type: NodeType,
+    class_id: NodeClassId,
     initialize: impl FnOnce(&mut NodeCore),
     element_core: Option<ElementCore>,
 ) -> Node<'a> {
@@ -228,6 +261,7 @@ fn new_node<'a>(
         pointer_of(new_node(
             main_thread,
             NodeType::DOCUMENT_NODE,
+            NodeClassId::Document,
             (|_| {}) as fn(&mut NodeCore),
             None,
         ))
@@ -252,9 +286,8 @@ fn new_node<'a>(
             document_core: ManuallyDrop::new(DocumentCore::for_test()),
         },
     };
-    // NB: The core of the node's event target says it is a node.
     let mut header = [0; NODE_CORE_OFFSET];
-    header[EVENT_TARGET_CORE_OFFSET] = EVENT_TARGET_IS_NODE;
+    header[NODE_CLASS_ID_OFFSET..NODE_CLASS_ID_OFFSET + 2].copy_from_slice(&class_id.raw_for_test().to_ne_bytes());
     let cell = cell.write(TestCell {
         header,
         core,
