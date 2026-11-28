@@ -814,18 +814,9 @@ pub unsafe extern "C" fn rust_dom_collection_versions_are_current(collection: &C
 
 /// Records that the attributes of an element whose node document is `document` changed, which the filters of the
 /// collections whose attribute types are in `attribute_types` read, as a mask of the bits of their indices into
-/// DocumentCore's attribute versions, for DOM::Document.
-///
-/// # Safety
-///
-/// The document must be live, and the call must be made on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_collection_attributes_changed(document: &NodeCell, attribute_types: u8) {
-    // SAFETY: Guaranteed by the caller.
-    let mut main_thread = unsafe { main_thread() };
-    // SAFETY: The document is live.
-    let document = unsafe { NodeRef::from_cell(document, &main_thread) };
-    let stamp = take_next_stamp(&mut main_thread);
+/// DocumentCore's attribute versions.
+pub(super) fn collection_attributes_changed(main_thread: &mut MainThread<'_>, document: NodeRef, attribute_types: u8) {
+    let stamp = take_next_stamp(main_thread);
     let document = document.document_core();
     for attribute_type in 0..COLLECTION_ATTRIBUTE_TYPE_COUNT {
         if attribute_types & (1 << attribute_type) != 0 {

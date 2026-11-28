@@ -26,7 +26,7 @@ static_assert(offsetof(RustFFI::CollectionCore, list) == 48);
 static_assert(sizeof(RustFFI::CollectionNames) == 40 && alignof(RustFFI::CollectionNames) == 8);
 static_assert(offsetof(RustFFI::CollectionNames, class_names) == 16);
 
-// NB: DocumentCore counts the changes to the attributes of each type but None, see Document::collection_attribute_changed().
+// NB: DocumentCore counts the changes to the attributes of each type but None, see Rust/src/dom/attributes.rs.
 static_assert(to_underlying(HTMLCollection::AttributeInvalidationType::FormControls) == RustFFI::COLLECTION_ATTRIBUTE_TYPE_COUNT);
 
 GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Filter filter, AttributeInvalidationType attribute_invalidation_type, Sort sort, Kind kind)

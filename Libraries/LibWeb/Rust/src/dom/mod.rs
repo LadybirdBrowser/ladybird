@@ -8,6 +8,7 @@
 //! objects, which include them from the generated header LibWeb/DOM/RustFFI.h.
 
 pub mod adopt;
+pub mod attributes;
 pub mod child_index;
 pub mod collection;
 pub mod dispatch;

@@ -224,13 +224,20 @@ WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeNa
     return result_from_abi(result, string, exception);
 }
 
+// NB: Unless 'script' requires Trusted Types, every step of get_trusted_types_compliant_attribute_value() returns
+//     stringified newValue.
+bool attribute_values_require_trusted_types(DOM::Element const& element)
+{
+    return does_sink_require_trusted_types(HTML::relevant_global_object(element.document()), Script.view(), IncludeReportOnlyPolicies::Yes);
+}
+
 // https://w3c.github.io/trusted-types/dist/spec/#validate-attribute-mutation
 WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Utf16FlyString const& attribute_name, Optional<Utf16FlyString> attribute_ns, DOM::Element const& element, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> const& new_value)
 {
     auto& global = HTML::relevant_global_object(element.document());
 
     // NB: Unless 'script' requires Trusted Types, every step returns stringified newValue.
-    if (!does_sink_require_trusted_types(global, Script.view(), IncludeReportOnlyPolicies::Yes))
+    if (!attribute_values_require_trusted_types(element))
         return stringified(new_value);
 
     auto input_abi = input_to_abi(new_value);

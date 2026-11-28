@@ -770,6 +770,21 @@ struct CellConstructionHook<T> {
         return false;
     }
 
+    // Whether T has attribute change steps beyond those of DOM::Element and HTML::HTMLElement, whose names libweb_rust
+    // knows (see Rust/src/dom/attributes.rs), or is form-associated, whose attribute change steps HTML::HTMLElement
+    // runs.
+    static constexpr bool has_own_attribute_change_steps()
+    {
+        using namespace Web;
+        using AttributeChanged = void (DOM::Element::*)(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
+        using HTMLElementAttributeChanged = void (HTML::HTMLElement::*)(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&);
+        if (!IsOneOf<decltype(&T::attribute_changed), AttributeChanged, HTMLElementAttributeChanged>)
+            return true;
+        if constexpr (requires { &T::is_form_associated_element; })
+            return !IsSame<decltype(&T::is_form_associated_element), bool (HTML::FormAssociatedElement::*)() const>;
+        return false;
+    }
+
     static void did_construct(T& node)
     {
         static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
@@ -783,6 +798,8 @@ struct CellConstructionHook<T> {
         if constexpr (IsBaseOf<Web::DOM::Element, T>) {
             if constexpr (has_own_tree_steps())
                 node.set_has_own_tree_steps();
+            if constexpr (has_own_attribute_change_steps())
+                node.set_has_own_attribute_change_steps();
         } else {
             // NB: libweb_rust takes the steps of character data and doctypes to be those of every node.
             static_assert(!(IsBaseOf<Web::DOM::CharacterData, T> || IsBaseOf<Web::DOM::DocumentType, T>) || !has_own_tree_steps());

@@ -53,6 +53,9 @@ WebIDL::ExceptionOr<Optional<TrustedType>> process_value_with_a_default_policy(T
 
 WebIDL::ExceptionOr<Utf16String> get_trusted_type_compliant_string(TrustedTypeName, JS::Object&, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> input, InjectionSink sink, Utf16View sink_group);
 
+// Whether the get Trusted Types-compliant attribute value algorithm can return anything but its stringified value for an
+// attribute of the element: whether 'script' requires Trusted Types in the element's node document's global.
+bool attribute_values_require_trusted_types(DOM::Element const&);
 WebIDL::ExceptionOr<Utf16String> get_trusted_types_compliant_attribute_value(Utf16FlyString const& attribute_name, Optional<Utf16FlyString> attribute_ns, DOM::Element const& element, Variant<GC::Ref<TrustedHTML>, GC::Ref<TrustedScript>, GC::Ref<TrustedScriptURL>, Utf16String> const& new_value);
 bool trusted_script_value_matches(JS::Value, StringView expected);
 bool trusted_script_values_match(ReadonlySpan<JS::Value>, ReadonlySpan<String> expected);

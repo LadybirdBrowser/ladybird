@@ -249,7 +249,6 @@ public:
     void invalidate_lang_value();
     void invalidate_lang_value_of_inclusive_ancestors();
 
-    void set_attribute(FlyString qualified_name, Utf16String const& verified_value);
     void set_attribute_ns(QualifiedName const&, Utf16String const& verified_value);
     void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
     void set_attribute_value(Utf16FlyString const& local_name, Utf16View value, Optional<Utf16FlyString> const& prefix = {}, Optional<Utf16FlyString> const& namespace_ = {});
@@ -369,6 +368,7 @@ public:
     void did_publish_presentational_hint_properties(ReadonlySpan<CSS::StyleProperty>);
 
     void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
+    void tell_style_engine_of_attribute_change(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
     // Whether an element's display is none, with its animations and ignoring them.
     struct DisplayNoneState {
@@ -989,6 +989,10 @@ private:
     // Rust/src/dom/steps.rs). GC::CellConstructionHook says it for every class whose overrides add steps, as it
     // constructs the element, and a form-associated custom element definition says it as it is attached.
     void set_has_own_tree_steps() { set_element_core_flag(RustFFI::ELEMENT_HAS_OWN_TREE_STEPS, true); }
+    // Says that the element's attribute changes do something beyond what they do for every element and every HTML
+    // element, which libweb_rust otherwise does without calling into C++ (see Rust/src/dom/attributes.rs). Said as
+    // set_has_own_tree_steps() is.
+    void set_has_own_attribute_change_steps() { set_element_core_flag(RustFFI::ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS, true); }
 
     void publish_implicit_anchor_element();
     void bump_dom_tree_version_for_attribute_change();
@@ -997,13 +1001,11 @@ private:
     void append_to_attribute_list(QualifiedName, Utf16String value);
 
     void install_custom_property_data(Layout::BegunRead const& read, Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>, CSS::IsAnimationOverlay);
-    void synchronize_attribute(Utf16FlyString const& qualified_name) const;
-    void synchronize_attribute_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void synchronize_style_attribute() const;
     Optional<size_t> find_attribute_index(Utf16FlyString const& qualified_name) const;
     Optional<size_t> find_attribute_index_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void change_attribute_value(GC::Ref<Attr>, Utf16String value);
-    void handle_attribute_changes(QualifiedName, Optional<Utf16String> old_value, Optional<Utf16String> new_value);
+    void handle_attribute_changes(QualifiedName const&, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
     void remove_attribute_at(size_t index);
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
@@ -1056,6 +1058,7 @@ private:
 
     friend class Attr;
     friend class NamedNodeMap;
+    friend struct RustAttributeHooks;
 
     bool m_initial_style_features_pending : 1 { false };
     bool m_is_being_activated : 1 { false };
@@ -1124,6 +1127,15 @@ inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity
         return it.equals_ignoring_ascii_case(class_name);
     });
 }
+
+// The callbacks of the attribute algorithms in libweb_rust (see Rust/src/dom/attributes.rs), which DOM::Node registers
+// with the other DOM hooks.
+struct RustAttributeHooks {
+    static void append_attribute(Node*, size_t local_name, size_t prefix, size_t namespace_, size_t value);
+    static void attribute_changed(Node*, QualifiedName::Impl*, size_t old_value, size_t new_value, u8 steps);
+    static void synchronize_style_attribute(Node*);
+    static void release_qualified_name(QualifiedName::Impl*);
+};
 
 bool is_valid_namespace_prefix(Utf16View);
 bool is_valid_attribute_local_name(Utf16View);

@@ -8,7 +8,9 @@
 //! DOM::Element and reads and writes in place.
 //!
 //! Its fields are AK and DOM types to C++, which owns what they hold: C++ constructs, assigns and destroys every field
-//! as the C++ type it sees, and Rust only reads them, in place.
+//! as the C++ type it sees, and Rust reads them in place. What Rust writes is the attribute list, whose attributes it
+//! changes the values of and takes out (see attributes.rs), while C++ allocates the list and appends to it, the id and
+//! the subtree name filter, and the classes, whose storage only Rust changes, for C++ too.
 
 use super::node_core::ElementMember;
 use super::node_core::NodePointer;
@@ -16,8 +18,10 @@ use super::node_core::ShadowRootMember;
 use core::cell::Cell;
 use core::cell::UnsafeCell;
 use core::mem::offset_of;
+use core::ptr::NonNull;
 
 use super::qualified_name::QualifiedNameField;
+use super::qualified_name::QualifiedNameImpl;
 use super::strings::FlyStringField;
 use super::strings::OptionalFlyStringField;
 use super::strings::StringField;
@@ -26,13 +30,15 @@ use super::strings::StringField;
 pub const ELEMENT_CORE_OFFSET: usize = 144;
 
 /// A field that holds the classes of an element, laid out as C++'s DOM::ClassNames, which is what C++ sees it as: one
-/// class in place, or all of them in an outline buffer, which C++ allocates and frees.
+/// class in place, or all of them in an outline buffer. C++ moves the field, and changes it, and drops it, through the
+/// functions below, so that only Rust allocates and frees the buffer.
 ///
 /// NB: This mirrors the C++ layout, which ClassNames.cpp asserts.
 #[repr(C)]
 pub struct ClassNamesField {
     size: UnsafeCell<u32>,
-    _capacity: UnsafeCell<u32>,
+    /// The number of classes the outline buffer has room for, or 1, for the class in place, where there is none.
+    capacity: UnsafeCell<u32>,
     outline_buffer: UnsafeCell<*const FlyStringField>,
     inline_class: FlyStringField,
 }
@@ -52,11 +58,96 @@ impl ClassNamesField {
             ak::slice_from_raw_parts(classes, *self.size.get() as usize)
         }
     }
+
+    /// Removes every class.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may borrow the classes.
+    pub(super) unsafe fn clear(&self) {
+        // SAFETY: Guaranteed by the caller. The field owns a reference to each class it holds, and the outline buffer, if
+        //         there is one, is a vector this field allocated with the capacity it keeps.
+        unsafe {
+            let size = core::ptr::replace(self.size.get(), 0) as usize;
+            let capacity = core::ptr::replace(self.capacity.get(), 1) as usize;
+            let outline_buffer = core::ptr::replace(self.outline_buffer.get(), core::ptr::null());
+            drop(self.inline_class.replace(empty_fly_string()));
+            if !outline_buffer.is_null() {
+                let classes = Vec::from_raw_parts(outline_buffer.cast::<usize>().cast_mut(), size, capacity);
+                for class in classes {
+                    drop(ak::Utf16FlyString::from_raw_owned(class));
+                }
+            }
+        }
+    }
+
+    /// Appends the class `class`.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may borrow the classes.
+    pub(super) unsafe fn append(&self, class: ak::Utf16FlyString) {
+        // SAFETY: Guaranteed by the caller. The outline buffer, if there is one, is a vector this field allocated with the
+        //         capacity it keeps, and holds `size` classes.
+        unsafe {
+            let size = *self.size.get();
+            let outline_buffer = *self.outline_buffer.get();
+            if outline_buffer.is_null() && size == 0 {
+                drop(self.inline_class.replace(class));
+                *self.size.get() = 1;
+                return;
+            }
+            let mut classes = match outline_buffer.is_null() {
+                true => vec![self.inline_class.replace(empty_fly_string()).into_raw()],
+                false => Vec::from_raw_parts(
+                    outline_buffer.cast::<usize>().cast_mut(),
+                    size as usize,
+                    *self.capacity.get() as usize,
+                ),
+            };
+            if classes.len() == classes.capacity() {
+                classes.reserve_exact(classes.capacity().max(4));
+            }
+            classes.push(class.into_raw());
+            let mut classes = core::mem::ManuallyDrop::new(classes);
+            *self.size.get() = u32::try_from(classes.len()).expect("an element has fewer than 2^32 classes");
+            *self.capacity.get() = u32::try_from(classes.capacity()).expect("an element has fewer than 2^32 classes");
+            *self.outline_buffer.get() = classes.as_mut_ptr().cast::<FlyStringField>().cast_const();
+        }
+    }
+}
+
+#[inline(always)]
+fn empty_fly_string() -> ak::Utf16FlyString {
+    ak::Utf16FlyString::from_utf8("")
+}
+
+/// Appends the class `class`, whose reference passes to the call, to the classes `classes`.
+///
+/// # Safety
+///
+/// `classes` must be a live DOM::ClassNames that nothing borrows the classes of, and `class` the raw word of a
+/// reference to an AK::Utf16FlyString.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_class_names_append(classes: &ClassNamesField, class: usize) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { classes.append(ak::Utf16FlyString::from_raw_owned(class)) }
+}
+
+/// Removes every class from the classes `classes`, which frees their storage.
+///
+/// # Safety
+///
+/// `classes` must be a live DOM::ClassNames that nothing borrows the classes of.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_class_names_clear(classes: &ClassNamesField) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { classes.clear() }
 }
 
 const _: () = assert!(size_of::<ClassNamesField>() == 24 && align_of::<ClassNamesField>() == 8);
 const _: () = assert!(offset_of!(ClassNamesField, size) == 0);
-const _: () = assert!(offset_of!(ClassNamesField, _capacity) == 4);
+const _: () = assert!(offset_of!(ClassNamesField, capacity) == 4);
 const _: () = assert!(offset_of!(ClassNamesField, outline_buffer) == 8);
 const _: () = assert!(offset_of!(ClassNamesField, inline_class) == 16);
 
@@ -122,6 +213,59 @@ impl AttributeListField {
     }
 }
 
+impl AttributeListField {
+    /// The attributes after the list's header, and the count of them.
+    #[inline(always)]
+    fn raw_parts(&self) -> Option<(*mut Attribute, *mut u32)> {
+        // SAFETY: C++ does not write the field while Rust reads it.
+        let list = unsafe { *self.0.get() }.cast_mut();
+        if list.is_null() {
+            return None;
+        }
+        // SAFETY: The attributes follow the list's header, in its allocation.
+        Some((unsafe { list.add(1).cast::<Attribute>() }, unsafe {
+            (*list).size.get()
+        }))
+    }
+
+    /// Stores `value` as the value of the attribute at `index`, and gives back the value it had, whose reference passes
+    /// to the caller.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may borrow the attribute's value.
+    #[inline(always)]
+    pub(super) unsafe fn replace_value(&self, index: usize, value: ak::Utf16String) -> ak::Utf16String {
+        // SAFETY: Guaranteed by the caller, and the attribute at `index` is in the list, which as_slice() checks.
+        unsafe { self.as_slice()[index].value.replace(value) }
+    }
+
+    /// Takes the attribute at `index` out of the list, moving the attributes after it down by one, as
+    /// DOM::AttributeList::remove() does, and gives back its name and value, whose references pass to the caller.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may borrow an attribute of the list.
+    pub(super) unsafe fn take(&self, index: usize) -> (NonNull<QualifiedNameImpl>, ak::Utf16String) {
+        let (attributes, size) = self
+            .raw_parts()
+            .expect("an attribute is taken out of a list that holds it");
+        // SAFETY: Guaranteed by the caller: nothing borrows the list, whose size counts the attributes that follow its
+        //         header. An attribute is a qualified name and a string, each a word that holds a reference, which
+        //         moves with the word.
+        unsafe {
+            let count = *size as usize;
+            assert!(index < count);
+            let attribute = attributes.add(index);
+            let name = attribute.cast::<NonNull<QualifiedNameImpl>>().read();
+            let value = attribute.cast::<usize>().add(1).read();
+            core::ptr::copy(attribute.add(1), attribute, count - index - 1);
+            *size -= 1;
+            (name, ak::Utf16String::from_raw_owned(value))
+        }
+    }
+}
+
 const _: () = assert!(size_of::<AttributeListField>() == 8 && align_of::<AttributeListField>() == 8);
 
 // The flags of an element's core, a bit each in its flags byte, which C++ sets where the state they stand for changes.
@@ -140,6 +284,21 @@ pub const ELEMENT_IS_INERT: u8 = 1 << 2;
 pub const ELEMENT_HAS_CONTENT_EDITABLE_STATE: u8 = 1 << 3;
 /// Whether the element may have synthetic pseudo-elements, which C++ sets as it first makes one, and never clears.
 pub const ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS: u8 = 1 << 4;
+/// Whether the element is custom, which C++ keeps as the element's custom element state changes.
+/// https://dom.spec.whatwg.org/#concept-element-custom
+pub const ELEMENT_IS_CUSTOM: u8 = 1 << 5;
+/// Whether the element has attribute change steps beyond those of every element and every HTML element, whose names
+/// attributes.rs knows, as its class has, or as a form-associated element has. C++ sets it as it constructs an element
+/// of such a class, and as a form-associated custom element definition is attached to an element. It is never
+/// cleared.
+pub const ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS: u8 = 1 << 6;
+/// Whether the element may have Attr nodes, which C++ sets as it makes the element's NamedNodeMap, and never clears.
+pub const ELEMENT_MAY_HAVE_ATTRIBUTE_NODES: u8 = 1 << 7;
+
+// The ELEMENT_REFLECTION_* flags, of an element's reflection_flags.
+
+/// Whether the element has a DOMTokenList for its class attribute, which C++ sets as it makes it, and never clears.
+pub const ELEMENT_REFLECTION_HAS_CLASS_LIST: u8 = 1 << 0;
 
 /// The state that names an element, which C++ embeds in DOM::Element as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-element
@@ -154,13 +313,15 @@ pub struct ElementCore {
     /// https://dom.spec.whatwg.org/#concept-element-attribute
     attributes: AttributeListField,
     /// A filter over the local names of the attributes and the classes of this element and its descendants: a name
-    /// whose bit is clear is on none of them. C++ only ever adds bits.
+    /// whose bit is clear is on none of them. It only ever gains bits.
     subtree_name_filter: Cell<u64>,
     /// Whether script changed the declarations of the element's style attribute since C++ last wrote them to the
     /// attribute, which C++ does as the attribute is next read.
     style_attribute_is_dirty: Cell<bool>,
     /// The ELEMENT_* flags.
     flags: Cell<u8>,
+    /// The ELEMENT_REFLECTION_* flags, of the objects that reflect the element's attributes.
+    reflection_flags: Cell<u8>,
     /// https://dom.spec.whatwg.org/#concept-element-shadow-root
     shadow_root: ShadowRootMember,
     /// The generation of the parent's child list that `child_index` and `child_index_of_type` were counted in, or 0
@@ -201,8 +362,33 @@ impl ElementCore {
     }
 
     #[inline(always)]
+    pub(super) fn attribute_list(&self) -> &AttributeListField {
+        &self.attributes
+    }
+
+    #[inline(always)]
     pub fn subtree_name_filter(&self) -> u64 {
         self.subtree_name_filter.get()
+    }
+
+    #[inline(always)]
+    pub(super) fn subtree_name_filter_cell(&self) -> &Cell<u64> {
+        &self.subtree_name_filter
+    }
+
+    #[inline(always)]
+    pub(super) fn id_field(&self) -> &OptionalFlyStringField {
+        &self.id
+    }
+
+    #[inline(always)]
+    pub(super) fn class_names(&self) -> &ClassNamesField {
+        &self.classes
+    }
+
+    #[inline(always)]
+    pub fn reflection_flags(&self) -> u8 {
+        self.reflection_flags.get()
     }
 
     #[inline(always)]
@@ -245,23 +431,19 @@ impl ElementCore {
 
 #[cfg(test)]
 impl ClassNamesField {
-    /// The classes `classes`, in place for one and in a buffer the test leaks for more.
+    /// The classes `classes`, which the test leaks.
     pub(crate) fn for_test(classes: &[&str]) -> Self {
-        let mut fields: Vec<FlyStringField> = classes.iter().map(|class| FlyStringField::for_test(class)).collect();
-        let inline_class = match classes.len() {
-            1 => fields.pop().unwrap(),
-            _ => FlyStringField::for_test(""),
+        let field = Self {
+            size: UnsafeCell::new(0),
+            capacity: UnsafeCell::new(1),
+            outline_buffer: UnsafeCell::new(core::ptr::null()),
+            inline_class: FlyStringField::for_test(""),
         };
-        let outline_buffer = match fields.is_empty() {
-            true => core::ptr::null(),
-            false => Vec::leak(fields).as_ptr(),
-        };
-        Self {
-            size: UnsafeCell::new(classes.len() as u32),
-            _capacity: UnsafeCell::new(classes.len().max(1) as u32),
-            outline_buffer: UnsafeCell::new(outline_buffer),
-            inline_class,
+        for class in classes {
+            // SAFETY: Nothing borrows the classes yet.
+            unsafe { field.append(ak::Utf16FlyString::from_utf8(class)) };
         }
+        field
     }
 }
 
@@ -276,6 +458,7 @@ impl ElementCore {
             subtree_name_filter: Cell::new(0),
             style_attribute_is_dirty: Cell::new(false),
             flags: Cell::new(0),
+            reflection_flags: Cell::new(0),
             shadow_root: ShadowRootMember::null_for_test(),
             parent_child_index_generation: Cell::new(0),
             child_index: Cell::new(0),
@@ -348,6 +531,7 @@ const _: () = assert!(offset_of!(ElementCore, attributes) == 40);
 const _: () = assert!(offset_of!(ElementCore, subtree_name_filter) == 48);
 const _: () = assert!(offset_of!(ElementCore, style_attribute_is_dirty) == 56);
 const _: () = assert!(offset_of!(ElementCore, flags) == 57);
+const _: () = assert!(offset_of!(ElementCore, reflection_flags) == 58);
 const _: () = assert!(offset_of!(ElementCore, shadow_root) == 60);
 const _: () = assert!(offset_of!(ElementCore, parent_child_index_generation) == 64);
 const _: () = assert!(offset_of!(ElementCore, child_index) == 68);

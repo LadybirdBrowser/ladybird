@@ -2799,6 +2799,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "TreeWalkerCore".to_string(),
         "CollectionCore".to_string(),
         "CollectionNames".to_string(),
+        "ToggleAttributeForce".to_string(),
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
@@ -2828,6 +2829,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("TreeScopeField", "Web::CSS::TreeScopeID"),
         ("CppNodeFlags", "Web::DOM::CppNodeFlags"),
         ("QualifiedNameField", "Web::DOM::QualifiedName"),
+        ("QualifiedNameImpl", "Web::DOM::QualifiedName::Impl"),
         ("OptionalFlyStringField", "AK::Optional<AK::Utf16FlyString>"),
         ("ClassNamesField", "Web::DOM::ClassNames"),
         ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
@@ -2854,6 +2856,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         dom_config,
         &[
             manifest_dir.join("src/dom/element_core.rs"),
+            manifest_dir.join("src/dom/attributes.rs"),
             manifest_dir.join("src/dom/dispatch.rs"),
             manifest_dir.join("src/dom/event.rs"),
             manifest_dir.join("src/dom/event_target.rs"),

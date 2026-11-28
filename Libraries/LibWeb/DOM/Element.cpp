@@ -198,6 +198,7 @@ static_assert(offsetof(RustFFI::ElementCore, attributes) == 40);
 static_assert(offsetof(RustFFI::ElementCore, subtree_name_filter) == 48);
 static_assert(offsetof(RustFFI::ElementCore, style_attribute_is_dirty) == 56);
 static_assert(offsetof(RustFFI::ElementCore, flags) == 57);
+static_assert(offsetof(RustFFI::ElementCore, reflection_flags) == 58);
 static_assert(offsetof(RustFFI::ElementCore, shadow_root) == 60);
 static_assert(offsetof(RustFFI::ElementCore, parent_child_index_generation) == 64);
 static_assert(offsetof(RustFFI::ElementCore, child_index) == 68);
@@ -358,6 +359,7 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .subtree_name_filter = 0,
         .style_attribute_is_dirty = false,
         .flags = 0,
+        .reflection_flags = 0,
         .shadow_root = {},
         .parent_child_index_generation = 0,
         .child_index = 0,
@@ -405,61 +407,86 @@ void Element::ensure_attribute_capacity(size_t capacity)
         m_element_core.attributes = m_element_core.attributes->moved_into_new_list(capacity);
 }
 
-void Element::synchronize_attribute(Utf16FlyString const& qualified_name) const
-{
-    if (m_element_core.style_attribute_is_dirty && qualified_name == HTML::AttributeNames::style)
-        synchronize_style_attribute();
-}
-
-void Element::synchronize_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
-{
-    if (m_element_core.style_attribute_is_dirty && !namespace_.has_value() && local_name == HTML::AttributeNames::style)
-        synchronize_style_attribute();
-}
-
 void Element::synchronize_all_attributes() const
 {
     synchronize_style_attribute();
 }
 
-Optional<size_t> Element::find_attribute_index(Utf16FlyString const& qualified_name) const
+void RustAttributeHooks::append_attribute(GC::Ref<Node> node, size_t local_name, size_t prefix, size_t namespace_, size_t value)
 {
-    Utf16FlyString const* effective_name = &qualified_name;
-    Utf16FlyString lowercase_name;
-    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
-        lowercase_name = qualified_name.to_ascii_lowercase();
-        effective_name = &lowercase_name;
-    }
-
-    synchronize_attribute(*effective_name);
-
-    if (!m_element_core.attributes)
-        return {};
-
-    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
-        if (m_element_core.attributes->at(index).name.as_string() == *effective_name)
-            return index;
-    }
-    return {};
+    auto fly_string_from_raw = [](size_t raw) { return Utf16FlyString { Utf16String::from_raw(raw) }; };
+    auto optional_fly_string_from_raw = [&](size_t raw) -> Optional<Utf16FlyString> {
+        if (raw == 0)
+            return {};
+        return fly_string_from_raw(raw);
+    };
+    QualifiedName name { fly_string_from_raw(local_name), optional_fly_string_from_raw(prefix), optional_fly_string_from_raw(namespace_) };
+    static_cast<Element&>(*node).append_to_attribute_list(move(name), Utf16String::adopt_raw(value));
 }
 
+// https://dom.spec.whatwg.org/#handle-attribute-changes
+void RustAttributeHooks::attribute_changed(Node* node, QualifiedName::Impl* name_parts, size_t old_raw_value, size_t new_raw_value, u8 steps)
+{
+    auto& element = static_cast<Element&>(*node);
+    QualifiedName name { *name_parts };
+    Optional<Utf16String> old_value;
+    if (!(steps & RustFFI::ATTRIBUTE_CHANGE_OLD_VALUE_IS_NULL))
+        old_value = Utf16String::from_raw(old_raw_value);
+    Optional<Utf16String> new_value;
+    if (!(steps & RustFFI::ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL))
+        new_value = Utf16String::from_raw(new_raw_value);
+
+    if (steps & RustFFI::ATTRIBUTE_CHANGE_DETACH_ATTRIBUTE_NODE) {
+        if (auto* rare_data = element.element_rare_data(); rare_data && rare_data->attribute_map)
+            rare_data->attribute_map->detach_attribute_node(name, *old_value);
+    }
+
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (steps & RustFFI::ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY)
+        element.document().editing_history_if_exists()->notify_dom_mutation();
+
+    // 1. Queue a mutation record of "attributes" for element with attribute’s local name, attribute’s namespace, oldValue, « », « », null, and null.
+    if (steps & RustFFI::ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD)
+        element.queue_mutation_record(MutationType::attributes, name.local_name(), name.namespace_(), old_value, {}, {}, nullptr, nullptr);
+
+    // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
+    //    and « attribute’s local name, oldValue, newValue, attribute’s namespace ».
+    if (steps & RustFFI::ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION)
+        element.enqueue_an_attribute_changed_callback_reaction(name.local_name(), old_value, new_value, name.namespace_());
+
+    // 3. Run the attribute change steps with element, attribute’s local name, oldValue, newValue, and attribute’s namespace.
+    if (steps & RustFFI::ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS)
+        element.run_attribute_change_steps(name.local_name(), old_value, new_value, name.namespace_());
+    else if (steps & RustFFI::ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE)
+        element.tell_style_engine_of_attribute_change(name.local_name(), old_value, new_value, name.namespace_());
+}
+
+void RustAttributeHooks::synchronize_style_attribute(Node* node)
+{
+    static_cast<Element&>(*node).synchronize_style_attribute();
+}
+
+void RustAttributeHooks::release_qualified_name(QualifiedName::Impl* name_parts)
+{
+    name_parts->unref();
+}
+
+// https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
+Optional<size_t> Element::find_attribute_index(Utf16FlyString const& qualified_name) const
+{
+    auto index = RustFFI::rust_dom_get_an_attribute_by_name(this, qualified_name.raw_identity());
+    if (index < 0)
+        return {};
+    return static_cast<size_t>(index);
+}
+
+// https://dom.spec.whatwg.org/#concept-element-attributes-get-by-namespace
 Optional<size_t> Element::find_attribute_index_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
 {
-    Optional<Utf16FlyString> normalized_namespace;
-    if (namespace_ != Utf16FlyString {})
-        normalized_namespace = namespace_;
-
-    synchronize_attribute_ns(normalized_namespace, local_name);
-
-    if (!m_element_core.attributes)
+    auto index = RustFFI::rust_dom_get_an_attribute_by_namespace_and_local_name(this, namespace_.has_value() ? namespace_->raw_identity() : 0, local_name.raw_identity());
+    if (index < 0)
         return {};
-
-    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
-        auto const& attribute = m_element_core.attributes->at(index);
-        if (attribute.name.namespace_() == normalized_namespace && attribute.name.local_name() == local_name)
-            return index;
-    }
-    return {};
+    return static_cast<size_t>(index);
 }
 
 void Element::visit_edges(Cell::Visitor& visitor)
@@ -893,28 +920,6 @@ GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<Utf16FlyString> const& nam
     return const_cast<Element&>(*this).attributes()->get_attribute_ns(namespace_, name);
 }
 
-void Element::set_attribute(FlyString qualified_name, Utf16String const& verified_value)
-{
-    auto utf16_qualified_name = Utf16FlyString::from_fly_string(qualified_name);
-    // Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto index = find_attribute_index(utf16_qualified_name);
-
-    // If attribute is non-null, then change attribute to verifiedValue and return.
-    if (index.has_value()) {
-        auto& attribute = m_element_core.attributes->at(*index);
-        auto old_value = move(attribute.value);
-        attribute.value = verified_value;
-        auto name = attribute.name;
-        auto new_value = attribute.value;
-        handle_attribute_changes(move(name), move(old_value), move(new_value));
-        return;
-    }
-
-    // Set attribute to a new attribute whose local name is qualifiedName, value is verifiedValue,
-    // and node document is this’s node document.
-    append_attribute(QualifiedName { utf16_qualified_name, {}, {} }, verified_value);
-}
-
 // https://dom.spec.whatwg.org/#valid-namespace-prefix
 bool is_valid_namespace_prefix(Utf16View prefix)
 {
@@ -1062,45 +1067,30 @@ void Element::append_attribute(Attr& attribute)
     attributes()->append_attribute(GC::Ref { attribute });
 }
 
+// https://dom.spec.whatwg.org/#concept-element-attributes-append
 void Element::append_attribute(QualifiedName name, Utf16String value)
 {
-    auto old_value = Optional<Utf16String> {};
-    append_to_attribute_list(move(name), move(value));
-    auto& attribute = m_element_core.attributes->last();
-    auto attribute_name = attribute.name;
-    auto new_value = attribute.value;
-    handle_attribute_changes(move(attribute_name), move(old_value), move(new_value));
+    // 1. Append attribute to element’s attribute list.
+    append_to_attribute_list(name, value);
+
+    // 2. Set attribute’s element to element.
+    // 3. Set attribute’s node document to element’s node document.
+    // 4. Handle attribute changes for attribute with element, null, and attribute’s value.
+    handle_attribute_changes(name, {}, value);
 }
 
+// https://dom.spec.whatwg.org/#concept-element-attributes-change
 void Element::change_attribute_value(GC::Ref<Attr> attribute_node, Utf16String value)
 {
     auto index = find_attribute_index_ns(attribute_node->namespace_uri(), attribute_node->local_name());
     VERIFY(index.has_value());
-    auto& attribute = m_element_core.attributes->at(*index);
-    auto old_value = move(attribute.value);
-    attribute.value = move(value);
-    auto name = attribute.name;
-    auto new_value = attribute.value;
-    handle_attribute_changes(move(name), move(old_value), move(new_value));
+    RustFFI::rust_dom_change_an_attribute(this, *index, move(value).into_raw());
 }
 
 // https://dom.spec.whatwg.org/#handle-attribute-changes
-void Element::handle_attribute_changes(QualifiedName name, Optional<Utf16String> old_value, Optional<Utf16String> new_value)
+void Element::handle_attribute_changes(QualifiedName const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
 {
-    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
-    if (auto history = document().editing_history_if_exists())
-        history->notify_dom_mutation();
-
-    // 1. Queue a mutation record of "attributes" for element with attribute’s local name, attribute’s namespace, oldValue, « », « », null, and null.
-    queue_mutation_record(MutationType::attributes, name.local_name(), name.namespace_(), old_value, {}, {}, nullptr, nullptr);
-
-    // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
-    //    and « attribute’s local name, oldValue, newValue, attribute’s namespace ».
-    if (is_custom())
-        enqueue_an_attribute_changed_callback_reaction(name.local_name(), old_value, new_value, name.namespace_());
-
-    // 3. Run the attribute change steps with element, attribute’s local name, oldValue, newValue, and attribute’s namespace.
-    run_attribute_change_steps(name.local_name(), old_value, new_value, name.namespace_());
+    RustFFI::rust_dom_handle_attribute_changes(this, const_cast<QualifiedName::Impl*>(name.identity()), old_value.has_value() ? old_value->raw_identity() : 0, !old_value.has_value(), new_value.has_value() ? new_value->raw_identity() : 0, !new_value.has_value());
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
@@ -1111,27 +1101,7 @@ void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16View va
 
 void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String value, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
-    // 1. Let attribute be the result of getting an attribute given namespace, localName, and element.
-    auto index = find_attribute_index_ns(namespace_, local_name);
-
-    // 2. If attribute is null, create an attribute whose namespace is namespace, namespace prefix is prefix, local name
-    //    is localName, value is value, and node document is element’s node document, then append this attribute to element,
-    //    and then return.
-    if (!index.has_value()) {
-        QualifiedName name { local_name, prefix, namespace_ };
-
-        append_attribute(move(name), move(value));
-
-        return;
-    }
-
-    // 3. Change attribute to value.
-    auto& attribute = m_element_core.attributes->at(*index);
-    auto old_value = move(attribute.value);
-    attribute.value = move(value);
-    auto name = attribute.name;
-    auto new_value = attribute.value;
-    handle_attribute_changes(move(name), move(old_value), move(new_value));
+    RustFFI::rust_dom_set_an_attribute_value(this, local_name.raw_identity(), move(value).into_raw(), prefix.has_value() ? prefix->raw_identity() : 0, namespace_.has_value() ? namespace_->raw_identity() : 0);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenode
@@ -1152,33 +1122,20 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns(Attr& attr)
 void Element::remove_attribute(Utf16FlyString const& name)
 {
     // The removeAttribute(qualifiedName) method steps are to remove an attribute given qualifiedName and this, and then return undefined.
-    Utf16FlyString const* effective_name = &name;
-    Utf16FlyString lowercase_name;
-    if (namespace_uri() == Namespace::HTML && document().is_html_document()) {
-        lowercase_name = name.to_ascii_lowercase();
-        effective_name = &lowercase_name;
-    }
-
-    if (auto index = find_attribute_index(*effective_name); index.has_value())
-        remove_attribute_at(*index);
+    RustFFI::rust_dom_remove_an_attribute_by_name(this, name.raw_identity());
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributens
 void Element::remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& name)
 {
     // The removeAttributeNS(namespace, localName) method steps are to remove an attribute given namespace, localName, and this, and then return undefined.
-    if (auto index = find_attribute_index_ns(namespace_, name); index.has_value())
-        remove_attribute_at(*index);
+    RustFFI::rust_dom_remove_an_attribute_by_namespace_and_local_name(this, namespace_.has_value() ? namespace_->raw_identity() : 0, name.raw_identity());
 }
 
+// https://dom.spec.whatwg.org/#concept-element-attributes-remove
 void Element::remove_attribute_at(size_t index)
 {
-    auto name = m_element_core.attributes->at(index).name;
-    auto old_value = m_element_core.attributes->at(index).value;
-    if (auto* rare_data = element_rare_data(); rare_data && rare_data->attribute_map)
-        rare_data->attribute_map->detach_attribute_node(name, old_value);
-    m_element_core.attributes->remove(index);
-    handle_attribute_changes(name, old_value, {});
+    RustFFI::rust_dom_remove_an_attribute(this, index);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
@@ -1211,36 +1168,8 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(Utf16FlyString const& name, 
     if (!is_valid_attribute_local_name(name))
         return WebIDL::InvalidCharacterError::create("Attribute name must not be empty or contain invalid characters"_utf16);
 
-    // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
-    auto effective_name = name;
-    if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        effective_name = name.to_ascii_lowercase();
-
-    // 3. Let attribute be the first attribute in this’s attribute list whose qualified name is qualifiedName, and null otherwise.
-    auto index = find_attribute_index(effective_name);
-
-    // 4. If attribute is null, then:
-    if (!index.has_value()) {
-        // 1. If force is not given or is true, create an attribute whose local name is qualifiedName, value is the empty
-        //    string, and node document is this’s node document, then append this attribute to this, and then return true.
-        if (!force.has_value() || force.value()) {
-            append_attribute(QualifiedName { effective_name, {}, {} }, {});
-
-            return true;
-        }
-
-        // 2. Return false.
-        return false;
-    }
-
-    // 5. Otherwise, if force is not given or is false, remove an attribute given qualifiedName and this, and then return false.
-    if (!force.has_value() || !force.value()) {
-        remove_attribute_at(*index);
-        return false;
-    }
-
-    // 6. Return true.
-    return true;
+    auto rust_force = !force.has_value() ? RustFFI::ToggleAttributeForce::NotGiven : (*force ? RustFFI::ToggleAttributeForce::True : RustFFI::ToggleAttributeForce::False);
+    return RustFFI::rust_dom_toggle_attribute(this, name.raw_identity(), rust_force);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenames
@@ -1475,9 +1404,18 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
             if (local_name == HTML::AttributeNames::id || local_name == HTML::AttributeNames::class_)
                 invalidate_content_blocker_style_if_needed(*this);
         }
-        document().collection_attribute_changed(local_name, namespace_);
-        bump_dom_tree_version_for_attribute_change();
+        // NB: libweb_rust tells the collections whose filters read the attribute of the change, and bumps the DOM tree
+        //     version, as the hook that runs these steps returns (see Rust/src/dom/attributes.rs).
     }
+}
+
+// NB: What run_attribute_change_steps() tells the style engine of a change to an attribute that no attribute change
+//     steps act on, which libweb_rust has the hook that handles attribute changes run alone.
+void Element::tell_style_engine_of_attribute_change(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+{
+    CSS::record_element_attribute_changed(*this, local_name, namespace_, old_value, value);
+    if (!document().suppresses_attribute_style_invalidation())
+        CSS::Invalidation::invalidate_style_after_attribute_change(*this, local_name, old_value, value);
 }
 
 // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
@@ -2106,8 +2044,10 @@ void Element::invalidate_descendant_styles_depending_on_style_container_query()
 GC::Ref<DOMTokenList> Element::class_list()
 {
     auto& rare_data = ensure_element_rare_data();
-    if (!rare_data.class_list)
+    if (!rare_data.class_list) {
         rare_data.class_list = DOMTokenList::create(*this, HTML::AttributeNames::class_);
+        m_element_core.reflection_flags |= RustFFI::ELEMENT_REFLECTION_HAS_CLASS_LIST;
+    }
     return *rare_data.class_list;
 }
 
@@ -2539,9 +2479,7 @@ void Element::did_update_inline_style()
 
 void Element::bump_dom_tree_version_for_attribute_change()
 {
-    auto version_before = dom_tree_version();
-    bump_dom_tree_version();
-    document().keep_element_tree_positions_across_attribute_change(version_before);
+    RustFFI::rust_dom_bump_dom_tree_version_for_attribute_change(this);
 }
 
 void Element::synchronize_style_attribute() const
@@ -4852,8 +4790,10 @@ void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinitio
     }
 
     // NB: A form-associated custom element runs the insertion and removing steps of a form-associated element.
-    if (is_form_associated)
+    if (is_form_associated) {
         set_has_own_tree_steps();
+        set_has_own_attribute_change_steps();
+    }
 
     if (was_form_associated != is_form_associated)
         document().bump_form_controls_version();
@@ -4978,6 +4918,7 @@ void Element::set_custom_element_state(CustomElementState state)
     // from a value the element never held.
     auto was_defined = is_defined();
     m_custom_element_state = state;
+    set_element_core_flag(RustFFI::ELEMENT_IS_CUSTOM, state == CustomElementState::Custom);
     if (was_defined == is_defined())
         return;
 
@@ -6313,16 +6254,8 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         if (style_node_id().value() != 0)
             old_style_engine_classes = move(m_element_core.classes);
 
-        if (value_or_empty.is_empty()) {
-            m_element_core.classes.clear();
-        } else {
-            m_element_core.classes.clear();
-            for_each_ascii_whitespace_separated_token(value_or_empty, [&](auto new_class) {
-                m_element_core.classes.append(Utf16FlyString::from_utf16(new_class));
-                add_to_subtree_name_filter(name_filter_bit(m_element_core.classes.last()));
-                return IterationDecision::Continue;
-            });
-        }
+        // NB: libweb_rust parses the classes, see Rust/src/dom/attributes.rs.
+        RustFFI::rust_dom_set_classes(this, value.has_value() ? value->raw_identity() : 0, !value.has_value());
         if (auto* rare_data = element_rare_data(); rare_data && rare_data->class_list)
             rare_data->class_list->associated_attribute_changed(value);
 
@@ -6819,8 +6752,10 @@ bool Element::has_pointer_capture(WebIDL::Long pointer_id) const
 GC::Ptr<NamedNodeMap> Element::attributes()
 {
     auto& attribute_map = ensure_element_rare_data().attribute_map;
-    if (!attribute_map)
+    if (!attribute_map) {
         attribute_map = NamedNodeMap::create(*this);
+        set_element_core_flag(RustFFI::ELEMENT_MAY_HAVE_ATTRIBUTE_NODES, true);
+    }
     return attribute_map;
 }
 
@@ -7322,18 +7257,27 @@ WebIDL::ExceptionOr<void> insert_adjacent_html(DOM::Element& element, Utf16Strin
     return element.insert_adjacent_html(position.to_utf8(), compliant_string.to_utf8_but_should_be_ported_to_utf16(), trusted_options);
 }
 
+// https://dom.spec.whatwg.org/#dom-element-setattribute
 WebIDL::ExceptionOr<void> set_attribute(DOM::Element& element, Utf16String const& qualified_name, Variant<GC::Ref<TrustedTypes::TrustedHTML>, GC::Ref<TrustedTypes::TrustedScript>, GC::Ref<TrustedTypes::TrustedScriptURL>, Utf16String> const& value)
 {
-    auto utf16_qualified_name = Utf16FlyString::from_utf16(qualified_name.utf16_view());
-    auto qualified_name_string = qualified_name;
-    if (!DOM::is_valid_attribute_local_name(qualified_name_string.utf16_view()))
+    // 1. If qualifiedName is not a valid attribute local name, then throw an "InvalidCharacterError" DOMException.
+    if (!DOM::is_valid_attribute_local_name(qualified_name.utf16_view()))
         return WebIDL::InvalidCharacterError::create("Attribute name must not be empty or contain invalid characters"_utf16);
 
-    if (element.namespace_uri() == Namespace::HTML && element.document().document_type() == DOM::Document::Type::HTML)
-        utf16_qualified_name = utf16_qualified_name.to_ascii_lowercase();
-
-    auto const verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(utf16_qualified_name, {}, element, value));
-    element.set_attribute(FlyString { utf16_qualified_name.to_utf16_string().to_utf8() }, verified_value);
+    // NB: libweb_rust runs step 2 and the steps after step 3 (see Rust/src/dom/attributes.rs).
+    // 3. Let verifiedValue be the result of calling get trusted type compliant attribute value with qualifiedName,
+    //    null, this, and value.
+    // OPTIMIZATION: Where Trusted Types do not apply, the verified value is the string given, and the name is not
+    //               needed for it.
+    if (auto const* string = value.get_pointer<Utf16String>(); string && !TrustedTypes::attribute_values_require_trusted_types(element)) {
+        DOM::RustFFI::rust_dom_set_attribute(&element, qualified_name.raw_identity(), Utf16String { *string }.into_raw());
+        return {};
+    }
+    auto lowercase_qualified_name = Utf16FlyString::from_utf16(qualified_name.utf16_view());
+    if (element.namespace_uri() == Namespace::HTML && element.document().is_html_document())
+        lowercase_qualified_name = lowercase_qualified_name.to_ascii_lowercase();
+    auto verified_value = TRY(TrustedTypes::get_trusted_types_compliant_attribute_value(lowercase_qualified_name, {}, element, value));
+    DOM::RustFFI::rust_dom_set_attribute(&element, lowercase_qualified_name.raw_identity(), move(verified_value).into_raw());
     return {};
 }
 

@@ -4463,6 +4463,10 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     .call_node_filter = RustDOMHooks::call_node_filter,
     .collection_filter_matches = RustDOMHooks::collection_filter_matches,
     .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
+    .append_attribute = RustAttributeHooks::append_attribute,
+    .attribute_changed = RustAttributeHooks::attribute_changed,
+    .synchronize_style_attribute = RustAttributeHooks::synchronize_style_attribute,
+    .release_qualified_name = RustAttributeHooks::release_qualified_name,
 };
 
 static struct RustDOMHooksRegistration {
