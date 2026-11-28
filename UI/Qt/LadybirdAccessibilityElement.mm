@@ -11,6 +11,7 @@
 
 #include <AK/Optional.h>
 #include <AK/Utf8View.h>
+#include <AK/WeakPtr.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 #include <LibWebView/AccessibilityTreeManager.h>
 
@@ -188,8 +189,11 @@ static NSString* nsStringFromAK(String const& string)
 @implementation LadybirdAccessibilityElement
 {
     int64_t _nodeID;
-    WebView::AccessibilityTreeManager const* _manager;
+    // NB: Weak, as an assistive technology can hold this element longer than the view keeps its tree: An element that
+    //     outlives the tree answers like an invalidated one, whichever way the tree went away.
+    WeakPtr<WebView::AccessibilityTreeManager> _manager;
     __weak id<LadybirdAccessibilityView> _view;
+    BOOL _invalidated;
 }
 
 - (instancetype)initWithNodeID:(int64_t)nodeID
@@ -220,7 +224,7 @@ static NSString* nsStringFromAK(String const& string)
 - (void)dealloc
 {
     // An element the tree dropped gave up its id then (invalidate); one that goes with its view gives it up here.
-    if (_manager)
+    if (!_invalidated)
         NSAccessibilityUnregisterUniqueIdForUIElement(self);
 }
 
@@ -229,6 +233,7 @@ static NSString* nsStringFromAK(String const& string)
     // AppKit's table of ids doesn't retain the elements, so give up the id while this element is still alive — and an
     // AT holding this element learns that it's gone.
     NSAccessibilityUnregisterUniqueIdForUIElement(self);
+    _invalidated = YES;
     _manager = nullptr;
     _view = nil;
 }

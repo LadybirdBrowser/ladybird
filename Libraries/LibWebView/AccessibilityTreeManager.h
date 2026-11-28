@@ -10,13 +10,14 @@
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Weakable.h>
 #include <LibGfx/Point.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 #include <LibWebView/Export.h>
 
 namespace WebView {
 
-class WEBVIEW_API AccessibilityTreeManager {
+class WEBVIEW_API AccessibilityTreeManager : public Weakable<AccessibilityTreeManager> {
 public:
     AK_ALLOC_WITH_KMALLOC;
 

@@ -7,6 +7,7 @@
 #include "WebContentViewAccessibility.h"
 #include "WebContentView.h"
 
+#include <AK/WeakPtr.h>
 #include <LibWebView/AccessibilityTreeManager.h>
 #include <UI/Qt/MacWindow.h>
 
@@ -19,6 +20,7 @@
 
 #import <QAccessibleInterface>
 #import <QAccessibleWidget>
+#import <QPointer>
 #import <QWidget>
 
 using namespace Qt::StringLiterals;
@@ -29,8 +31,7 @@ extern "C" void NSAccessibilityHandleFocusChanged();
 
 @interface WebContentAccessibilityView : NSView <LadybirdAccessibilityView>
 
-@property (nonatomic, assign) WebView::AccessibilityTreeManager* manager;
-@property (nonatomic, assign) Ladybird::WebContentView* webContentView;
+@property (nonatomic, readonly) WebView::AccessibilityTreeManager* manager;
 @property (nonatomic, strong) NSMutableDictionary<NSNumber*, LadybirdAccessibilityElement*>* elements;
 
 - (void)detach;
@@ -38,6 +39,12 @@ extern "C" void NSAccessibilityHandleFocusChanged();
 @end
 
 @implementation WebContentAccessibilityView
+{
+    // NB: Weak, as AppKit can keep the overlay (and its elements) longer than the view and its tree: An overlay that
+    //     outlives them answers like a detached one, whichever way they went away.
+    WeakPtr<WebView::AccessibilityTreeManager> _manager;
+    QPointer<Ladybird::WebContentView> _webContentView;
+}
 
 - (instancetype)initWithFrame:(NSRect)frame
                       manager:(WebView::AccessibilityTreeManager*)manager
@@ -68,6 +75,11 @@ extern "C" void NSAccessibilityHandleFocusChanged();
     [_elements removeAllObjects];
     _manager = nullptr;
     _webContentView = nullptr;
+}
+
+- (WebView::AccessibilityTreeManager*)manager
+{
+    return _manager.ptr();
 }
 
 - (NSView*)hitTest:(NSPoint)point
