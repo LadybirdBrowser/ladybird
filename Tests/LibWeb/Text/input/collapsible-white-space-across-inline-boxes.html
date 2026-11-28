@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+@font-face {
+    font-family: Ahem;
+    src: url("../../Ref/data/fonts/Ahem.ttf");
+}
+body { font: 10px/20px Ahem; margin: 0; }
+.case { position: relative; margin: 0 0 10px 0; }
+.nw { white-space: nowrap; }
+.pw { white-space: pre-wrap; }
+.bs { white-space: break-spaces; }
+.pl { white-space: pre-line; }
+.ed { padding: 0 3px; border: 1px solid; margin: 0 2px; }
+.ib { display: inline-block; width: 10px; height: 10px; }
+</style>
+<div id="cases"></div>
+<script>
+    // Each case is one way of combining collapsible spaces with nowrap and preserved white space, inline box edges,
+    // out-of-flow boxes and atomic inlines, laid out in a box sized to its contents or in a fixed width.
+    const containers = {
+        flex: c => `<div style="display:flex"><div class="t">${c}</div></div>`,
+        float: c => `<div style="overflow:hidden"><div class="t" style="float:left">${c}</div></div>`,
+        inlineblock: c => `<div><div class="t" style="display:inline-block">${c}</div></div>`,
+        abspos: c => `<div style="height:200px"><div class="t" style="position:absolute;left:0;top:0">${c}</div></div>`,
+        fitcontent: c => `<div><div class="t" style="width:fit-content">${c}</div></div>`,
+        maxcontent: c => `<div><div class="t" style="width:max-content">${c}</div></div>`,
+        tablecell: c => `<table cellspacing=0 cellpadding=0><tr><td class="t">${c}</td></tr></table>`,
+        grid: c => `<div style="display:grid;grid-template-columns:auto 1fr"><div class="t">${c}</div><div></div></div>`,
+        w40: c => `<div class="t" style="width:50px">${c}</div>`,
+        w75: c => `<div class="t" style="width:90px">${c}</div>`,
+        w110: c => `<div class="t" style="width:130px">${c}</div>`,
+        mincontent: c => `<div><div class="t" style="width:min-content">${c}</div></div>`,
+    };
+    const contents = {
+        nowrap_spans: `<span class=nw> one 1 </span> <span class=nw> two 2 </span>`,
+        no_between: `<span class=nw> one 1 </span><span class=nw> two 2 </span>`,
+        leading_only: `<span class=nw> one 1</span> <span class=nw> two 2</span>`,
+        trailing_only: `<span class=nw>one 1 </span> <span class=nw>two 2 </span>`,
+        newlines: `\n <span class=nw>\n  one 1\n  </span>\n <span class=nw>\n  two 2\n  </span>\n`,
+        three: `<span class=nw> one 1 </span> <span class=nw> two 2 </span> <span class=nw> three 3 </span>`,
+        nested: `<span class=nw><a> one 1 </a></span> <span class=nw><a> two 2 </a></span>`,
+        nested_deep_ws: `<span class=nw> <a> one 1 </a> </span> <span class=nw> <a> two 2 </a> </span>`,
+        edges: `<span class="nw ed"> one 1 </span> <span class="nw ed"> two 2 </span>`,
+        inner_edges: `<span class=nw><a class=ed> one 1 </a></span> <span class=nw><a class=ed> two 2 </a></span>`,
+        inline_list_items: `<ul style="list-style:none;margin:0;padding:0"><li style="display:inline" class=nw>\n <a class=ed><span class=ib></span> 4\n </a>\n </li>\n <li style="display:inline" class=nw>\n <a class=ed><span class=ib></span> 1\n </a>\n </li>\n</ul>`,
+        wrap_spans_in_nowrap: `<div class=nw><span style="white-space:normal"> one 1 </span> <span style="white-space:normal"> two 2 </span></div>`,
+        text_then_nw: `one <span class=nw> two 2 </span> three`,
+        nw_then_text: `<span class=nw> one 1 </span> two three`,
+        prewrap_then_nw: `<span class=pw>one </span> <span class=nw> two 2</span>`,
+        nw_then_prewrap: `<span class=nw>one 1 </span><span class=pw> two</span>`,
+        breakspaces: `<span class=bs>one 1 </span> <span class=nw> two 2</span>`,
+        preline: `<span class=pl>one 1 </span> <span class=nw> two 2</span>`,
+        atomic_between: `<span class=nw> one 1 </span> <span class=ib></span> <span class=nw> two 2 </span>`,
+        atomic_in_nw: `<span class=nw><span class=ib></span> one 1 </span> <span class=nw><span class=ib></span> two 2 </span>`,
+        abspos_between: `<span class=nw>one 1 </span><b style="position:absolute"></b> <span class=nw> two 2</span>`,
+        float_between: `<span class=nw>one 1 </span><b style="float:right;width:5px;height:5px"></b> <span class=nw> two 2</span>`,
+        empty_span_ws: `<span class=nw>one 1</span><span> </span><span class=nw>two 2</span>`,
+        empty_span_ws2: `<span class=nw>one 1 </span><span> </span><span class=nw> two 2</span>`,
+        word_spacing: `<span class=nw style="word-spacing:10px"> one 1 </span> <span class=nw style="word-spacing:10px"> two 2 </span>`,
+        letter_spacing: `<span class=nw style="letter-spacing:3px"> one 1 </span> <span class=nw style="letter-spacing:3px"> two 2 </span>`,
+        rtl: `<div dir=rtl><span class=nw> one 1 </span> <span class=nw> two 2 </span></div>`,
+        anywhere: `<div style="overflow-wrap:anywhere"><span class=nw> one 1 </span> <span class=nw> two 2 </span></div>`,
+        br_after: `<span class=nw> one 1 </span> <span class=nw> two 2 </span><br><span class=nw> x </span>`,
+        tab_ws: `<span class=nw>\tone 1\t</span>\t<span class=nw>\ttwo 2\t</span>`,
+        plain_words: `one 1 two 2`,
+        nw_whole: `<span class=nw> one 1 two 2 </span>`,
+        padded_leading: `<span class=ed> one</span> <span class=ed> two</span> <span class=ed> three</span>`,
+        padded_trailing: `<span class=ed>one </span> <span class=ed>two </span> <span class=ed>three </span>`,
+        empty_padded_between: `one <span class=ed></span> two <span class=ed></span> three`,
+        spaces_around_br: `one <br> two <br> <span> three </span>`,
+        ib_spaces: `one <span class=ib></span> <span class=ib></span> two <span class=ib></span>three`,
+        prewrap_leading: `<span class=pw>  one</span> <span> two</span> <span class=pw> three  </span> four`,
+        prewrap_mixed: `<span class=pw>one  </span> <span class=pw>  two</span> three  four`,
+        nested_spaces: `<b> <i> one </i> </b> <b> <i> two </i> </b> three`,
+        abspos_runs: `one <b style="position:absolute"></b> <b style="position:absolute"></b> two`,
+        float_runs: `one <b style="float:left;width:4px;height:4px"></b> two <b style="float:right;width:4px;height:4px"></b> three`,
+        preline_runs: `<span class=pl>one  \n  two</span> <span class=pl>  three</span> four`,
+        tab_runs: `one\t<span>\ttwo\t</span>\tthree`,
+        zero_width_inline: `one<span></span> <span></span> two`,
+        long_words: `<span class=nw>aaaa bbbb </span> <span class=nw> cccc dddd</span> eeee`,
+        text_indent: `<div style="text-indent:10px"> <span class=nw> one 1 </span> <span class=nw> two 2 </span></div>`,
+    };
+    // NB: Other engines lay these cases out differently from each other.
+    const casesWhereEnginesDisagree = new Set([
+        "flex/nested_deep_ws", "flex/word_spacing", "flex/nested_spaces", "float/nested_deep_ws", "float/word_spacing",
+        "float/nested_spaces", "inlineblock/nested_deep_ws", "inlineblock/word_spacing", "inlineblock/nested_spaces",
+        "abspos/nested_deep_ws", "abspos/word_spacing", "abspos/nested_spaces", "fitcontent/nested_deep_ws",
+        "fitcontent/word_spacing", "fitcontent/nested_spaces", "maxcontent/nested_deep_ws", "maxcontent/word_spacing",
+        "maxcontent/nested_spaces", "tablecell/nested_deep_ws", "tablecell/word_spacing", "tablecell/nested_spaces",
+        "grid/nested_deep_ws", "grid/word_spacing", "grid/nested_spaces", "w40/edges", "w40/inner_edges",
+        "w40/padded_leading", "w75/edges", "w75/inner_edges", "w75/inline_list_items", "w75/text_then_nw", "w75/padded_leading",
+        "w75/padded_trailing", "w75/empty_padded_between", "w75/nested_spaces", "w110/edges", "w110/inner_edges",
+        "w110/padded_leading", "w110/nested_spaces", "mincontent/no_between", "mincontent/edges",
+        "mincontent/inner_edges", "mincontent/nw_then_prewrap", "mincontent/abspos_between",
+        "mincontent/float_between", "mincontent/padded_leading", "mincontent/padded_trailing"
+    ]);
+    // FIXME: An empty inline box with edges between collapsible spaces should stay on the line before a break there.
+    const casesWithKnownDifferences = new Set([
+        "w40/empty_padded_between", "w110/empty_padded_between", "mincontent/empty_padded_between"
+    ]);
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        const root = document.getElementById("cases");
+        for (const [containerName, container] of Object.entries(containers)) {
+            for (const [contentName, content] of Object.entries(contents)) {
+                const name = `${containerName}/${contentName}`;
+                if (casesWhereEnginesDisagree.has(name) || casesWithKnownDifferences.has(name))
+                    continue;
+                const host = document.createElement("div");
+                host.className = "case";
+                host.innerHTML = container(content);
+                root.append(host);
+                const target = host.querySelector(".t");
+                const box = target.getBoundingClientRect();
+                const positions = [];
+                const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+                for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                    for (const match of node.data.matchAll(/\S+/g)) {
+                        const range = document.createRange();
+                        range.setStart(node, match.index);
+                        range.setEnd(node, match.index + match[0].length);
+                        const rect = range.getBoundingClientRect();
+                        positions.push(`${match[0]}@${Math.round(rect.left - box.left)},${Math.round((rect.top - box.top) / 20)}`);
+                    }
+                }
+                println(`${name}: ${Math.round(box.width)}x${Math.round(box.height)} ${positions.join(" ")}`);
+                host.remove();
+            }
+        }
+        done();
+    });
+</script>
