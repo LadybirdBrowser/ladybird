@@ -186,7 +186,7 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 }
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Element) == 304);
+static_assert(sizeof(Element) == 296);
 #endif
 
 Element::RareData::~RareData() = default;
@@ -2570,7 +2570,7 @@ void Element::prepare_for_inline_style_change()
                 continue;
             if (!options.attributes.value_or(false))
                 continue;
-            if (options.attribute_filter.has_value() && !options.attribute_filter->contains_slow(HTML::AttributeNames::style))
+            if (options.has_attribute_filter && !options.attribute_filter.contains_slow(HTML::AttributeNames::style))
                 continue;
             synchronize_style_attribute();
             return;

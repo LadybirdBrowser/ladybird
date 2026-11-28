@@ -406,6 +406,17 @@ public:
 protected:
     Cell() = default;
 
+    // The last bytes of the header belong to the embedder, which can keep flags of a cell and an id of its type there,
+    // where every C++ ABI lays them out alike. LibGC never reads them. Both are 0 in a new cell.
+    u8 embedder_flags() const { return m_embedder_flags; }
+    void set_embedder_flags(u8 flags) { m_embedder_flags = flags; }
+    u16 embedder_type_id() const { return m_embedder_type_id; }
+    void set_embedder_type_id(u16 type_id) { m_embedder_type_id = type_id; }
+
+public:
+    static constexpr size_t embedder_flags_offset() { return offsetof(Cell, m_embedder_flags); }
+    static constexpr size_t embedder_type_id_offset() { return offsetof(Cell, m_embedder_type_id); }
+
 private:
     friend class Heap;
     friend struct CAPI;
@@ -416,6 +427,8 @@ private:
     [[maybe_unused]] u8 m_identity_hash_state { 0 };
     State m_state { State::Live };
     CellKind m_cell_kind { CellKind::Other };
+    u8 m_embedder_flags { 0 };
+    u16 m_embedder_type_id { 0 };
 };
 
 // A cell whose type is implemented outside of C++ and allocated through LibGC/CAPI.h, such as a cell of the Rust
@@ -447,8 +460,9 @@ private:
     [[maybe_unused]] u8 m_identity_hash_state;
     Cell::State m_state;
     CellKind m_cell_kind;
-    // The foreign implementation lays its fields out right after the header. Naming these bytes keeps GCC from
-    // placing a field of a derived type in the tail padding, where it would overlap them without changing the size.
+    // The foreign implementation lays its fields out right after the header, in the bytes that a Cell keeps for the
+    // embedder and after them. Naming these bytes keeps GCC from placing a field of a derived type in the tail padding,
+    // where it would overlap them without changing the size.
     [[maybe_unused]] u8 m_tail_owned_by_the_foreign_implementation[sizeof(void*) - sizeof(u8) - sizeof(Cell::State) - sizeof(CellKind)];
 };
 

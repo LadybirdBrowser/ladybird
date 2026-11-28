@@ -17,8 +17,8 @@ GC_DEFINE_ALLOCATOR(CallbackType);
 CallbackType::CallbackType(JS::Object& callback, HTML::EnvironmentSettingsObject& callback_context, OperationReturnsPromise operation_returns_promise)
     : callback(callback)
     , callback_context(callback_context)
-    , operation_returns_promise(operation_returns_promise)
 {
+    set_embedder_flags(to_underlying(operation_returns_promise));
 }
 
 CallbackType::CallbackType(JS::Object& callback, JS::Realm& callback_context, OperationReturnsPromise operation_returns_promise)

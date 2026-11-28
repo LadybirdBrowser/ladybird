@@ -292,12 +292,12 @@ static void invalidate_compositor_keyboard_scroll_state(EventTarget& target, DOM
 
 static bool is_blocking_keyboard_event_listener(DOMEventListener const& listener)
 {
-    return AK::first_is_one_of(listener.type, u"keydown"sv, u"keypress"sv) && listener.passive != true;
+    return AK::first_is_one_of(listener.type, u"keydown"sv, u"keypress"sv) && listener.passive() != true;
 }
 
 static bool is_blocking_wheel_event_listener(DOMEventListener const& listener)
 {
-    return AK::first_is_one_of(listener.type, u"wheel"sv, u"mousewheel"sv) && listener.passive != true;
+    return AK::first_is_one_of(listener.type, u"wheel"sv, u"mousewheel"sv) && listener.passive() != true;
 }
 
 static void invalidate_compositor_wheel_event_listener_state(EventTarget& event_target, DOMEventListener const& listener)
@@ -434,9 +434,9 @@ void EventTarget::add_event_listener(FlyString const& type, GC::Ptr<IDLEventList
     event_listener->type = Utf16FlyString::from_fly_string(type);
     event_listener->callback = callback;
     event_listener->signal = options.signal;
-    event_listener->capture = options.capture;
-    event_listener->passive = options.passive;
-    event_listener->once = options.once;
+    event_listener->set_capture(options.capture);
+    event_listener->set_passive(options.passive);
+    event_listener->set_once(options.once);
     add_an_event_listener(*event_listener);
 }
 
@@ -446,9 +446,9 @@ void EventTarget::add_event_listener(Utf16FlyString const& type, GC::Ptr<IDLEven
     event_listener->type = type;
     event_listener->callback = callback;
     event_listener->signal = options.signal;
-    event_listener->capture = options.capture;
-    event_listener->passive = options.passive;
-    event_listener->once = options.once;
+    event_listener->set_capture(options.capture);
+    event_listener->set_passive(options.passive);
+    event_listener->set_once(options.once);
     add_an_event_listener(*event_listener);
 }
 
@@ -476,8 +476,8 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
         return;
 
     // 4. If listener’s passive is null, then set it to the default passive value given listener’s type and eventTarget.
-    if (!listener.passive.has_value()) {
-        listener.passive = default_passive_value(listener.type, this);
+    if (!listener.passive().has_value()) {
+        listener.set_passive(default_passive_value(listener.type, this));
     }
 
     // 5. If eventTarget’s event listener list does not contain an event listener whose type is listener’s type, callback is listener’s callback,
@@ -485,7 +485,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     auto it = event_listener_list.find_if([&](auto& entry) {
         return entry->type == listener.type
             && entry->callback->callback().callback == listener.callback->callback().callback
-            && entry->capture == listener.capture;
+            && entry->capture() == listener.capture();
     });
     if (it == event_listener_list.end()) {
         prepare_to_observe_css_animation_events(*this, listener);
@@ -530,7 +530,7 @@ void EventTarget::remove_event_listener(FlyString const& type, GC::Ptr<IDLEventL
     auto it = event_listener_list.find_if([&](auto& entry) {
         return entry->type == utf16_type
             && callbacks_match(*entry)
-            && entry->capture == capture;
+            && entry->capture() == capture;
     });
     if (it != event_listener_list.end())
         remove_an_event_listener(**it);
@@ -554,7 +554,7 @@ void EventTarget::remove_an_event_listener(DOMEventListener& listener)
     //           then report a warning to the console that this might not give the expected results. [SERVICE-WORKERS]
 
     // 2. Set listener’s removed to true and remove listener from eventTarget’s event listener list.
-    listener.removed = true;
+    listener.set_removed(true);
     VERIFY(m_data);
     auto did_remove = m_data->event_listener_list.remove_first_matching([&](auto& entry) { return entry.ptr() == &listener; });
     if (did_remove) {

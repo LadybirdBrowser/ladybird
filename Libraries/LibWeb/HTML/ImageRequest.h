@@ -83,6 +83,10 @@ private:
     // An image request's state is initially unavailable.
     State m_state { State::Unavailable };
 
+    // https://html.spec.whatwg.org/multipage/images.html#current-pixel-density
+    // Each image request has a current pixel density, which must initially be 1.
+    float m_current_pixel_density { 1 };
+
     // https://html.spec.whatwg.org/multipage/images.html#img-req-url
     // An image request's current URL is initially the empty string.
     Utf16String m_current_url;
@@ -90,21 +94,17 @@ private:
     // https://html.spec.whatwg.org/multipage/images.html#img-req-data
     GC::Ptr<DecodedImageData> m_image_data;
 
-    // https://html.spec.whatwg.org/multipage/images.html#current-pixel-density
-    // Each image request has a current pixel density, which must initially be 1.
-    float m_current_pixel_density { 1 };
-
     // https://html.spec.whatwg.org/multipage/images.html#preferred-density-corrected-dimensions
     // Each image request has preferred density-corrected dimensions,
     // which is either a struct consisting of a width and a height or is null. It must initially be null.
     Optional<Gfx::FloatSize> m_preferred_density_corrected_dimensions;
 
-    GC::Ptr<SharedResourceRequest> m_shared_resource_request;
-
     // NB: Set when "abort the image request" is performed on this image request. Since our fetches happen through
     //     a SharedResourceRequest that may be used by others, we don't abort the fetch itself; instead, fetch
     //     callbacks use this flag to discard their work for aborted requests.
     bool m_was_aborted { false };
+
+    GC::Ptr<SharedResourceRequest> m_shared_resource_request;
 
     Vector<u64> m_shared_resource_request_callbacks_ids;
 };

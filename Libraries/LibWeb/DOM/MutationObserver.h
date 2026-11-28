@@ -29,7 +29,10 @@ namespace Web::DOM {
 class RegisteredObserver;
 
 struct MutationObserverOptions {
-    Optional<Vector<Utf16FlyString>> attribute_filter;
+    // NB: The attribute filter is present if has_attribute_filter is set. It is no Optional, whose padding would leave
+    //     no room for the observer of a RegisteredObserver before the options.
+    Vector<Utf16FlyString> attribute_filter;
+    bool has_attribute_filter { false };
     Optional<bool> attribute_old_value;
     Optional<bool> attributes;
     Optional<bool> character_data;

@@ -207,35 +207,21 @@ private:
     friend WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
     friend WEB_API bool wrapper_is_preserved(JS::HostObject const&);
 
+    // NB: The preservation flags are the embedder flags of the cell.
     enum PreservationFlag : u8 {
         MainWorldWrapperIsPreserved = 1 << 0,
         HasNonMainWorldPreservedWrappers = 1 << 1,
     };
 
-    bool main_world_wrapper_is_preserved() const { return m_preservation_flags & MainWorldWrapperIsPreserved; }
-    void set_main_world_wrapper_is_preserved(bool value)
-    {
-        if (value)
-            m_preservation_flags |= MainWorldWrapperIsPreserved;
-        else
-            m_preservation_flags &= ~MainWorldWrapperIsPreserved;
-    }
-    bool has_non_main_world_preserved_wrappers() const { return m_preservation_flags & HasNonMainWorldPreservedWrappers; }
-    void set_has_non_main_world_preserved_wrappers(bool value)
-    {
-        if (value)
-            m_preservation_flags |= HasNonMainWorldPreservedWrappers;
-        else
-            m_preservation_flags &= ~HasNonMainWorldPreservedWrappers;
-    }
+    bool main_world_wrapper_is_preserved() const { return embedder_flags() & MainWorldWrapperIsPreserved; }
+    void set_main_world_wrapper_is_preserved(bool value) { set_preservation_flag(MainWorldWrapperIsPreserved, value); }
+    bool has_non_main_world_preserved_wrappers() const { return embedder_flags() & HasNonMainWorldPreservedWrappers; }
+    void set_has_non_main_world_preserved_wrappers(bool value) { set_preservation_flag(HasNonMainWorldPreservedWrappers, value); }
+    void set_preservation_flag(PreservationFlag flag, bool value) { set_embedder_flags(static_cast<u8>(value ? (embedder_flags() | flag) : (embedder_flags() & ~flag))); }
     void clear_preserved_wrappers(WrapperWorld const&);
-
-    u8 m_preservation_flags { 0 };
 };
 
-static_assert(sizeof(GCAllocatedWrappable) == 32);
-// GCAllocatedWrappable's dsize is 25 bytes, allowing derived classes to reuse
-// the remaining tail padding where supported by the ABI.
+static_assert(sizeof(GCAllocatedWrappable) == sizeof(Wrappable));
 
 static_assert(!IsConstructible<JS::Value, Wrappable*>);
 static_assert(!IsConstructible<JS::Value, Wrappable const*>);

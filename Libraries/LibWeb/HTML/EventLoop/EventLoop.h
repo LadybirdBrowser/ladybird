@@ -279,6 +279,7 @@ private:
     void note_clock_lanes(ClockAnimations);
 
     Type m_type { Type::Window };
+    u32 m_timer_nesting_level_for_microtasks { 0 };
 
     Vector<GC::Ref<GC::Function<void()>>> m_reached_step_1_tasks;
 
@@ -287,7 +288,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#currently-running-task
     GC::Ptr<Task> m_currently_running_task { nullptr };
-    u32 m_timer_nesting_level_for_microtasks { 0 };
 
     u64 m_task_generation { 0 };
 
