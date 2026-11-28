@@ -2,12 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-8 Pass
+1 Pass
+7 Fail
 Pass	createImageBitmap with Orientation 1
-Pass	createImageBitmap with Orientation 2
-Pass	createImageBitmap with Orientation 3
-Pass	createImageBitmap with Orientation 4
-Pass	createImageBitmap with Orientation 5
-Pass	createImageBitmap with Orientation 6
-Pass	createImageBitmap with Orientation 7
-Pass	createImageBitmap with Orientation 8
+Fail	createImageBitmap with Orientation 2
+Fail	createImageBitmap with Orientation 3
+Fail	createImageBitmap with Orientation 4
+Fail	createImageBitmap with Orientation 5
+Fail	createImageBitmap with Orientation 6
+Fail	createImageBitmap with Orientation 7
+Fail	createImageBitmap with Orientation 8

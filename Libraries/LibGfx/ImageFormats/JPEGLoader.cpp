@@ -5,7 +5,10 @@
  */
 
 #include <LibGfx/CMYKBitmap.h>
+#include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
+#include <LibGfx/ImageFormats/ExifReader.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
+#include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <jpeglib.h>
 #include <setjmp.h>
 
@@ -27,6 +30,7 @@ struct JPEGLoadingContext {
 
     ReadonlyBytes data;
     Vector<u8> icc_data;
+    OwnPtr<ExifMetadata> exif_metadata;
 
     JPEGLoadingContext(ReadonlyBytes data)
         : data(data)
@@ -34,6 +38,8 @@ struct JPEGLoadingContext {
     }
 
     ErrorOr<void> decode();
+    void read_exif_metadata(jpeg_decompress_struct const&);
+    ErrorOr<void> apply_exif_orientation();
 };
 
 struct JPEGErrorManager : jpeg_error_mgr {
@@ -79,9 +85,11 @@ ErrorOr<void> JPEGLoadingContext::decode()
 
     cinfo.src = &source_manager;
 
+    jpeg_save_markers(&cinfo, JPEG_APP0 + 1, 0xFFFF);
     jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
     if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
         return Error::from_string_literal("Failed to read JPEG header");
+    read_exif_metadata(cinfo);
 
     if (cinfo.jpeg_color_space == JCS_CMYK) {
         cinfo.out_color_space = JCS_CMYK;
@@ -211,6 +219,56 @@ ErrorOr<void> JPEGLoadingContext::decode()
     if (cmyk_bitmap && !rgb_bitmap)
         rgb_bitmap = TRY(cmyk_bitmap->to_low_quality_rgb());
 
+    if (exif_metadata)
+        TRY(apply_exif_orientation());
+
+    return {};
+}
+
+void JPEGLoadingContext::read_exif_metadata(jpeg_decompress_struct const& cinfo)
+{
+    // The EXIF data of a JPEG is the TIFF structure in an APP1 marker that starts with the "Exif\0\0" identifier.
+    static constexpr auto exif_identifier = "Exif\0\0"sv;
+    for (auto const* marker = cinfo.marker_list; marker; marker = marker->next) {
+        if (marker->marker != JPEG_APP0 + 1)
+            continue;
+        ReadonlyBytes bytes { marker->data, marker->data_length };
+        if (!bytes.starts_with(exif_identifier.bytes()))
+            continue;
+        // NB: EXIF data that can't be read leaves the image as it is, rather than failing it.
+        if (auto metadata = TIFF::read_exif_metadata(bytes.slice(exif_identifier.length())); !metadata.is_error())
+            exif_metadata = metadata.release_value();
+        return;
+    }
+}
+
+// https://drafts.csswg.org/css-images-3/#propdef-image-orientation
+ErrorOr<void> JPEGLoadingContext::apply_exif_orientation()
+{
+    auto orientation = exif_metadata->orientation().value_or(TIFF::Orientation::Default);
+    if (orientation == TIFF::Orientation::Default)
+        return {};
+
+    auto oriented = TRY(ExifOrientedBitmap::create(orientation, rgb_bitmap->size(), rgb_bitmap->format(), rgb_bitmap->alpha_type()));
+    for (int y = 0; y < rgb_bitmap->height(); ++y) {
+        auto const* row = rgb_bitmap->scanline(y);
+        for (int x = 0; x < rgb_bitmap->width(); ++x)
+            oriented.set_pixel(x, y, row[x]);
+    }
+    rgb_bitmap = oriented.bitmap();
+
+    if (cmyk_bitmap) {
+        auto size = cmyk_bitmap->size();
+        auto oriented_cmyk = TRY(CMYKBitmap::create_with_size(ExifOrientedBitmap::oriented_size(size, orientation)));
+        for (int y = 0; y < size.height(); ++y) {
+            auto const* row = cmyk_bitmap->scanline(y);
+            for (int x = 0; x < size.width(); ++x) {
+                auto position = ExifOrientedBitmap::oriented_position({ x, y }, size, orientation);
+                oriented_cmyk->scanline(position.y())[position.x()] = row[x];
+            }
+        }
+        cmyk_bitmap = move(oriented_cmyk);
+    }
     return {};
 }
 
@@ -270,6 +328,11 @@ ErrorOr<ImageFrameDescriptor> JPEGImageDecoderPlugin::frame(size_t index, Option
 
 Optional<Metadata const&> JPEGImageDecoderPlugin::metadata()
 {
+    if (m_context->state == JPEGLoadingContext::State::NotDecoded)
+        (void)frame(0);
+
+    if (m_context->exif_metadata)
+        return *m_context->exif_metadata;
     return OptionalNone {};
 }
 

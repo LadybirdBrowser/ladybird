@@ -1,0 +1,3 @@
+natural size: 20x40
+drawImage corners: blue red yellow lime
+createImageBitmap: 20x40, corners blue red yellow lime
