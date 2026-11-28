@@ -11,6 +11,7 @@ pub mod adopt;
 pub mod attributes;
 pub mod character_data;
 pub mod child_index;
+pub mod clone;
 pub mod collection;
 pub mod dispatch;
 pub mod element;

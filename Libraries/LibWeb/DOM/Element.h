@@ -1130,6 +1130,7 @@ inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity
 // with the other DOM hooks.
 struct RustAttributeHooks {
     static void append_attribute(Node*, size_t local_name, size_t prefix, size_t namespace_, size_t value);
+    static void reserve_attributes(Node*, size_t count);
     static void attribute_changed(Node*, QualifiedName::Impl*, size_t old_value, size_t new_value, u8 steps);
     static void synchronize_style_attribute(Node*);
     static void release_qualified_name(QualifiedName::Impl*);

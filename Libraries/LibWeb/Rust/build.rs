@@ -2838,6 +2838,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
         ("StringField", "AK::Utf16String"),
         ("MoveScope", "Web::DOM::MoveScope"),
+        ("CloneScope", "Web::DOM::CloneScope"),
         ("RangeCell", "Web::DOM::AbstractRange"),
         ("NodeIteratorCell", "Web::DOM::NodeIterator"),
         ("TreeWalkerCell", "Web::DOM::TreeWalker"),
@@ -2853,7 +2854,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Event; class EventTarget; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
+        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Event; class EventTarget; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct CloneScope; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
     );
     generate_ffi_header_strict(
         dom_config,
@@ -2875,6 +2876,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/range.rs"),
             manifest_dir.join("src/dom/remove.rs"),
             manifest_dir.join("src/dom/replace.rs"),
+            manifest_dir.join("src/dom/clone.rs"),
             manifest_dir.join("src/dom/rooted_nodes.rs"),
             manifest_dir.join("src/dom/adopt.rs"),
             manifest_dir.join("src/dom/collection.rs"),

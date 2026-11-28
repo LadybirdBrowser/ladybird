@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const depth = 3000;
+        const outer = document.createElement("div");
+        let host = outer;
+        for (let i = 0; i < depth; ++i) {
+            const shadowRoot = host.attachShadow({ mode: "open", clonable: true });
+            const span = document.createElement("span");
+            span.textContent = i;
+            shadowRoot.appendChild(span);
+            const inner = document.createElement("div");
+            shadowRoot.appendChild(inner);
+            host = inner;
+        }
+
+        const clone = outer.cloneNode(false);
+        let levels = 0;
+        let matches = true;
+        for (let current = clone; current.shadowRoot; current = current.shadowRoot.lastChild) {
+            if (current.shadowRoot.firstChild.textContent !== String(levels))
+                matches = false;
+            ++levels;
+        }
+        println(`Cloned shadow roots: ${levels}`);
+        println(`Contents in order: ${matches}`);
+    });
+</script>

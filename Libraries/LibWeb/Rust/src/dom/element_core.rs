@@ -185,12 +185,12 @@ const _: () = assert!(offset_of!(Attribute, value) == 8);
 #[repr(C)]
 struct AttributeListHeader {
     size: UnsafeCell<u32>,
-    _capacity: UnsafeCell<u32>,
+    capacity: UnsafeCell<u32>,
 }
 
 const _: () = assert!(size_of::<AttributeListHeader>() == 8 && align_of::<Attribute>() == 8);
 const _: () = assert!(offset_of!(AttributeListHeader, size) == 0);
-const _: () = assert!(offset_of!(AttributeListHeader, _capacity) == 4);
+const _: () = assert!(offset_of!(AttributeListHeader, capacity) == 4);
 
 /// A field that holds the attributes of an element, laid out as C++'s AK::OwnPtr<DOM::AttributeList>, which is what C++
 /// sees it as: the list, which C++ allocates and frees, or null for an element that never had an attribute.
@@ -238,6 +238,36 @@ impl AttributeListField {
     pub(super) unsafe fn replace_value(&self, index: usize, value: ak::Utf16String) -> ak::Utf16String {
         // SAFETY: Guaranteed by the caller, and the attribute at `index` is in the list, which as_slice() checks.
         unsafe { self.as_slice()[index].value.replace(value) }
+    }
+
+    /// Whether the list has room for one more attribute.
+    #[inline(always)]
+    pub(super) fn has_room_for_one_more(&self) -> bool {
+        // SAFETY: C++ does not write the field, or the list it owns, while Rust reads it.
+        unsafe {
+            let list = *self.0.get();
+            !list.is_null() && *(*list).size.get() < *(*list).capacity.get()
+        }
+    }
+
+    /// Appends an attribute named `name` whose value is `value`, whose references pass to the list, as
+    /// DOM::AttributeList::unchecked_append() does.
+    ///
+    /// # Safety
+    ///
+    /// The list must have room for one more attribute, see has_room_for_one_more(), and nothing may borrow an
+    /// attribute of the list.
+    #[inline(always)]
+    pub(super) unsafe fn append_unchecked(&self, name: NonNull<QualifiedNameImpl>, value: ak::Utf16String) {
+        let (attributes, size) = self.raw_parts().expect("the list has room");
+        // SAFETY: Guaranteed by the caller. An attribute is a qualified name and a string, each a word that holds a
+        //         reference, which moves into the slot after the last attribute.
+        unsafe {
+            let attribute = attributes.add(*size as usize);
+            attribute.cast::<NonNull<QualifiedNameImpl>>().write(name);
+            attribute.cast::<usize>().add(1).write(value.into_raw());
+            *size += 1;
+        }
     }
 
     /// Takes the attribute at `index` out of the list, moving the attributes after it down by one, as
@@ -488,7 +518,7 @@ impl ElementCore {
         unsafe {
             list.write(AttributeListHeader {
                 size: UnsafeCell::new(count as u32),
-                _capacity: UnsafeCell::new(count as u32),
+                capacity: UnsafeCell::new(count as u32),
             });
             for (index, (name, value)) in attributes.into_iter().enumerate() {
                 list.add(1).cast::<Attribute>().add(index).write(Attribute {

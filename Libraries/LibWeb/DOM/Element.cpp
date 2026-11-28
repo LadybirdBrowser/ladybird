@@ -424,6 +424,18 @@ void RustAttributeHooks::append_attribute(GC::Ref<Node> node, size_t local_name,
     static_cast<Element&>(*node).append_to_attribute_list(move(name), Utf16String::adopt_raw(value));
 }
 
+void RustAttributeHooks::reserve_attributes(GC::Ref<Node> node, size_t count)
+{
+    auto& attributes = static_cast<Element&>(*node).m_element_core.attributes;
+    if (!attributes) {
+        attributes = AttributeList::create(count);
+        return;
+    }
+    auto size = attributes->size();
+    if (attributes->capacity() - size < count)
+        attributes = attributes->moved_into_new_list(size + count);
+}
+
 // https://dom.spec.whatwg.org/#handle-attribute-changes
 void RustAttributeHooks::attribute_changed(Node* node, QualifiedName::Impl* name_parts, size_t old_raw_value, size_t new_raw_value, u8 steps)
 {
