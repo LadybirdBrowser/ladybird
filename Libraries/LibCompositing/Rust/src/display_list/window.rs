@@ -92,8 +92,8 @@ impl RecordedWindow {
             .all(|value| value.is_finite())
             && rect.width >= 0.0
             && rect.height >= 0.0
-            && window.device_viewport_size.width > 0
-            && window.device_viewport_size.height > 0
+            && window.device_viewport_size.width >= 0
+            && window.device_viewport_size.height >= 0
             && window.device_pixels_per_css_pixel.is_finite()
             && window.device_pixels_per_css_pixel > 0.0
             && window.scroll_offsets.iter().all(is_finite);
@@ -524,6 +524,12 @@ mod tests {
     fn a_window_from_another_process_is_one_a_recording_could_place() {
         let window = RecordedWindow::placed_at(VIEWPORT, 2.0, offsets(&empty_tree(), &[]));
         assert_eq!(RecordedWindow::from_ipc(&window.to_ipc()), Some(window.clone()));
+        let around_the_empty_viewport_of_a_frame_without_a_box =
+            RecordedWindow::placed_at(IntSize::default(), 2.0, offsets(&empty_tree(), &[]));
+        assert_eq!(
+            RecordedWindow::from_ipc(&around_the_empty_viewport_of_a_frame_without_a_box.to_ipc()),
+            Some(around_the_empty_viewport_of_a_frame_without_a_box)
+        );
         let with = |change: fn(&mut Compositing_DisplayListWindow)| {
             let mut sent = window.to_ipc();
             change(&mut sent);
@@ -531,7 +537,7 @@ mod tests {
         };
         assert_eq!(with(|sent| sent.rect.height = f32::INFINITY), None);
         assert_eq!(with(|sent| sent.rect.width = -1.0), None);
-        assert_eq!(with(|sent| sent.device_viewport_size.width = 0), None);
+        assert_eq!(with(|sent| sent.device_viewport_size.width = -1), None);
         assert_eq!(with(|sent| sent.device_pixels_per_css_pixel = f64::NAN), None);
         assert_eq!(
             with(|sent| sent.scroll_offsets = vec![FloatPoint { x: 0.0, y: f32::NAN }]),
