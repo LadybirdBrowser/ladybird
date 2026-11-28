@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <LibWeb/Fetch/Engine/EngineEventSink.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
+#include <LibWeb/Fetch/Engine/NetworkLoader.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
@@ -25,10 +26,11 @@ struct MainFetchInput {
 };
 
 struct StartFetchInput {
-    StartFetchInput(Badge<Infrastructure::FetchParams>, FetchId fetch_id, MainFetchInput main_fetch, NonnullOwnPtr<EngineEventSink> event_sink)
+    StartFetchInput(Badge<Infrastructure::FetchParams>, FetchId fetch_id, MainFetchInput main_fetch, NonnullOwnPtr<EngineEventSink> event_sink, NonnullRefPtr<NetworkLoader> network_loader)
         : fetch_id(fetch_id)
         , main_fetch(move(main_fetch))
         , event_sink(move(event_sink))
+        , network_loader(move(network_loader))
     {
     }
 
@@ -36,6 +38,7 @@ struct StartFetchInput {
     FetchId fetch_id;
     MainFetchInput main_fetch;
     NonnullOwnPtr<EngineEventSink> event_sink;
+    NonnullRefPtr<NetworkLoader> network_loader;
 };
 
 }

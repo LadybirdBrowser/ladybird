@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Traits.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Export.h>

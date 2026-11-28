@@ -131,10 +131,11 @@ void FetchEngineRecord::deliver_body(FetchByteChannel& channel)
     channel.set_delivery_id_unless_closed(DeliveryId { s_next_delivery_id.fetch_add(1) });
 }
 
-void FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* network_transport)
+void FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* network_transport, NonnullRefPtr<Infrastructure::Response> response)
 {
     ASSERT(is_on_owner_thread());
     VERIFY(!m_redirect_continuation.has_value());
+    m_manual_redirect_response = move(response);
 
     ContinuationId continuation_id { s_next_continuation_id.fetch_add(1) };
     if (auto* records = m_records.ptr())
@@ -177,6 +178,12 @@ Optional<ContinuationId> FetchEngineRecord::open_redirect_continuation_id() cons
     return m_redirect_continuation->id;
 }
 
+RefPtr<Infrastructure::Response> FetchEngineRecord::take_manual_redirect_response()
+{
+    ASSERT(is_on_owner_thread());
+    return move(m_manual_redirect_response);
+}
+
 void FetchEngineRecord::close_redirect_continuation()
 {
     auto continuation = m_redirect_continuation.release_value();
@@ -216,6 +223,19 @@ void FetchEngineRecord::main_fetch_cannot_hand_over()
     if (m_main_fetch.has<MainFetchEnded>())
         return;
     end_main_fetch();
+}
+
+void FetchEngineRecord::set_network_loader(NonnullRefPtr<NetworkLoader> network_loader)
+{
+    ASSERT(is_on_owner_thread());
+    m_network_loader = move(network_loader);
+}
+
+NetworkLoader& FetchEngineRecord::network_loader()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_network_loader);
+    return *m_network_loader;
 }
 
 KnownHSTSHostProvider& FetchEngineRecord::known_hsts_host_provider()
@@ -298,6 +318,7 @@ void FetchEngineRecord::end_fetch_unless_anything_is_left()
     if (m_ended || !m_main_fetch.has<MainFetchEnded>() || m_live_load_count > 0 || m_redirect_continuation.has_value())
         return;
     m_ended = true;
+    m_network_loader = nullptr;
     m_event_sink->handle_event(Event::FetchEnded {});
 }
 

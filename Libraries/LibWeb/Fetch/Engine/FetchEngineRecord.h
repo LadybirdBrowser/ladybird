@@ -28,6 +28,7 @@
 #include <LibWeb/Fetch/Engine/Ids.h>
 #include <LibWeb/Fetch/Engine/NetworkActivity.h>
 #include <LibWeb/Fetch/Engine/NetworkActivityObservers.h>
+#include <LibWeb/Fetch/Engine/NetworkLoader.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 
 namespace Web::Fetch::Engine {
@@ -111,9 +112,10 @@ public:
     void deliver_body(FetchByteChannel&);
 
     // Opens the continuation of a manual redirect the fetch hands over, which waits for the agent's answer. The
-    // redirect's response arrived through the given network transport, if any.
-    void open_redirect_continuation(NetworkTransportHandle*);
+    // redirect's response arrived through the given network transport, if any, and is kept for the handover.
+    void open_redirect_continuation(NetworkTransportHandle*, NonnullRefPtr<Infrastructure::Response>);
     [[nodiscard]] Optional<ContinuationId> open_redirect_continuation_id() const;
+    [[nodiscard]] RefPtr<Infrastructure::Response> take_manual_redirect_response();
 
     enum class RedirectAnswerResult : u8 {
         Settled,
@@ -138,6 +140,10 @@ public:
 
     // The provider of the executor the fetch runs on.
     [[nodiscard]] KnownHSTSHostProvider& known_hsts_host_provider();
+
+    // The loader of the fetch's network requests, which its agent gave with its start, kept until the fetch ends.
+    void set_network_loader(NonnullRefPtr<NetworkLoader>);
+    [[nodiscard]] NetworkLoader& network_loader();
 
     // Defers main fetch's work through the engine's executor; work deferred once the engine is gone never runs.
     void defer(Function<void()>);
@@ -191,6 +197,8 @@ private:
         WeakPtr<NetworkTransportHandle> network_transport;
     };
     Optional<RedirectContinuation> m_redirect_continuation;
+    RefPtr<NetworkLoader> m_network_loader;
+    RefPtr<Infrastructure::Response> m_manual_redirect_response;
 
     struct NetworkInterception {
         ContinuationId id;

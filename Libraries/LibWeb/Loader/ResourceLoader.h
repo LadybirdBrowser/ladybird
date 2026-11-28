@@ -15,6 +15,7 @@
 #include <LibCore/EventReceiver.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibGC/Function.h>
+#include <LibGC/Root.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibRequests/CacheState.h>
 #include <LibRequests/Forward.h>
@@ -24,6 +25,8 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Engine/Ids.h>
+#include <LibWeb/Fetch/Engine/NetworkLoadRequest.h>
+#include <LibWeb/Fetch/Engine/NetworkLoader.h>
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Loader/NavigatorCompatibilityMode.h>
 
@@ -51,25 +54,18 @@ public:
     // for requests without a site or without a client for that site.
     void set_client(Optional<Utf16String> const& top_level_site, NonnullRefPtr<Requests::RequestClient>);
 
-    // A callback's transport is that of the RequestServer request the load started, or null for a load that started
-    // none.
-    using OnHeadersReceived = Function<void(Fetch::Engine::NetworkTransportHandle*, HTTP::HeaderList const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase, Requests::CacheState cache_state)>;
-    using OnDataReceived = Function<void(Fetch::Engine::NetworkTransportHandle*, Requests::ResponseData data)>;
-    using OnCachedBodyAvailable = Function<void(Core::ImmutableBytes data)>;
-
-    // What RequestServer reported at the end of the request a load started.
-    struct NetworkRequestEnd {
-        Fetch::Engine::RequestId request_id;
-        u64 total_size { 0 };
-        Optional<Requests::NetworkError> network_error;
-    };
-    using OnComplete = Function<void(bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<NetworkRequestEnd> const& network_request_end)>;
+    using OnHeadersReceived = Fetch::Engine::NetworkLoader::OnHeadersReceived;
+    using OnDataReceived = Fetch::Engine::NetworkLoader::OnDataReceived;
+    using OnCachedBodyAvailable = Fetch::Engine::NetworkLoader::OnCachedBodyAvailable;
+    using NetworkRequestEnd = Fetch::Engine::NetworkLoader::NetworkRequestEnd;
+    using OnComplete = Fetch::Engine::NetworkLoader::OnComplete;
 
     // A request keeps roots into the heap of the agent that made it.
     void stop_all_requests();
 
     // The callbacks hold the cells they use in roots.
-    RefPtr<Fetch::Engine::NetworkTransportHandle> load(LoadRequest&, OnHeadersReceived, OnDataReceived, OnCachedBodyAvailable, OnComplete, Requests::RequestClient::TransferLease = Requests::RequestClient::TransferLease::No);
+    // The page, if any, decides whether content blocking applies and reads local files.
+    RefPtr<Fetch::Engine::NetworkTransportHandle> load(Fetch::Engine::NetworkLoadRequest&, GC::Ptr<Page>, OnHeadersReceived, OnDataReceived, OnCachedBodyAvailable, OnComplete, Requests::RequestClient::TransferLease = Requests::RequestClient::TransferLease::No);
 
     RefPtr<Requests::RequestClient> request_client_for(Optional<HTTP::NetworkIsolationKey> const&) const;
     RefPtr<Requests::RequestClient> request_client_for_top_level_site(Optional<Utf16String> const&) const;
@@ -102,13 +98,13 @@ private:
         Requests::RequestTimingInfo timing_info {};
     };
     template<typename FileHandler, typename ErrorHandler>
-    void handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error);
+    void handle_file_load_request(Fetch::Engine::NetworkLoadRequest& request, GC::Ptr<Page>, FileHandler on_file, ErrorHandler on_error);
     template<typename ResourceHandler, typename ErrorHandler>
-    void handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
+    void handle_about_load_request(Fetch::Engine::NetworkLoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
     template<typename ResourceHandler, typename ErrorHandler>
-    void handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
+    void handle_resource_load_request(Fetch::Engine::NetworkLoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error);
 
-    RefPtr<Requests::Request> start_network_request(LoadRequest const&, Requests::RequestClient::TransferLease);
+    RefPtr<Requests::Request> start_network_request(Fetch::Engine::NetworkLoadRequest const&, Requests::RequestClient::TransferLease);
     void finish_network_request(NonnullRefPtr<Requests::Request>);
 
     GC::Heap& m_heap;
@@ -117,6 +113,20 @@ private:
     HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
 
     static Atomic<NavigatorCompatibilityMode, AK::MemoryOrder::memory_order_relaxed> s_navigator_compatibility_mode;
+};
+
+// Loads a fetch's network requests through its agent's resource loader, for the fetch's page.
+class PageNetworkLoader final : public Fetch::Engine::NetworkLoader {
+public:
+    [[nodiscard]] static NonnullRefPtr<PageNetworkLoader> create(Page&);
+
+    virtual bool can_load() const override;
+    virtual RefPtr<Fetch::Engine::NetworkTransportHandle> load(Fetch::Engine::NetworkLoadRequest&, OnHeadersReceived, OnDataReceived, OnCachedBodyAvailable, OnComplete, Requests::RequestClient::TransferLease) override;
+
+private:
+    explicit PageNetworkLoader(Page&);
+
+    GC::Root<Page> m_page;
 };
 
 }

@@ -70,8 +70,7 @@ TEST_CASE(http_redirect_fetch_releases_intermediate_response_transfer_lease)
     response->set_status(302);
     response->set_header_list(HTTP::HeaderList::create({ { "Location"sv, "/redirected"sv } }));
 
-    auto pending_response = Web::Fetch::Fetching::http_redirect_fetch(fetch_params, response);
+    (void)Web::Fetch::Fetching::http_redirect_fetch(fetch_params, response);
 
-    VERIFY(pending_response);
     EXPECT(response->transfer_lease_was_released());
 }

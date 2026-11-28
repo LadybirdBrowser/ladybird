@@ -522,6 +522,39 @@ TEST_CASE(a_redirect_followed_after_its_fetch_was_aborted_runs_no_hop)
     EXPECT(!is_rooted(controller->token()));
 }
 
+// The abort lands after the redirect's headers arrived but before main fetch hands the redirect over, so the redirect
+// reaches the agent with no continuation for it to answer.
+TEST_CASE(a_redirect_handed_over_after_its_fetch_was_aborted_moves_its_request_on_and_posts_nothing)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_navigation_request_for("http://127.0.0.1:8000/early-aborted-redirect"sv);
+    auto controller = GC::make_root(harness.fetch_as_a_navigation(request, recording_responses(harness.realm->heap(), record)));
+    auto redirect_id = request_server.wait_for_request("GET"sv);
+    request_server.send_headers(redirect_id, 302, { location("/early-aborted-final"sv) });
+    event_loop.pump(Core::EventLoop::WaitMode::WaitForEvents);
+    harness.with_execution_context([&] { controller->abort(*harness.realm, {}); });
+    harness.run_until_responses(record, 1);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+
+    // The abort stops the request before main fetch opens the redirect, which releases the lease.
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /early-aborted-redirect", "stop 0", "release lease 0" }));
+
+    // The redirect's steps move the request on to the next URL, and post no answer.
+    harness.with_execution_context([&] { controller->process_next_manual_redirect(); });
+    harness.settle();
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "abort 1", "end of fetch 1" }));
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /early-aborted-redirect", "stop 0", "release lease 0" }));
+    EXPECT_EQ(describe_responses(*record), (Vector<ByteString> { "302" }));
+    EXPECT_EQ(request->redirect_count(), 1);
+    EXPECT(!is_rooted(controller->token()));
+}
+
 // Another navigation takes over while the redirect's process response task is queued.
 TEST_CASE(a_navigation_aborted_while_its_redirect_waits_gets_no_network_error)
 {

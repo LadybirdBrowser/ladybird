@@ -11,13 +11,19 @@
 #include <AK/ByteBuffer.h>
 #include <AK/RefCounted.h>
 #include <LibCore/ImmutableBytes.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Engine/FetchBodyDeliveryGate.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
-#include <LibWeb/Forward.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class FetchParams;
+class Response;
+
+}
 
 namespace Web::Fetch::Fetching {
 

@@ -9,12 +9,10 @@
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibWeb/Fetch/Engine/EngineEvent.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
-#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Fetching/EngineFetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
-#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HighResolutionTime/Clocks.h>
 

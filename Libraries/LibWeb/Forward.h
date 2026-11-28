@@ -61,7 +61,6 @@ class ElementResizeAction;
 class EventHandler;
 class MiddleButtonScrollHandler;
 class InputEventsTarget;
-class LoadRequest;
 class Page;
 class PageClient;
 class Resource;

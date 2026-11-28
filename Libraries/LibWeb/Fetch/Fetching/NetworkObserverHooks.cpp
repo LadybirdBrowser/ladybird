@@ -7,7 +7,6 @@
 #include <AK/Array.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
 #include <LibWeb/Fetch/Fetching/NetworkObserverHooks.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 

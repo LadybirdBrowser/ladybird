@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 
 namespace Web::Fetch::Fetching {
 

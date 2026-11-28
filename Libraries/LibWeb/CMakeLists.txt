@@ -283,6 +283,7 @@ set(SOURCES
     Fetch/Engine/NetworkTransportHandle.cpp
     Fetch/Engine/WholeBodyRead.cpp
     Fetch/Engine/WholeBodyTransport.cpp
+    Fetch/Fetching/AgentFetching.cpp
     Fetch/Fetching/BodyStreamPullSource.cpp
     Fetch/Fetching/Checks.cpp
     Fetch/Fetching/ClientContextSnapshots.cpp

@@ -15,7 +15,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Fetch/Fetching/FetchEngine.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <WebContent/Worker/ConnectionFromClient.h>

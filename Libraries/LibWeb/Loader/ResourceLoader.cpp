@@ -25,7 +25,6 @@
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
-#include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -252,14 +251,14 @@ void ResourceLoader::look_up_known_hsts_host(Optional<HTTP::NetworkIsolationKey>
     request_client->look_up_known_hsts_host(host, move(on_answer));
 }
 
-static void log_request_start(LoadRequest const& request)
+static void log_request_start(Fetch::Engine::NetworkLoadRequest const& request)
 {
     auto url_for_logging = sanitized_url_for_logging(*request.url());
 
     dbgln_if(SPAM_DEBUG, "ResourceLoader: Starting load of: \"{}\"", url_for_logging);
 }
 
-static void log_success(LoadRequest const& request)
+static void log_success(Fetch::Engine::NetworkLoadRequest const& request)
 {
     auto url_for_logging = sanitized_url_for_logging(*request.url());
     auto load_time_ms = request.load_time().to_milliseconds();
@@ -268,7 +267,7 @@ static void log_success(LoadRequest const& request)
 }
 
 template<typename ErrorType>
-static void log_failure(LoadRequest const& request, ErrorType const& error)
+static void log_failure(Fetch::Engine::NetworkLoadRequest const& request, ErrorType const& error)
 {
     auto url_for_logging = sanitized_url_for_logging(*request.url());
     auto load_time_ms = request.load_time().to_milliseconds();
@@ -277,7 +276,7 @@ static void log_failure(LoadRequest const& request, ErrorType const& error)
 }
 
 // What kind of resource a blocked request was for, as the browser names it to the user.
-static StringView blocked_resource_kind(LoadRequest const& request)
+static StringView blocked_resource_kind(Fetch::Engine::NetworkLoadRequest const& request)
 {
     using Destination = Fetch::Infrastructure::Request::Destination;
     if (!request.destination().has_value())
@@ -317,7 +316,7 @@ static StringView blocked_resource_kind(LoadRequest const& request)
     VERIFY_NOT_REACHED();
 }
 
-static bool should_block_request(LoadRequest const& request)
+static bool should_block_request(Fetch::Engine::NetworkLoadRequest const& request, GC::Ptr<Page> page)
 {
     auto const& url = request.url().value();
 
@@ -335,7 +334,7 @@ static bool should_block_request(LoadRequest const& request)
         return true;
     }
 
-    if (auto page = request.page(); !page || page->content_blocking_enabled_for_url(request.top_level_creation_url())) {
+    if (!page || page->content_blocking_enabled_for_url(request.top_level_creation_url())) {
         auto source_url = request.source_url().value_or(url);
         if (ContentBlocker::the().is_filtered(url, source_url, request.destination(), request.initiator_type(), request.request_mode())) {
             if (page)
@@ -348,9 +347,8 @@ static bool should_block_request(LoadRequest const& request)
 }
 
 template<typename FileHandler, typename ErrorHandler>
-void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler on_file, ErrorHandler on_error)
+void ResourceLoader::handle_file_load_request(Fetch::Engine::NetworkLoadRequest& request, GC::Ptr<Page> page, FileHandler on_file, ErrorHandler on_error)
 {
-    auto page = request.page();
     if (!page) {
         auto const error_message = ByteString("INTERNAL ERROR: No Page for file scheme request"sv);
         on_error(error_message);
@@ -415,7 +413,7 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
 }
 
 template<typename ResourceHandler, typename ErrorHandler>
-void ResourceLoader::handle_about_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
+void ResourceLoader::handle_about_load_request(Fetch::Engine::NetworkLoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
 {
     auto const& url = request.url().value();
 
@@ -446,7 +444,7 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Resou
 }
 
 template<typename ResourceHandler, typename ErrorHandler>
-void ResourceLoader::handle_resource_load_request(LoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
+void ResourceLoader::handle_resource_load_request(Fetch::Engine::NetworkLoadRequest const& request, ResourceHandler on_resource, ErrorHandler on_error)
 {
     auto const& url = request.url().value();
 
@@ -488,14 +486,14 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
     on_resource(load_result);
 }
 
-RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& request, OnHeadersReceived on_headers_received, OnDataReceived on_data_received, OnCachedBodyAvailable on_cached_body_available, OnComplete on_complete, Requests::RequestClient::TransferLease transfer_lease)
+RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(Fetch::Engine::NetworkLoadRequest& request, GC::Ptr<Page> page, OnHeadersReceived on_headers_received, OnDataReceived on_data_received, OnCachedBodyAvailable on_cached_body_available, OnComplete on_complete, Requests::RequestClient::TransferLease transfer_lease)
 {
     auto const& url = request.url().value();
 
     log_request_start(request);
     request.start_timer();
 
-    if (should_block_request(request)) {
+    if (should_block_request(request, page)) {
         on_complete(false, {}, "Request was blocked"sv, {});
         return nullptr;
     }
@@ -540,6 +538,7 @@ RefPtr<Fetch::Engine::NetworkTransportHandle> ResourceLoader::load(LoadRequest& 
         auto callbacks = make_ref_counted<LocalLoadCallbacks>(move(on_headers_received), move(on_data_received), move(on_complete));
         handle_file_load_request(
             request,
+            page,
             [request, callbacks](FileLoadResult const& load_result) {
                 log_success(request);
                 callbacks->on_headers_received(nullptr, load_result.response_headers, {}, {}, Requests::CacheState::NotCached);
@@ -626,7 +625,7 @@ static NonnullRefPtr<HTTP::HeaderList const> headers_with_normalized_values(HTTP
     return normalized_headers;
 }
 
-RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::TransferLease transfer_lease)
+RefPtr<Requests::Request> ResourceLoader::start_network_request(Fetch::Engine::NetworkLoadRequest const& request, Requests::RequestClient::TransferLease transfer_lease)
 {
     // FIXME: We could put this request in a queue until the client connection is re-established.
     auto request_client = request_client_for(request.network_isolation_key());
@@ -654,6 +653,26 @@ void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> pro
 {
     if (!m_active_requests.remove(protocol_request))
         warnln("ResourceLoader: finish_network_request() called for request {}, which is not active", protocol_request->id());
+}
+
+NonnullRefPtr<PageNetworkLoader> PageNetworkLoader::create(Page& page)
+{
+    return adopt_ref(*new PageNetworkLoader(page));
+}
+
+PageNetworkLoader::PageNetworkLoader(Page& page)
+    : m_page(page)
+{
+}
+
+bool PageNetworkLoader::can_load() const
+{
+    return ResourceLoader::is_initialized();
+}
+
+RefPtr<Fetch::Engine::NetworkTransportHandle> PageNetworkLoader::load(Fetch::Engine::NetworkLoadRequest& request, OnHeadersReceived on_headers_received, OnDataReceived on_data_received, OnCachedBodyAvailable on_cached_body_available, OnComplete on_complete, Requests::RequestClient::TransferLease transfer_lease)
+{
+    return ResourceLoader::the().load(request, m_page.ptr(), move(on_headers_received), move(on_data_received), move(on_cached_body_available), move(on_complete), transfer_lease);
 }
 
 }

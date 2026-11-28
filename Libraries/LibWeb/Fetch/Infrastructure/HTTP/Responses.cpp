@@ -8,7 +8,6 @@
 #include <AK/TypeCasts.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>

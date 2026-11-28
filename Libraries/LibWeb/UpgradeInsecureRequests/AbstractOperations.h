@@ -7,7 +7,12 @@
 #pragma once
 
 #include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+
+}
 
 namespace Web::UpgradeInsecureRequests {
 

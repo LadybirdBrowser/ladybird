@@ -9,10 +9,21 @@
 #include <AK/Function.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
-#include <LibGC/Forward.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/Forward.h>
+
+namespace Web::Fetch::Engine {
+
+class FetchEngineRecord;
+
+}
+
+namespace Web::Fetch::Infrastructure {
+
+class FetchParams;
+
+}
 
 namespace Web::Fetch::Fetching {
 
