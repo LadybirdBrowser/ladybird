@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A cross-origin beacon with a Content-Type that is not CORS-safelisted is preceded by a CORS preflight.
+    // The preflight is refused, so the request the server records must be the OPTIONS request.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const url = await httpServer.createEcho("OPTIONS", "/beacon-preflight", { status: 200 });
+
+        const body = new Blob([JSON.stringify({ hello: "world" })], { type: "application/json" });
+        println(`beacon queued: ${navigator.sendBeacon(url, body)}`);
+
+        await httpServer.waitForRequest(url);
+        const headers = await (await fetch(httpServer.recordedRequestHeadersURL(url))).json();
+        const requestMethod = headers["Access-Control-Request-Method"] ?? headers["access-control-request-method"];
+        println(`preflight request method: ${requestMethod}`);
+        done();
+    });
+</script>
