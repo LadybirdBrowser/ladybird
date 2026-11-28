@@ -4,12 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/DOM/Attr.h>
-#include <LibWeb/DOM/CDATASection.h>
-#include <LibWeb/DOM/Comment.h>
-#include <LibWeb/DOM/DocumentFragment.h>
-#include <LibWeb/DOM/DocumentType.h>
-#include <LibWeb/DOM/ProcessingInstruction.h>
+#include <LibWeb/DOM/ElementLayout.h>
+#include <LibWeb/DOM/NodeClassHeadersGenerated.h>
 
 namespace Web::DOM {
 
@@ -93,6 +89,64 @@ struct RustNodeObjectHooks {
         };
     }
 };
+
+// The layout class of the class T of nodes: the class whose behavior the object libweb_rust lays out for a node of T
+// stands for, which is T itself for a class whose objects libweb_rust defines whole, and the layout class of an element
+// (see DOM/ElementLayout.h). A shadow root is a DocumentFragment, and a document a ParentNode, with a payload.
+template<typename T>
+struct NodeLayout {
+    using Class = T;
+};
+
+template<typename T>
+requires(IsBaseOf<Element, T>)
+struct NodeLayout<T> {
+    using Class = typename ElementLayout<T>::Class;
+};
+
+template<>
+struct NodeLayout<ShadowRoot> {
+    using Class = DocumentFragment;
+};
+
+template<typename T>
+requires(IsBaseOf<Document, T>)
+struct NodeLayout<T> {
+    using Class = ParentNode;
+};
+
+// What libweb_rust needs to know of the class T of nodes (see NodeClassFacts in Rust/src/dom/node_class.rs).
+template<typename T>
+static constexpr RustFFI::NodeClassFacts facts_of()
+{
+    using Layout = typename NodeLayout<T>::Class;
+    u32 flags = 0;
+    if constexpr (!IsSame<T, Layout>) {
+        if constexpr (!GC::CellConstructionHook<T>::template adds_nothing_to<Layout>())
+            flags = GC::CellConstructionHook<T>::template payload_flags<Layout>();
+    }
+    return { .cell_size = static_cast<u32>(sizeof(T)), .flags = flags };
+}
+
+// NB: An element of a class has a payload exactly where DOM::allocate_element() constructs one.
+#define __ENUMERATE_RUST_OWNED_ELEMENT_CLASS(T) \
+    static_assert(((facts_of<T>().flags & RustFFI::NODE_OBJECT_HAS_PAYLOAD) != 0) == element_class_has_payload<T>);
+ENUMERATE_RUST_OWNED_ELEMENT_CLASSES(__ENUMERATE_RUST_OWNED_ELEMENT_CLASS)
+#undef __ENUMERATE_RUST_OWNED_ELEMENT_CLASS
+
+// The facts of each class of nodes, by class id, which libweb_rust reads as it registers the classes.
+static consteval Array<RustFFI::NodeClassFacts, node_class_id_count> compute_node_class_facts()
+{
+    Array<RustFFI::NodeClassFacts, node_class_id_count> facts {};
+#define __ENUMERATE_NODE_CLASS(T) \
+    facts[to_underlying(NodeClassTraits<T>::id)] = facts_of<T>();
+    ENUMERATE_NODE_CLASSES(__ENUMERATE_NODE_CLASS)
+#undef __ENUMERATE_NODE_CLASS
+    return facts;
+}
+
+extern "C" WEB_API Array<RustFFI::NodeClassFacts, node_class_id_count> const ladybird_dom_node_class_facts;
+constinit Array<RustFFI::NodeClassFacts, node_class_id_count> const ladybird_dom_node_class_facts = compute_node_class_facts();
 
 static RustFFI::NodeObjectHooks const s_rust_node_object_hooks = RustNodeObjectHooks::make();
 

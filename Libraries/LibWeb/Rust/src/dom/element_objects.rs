@@ -13,7 +13,7 @@
 //! and C++ keeps the class as a shell over it, as for the nodes of node_objects.rs. Any other class has a payload after
 //! it: the members of the classes from the layout class down, which C++ constructs in place over the prefix Rust made
 //! (see DOM::RustMadePrefix), and the vtable pointers C++ writes as it does. C++ works out the facts of each class as it
-//! compiles, see ElementClassFacts: the size of its cells, and whether its payload has cells to visit, memory to measure
+//! compiles, see NodeClassFacts: the size of its cells, and whether its payload has cells to visit, memory to measure
 //! or anything to finalize. Rust traces, finalizes, measures and destroys every element, and calls into C++ for the
 //! payload of an element only where its class says that C++ has something to do. The one part of a payload that Rust
 //! defines, the core of an HTML::HTMLSlotElement, Rust traces itself.
@@ -39,7 +39,10 @@ use super::attributes::HTML_NAMESPACE;
 use super::element_core::ELEMENT_USES_DOCUMENT_GLOBAL_CUSTOM_ELEMENT_REGISTRY;
 use super::element_core::ElementCore;
 use super::node::NodeCell;
-use super::node_class::NODE_CLASS_ID_COUNT;
+use super::node_class::NODE_OBJECT_HAS_PAYLOAD;
+use super::node_class::NODE_OBJECT_PAYLOAD_HAS_EDGES;
+use super::node_class::NODE_OBJECT_PAYLOAD_HAS_EXTERNAL_MEMORY;
+use super::node_class::NODE_OBJECT_PAYLOAD_NEEDS_FINALIZE;
 use super::node_class::NodeClassId;
 use super::node_class::RUST_OWNED_ELEMENT_CLASS_INDICES;
 use super::node_class::RUST_OWNED_ELEMENT_CLASSES;
@@ -65,42 +68,7 @@ crate::stage::main_thread_ffi_entries!(without_host);
 /// The number of classes of elements whose objects Rust defines.
 const CLASS_COUNT: usize = RUST_OWNED_ELEMENT_CLASSES.len();
 
-/// What Rust needs to know of a class of elements whose objects it defines, which C++ works out from the class as it
-/// compiles, see DOM/ElementObjects.cpp.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct ElementClassFacts {
-    /// The size of an element of the class, its payload included.
-    pub cell_size: u32,
-    /// The ELEMENT_CLASS_* bits of the class.
-    pub flags: u32,
-}
-
-/// Whether an element of the class has a payload after the object of its layout class, which C++ constructs over the
-/// prefix Rust made, and destroys.
-pub const ELEMENT_CLASS_HAS_PAYLOAD: u32 = 1 << 0;
-/// Whether the payload holds cells, which only the visit_edges() of the class visits.
-pub const ELEMENT_CLASS_PAYLOAD_HAS_EDGES: u32 = 1 << 1;
-/// Whether the payload holds memory outside the heap, which only the external_memory_size() of the class measures.
-pub const ELEMENT_CLASS_PAYLOAD_HAS_EXTERNAL_MEMORY: u32 = 1 << 2;
-/// Whether the class finalizes its payload, in a finalize() of its own.
-pub const ELEMENT_CLASS_PAYLOAD_NEEDS_FINALIZE: u32 = 1 << 3;
-
-#[cfg(not(test))]
-#[allow(non_upper_case_globals, reason = "the table is named as in C++")]
-unsafe extern "C" {
-    /// The facts of each class of elements whose objects Rust defines, by class id, which DOM/ElementObjects.cpp
-    /// defines.
-    safe static ladybird_dom_element_class_facts: [ElementClassFacts; NODE_CLASS_ID_COUNT];
-}
-
-/// The unit tests make no elements of these classes.
-#[cfg(test)]
-#[allow(non_upper_case_globals, reason = "the table is named as in C++")]
-static ladybird_dom_element_class_facts: [ElementClassFacts; NODE_CLASS_ID_COUNT] =
-    [ElementClassFacts { cell_size: 0, flags: 0 }; NODE_CLASS_ID_COUNT];
-
-/// The ELEMENT_CLASS_* bits of the class of the element at `cell`.
+/// The NODE_OBJECT_* bits of the class of the element at `cell`.
 ///
 /// # Safety
 ///
@@ -108,7 +76,7 @@ static ladybird_dom_element_class_facts: [ElementClassFacts; NODE_CLASS_ID_COUNT
 #[inline(always)]
 unsafe fn class_flags(cell: *const c_void) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    ladybird_dom_element_class_facts[unsafe { NodeClassId::of_cell(cell) }.index()].flags
+    unsafe { NodeClassId::of_cell(cell) }.facts().flags
 }
 
 /// The vtable pointers C++ writes into an element of a class whose objects Rust defines, as it would construct one:
@@ -278,7 +246,7 @@ fn trace_payload<'c, T: ElementLayoutObject>(object: &'c T, visitor: &mut Visito
         // SAFETY: A slot starts with its HTMLSlotElementPrefix, which HTMLSlotElement.cpp asserts.
         unsafe { &*cell.cast::<HTMLSlotElementPrefix>() }.core.trace(visitor);
     }
-    let hook = if ladybird_dom_element_class_facts[class_id.index()].flags & ELEMENT_CLASS_PAYLOAD_HAS_EDGES != 0 {
+    let hook = if class_id.facts().flags & NODE_OBJECT_PAYLOAD_HAS_EDGES != 0 {
         element_objects().hooks.visit_edges
     } else {
         // SAFETY: LibGC traces live elements, which C++ does not change meanwhile.
@@ -308,7 +276,7 @@ unsafe fn destroy<T: ElementLayoutObject>(object: &T) {
     let element = object.element();
     // SAFETY: Guaranteed by the caller. The destructor of DOM::Element takes the core as release() leaves it.
     unsafe {
-        let has_payload = class_flags(core::ptr::from_ref(object).cast()) & ELEMENT_CLASS_HAS_PAYLOAD != 0;
+        let has_payload = class_flags(core::ptr::from_ref(object).cast()) & NODE_OBJECT_HAS_PAYLOAD != 0;
         element.core.release(&mut main_thread);
         let objects = element_objects();
         if has_payload || element.needs_cxx_destroy(objects.null_weak_impl) {
@@ -350,7 +318,7 @@ unsafe extern "C" fn traced_on_owner_thread(cell: *const c_void) -> bool {
 unsafe extern "C" fn finalize(cell: *mut c_void) {
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        if class_flags(cell) & ELEMENT_CLASS_PAYLOAD_NEEDS_FINALIZE != 0 || element_at(cell).needs_cxx_finalize() {
+        if class_flags(cell) & NODE_OBJECT_PAYLOAD_NEEDS_FINALIZE != 0 || element_at(cell).needs_cxx_finalize() {
             (element_objects().hooks.finalize)(&*cell.cast::<NodeCell>());
         }
     }
@@ -367,7 +335,7 @@ unsafe extern "C" fn external_memory_size(cell: *const c_void) -> usize {
     // SAFETY: Guaranteed by the caller.
     unsafe {
         let element = element_at(cell);
-        if class_flags(cell) & ELEMENT_CLASS_PAYLOAD_HAS_EXTERNAL_MEMORY != 0 || element.has_cxx_external_memory() {
+        if class_flags(cell) & NODE_OBJECT_PAYLOAD_HAS_EXTERNAL_MEMORY != 0 || element.has_cxx_external_memory() {
             return (element_objects().hooks.external_memory_size)(&*cell.cast::<NodeCell>());
         }
         element.core.attribute_list().external_memory_size()
@@ -411,7 +379,7 @@ fn type_info_of_class(class_id: NodeClassId, layout: NodeClassId) -> CellTypeInf
             type_info_of::<ElementObject>()
         }
     };
-    let cell_size = ladybird_dom_element_class_facts[class_id.index()].cell_size;
+    let cell_size = class_id.facts().cell_size;
     assert!(
         cell_size >= type_info.cell_size && cell_size.is_multiple_of(type_info.alignment),
         "an element of a class is at least an object of its layout class"
@@ -457,8 +425,8 @@ pub unsafe extern "C" fn rust_dom_register_element_objects(hooks: &'static Eleme
     let classes = core::array::from_fn(|index| {
         let vtables = vtables[index];
         let (class_id, layout, name) = RUST_OWNED_ELEMENT_CLASSES[index];
-        let flags = ladybird_dom_element_class_facts[class_id.index()].flags;
-        if flags & ELEMENT_CLASS_HAS_PAYLOAD == 0 {
+        let flags = class_id.facts().flags;
+        if flags & NODE_OBJECT_HAS_PAYLOAD == 0 {
             // SAFETY: Guaranteed by the caller.
             assert!(
                 unsafe { probe_holds_new_slots(&vtables, layout) },
@@ -486,7 +454,7 @@ pub unsafe extern "C" fn rust_dom_register_element_objects(hooks: &'static Eleme
     }
 }
 
-/// The allocator of the class of elements whose type info is `type_info`, named `name`, with the ELEMENT_CLASS_* bits
+/// The allocator of the class of elements whose type info is `type_info`, named `name`, with the NODE_OBJECT_* bits
 /// `flags`. The cells of a class whose payload C++ visits or measures are traced on the thread that owns their heap, as
 /// LibGC does for every C++ cell. Any thread may trace the cells of another class, see traced_on_owner_thread(). As for
 /// every node, the allocator is not movable, see allocator_of() in node_objects.rs.
@@ -498,7 +466,7 @@ unsafe fn allocator_of_class(type_info: &'static CellTypeInfo, name: &'static st
     // SAFETY: The allocator lives for the rest of the process, as the heaps it allocates from may, and the address of the
     //         type info, which lives as long, is unique to the class. Guaranteed by the caller.
     let allocator = unsafe { Allocator::new(type_info, name, core::ptr::from_ref(type_info).cast()) };
-    if flags & (ELEMENT_CLASS_PAYLOAD_HAS_EDGES | ELEMENT_CLASS_PAYLOAD_HAS_EXTERNAL_MEMORY) != 0 {
+    if flags & (NODE_OBJECT_PAYLOAD_HAS_EDGES | NODE_OBJECT_PAYLOAD_HAS_EXTERNAL_MEMORY) != 0 {
         // SAFETY: The allocator is live, and no heap allocated from it yet.
         unsafe { capi::gc_allocator_set_traced_on_owner_thread_only(allocator.as_raw()) };
     }
@@ -556,8 +524,7 @@ pub(super) fn create_element(
     let (class_id, layout, _) = RUST_OWNED_ELEMENT_CLASSES[index];
     // NB: The constructor of DOM::Element gives an element with a payload the state "undefined" again.
     debug_assert!(
-        ladybird_dom_element_class_facts[class_id.index()].flags & ELEMENT_CLASS_HAS_PAYLOAD == 0
-            || custom_element_state == CUSTOM_ELEMENT_STATE_UNDEFINED
+        class_id.facts().flags & NODE_OBJECT_HAS_PAYLOAD == 0 || custom_element_state == CUSTOM_ELEMENT_STATE_UNDEFINED
     );
     let words = CxxWords {
         vtable: vtables.vtable.addr() as u64,
@@ -611,9 +578,7 @@ pub(super) fn clone_element(
 ) -> Option<NodeRef> {
     let index = RUST_OWNED_ELEMENT_CLASS_INDICES[node.class_id().index()];
     // NB: C++ constructs the payload of an element, and copies it in the cloning steps of its class.
-    if index == u8::MAX
-        || ladybird_dom_element_class_facts[node.class_id().index()].flags & ELEMENT_CLASS_HAS_PAYLOAD != 0
-    {
+    if index == u8::MAX || node.class_id().facts().flags & NODE_OBJECT_HAS_PAYLOAD != 0 {
         return None;
     }
     // SAFETY: The node is a live element of a class whose objects Rust defines, which C++ does not change meanwhile.

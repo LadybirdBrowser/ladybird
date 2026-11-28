@@ -36,16 +36,6 @@ struct RustElementObjectHooks {
         return element_class_has_payload<T> && is_constructible && !has_allocator && alignof(T) == alignof(Layout) && keeps_initialize;
     }
 
-    // What libweb_rust needs to know of each class of elements whose objects it defines, by class id.
-    template<typename T>
-    static constexpr RustFFI::ElementClassFacts facts_of()
-    {
-        u32 flags = 0;
-        if constexpr (element_class_has_payload<T>)
-            flags = GC::CellConstructionHook<T>::template element_payload_flags<typename ElementLayout<T>::Class>();
-        return { .cell_size = static_cast<u32>(sizeof(T)), .flags = flags };
-    }
-
     static Element& element_of(Node const* node)
     {
         return const_cast<Element&>(static_cast<Element const&>(*node));
@@ -163,21 +153,6 @@ struct RustElementObjectHooks {
     static_assert(RustElementObjectHooks::is_shell<T>() || RustElementObjectHooks::is_payload_class<T>(), #T " must be a shell, or a class with a payload that C++ only constructs over the prefix libweb_rust makes");
 ENUMERATE_RUST_OWNED_ELEMENT_CLASSES(__ENUMERATE_RUST_OWNED_ELEMENT_CLASS)
 #undef __ENUMERATE_RUST_OWNED_ELEMENT_CLASS
-
-// The facts of each class of elements whose objects libweb_rust defines, by class id, which it reads as it registers
-// the classes (see Rust/src/dom/element_objects.rs). The entries of other classes are empty.
-static consteval Array<RustFFI::ElementClassFacts, node_class_id_count> compute_element_class_facts()
-{
-    Array<RustFFI::ElementClassFacts, node_class_id_count> facts {};
-#define __ENUMERATE_RUST_OWNED_ELEMENT_CLASS(T) \
-    facts[to_underlying(NodeClassTraits<T>::id)] = RustElementObjectHooks::facts_of<T>();
-    ENUMERATE_RUST_OWNED_ELEMENT_CLASSES(__ENUMERATE_RUST_OWNED_ELEMENT_CLASS)
-#undef __ENUMERATE_RUST_OWNED_ELEMENT_CLASS
-    return facts;
-}
-
-extern "C" WEB_API Array<RustFFI::ElementClassFacts, node_class_id_count> const ladybird_dom_element_class_facts;
-constinit Array<RustFFI::ElementClassFacts, node_class_id_count> const ladybird_dom_element_class_facts = compute_element_class_facts();
 
 // NB: libweb_rust asserts the sizes and alignments of the objects of the layout classes.
 static_assert(sizeof(Element) == sizeof(RustFFI::ElementObject) && alignof(Element) == alignof(RustFFI::ElementObject));

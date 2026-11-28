@@ -845,31 +845,37 @@ struct CellConstructionHook<T> {
     static constexpr bool adds_nothing_to()
     {
         static_assert(IsBaseOf<L, T>);
+        constexpr bool keeps_initialize_element = [] {
+            if constexpr (IsBaseOf<Web::DOM::Element, L>)
+                return IsSame<decltype(&T::initialize_element), decltype(&L::initialize_element)>;
+            else
+                return true;
+        }();
         return sizeof(T) == sizeof(L) && size_without_tail_padding<T>() == size_without_tail_padding<L>() && alignof(T) == alignof(L)
             && IsSame<decltype(&T::visit_edges), decltype(&L::visit_edges)>
             && IsSame<decltype(&T::finalize), decltype(&L::finalize)>
             && IsSame<decltype(&T::external_memory_size), decltype(&L::external_memory_size)>
             && IsSame<decltype(&T::initialize), decltype(&L::initialize)>
-            && IsSame<decltype(&T::initialize_element), decltype(&L::initialize_element)>
+            && keeps_initialize_element
             && IsSame<decltype(&T::cloned), decltype(&L::cloned)>;
     }
 
-    // The RustFFI::ELEMENT_CLASS_* bits of T, a class of elements with a payload after the prefix of L, its layout class:
-    // which of the functions that trace, measure and finalize an element T or a class between L and T overrides, which
-    // libweb_rust then calls for every element of T. NB: C++ cannot tell whether the members of T beyond L are trivially
-    //     destructible while the destructor of L is virtual, so the destructor of every element with a payload runs.
+    // The RustFFI::NODE_OBJECT_* bits of T, a class of nodes with a payload after the prefix of L, its layout class:
+    // which of the functions that trace, measure and finalize a node T or a class between L and T overrides, which
+    // libweb_rust then calls for every node of T. NB: C++ cannot tell whether the members of T beyond L are trivially
+    //     destructible while the destructor of L is virtual, so the destructor of every node with a payload runs.
     template<typename L>
-    static constexpr u32 element_payload_flags()
+    static constexpr u32 payload_flags()
     {
         static_assert(IsBaseOf<L, T> && !adds_nothing_to<L>());
         using namespace Web::DOM::RustFFI;
-        u32 flags = ELEMENT_CLASS_HAS_PAYLOAD;
+        u32 flags = NODE_OBJECT_HAS_PAYLOAD;
         if (!IsSame<decltype(&T::visit_edges), decltype(&L::visit_edges)>)
-            flags |= ELEMENT_CLASS_PAYLOAD_HAS_EDGES;
+            flags |= NODE_OBJECT_PAYLOAD_HAS_EDGES;
         if (!IsSame<decltype(&T::external_memory_size), decltype(&L::external_memory_size)>)
-            flags |= ELEMENT_CLASS_PAYLOAD_HAS_EXTERNAL_MEMORY;
+            flags |= NODE_OBJECT_PAYLOAD_HAS_EXTERNAL_MEMORY;
         if (!IsSame<decltype(&T::finalize), decltype(&L::finalize)>)
-            flags |= ELEMENT_CLASS_PAYLOAD_NEEDS_FINALIZE;
+            flags |= NODE_OBJECT_PAYLOAD_NEEDS_FINALIZE;
         return flags;
     }
 

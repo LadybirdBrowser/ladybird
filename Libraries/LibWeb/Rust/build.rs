@@ -2921,7 +2921,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "HTMLElementObject".to_string(),
         "MathMLElementObject".to_string(),
         "ElementClassVtables".to_string(),
-        "ElementClassFacts".to_string(),
+        "NodeClassFacts".to_string(),
         "ElementObjectHooks".to_string(),
         "EventListenerList".to_string(),
         "EventCore".to_string(),
