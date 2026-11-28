@@ -15,9 +15,13 @@ namespaces = ["Gfx", "FFI"]
 
 # The byte layout the filter codec writes is defined by these enums, and the C++ reader that
 # builds Skia filters from it decodes them from the same definitions. The OpenType MATH table
-# structs are filled in by LibGfx for its Rust callers.
+# structs are filled in by LibGfx for its Rust callers. The HarfBuzz structs are the crate's
+# copies of HarfBuzz's own, which LibGfx checks against the HarfBuzz headers. The C++ shaping
+# that the Rust shaping replaced reads the text layout types until it goes.
 [export]
 include = [
+    "TextType",
+    "JoiningContext",
     "FilterOperationType",
     "ChannelSelector",
     "TurbulenceType",
@@ -26,6 +30,9 @@ include = [
     "FfiGlyphMetrics",
     "FfiMathGlyphVariant",
     "FfiMathGlyphPart",
+    "HbGlyphInfo",
+    "HbGlyphPosition",
+    "HbFeature",
 ]
 
 [parse]

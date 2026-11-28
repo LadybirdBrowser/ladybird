@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::harfbuzz::HbFont;
 use std::borrow::Cow;
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -15,11 +16,6 @@ unsafe extern "C" {
     fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
     fn ladybird_gfx_font_is_emoji_font(font: *const c_void) -> bool;
     fn ladybird_gfx_font_is_invisible(font: *const c_void) -> bool;
-    fn ladybird_gfx_font_measure_text_width(
-        font: *const c_void,
-        text_utf16: *const u16,
-        length_in_code_units: usize,
-    ) -> f32;
     fn ladybird_gfx_font_cascade_list_font_for_code_point(
         list: *const c_void,
         code_point: u32,
@@ -53,10 +49,31 @@ pub struct BoundingBoxInFontUnits {
     pub units_per_em: u16,
 }
 
+/// What shaping needs of a `Gfx::Font`, which the font lends for as long as it lives.
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct FfiShapingFont {
+    /// The font's `hb_font_t`, which is immutable.
+    pub harfbuzz_font: *mut c_void,
+    pub features: *const FfiShapeFeature,
+    pub feature_count: usize,
+}
+
+impl Default for FfiShapingFont {
+    fn default() -> Self {
+        Self {
+            harfbuzz_font: std::ptr::null_mut(),
+            features: std::ptr::null(),
+            feature_count: 0,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FfiFontSnapshot {
     pub id: u64,
+    pub shaping: FfiShapingFont,
     pub ascent: f32,
     pub descent: f32,
     pub line_gap: f32,
@@ -99,6 +116,7 @@ struct FontEntry {
     id: FontId,
     raw: NonNull<c_void>,
     facts: FontFacts,
+    shaping: FfiShapingFont,
     character_advances: std::sync::OnceLock<(f32, f32)>,
     // What the font answers about itself that text chunking asks for every character: whether it is an emoji font,
     // and whether it has a glyph for U+0020 SPACE. Each is unknown until first asked.
@@ -133,7 +151,11 @@ impl LazyVerdict {
 // keeps it live. Everything the entry answers with is fixed at construction: the snapshot it
 // copied, and the typeface tables the glyph queries read. The font's lazily filled members are
 // each internally synchronized - the HarfBuzz font behind `call_once`, the emoji verdict and the
-// hinting memo behind an atomic word. NB: none of this holds for `Gfx::FontCascadeList`,
+// hinting memo behind an atomic word. The HarfBuzz font and the features the entry lends for
+// shaping are made before the font is shared and never change: the font made its hb_font_t
+// immutable, and HarfBuzz lets any number of threads shape with, measure and draw from an
+// immutable font at once, since it loads the tables and shaping data it keeps on first use with
+// atomic operations. NB: none of this holds for `Gfx::FontCascadeList`,
 // which writes several unsynchronized caches from its `const` lookups; `FontCascadeListHandle`
 // below is deliberately neither `Send` nor `Sync`.
 unsafe impl Send for FontEntry {}
@@ -181,6 +203,7 @@ impl FontHandle {
                 synthetic_slant: snapshot.synthetic_slant,
                 has_synthetic_bold: snapshot.has_synthetic_bold,
             },
+            shaping: snapshot.shaping,
             character_advances: std::sync::OnceLock::new(),
             is_emoji_font: LazyVerdict::default(),
             contains_space_glyph: LazyVerdict::default(),
@@ -273,10 +296,23 @@ impl FontHandle {
         ask()
     }
 
+    /// The advance of the text shaped as a whole, without any spacing.
     pub fn measure_text_width(&self, text: &[u16]) -> f32 {
-        // SAFETY: The entry's retained reference keeps the font live, and the
-        // text slice stays valid for the synchronous measuring call.
-        unsafe { ladybird_gfx_font_measure_text_width(self.as_raw(), text.as_ptr(), text.len()) }
+        crate::text_shaping::measure_utf16_text_width(self, text)
+    }
+
+    /// The font's immutable HarfBuzz font, which lives as long as the handle.
+    #[inline]
+    pub(crate) fn harfbuzz_font(&self) -> *mut HbFont {
+        self.0.shaping.harfbuzz_font.cast()
+    }
+
+    /// The OpenType features the font is shaped with.
+    #[inline]
+    pub(crate) fn shape_features(&self) -> &[FfiShapeFeature] {
+        // SAFETY: The font lends its features for as long as it lives, which the entry's retained reference makes at
+        //         least as long as the handle, and never changes them.
+        unsafe { ak::slice_from_raw_parts(self.0.shaping.features, self.0.shaping.feature_count) }
     }
 }
 
@@ -533,10 +569,10 @@ struct FfiCascadeSnapshotHeader {
 /// A `Gfx::ShapeFeature`: an OpenType feature tag, its value, and whether font-feature-settings set it.
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
-struct FfiShapeFeature {
-    tag: [u8; 4],
-    value: u32,
-    set_by_feature_settings: bool,
+pub struct FfiShapeFeature {
+    pub(crate) tag: [u8; 4],
+    pub(crate) value: u32,
+    pub(crate) set_by_feature_settings: bool,
 }
 
 #[repr(C)]

@@ -6,6 +6,7 @@
 
 use crate::font::{FontFacts, FontHandle};
 use crate::geometry::FloatRect;
+use crate::text_shaping;
 use hashbrown::hash_map::EntryRef;
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -48,14 +49,14 @@ pub struct JoiningContext {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct ShapedGlyph {
-    x: f32,
-    y: f32,
-    length_in_code_units: usize,
-    glyph_width: f32,
-    glyph_id: u32,
-    cluster_start: u32,
-    should_paint: bool,
-    is_rtl: bool,
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) length_in_code_units: usize,
+    pub(crate) glyph_width: f32,
+    pub(crate) glyph_id: u32,
+    pub(crate) cluster_start: u32,
+    pub(crate) should_paint: bool,
+    pub(crate) is_rtl: bool,
 }
 
 impl From<PlacedGlyph> for ShapedGlyph {
@@ -154,19 +155,6 @@ impl GlyphPlacement {
 }
 
 unsafe extern "C" {
-    fn ladybird_gfx_shape_text_uncached(
-        font: *const c_void,
-        text_utf16: *const u16,
-        length_in_code_units: usize,
-        text_type: TextType,
-        letter_spacing: f32,
-        word_spacing: f32,
-        joining_context: JoiningContext,
-        vertical_forms: bool,
-        sink: *mut c_void,
-        emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32, f32, bool),
-    );
-
     fn ladybird_gfx_glyph_run_ink_bounding_box(
         font: *const c_void,
         glyphs: *const ShapedGlyph,
@@ -1155,56 +1143,23 @@ pub fn clear_shaping_cache() {
 }
 
 fn shape_text_uncached(font: &FontHandle, text: &[u16], params: ShapeParams) -> CachedShape {
-    unsafe extern "C" fn emit(
-        sink: *mut c_void,
-        glyphs: *const ShapedGlyph,
-        glyph_count: usize,
-        width: f32,
-        trailing_whitespace_length_in_code_units: usize,
-        trailing_whitespace_advance: f32,
-        trailing_ascii_whitespace_advance: f32,
-        requires_context_for_breaks: bool,
-    ) {
-        // SAFETY: `sink` is the Option<CachedShape> passed below, and the
-        // glyph pointer stays valid for this synchronous callback.
-        let shape = unsafe { &mut *sink.cast::<Option<CachedShape>>() };
-        assert!(glyph_count == 0 || !glyphs.is_null());
-        let glyphs = if glyph_count == 0 {
-            GlyphBuffer::from_shaped(&[])
-        } else {
-            // SAFETY: The C++ side hands a pointer to glyph_count glyphs that
-            // outlive the callback.
-            GlyphBuffer::from_shaped(unsafe { ak::slice_from_raw_parts(glyphs, glyph_count) })
-        };
-        *shape = Some(CachedShape {
-            glyphs,
-            width,
-            trailing_whitespace_length_in_code_units,
-            trailing_whitespace_advance,
-            trailing_ascii_whitespace_advance,
-            requires_context_for_breaks,
-        });
+    let shape = text_shaping::shape_text(
+        font,
+        text,
+        params.text_type,
+        params.letter_spacing,
+        params.word_spacing,
+        params.joining_context,
+        params.vertical_forms,
+    );
+    CachedShape {
+        glyphs: GlyphBuffer::from_shaped(&shape.glyphs),
+        width: shape.width,
+        trailing_whitespace_length_in_code_units: shape.trailing_whitespace_length_in_code_units,
+        trailing_whitespace_advance: shape.trailing_whitespace_advance,
+        trailing_ascii_whitespace_advance: shape.trailing_ascii_whitespace_advance,
+        requires_context_for_breaks: shape.requires_context_for_breaks,
     }
-    // The shape is built in the callback, so a cache miss allocates the glyph
-    // storage once rather than an empty placeholder first.
-    let mut shape: Option<CachedShape> = None;
-    // SAFETY: FontRef keeps the font live and the text slice stays valid for
-    // the synchronous shaping call; emit runs against the local Option.
-    unsafe {
-        ladybird_gfx_shape_text_uncached(
-            font.as_raw(),
-            text.as_ptr(),
-            text.len(),
-            params.text_type,
-            params.letter_spacing,
-            params.word_spacing,
-            params.joining_context,
-            params.vertical_forms,
-            (&raw mut shape).cast(),
-            emit,
-        );
-    }
-    shape.expect("shaping emits exactly one shape")
 }
 
 fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -> ShapedText {

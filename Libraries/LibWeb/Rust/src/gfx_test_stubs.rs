@@ -7,7 +7,7 @@
 //! Stand-ins for the LibGfx font, shaping and path entry points, which a unit test links through a document's render
 //! state, without the C++ runtime, but never reaches.
 
-use libgfx_rust::text_layout::{DrawGlyph, JoiningContext, ShapedGlyph, TextType};
+use libgfx_rust::text_layout::{DrawGlyph, ShapedGlyph};
 use std::ffi::c_void;
 
 #[unsafe(no_mangle)]
@@ -98,33 +98,17 @@ extern "C" fn ladybird_gfx_system_fallback_font(
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn ladybird_gfx_font_measure_text_width(
-    _font: *const c_void,
-    _text_utf16: *const u16,
-    _length_in_code_units: usize,
-) -> f32 {
-    unreachable!("no unit test reads a font");
-}
-
-#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_process_note_wanted_pending_face(_face_id: u64) {
     unreachable!("no unit test reads a font");
 }
 
 #[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
-extern "C" fn ladybird_gfx_shape_text_uncached(
-    _font: *const c_void,
-    _text_utf16: *const u16,
-    _length_in_code_units: usize,
-    _text_type: TextType,
-    _letter_spacing: f32,
-    _word_spacing: f32,
-    _joining_context: JoiningContext,
-    _vertical_forms: bool,
-    _sink: *mut c_void,
-    _emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32, f32, bool),
-) {
+extern "C" fn ladybird_gfx_code_point_has_cursive_script_extension(_code_point: u32) -> bool {
+    unreachable!("no unit test shapes text");
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_code_point_is_default_ignorable(_code_point: u32) -> bool {
     unreachable!("no unit test shapes text");
 }
 
