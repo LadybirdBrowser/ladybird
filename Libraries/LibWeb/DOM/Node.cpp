@@ -848,8 +848,7 @@ void Node::adjust_live_ranges_for_insertion(Node& child, size_t count)
 // https://dom.spec.whatwg.org/#concept-node-insert
 void Node::insert_node_into_children(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
-    // 1. Adopt node into parent’s node document.
-    document().adopt_node_steps(node);
+    // NB: libweb_rust adopts node into parent’s node document before this, see Rust/src/dom/insert.rs.
 
     // 2. If child is null, then append node to parent’s children.
     // 3. Otherwise, insert node into parent’s children before child’s index.
@@ -1379,62 +1378,68 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     return GC::Ref { *copy };
 }
 
-// https://dom.spec.whatwg.org/#move
-WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
-{
-    // 1. If newParent’s shadow-including root is not the same as node’s shadow-including root, then throw a "HierarchyRequestError" DOMException.
-    if (&new_parent.shadow_including_root() != &shadow_including_root())
-        return WebIDL::HierarchyRequestError::create("New parent is not in the same shadow tree"_utf16);
-
-    // NOTE: This has the side effect of ensuring that a move is only performed if newParent’s connected is node’s connected.
-
-    // 2. If node is a host-including inclusive ancestor of newParent, then throw a "HierarchyRequestError" DOMException.
-    if (is_host_including_inclusive_ancestor_of(new_parent))
-        return WebIDL::HierarchyRequestError::create("New parent is an ancestor of this node"_utf16);
-
-    // 3. If child is non-null and its parent is not newParent, then throw a "NotFoundError" DOMException.
-    if (child && child->parent() != &new_parent)
-        return WebIDL::NotFoundError::create("Child does not belong to the new parent"_utf16);
-
-    // 4. If node is not an Element or a CharacterData node, then throw a "HierarchyRequestError" DOMException.
-    if (!is<Element>(*this) && !is<CharacterData>(*this))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    // 5. If node is a Text node and newParent is a document, then throw a "HierarchyRequestError" DOMException.
-    if (is<Text>(*this) && is<Document>(new_parent))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    // 6. If newParent is a document, node is an Element node, and either newParent has an element child, child is a doctype,
-    //    or child is non-null and a doctype is following child then throw a "HierarchyRequestError" DOMException.
-    if (is<Document>(new_parent) && is<Element>(*this)) {
-        if (new_parent.has_child_of_type<Element>() || is<DocumentType>(child) || (child && child->has_following_node_of_type_in_tree_order<DocumentType>()))
-            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-    }
-
-    // 7. Let oldParent be node’s parent.
-    auto* old_parent = this->parent();
-
-    // 8. Assert: oldParent is non-null.
-    VERIFY(old_parent);
-
-    if (is_connected() && old_parent != &new_parent)
-        document().page().keyboard_scroll_dom_tree_changed(*this);
-    document().flush_deferred_style_change_event();
-
-    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
-    if (document().has_valid_html_collection_caches())
-        affects_elements = mutation_affects_elements(*this);
-
+// The C++ state of moving a node, which libweb_rust's move algorithm (see Rust/src/dom/move_node.rs) hands to each of
+// its callbacks. It lives in the frame of Node::move_node(), below the Rust code, so the nodes it holds stay alive and
+// in place for as long as the move takes.
+struct MoveScope {
     struct PreviousReadWriteState {
         GC::Ptr<Element> element;
         bool value;
 
         void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
+
+    Node::ChildrenChangedMetadata::AffectsElements affects_elements { Node::ChildrenChangedMetadata::AffectsElements::No };
     GC::RootVector<PreviousReadWriteState> previous_read_write_states;
-    if (old_parent->in_editable_subtree() != new_parent.in_editable_subtree()) {
+
+    // A move keeps the element's identity, so nothing disconnects and nothing connects to say its relations changed.
+    // Where it was is remembered before it leaves its old parent's children, after which there is nothing left to read
+    // the old place off. The parent a move starts from can be a shadow root, which the style engine holds a node for:
+    // taking only the element would tell it the element crossed out of the tree, and the child list it left would keep
+    // naming it as its first child.
+    GC::Ptr<Node> moved_from_parent;
+    GC::Ptr<Element> moved_from_previous;
+    GC::Ptr<Element> moved_from_next;
+    GC::Ptr<Element> moved_from_slot;
+
+    bool holds_a_propagating_state_source { false };
+    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
+};
+
+// https://dom.spec.whatwg.org/#move
+WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
+{
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/move_node.rs, and says which exception to throw.
+    MoveScope scope;
+    switch (RustFFI::rust_dom_move(this, &new_parent, child, &scope)) {
+    case RustFFI::MoveValidity::Valid:
+        return {};
+    case RustFFI::MoveValidity::NotInTheSameShadowIncludingRoot:
+        return WebIDL::HierarchyRequestError::create("New parent is not in the same shadow tree"_utf16);
+    case RustFFI::MoveValidity::NodeIsAnAncestorOfNewParent:
+        return WebIDL::HierarchyRequestError::create("New parent is an ancestor of this node"_utf16);
+    case RustFFI::MoveValidity::ChildIsNotAChildOfNewParent:
+        return WebIDL::NotFoundError::create("Child does not belong to the new parent"_utf16);
+    case RustFFI::MoveValidity::InvalidNodeType:
+        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// https://dom.spec.whatwg.org/#move
+void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root, Node& new_parent)
+{
+    auto& document = this->document();
+    if (is_connected() && &old_parent != &new_parent)
+        document.page().keyboard_scroll_dom_tree_changed(*this);
+    document.flush_deferred_style_change_event();
+
+    if (document.has_valid_html_collection_caches())
+        scope.affects_elements = mutation_affects_elements(*this);
+
+    if (old_parent.in_editable_subtree() != new_parent.in_editable_subtree()) {
         for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
-            previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
+            scope.previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
             return TraversalDecision::Continue;
         });
     }
@@ -1442,47 +1447,30 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // 9. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
 
-    // 10. For each NodeIterator object iterator whose root’s node document is node’s node document:
-    //     run the NodeIterator pre-remove steps given node and iterator.
-    document().for_each_node_iterator([&](NodeIterator& node_iterator) {
-        node_iterator.run_pre_removing_steps(*this);
-    });
+    // 10. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
+    //     NodeIterator pre-remove steps given node and iterator.
+    run_node_iterator_pre_removing_steps();
 
     // A move keeps the identities in the style engine's tree, so every node on either side of it is named before the
     // move is recorded against them.
     if (is_connected())
-        CSS::take_in_pending_style_arrivals(document());
+        CSS::take_in_pending_style_arrivals(document);
 
-    // 11. Let oldPreviousSibling be node’s previous sibling.
-    auto* old_previous_sibling = previous_sibling();
-
-    // 12. Let oldNextSibling be node’s next sibling.
-    auto* old_next_sibling = next_sibling();
-
-    // A move keeps the element's identity, so nothing disconnects and nothing connects to say its
-    // relations changed. Remember where it was, which has to happen here: step 13 takes the node out
-    // of its old parent's children, and once it has there is nothing left to read the old place off.
-    auto* const moved_element = as_if<Element>(*this);
-    // The parent a move starts from can be a shadow root, which the style engine holds a node for:
-    // taking only the element would tell it the element crossed out of the tree, and the child list
-    // it left would keep naming it as its first child.
-    GC::Ptr<Node> const moved_from_parent = moved_element ? moved_element->parent() : nullptr;
-    GC::Ptr<Element> const moved_from_previous = moved_element ? moved_element->previous_element_sibling() : nullptr;
-    GC::Ptr<Element> const moved_from_next = moved_element ? moved_element->next_element_sibling() : nullptr;
-    GC::Ptr<Element> const moved_from_slot = moved_element ? moved_element->assigned_slot_internal() : nullptr;
-    bool const holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*this);
-
-    if (old_parent->is_connected()) {
-        // NOTE: If we did not contribute to the layout tree before, rebuilding it will not create a box
-        //       after we have been removed from the DOM.
-        // NB: Called during DOM node move, layout is not up to date.
-        if (node_contributes_to_layout_tree(*this)) {
-            old_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
-        }
+    if (auto* moved_element = as_if<Element>(*this)) {
+        scope.moved_from_parent = moved_element->parent();
+        scope.moved_from_previous = moved_element->previous_element_sibling();
+        scope.moved_from_next = moved_element->next_element_sibling();
+        scope.moved_from_slot = moved_element->assigned_slot_internal();
     }
+    scope.holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*this);
 
-    auto& old_parent_root = old_parent->root();
-    auto descendant_slots = descendant_slots_before_removal(old_parent_root);
+    // NOTE: If we did not contribute to the layout tree before, rebuilding it will not create a box after we have been
+    //       removed from the DOM.
+    // NB: Called during DOM node move, layout is not up to date.
+    if (old_parent.is_connected() && node_contributes_to_layout_tree(*this))
+        old_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+
+    scope.descendant_slots = descendant_slots_before_removal(old_parent_root);
 
     // A move into another tree scope keeps the style of the elements it takes along, so nothing unregisters the anchor
     // names they registered in the old scope. The elements of shadow trees inside the moved subtree stay in their own
@@ -1494,79 +1482,69 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         });
     }
 
-    // 13. Remove node from oldParent’s children.
-    old_parent->remove_child_impl(*this);
+    old_parent.prepare_to_unlink_child(*this);
+}
 
+// https://dom.spec.whatwg.org/#move
+void Node::after_move_unlink(MoveScope& scope, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child)
+{
     // 14. If node is assigned, then run assign slottables for node’s assigned slot.
     // AD-HOC: Assigned nodes are recomputed lazily.
     unassign_a_slot(*this);
 
-    // 15. If oldParent’s root is a shadow root, and oldParent is a slot whose assigned nodes is empty, then run signal a slot change for oldParent.
-    if (auto* old_parent_slot_element = as_if<HTML::HTMLSlotElement>(*old_parent); old_parent_slot_element && old_parent_root.is_shadow_root()) {
+    // 15. If oldParent’s root is a shadow root, and oldParent is a slot whose assigned nodes is empty, then run signal
+    //     a slot change for oldParent.
+    if (auto* old_parent_slot_element = as_if<HTML::HTMLSlotElement>(old_parent); old_parent_slot_element && old_parent_root.is_shadow_root()) {
         old_parent_slot_element->assign_slottables_if_needed();
         if (old_parent_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*old_parent_slot_element);
     }
 
     // 16. If node has an inclusive descendant that is a slot:
-    if (auto* shadow_root = as_if<ShadowRoot>(old_parent_root); shadow_root && !descendant_slots.is_empty()) {
+    if (auto* shadow_root = as_if<ShadowRoot>(old_parent_root); shadow_root && !scope.descendant_slots.is_empty()) {
         // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
-        for (auto const& slot : descendant_slots)
+        for (auto const& slot : scope.descendant_slots)
             shadow_root->unregister_slot(slot);
 
         // 1. Run assign slottables for a tree with oldParent’s root.
         assign_slottables_for_a_tree(old_parent_root);
 
         // 2. Run assign slottables for a tree with node.
-        for (auto const& slot : descendant_slots)
+        for (auto const& slot : scope.descendant_slots)
             assign_slottables(slot);
     }
 
     // 17. Add transient registered observers given node and oldParent.
-    add_transient_registered_observers(*old_parent);
+    add_transient_registered_observers(old_parent);
 
     // 18. If child is non-null:
-    if (child) {
-        // 1. For each live range whose start node is newParent and start offset is greater than child’s index:
-        //    increase its start offset by 1.
-        // 2. For each live range whose end node is newParent and end offset is greater than child’s index:
-        //    increase its end offset by 1.
-        // OPTIMIZATION: These steps are independent between ranges, so traverse the live ranges only once.
-        auto child_index = lazy_index_of(*child);
-        for (auto& range : new_parent.document().live_ranges()) {
-            if (range.start_container().ptr() == &new_parent && range.start_offset() > child_index())
-                range.increase_start_offset(1);
-            if (range.end_container().ptr() == &new_parent && range.end_offset() > child_index())
-                range.increase_end_offset(1);
-        }
-    }
+    //     1. For each live range whose start node is newParent and start offset is greater than child’s index:
+    //        increase its start offset by 1.
+    //     2. For each live range whose end node is newParent and end offset is greater than child’s index: increase
+    //        its end offset by 1.
+    if (child)
+        new_parent.adjust_live_ranges_for_insertion(*child, 1);
+}
 
-    // 19. Let newPreviousSibling be child’s previous sibling if child is non-null, and newParent’s last child otherwise.
-    auto* new_previous_sibling = child ? child->previous_sibling() : new_parent.last_child();
+// https://dom.spec.whatwg.org/#move
+void Node::after_move_link(MoveScope& scope, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child)
+{
+    new_parent.account_for_linked_child(*this, child);
 
-    // 20. If child is null, then append node to newParent’s children.
-    if (!child) {
-        new_parent.append_child_impl(*this);
-    }
-    // 21. Otherwise, insert node into newParent’s children before child’s index.
-    else {
-        new_parent.insert_before_impl(*this, child);
-    }
-
-    CSS::record_node_moved_in_dom_order(*this, *old_parent);
-    if (moved_element)
-        CSS::record_element_moved(*moved_element, moved_from_parent.ptr(), moved_from_previous.ptr(), moved_from_next.ptr(), moved_from_slot.ptr());
-    else if (is<CharacterData>(*this)) {
+    CSS::record_node_moved_in_dom_order(*this, old_parent);
+    if (auto* moved_element = as_if<Element>(*this)) {
+        CSS::record_element_moved(*moved_element, scope.moved_from_parent.ptr(), scope.moved_from_previous.ptr(), scope.moved_from_next.ptr(), scope.moved_from_slot.ptr());
+    } else if (is<CharacterData>(*this)) {
         auto const* text = as_if<Text>(*this);
         auto counts_for_emptiness = text && !text->data().is_empty();
-        if (auto* old_parent_element = as_if<Element>(*old_parent); old_parent_element && old_parent_element->is_connected())
+        if (auto* old_parent_element = as_if<Element>(old_parent); old_parent_element && old_parent_element->is_connected())
             CSS::record_element_emptiness_changed(*old_parent_element, *this, counts_for_emptiness, false);
         if (auto* new_parent_element = as_if<Element>(new_parent); new_parent_element && new_parent_element->is_connected())
             CSS::record_element_emptiness_changed(*new_parent_element, *this, false, counts_for_emptiness);
         if (text) {
-            if (auto* old_parent_element = as_if<Element>(*old_parent); old_parent_element && old_parent_element->is_connected())
+            if (auto* old_parent_element = as_if<Element>(old_parent); old_parent_element && old_parent_element->is_connected())
                 CSS::Invalidation::invalidate_style_after_text_change_under(*old_parent_element);
-            if (auto* new_parent_element = as_if<Element>(new_parent); new_parent_element && new_parent_element != old_parent)
+            if (auto* new_parent_element = as_if<Element>(new_parent); new_parent_element && new_parent_element != &old_parent)
                 CSS::Invalidation::invalidate_style_after_text_change_under(*new_parent_element);
         }
     }
@@ -1575,7 +1553,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }
 
-    // 22. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
+    // 22. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
+    //     assign a slot for node.
     if (auto* new_parent_element = as_if<Element>(new_parent)) {
         auto is_named_shadow_host = new_parent_element->is_shadow_host()
             && new_parent_element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
@@ -1598,7 +1577,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         });
     }
 
-    // 23. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.
+    // 23. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal
+    //     a slot change for newParent.
     if (auto* new_parent_slot_element = as_if<HTML::HTMLSlotElement>(new_parent); new_parent_slot_element && new_root.is_shadow_root()) {
         new_parent_slot_element->assign_slottables_if_needed();
         if (new_parent_slot_element->assigned_nodes_internal().is_empty())
@@ -1613,60 +1593,42 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // NB: Refresh lookup caches before moving steps can query the completed tree change.
     document().subtree_was_moved({}, *this, old_parent_root);
 
-    if (holds_a_propagating_state_source)
-        CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*this, moved_from_slot ? GC::Ptr<Node> { moved_from_slot } : moved_from_parent);
+    if (scope.holds_a_propagating_state_source)
+        CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*this, scope.moved_from_slot ? GC::Ptr<Node> { scope.moved_from_slot } : scope.moved_from_parent);
+}
 
-    // 25. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
-    for_each_shadow_including_inclusive_descendant([this, &new_parent, old_parent](Node& inclusive_descendant) {
-        // 1. Let isSubtreeRoot be true if inclusiveDescendant is node; otherwise false.
-        auto is_subtree_root = (&inclusive_descendant == this) ? IsSubtreeRoot::Yes : IsSubtreeRoot::No;
-
-        // 2. Run the moving steps with inclusiveDescendant, isSubtreeRoot, and oldParent.
-        inclusive_descendant.moved_from(is_subtree_root, old_parent);
-
-        // NOTE: Because the move algorithm is a separate primitive from insert and remove, it does not invoke the
-        //       insertion steps or removing steps for inclusiveDescendant.
-
-        // 3. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback
-        //    reaction with inclusiveDescendant, callback name "connectedMoveCallback", and « ».
-        if (auto* element = as_if<DOM::Element>(inclusive_descendant)) {
-            if (element->is_custom() && new_parent.is_connected())
-                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback);
-        }
-        return TraversalDecision::Continue;
-    });
-
-    for (auto const& state : previous_read_write_states)
+// https://dom.spec.whatwg.org/#move
+void Node::end_move(MoveScope& scope, Node& old_parent, Node& new_parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling, GC::Ptr<Node> new_previous_sibling, GC::Ptr<Node> child)
+{
+    for (auto const& state : scope.previous_read_write_states)
         CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
-    if (!previous_read_write_states.is_empty())
+    if (!scope.previous_read_write_states.is_empty())
         CSS::Invalidation::invalidate_style_after_focused_element_keyboard_input_change(document());
 
     // 26. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
     GC::Ref<Node> moved_node = *this;
-    old_parent->queue_tree_mutation_record({}, { &moved_node, 1 }, old_previous_sibling, old_next_sibling);
+    old_parent.queue_tree_mutation_record({}, { &moved_node, 1 }, old_previous_sibling.ptr(), old_next_sibling.ptr());
 
     // 27. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
-    new_parent.queue_tree_mutation_record({ &moved_node, 1 }, {}, new_previous_sibling, child);
+    new_parent.queue_tree_mutation_record({ &moved_node, 1 }, {}, new_previous_sibling.ptr(), child.ptr());
 
-    old_parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
-    new_parent.invalidate_html_collection_caches_in_ancestors(affects_elements);
+    old_parent.invalidate_html_collection_caches_in_ancestors(scope.affects_elements);
+    new_parent.invalidate_html_collection_caches_in_ancestors(scope.affects_elements);
 
     // NB: A move runs no children changed steps, which is where an <html> element publishes which child is the body,
     //     and where a media element keeps its resource selection pointer in place and resumes a selection that waits
     //     for a new source.
-    for (auto* parent : { old_parent, &new_parent }) {
+    for (auto* parent : { &old_parent, &new_parent }) {
         if (auto* html_element = as_if<HTML::HTMLHtmlElement>(*parent))
             html_element->publish_body_construction_facts();
     }
-    if (auto* media_element = as_if<HTML::HTMLMediaElement>(*old_parent))
-        media_element->child_moved_out(*this, old_previous_sibling);
+    if (auto* media_element = as_if<HTML::HTMLMediaElement>(old_parent))
+        media_element->child_moved_out(*this, old_previous_sibling.ptr());
     if (auto* media_element = as_if<HTML::HTMLMediaElement>(new_parent))
         media_element->child_moved_in();
 
-    old_parent->bump_dom_tree_version();
+    old_parent.bump_dom_tree_version();
     new_parent.bump_dom_tree_version();
-
-    return {};
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
@@ -3551,9 +3513,7 @@ void Node::append_child_impl(GC::Ref<Node> node)
         return;
 
     RustFFI::rust_dom_insert_child(this, node.ptr(), nullptr);
-    if (auto count = node->m_associated_animation_count_in_subtree)
-        change_associated_animation_count_in_subtree(count);
-    add_to_attribute_name_filter_of_parent(*this, node);
+    account_for_linked_child(node, nullptr);
 }
 
 void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
@@ -3561,9 +3521,16 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
     if (!child)
         return append_child_impl(move(node));
     RustFFI::rust_dom_insert_child(this, node.ptr(), child.ptr());
-    if (node->is_element())
+    account_for_linked_child(node, child);
+}
+
+// Puts node, which has just joined this node's children before child, or after them where child is null, in the C++
+// state that follows the children: the child index generation, the animation counts and the attribute name filters.
+void Node::account_for_linked_child(Node& node, GC::Ptr<Node> child)
+{
+    if (child && node.is_element())
         begin_child_index_generation();
-    if (auto count = node->m_associated_animation_count_in_subtree)
+    if (auto count = node.m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
     add_to_attribute_name_filter_of_parent(*this, node);
 }
@@ -4648,9 +4615,45 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-adopt
-    static void adopt_into_document_of(Node* node, Node* parent)
+    static void adopt_from_other_document(Node* node, Node* old_document, Node* document)
     {
-        parent->document().adopt_node_steps(node);
+        as<Document>(*document).adopt_node_from_other_document(*node, as<Document>(*old_document));
+    }
+
+    // https://dom.spec.whatwg.org/#move
+    static void begin_move(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root, Node* new_parent)
+    {
+        node->begin_move(*scope, *old_parent, *old_parent_root, *new_parent);
+    }
+
+    // https://dom.spec.whatwg.org/#move
+    static void after_move_unlink(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root, Node* new_parent, Node* child)
+    {
+        node->after_move_unlink(*scope, *old_parent, *old_parent_root, *new_parent, child);
+    }
+
+    // https://dom.spec.whatwg.org/#move
+    static void after_move_link(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root, Node* new_parent, Node* child)
+    {
+        node->after_move_link(*scope, *old_parent, *old_parent_root, *new_parent, child);
+    }
+
+    // https://dom.spec.whatwg.org/#move
+    static void run_moving_steps(Node* inclusive_descendant, Node::IsSubtreeRoot is_subtree_root, Node* old_parent, Node* new_parent)
+    {
+        // 2. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback
+        //    reaction with inclusiveDescendant, callback name "connectedMoveCallback", and « ».
+        if (auto* element = as_if<Element>(*inclusive_descendant); element && element->is_custom() && new_parent->is_connected())
+            element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedMoveCallback);
+
+        // 3. Run the moving steps with inclusiveDescendant, isSubtreeRoot, and oldParent.
+        inclusive_descendant->moved_from(is_subtree_root, old_parent);
+    }
+
+    // https://dom.spec.whatwg.org/#move
+    static void end_move(MoveScope* scope, Node* node, Node* old_parent, Node* new_parent, Node* old_previous_sibling, Node* old_next_sibling, Node* new_previous_sibling, Node* child)
+    {
+        node->end_move(*scope, *old_parent, *new_parent, old_previous_sibling, old_next_sibling, new_previous_sibling, child);
     }
 
     // https://dom.spec.whatwg.org/#concept-collection
@@ -4678,7 +4681,14 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     .assign_slottables_after_removal = RustDOMHooks::assign_slottables_after_removal,
     .finish_removal = RustDOMHooks::finish_removal,
     .run_removing_steps = RustDOMHooks::run_removing_steps,
-    .adopt_into_document_of = RustDOMHooks::adopt_into_document_of,
+    .adopt_from_other_document = RustDOMHooks::adopt_from_other_document,
+    .moving = {
+        .begin_move = RustDOMHooks::begin_move,
+        .after_unlink = RustDOMHooks::after_move_unlink,
+        .after_link = RustDOMHooks::after_move_link,
+        .run_moving_steps = RustDOMHooks::run_moving_steps,
+        .end_move = RustDOMHooks::end_move,
+    },
     .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
 };
 

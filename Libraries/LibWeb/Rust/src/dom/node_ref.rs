@@ -191,6 +191,13 @@ impl NodeRef {
         unsafe { Self::decode(self.core().root()) }
     }
 
+    /// https://dom.spec.whatwg.org/#concept-node-document
+    #[inline(always)]
+    pub fn document(self) -> NodeRef {
+        // SAFETY: A live node keeps its node document alive.
+        unsafe { Self::decode(self.core().document()) }
+    }
+
     /// The element's core, read for as long as the reference is borrowed, during which nothing may call into C++, or
     /// none for a node that is no element.
     #[inline(always)]

@@ -8,6 +8,7 @@
 //! https://dom.spec.whatwg.org/#concept-node-replace
 //! https://dom.spec.whatwg.org/#concept-node-replace-all
 
+use super::adopt::adopt;
 use super::hooks;
 use super::insert::insert;
 use super::insert::insert_as_children_of_unobservable_fragment;
@@ -57,7 +58,7 @@ fn replace(
     let mut removed_nodes: &[NodeRef] = &[];
 
     // 6. Adopt node into parent’s node document.
-    hooks::adopt_into_document_of(main_thread, node, parent);
+    adopt(main_thread, node, parent.document());
 
     // 7. If child’s parent is non-null:
     //    NOTE: The above can only be false if child is node.

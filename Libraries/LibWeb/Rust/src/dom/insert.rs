@@ -7,6 +7,7 @@
 //! Inserting nodes into a parent.
 //! https://dom.spec.whatwg.org/#concept-node-insert
 
+use super::adopt::adopt;
 use super::hooks;
 use super::hooks::DomInserter;
 use super::hooks::Inserter;
@@ -131,6 +132,8 @@ fn insert_nodes<I: Inserter>(
     // 7. For each node in nodes, in tree order:
     for &node in nodes {
         // 1. Adopt node into parent’s node document.
+        adopt(main_thread, node, parent.document());
+
         // 2. If child is null, then append node to parent’s children.
         // 3. Otherwise, insert node into parent’s children before child’s index.
         // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then

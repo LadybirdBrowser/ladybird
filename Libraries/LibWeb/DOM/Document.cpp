@@ -4210,130 +4210,131 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::import_node(GC::Ref<Node> node, Var
 // https://dom.spec.whatwg.org/#concept-node-adopt
 void Document::adopt_node_steps(Node& node)
 {
-    // 1. Let oldDocument be node’s node document.
-    auto& old_document = node.document();
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/adopt.rs, and calls adopt_node_from_other_document() for
+    //     step 3.
+    RustFFI::rust_dom_adopt(&node, this);
+}
 
-    // 2. If node’s parent is non-null, then remove node.
-    if (node.parent())
-        node.remove();
-
+// https://dom.spec.whatwg.org/#concept-node-adopt
+void Document::adopt_node_from_other_document(Node& node, Document& old_document)
+{
     // 3. If document is not oldDocument, then:
-    if (&old_document != this) {
-        // NB: A node brings its blocking wheel listeners and the state it inherited from them with it, and this
-        //     document was never told that either exists. The old document's answer covers both, and both only ever
-        //     make the answer more conservative.
-        if (old_document.may_have_blocking_wheel_event_listener())
-            set_may_have_blocking_wheel_event_listener();
+    VERIFY(&old_document != this);
 
-        GC::RootVector<GC::Ref<ShadowRoot>> shadow_roots_with_adopted_sheets;
+    // NB: A node brings its blocking wheel listeners and the state it inherited from them with it, and this
+    //     document was never told that either exists. The old document's answer covers both, and both only ever
+    //     make the answer more conservative.
+    if (old_document.may_have_blocking_wheel_event_listener())
+        set_may_have_blocking_wheel_event_listener();
 
-        // A sheet adopted into a shadow root travels with it, and its identity in the style engine
-        // belongs to the document it is leaving. Give it up here, while that document is still the
-        // one the sheet answers to, and take a new one below.
-        node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
-            if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant)) {
-                shadow_roots_with_adopted_sheets.append(*shadow_root);
-                for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(*shadow_root), [&](CSS::StyleSheetState& sheet) {
-                    CSS::record_stylesheet_detached(sheet, *shadow_root);
-                });
-            }
-            return TraversalDecision::Continue;
-        });
+    GC::RootVector<GC::Ref<ShadowRoot>> shadow_roots_with_adopted_sheets;
 
-        // 1. For each inclusiveDescendant in node’s shadow-including inclusive descendants:
-        node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
-            // 1. Set inclusiveDescendant’s node document to document.
-            inclusive_descendant.set_document(Badge<Document> {}, *this);
-
-            if (auto const* registered_observers = inclusive_descendant.registered_observer_list()) {
-                for (auto const& registered_observer : *registered_observers)
-                    add_mutation_observer_types(registered_observer->options());
-            }
-
-            // 2. If inclusiveDescendant is a shadow root and if any of the following are true:
-            //    - inclusiveDescendant’s custom element registry is null and inclusiveDescendant’s keep custom element
-            //      registry null is false; or
-            //    - inclusiveDescendant’s custom element registry is a global custom element registry,
-            //    then set inclusiveDescendant’s custom element registry to document’s effective global custom element
-            //    registry.
-            if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant); shadow_root
-                && ((shadow_root->custom_element_registry() == nullptr && !shadow_root->keep_custom_element_registry_null())
-                    || HTML::is_a_global_custom_element_registry(shadow_root->custom_element_registry()))) {
-
-                shadow_root->set_custom_element_registry(effective_global_custom_element_registry());
-
-            }
-
-            // 3. Otherwise, if inclusiveDescendant is an element:
-            else if (auto* element = as_if<Element>(inclusive_descendant)) {
-                // 1. Set the node document of each attribute in inclusiveDescendant’s attribute list to document.
-                // NB: An attribute node that has not been created yet takes its document when it is.
-                element->move_attribute_nodes_to_document({}, *this);
-
-                // 2. If inclusiveDescendant’s custom element registry is null or inclusiveDescendant’s custom element
-                //    registry’s is scoped is false, then set inclusiveDescendant’s custom element registry to
-                //    document’s effective global custom element registry.
-                if (!element->custom_element_registry() || !element->custom_element_registry()->is_scoped()) {
-                    element->set_custom_element_registry(effective_global_custom_element_registry());
-                }
-            }
-
-            return TraversalDecision::Continue;
-        });
-
-        // 2. For each inclusiveDescendant in node’s shadow-including inclusive descendants that is custom, in
-        //    shadow-including tree order:
-        //    enqueue a custom element callback reaction with inclusiveDescendant, callback name "adoptedCallback", and
-        //    « oldDocument, document ».
-        node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
-            if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom())
-                element->enqueue_an_adopted_callback_reaction(old_document, *this);
-
-            return TraversalDecision::Continue;
-        });
-
-        // 3. For each inclusiveDescendant in node’s shadow-including inclusive descendants, in shadow-including tree
-        //     order:
-        //    run the adopting steps with inclusiveDescendant and oldDocument.
-        node.for_each_shadow_including_inclusive_descendant([&](auto& inclusive_descendant) {
-            inclusive_descendant.adopted_from(old_document);
-            return TraversalDecision::Continue;
-        });
-
-        // The engine the adopted sheets were attached to belongs to the document they left;
-        // attaching them again is what tells this one that they decide here. Do this after the
-        // adopting steps have minted the shadow root's identities for its new document.
-        for (auto shadow_root : shadow_roots_with_adopted_sheets) {
-            for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root), [&](CSS::StyleSheetState& sheet) {
-                CSS::record_stylesheet_attached(sheet, shadow_root, nullptr);
-                CSS::Invalidation::invalidate_style_after_adopting_style_sheet(shadow_root, sheet);
+    // A sheet adopted into a shadow root travels with it, and its identity in the style engine
+    // belongs to the document it is leaving. Give it up here, while that document is still the
+    // one the sheet answers to, and take a new one below.
+    node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
+        if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant)) {
+            shadow_roots_with_adopted_sheets.append(*shadow_root);
+            for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(*shadow_root), [&](CSS::StyleSheetState& sheet) {
+                CSS::record_stylesheet_detached(sheet, *shadow_root);
             });
         }
+        return TraversalDecision::Continue;
+    });
 
-        // AD-HOC: Transfer NodeIterators rooted in `node`'s subtree from old_document to this document.
-        GC::RootVector<GC::Ref<NodeIterator>> node_iterators_to_transfer;
-        for (auto node_iterator : old_document.m_node_iterators) {
-            if (node_iterator->root()->is_shadow_including_inclusive_descendant_of(node))
-                node_iterators_to_transfer.append(*node_iterator);
+    // 1. For each inclusiveDescendant in node’s shadow-including inclusive descendants:
+    node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
+        // 1. Set inclusiveDescendant’s node document to document.
+        inclusive_descendant.set_document(Badge<Document> {}, *this);
+
+        if (auto const* registered_observers = inclusive_descendant.registered_observer_list()) {
+            for (auto const& registered_observer : *registered_observers)
+                add_mutation_observer_types(registered_observer->options());
         }
 
-        for (NodeIterator& node_iterator : node_iterators_to_transfer) {
-            old_document.m_node_iterators.remove(&node_iterator);
-            m_node_iterators.set(&node_iterator);
+        // 2. If inclusiveDescendant is a shadow root and if any of the following are true:
+        //    - inclusiveDescendant’s custom element registry is null and inclusiveDescendant’s keep custom element
+        //      registry null is false; or
+        //    - inclusiveDescendant’s custom element registry is a global custom element registry,
+        //    then set inclusiveDescendant’s custom element registry to document’s effective global custom element
+        //    registry.
+        if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant); shadow_root
+            && ((shadow_root->custom_element_registry() == nullptr && !shadow_root->keep_custom_element_registry_null())
+                || HTML::is_a_global_custom_element_registry(shadow_root->custom_element_registry()))) {
+
+            shadow_root->set_custom_element_registry(effective_global_custom_element_registry());
+
         }
 
-        // AD-HOC: Live ranges are registered with the document their boundary points belong to. The removal in step 2
-        //         only clamps ranges anchored in node's own tree, so ranges anchored in a parentless node's tree cross
-        //         into this document with their boundaries intact and must be re-registered here.
-        if (!old_document.live_ranges().is_empty()) {
-            GC::RootVector<GC::Ref<Range>> ranges_to_transfer;
-            for (auto& range : old_document.live_ranges()) {
-                if (&range.start_container()->document() == this)
-                    ranges_to_transfer.append(range);
+        // 3. Otherwise, if inclusiveDescendant is an element:
+        else if (auto* element = as_if<Element>(inclusive_descendant)) {
+            // 1. Set the node document of each attribute in inclusiveDescendant’s attribute list to document.
+            // NB: An attribute node that has not been created yet takes its document when it is.
+            element->move_attribute_nodes_to_document({}, *this);
+
+            // 2. If inclusiveDescendant’s custom element registry is null or inclusiveDescendant’s custom element
+            //    registry’s is scoped is false, then set inclusiveDescendant’s custom element registry to
+            //    document’s effective global custom element registry.
+            if (!element->custom_element_registry() || !element->custom_element_registry()->is_scoped()) {
+                element->set_custom_element_registry(effective_global_custom_element_registry());
             }
-            for (auto range : ranges_to_transfer)
-                range->update_owner_document({});
         }
+
+        return TraversalDecision::Continue;
+    });
+
+    // 2. For each inclusiveDescendant in node’s shadow-including inclusive descendants that is custom, in
+    //    shadow-including tree order:
+    //    enqueue a custom element callback reaction with inclusiveDescendant, callback name "adoptedCallback", and
+    //    « oldDocument, document ».
+    node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
+        if (auto* element = as_if<Element>(inclusive_descendant); element && element->is_custom())
+            element->enqueue_an_adopted_callback_reaction(old_document, *this);
+
+        return TraversalDecision::Continue;
+    });
+
+    // 3. For each inclusiveDescendant in node’s shadow-including inclusive descendants, in shadow-including tree
+    //     order:
+    //    run the adopting steps with inclusiveDescendant and oldDocument.
+    node.for_each_shadow_including_inclusive_descendant([&](auto& inclusive_descendant) {
+        inclusive_descendant.adopted_from(old_document);
+        return TraversalDecision::Continue;
+    });
+
+    // The engine the adopted sheets were attached to belongs to the document they left;
+    // attaching them again is what tells this one that they decide here. Do this after the
+    // adopting steps have minted the shadow root's identities for its new document.
+    for (auto shadow_root : shadow_roots_with_adopted_sheets) {
+        for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root), [&](CSS::StyleSheetState& sheet) {
+            CSS::record_stylesheet_attached(sheet, shadow_root, nullptr);
+            CSS::Invalidation::invalidate_style_after_adopting_style_sheet(shadow_root, sheet);
+        });
+    }
+
+    // AD-HOC: Transfer NodeIterators rooted in `node`'s subtree from old_document to this document.
+    GC::RootVector<GC::Ref<NodeIterator>> node_iterators_to_transfer;
+    for (auto node_iterator : old_document.m_node_iterators) {
+        if (node_iterator->root()->is_shadow_including_inclusive_descendant_of(node))
+            node_iterators_to_transfer.append(*node_iterator);
+    }
+
+    for (NodeIterator& node_iterator : node_iterators_to_transfer) {
+        old_document.m_node_iterators.remove(&node_iterator);
+        m_node_iterators.set(&node_iterator);
+    }
+
+    // AD-HOC: Live ranges are registered with the document their boundary points belong to. The removal in step 2
+    //         only clamps ranges anchored in node's own tree, so ranges anchored in a parentless node's tree cross
+    //         into this document with their boundaries intact and must be re-registered here.
+    if (!old_document.live_ranges().is_empty()) {
+        GC::RootVector<GC::Ref<Range>> ranges_to_transfer;
+        for (auto& range : old_document.live_ranges()) {
+            if (&range.start_container()->document() == this)
+                ranges_to_transfer.append(range);
+        }
+        for (auto range : ranges_to_transfer)
+            range->update_owner_document({});
     }
 }
 

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form id="form"></form>
+<div id="host"></div>
+<script>
+    test(() => {
+        let reactions = [];
+        customElements.define("x-control", class extends HTMLElement {
+            static formAssociated = true;
+            connectedMoveCallback() { reactions.push("connectedMoveCallback"); }
+            formAssociatedCallback(form) { reactions.push(`formAssociatedCallback(${form ? form.id : "null"})`); }
+        });
+
+        const form = document.getElementById("form");
+        const control = document.createElement("x-control");
+        form.appendChild(control);
+        reactions = [];
+
+        // The moving steps reset the form owner of a form-associated element that leaves its owner's tree, which
+        // enqueues formAssociatedCallback. connectedMoveCallback is enqueued before the moving steps run.
+        const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+        shadowRoot.moveBefore(control, null);
+        for (const reaction of reactions)
+            println(reaction);
+    });
+</script>

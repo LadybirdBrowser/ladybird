@@ -4,19 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Which nodes the insertion steps and the removing steps have nothing to do for, read from the cores, so that the DOM
-//! algorithms in Rust do not call into C++ to run them.
+//! Which nodes the insertion steps, the removing steps and the moving steps have nothing to do for, read from the cores,
+//! so that the DOM algorithms in Rust do not call into C++ to run them.
 //!
-//! Most nodes that join or leave a tree that is not connected are text, comments and elements of classes whose steps
-//! only keep state that is about connected trees: the style engine's records, the document's registries, focus,
-//! fullscreen, animations, custom element reactions. What is left for them is inherited state, which a node takes from
-//! its parent wherever its tree is: whether it is editable, inert, or inside a blocking wheel event handler. When none
-//! of that changes either, the steps are skipped. The editable flag, which the cores keep, is written here instead.
+//! Most nodes that join, leave or move within a tree that is not connected are text, comments and elements of classes
+//! whose steps only keep state that is about connected trees: the style engine's records, the document's registries,
+//! focus, fullscreen, animations, custom element reactions. What is left for them is inherited state, which a node
+//! takes from its parent wherever its tree is: whether it is editable, inert, or inside a blocking wheel event handler.
+//! When none of that changes either, the steps are skipped. The editable flag, which the cores keep, is written here
+//! instead.
 //!
-//! The steps are those of DOM::Node, DOM::Element and HTML::HTMLElement. An element whose class adds steps of its own
-//! has ELEMENT_HAS_OWN_TREE_STEPS, which GC::CellConstructionHook in DOM/Node.h sets from the class's overrides as the
-//! element is constructed, and which also makes sure that character data and doctypes add none. What the steps do for
-//! a node that is not connected, and why that is nothing under the conditions below:
+//! The steps are those of DOM::Node, DOM::Element and HTML::HTMLElement. An element whose class adds steps of its own,
+//! or that is a body or frameset element, whose moving steps tell the page, has ELEMENT_HAS_OWN_TREE_STEPS, which
+//! GC::CellConstructionHook in DOM/Node.h sets from the class's overrides as the element is constructed, and which also
+//! makes sure that character data and doctypes add none. What the steps do for a node that is not connected, and why
+//! that is nothing under the conditions below:
 //!
 //! - Node::inserted() sets the node's connected flag from its parent's, which is false, and it is already false. What
 //!   it records for the style engine and the page, and the paint facts it publishes, are for a connected node or a node
@@ -33,6 +35,11 @@
 //!   animations it plays or cancels are connected.
 //! - HTMLElement::inserted() and HTMLElement::removed_from() also make the subtree inert, or no longer inert, if the
 //!   nearest HTML element of the parent is inert, which the cores tell. A popover that shows is connected.
+//! - Node::moved_from() recomputes the editable flag and the blocking wheel event handler state as Node::inserted()
+//!   does, and publishes the paint facts of a node with an identity in the style engine. Element::moved_from() does
+//!   its work for a connected element, a shadow host, and the element a move starts from, whose subtree's
+//!   form-associated elements it repositions in their forms. HTMLElement::moved_from() makes an element inert, or no
+//!   longer inert, where it is not inert and the nearest HTML element of its new parent is, or the other way around.
 //! - The callbacks that run the steps also enqueue custom element reactions for connected elements, and cancel the
 //!   animations of elements the style engine tracked, which are connected.
 
@@ -41,6 +48,7 @@ use super::element_core::ELEMENT_HAS_OWN_TREE_STEPS;
 use super::element_core::ELEMENT_IS_HTML_ELEMENT;
 use super::element_core::ELEMENT_IS_INERT;
 use super::element_core::ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS;
+use super::hooks::IsSubtreeRoot;
 use super::hooks::RemovalFacts;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
@@ -134,6 +142,36 @@ pub(super) fn removing_steps_do_nothing(node: NodeRef, parent: NodeRef, parent_r
         }
         // NB: An element with an ID leaves the ID map of the shadow root it was in.
         if parent_root.is_shadow_root() && node.element_core().is_some_and(|core| core.id().is_some()) {
+            return false;
+        }
+    }
+    node.core().set_in_editable_subtree(false);
+    true
+}
+
+/// Whether the moving steps with `node`, which is in a subtree that has just been moved, and isSubtreeRoot
+/// `is_subtree_root`, and the custom element reaction that comes with them, have nothing to do. If so, does what the
+/// steps would do to the editable flag, which is to clear it. See the module documentation.
+/// https://dom.spec.whatwg.org/#move
+pub(super) fn moving_steps_do_nothing(node: NodeRef, is_subtree_root: IsSubtreeRoot) -> bool {
+    // NB: A shadow root, which has no parent, takes its editability from its host.
+    let Some(parent) = node.parent() else {
+        return false;
+    };
+    if node.is_connected() || parent.is_connected() || parent.core().is_in_editable_subtree() {
+        return false;
+    }
+    if node.core().style_node_id().is_some() || node.document_core().may_have_blocking_wheel_event_listener() {
+        return false;
+    }
+    if !is_character_data_or_doctype(node) {
+        // NB: The moving steps of the element a move starts from reposition the form-associated elements of its
+        //     subtree in the lists of their forms.
+        if is_subtree_root == IsSubtreeRoot::Yes {
+            return false;
+        }
+        // NB: An inert HTML element stops being inert when its new parent is not.
+        if !element_steps_do_nothing(node, parent, ELEMENT_IS_INERT) {
             return false;
         }
     }
@@ -328,6 +366,37 @@ mod tests {
         assert!(removing_steps_do_nothing(with_id(None), parent, shadow_root));
         assert!(!removing_steps_do_nothing(with_id(Some("a")), parent, shadow_root));
         assert!(removing_steps_do_nothing(with_id(Some("a")), parent, parent));
+    }
+
+    #[test]
+    fn plain_descendants_moving_within_a_disconnected_tree_have_nothing_to_do() {
+        let main_thread = MainThread::for_test();
+        let parent = html_element(&main_thread);
+        let moved_node = html_element(&main_thread);
+        let moved = appended(parent, moved_node);
+        let descendant = appended(moved_node, html_element(&main_thread));
+        let text = appended(parent, node(&main_thread, NodeType::TEXT_NODE));
+        text.core().set_in_editable_subtree(true);
+
+        assert!(moving_steps_do_nothing(text, IsSubtreeRoot::Yes));
+        assert!(!text.core().is_in_editable_subtree());
+        assert!(moving_steps_do_nothing(descendant, IsSubtreeRoot::No));
+        // NB: The element a move starts from repositions the form-associated elements of its subtree.
+        assert!(!moving_steps_do_nothing(moved, IsSubtreeRoot::Yes));
+
+        let inert = appended(
+            parent,
+            element_with_flags(&main_thread, ELEMENT_IS_HTML_ELEMENT | ELEMENT_IS_INERT),
+        );
+        assert!(!moving_steps_do_nothing(inert, IsSubtreeRoot::No));
+        let with_steps = appended(
+            parent,
+            element_with_flags(&main_thread, ELEMENT_IS_HTML_ELEMENT | ELEMENT_HAS_OWN_TREE_STEPS),
+        );
+        assert!(!moving_steps_do_nothing(with_steps, IsSubtreeRoot::No));
+
+        NodeRef::from(parent).core().set_is_connected_for_test();
+        assert!(!moving_steps_do_nothing(text, IsSubtreeRoot::No));
     }
 
     #[test]
