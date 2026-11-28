@@ -33,9 +33,6 @@ struct BlobURLEntry {
 Utf16String generate_new_blob_url();
 ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object);
 bool check_for_same_partition_blob_url_usage(URL::Origin const& blob_url_entry_origin, GC::Ref<HTML::Environment>);
-struct TopLevelNavigation { };
-struct TopLevelSelfFetch { };
-WEB_API Optional<SerializedBlobURLEntry::Object> obtain_a_blob_object(SerializedBlobURLEntry const&, Variant<StorageAPI::StorageKey, TopLevelNavigation, TopLevelSelfFetch> environment);
 WEB_API void remove_entry_from_blob_url_store(URL::URL const& url);
 Optional<URL::BlobURLEntry> resolve_a_blob_url(URL::URL const&);
 WEB_API Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page&, URL::URL const&);

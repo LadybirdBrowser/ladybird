@@ -127,26 +127,6 @@ bool check_for_same_partition_blob_url_usage(URL::Origin const& blob_url_entry_o
     return check_for_same_partition_blob_url_usage(blob_url_entry_origin, environment_storage_key.origin);
 }
 
-// https://www.w3.org/TR/FileAPI/#blob-url-obtain-object
-Optional<SerializedBlobURLEntry::Object> obtain_a_blob_object(SerializedBlobURLEntry const& blob_url_entry, Variant<StorageAPI::StorageKey, TopLevelNavigation, TopLevelSelfFetch> environment)
-{
-    // 1. Let isAuthorized be true.
-    bool is_authorized = true;
-
-    // 2. If environment is an environment, then set isAuthorized to the result of checking for same-partition blob URL usage with blobUrlEntry and environment.
-    // AD-HOC: An environment is given as its storage key for non-storage purposes, the only part of it that checking for
-    //         same-partition blob URL usage reads.
-    if (auto const* environment_storage_key = environment.get_pointer<StorageAPI::StorageKey>())
-        is_authorized = check_for_same_partition_blob_url_usage(blob_url_entry.origin, environment_storage_key->origin);
-
-    // 3. If isAuthorized is false, then return failure.
-    if (!is_authorized)
-        return {};
-
-    // 4. Return blobUrlEntry’s object.
-    return blob_url_entry.object;
-}
-
 // https://w3c.github.io/FileAPI/#removeTheEntry
 void remove_entry_from_blob_url_store(URL::URL const& url)
 {
