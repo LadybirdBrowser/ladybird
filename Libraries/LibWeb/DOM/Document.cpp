@@ -2627,7 +2627,7 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
 
     schedule_scroll_container_resnap();
 
-    m_document->set_needs_repaint();
+    document().set_needs_repaint();
 }
 
 bool Document::is_clean_for_layout_geometry_read(Layout::BegunRead const& read) const

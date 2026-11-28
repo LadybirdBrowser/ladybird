@@ -2724,6 +2724,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("SVG/ParserRustFFI.h"),
     );
 
+    // The node state that DOM::Node embeds - namespace Web::DOM::RustFFI. Its node fields are GC::Members to C++, which
+    // stores, compares and visits them as it does every other member.
+    let mut dom_config = base_config.clone();
+    dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
+    dom_config.includes = vec!["LibGC/Member.h".to_string(), "LibWebCommon/DOM/NodeType.h".to_string()];
+    dom_config.export.include = vec!["NodeCore".to_string()];
+    for (rust_name, cpp_name) in [
+        ("NodeMember", "GC::Member<Web::DOM::Node>"),
+        ("DocumentMember", "GC::Member<Web::DOM::Document>"),
+        ("NodeType", "Web::DOM::NodeType"),
+    ] {
+        dom_config.export.exclude.push(rust_name.to_string());
+        dom_config
+            .export
+            .rename
+            .insert(rust_name.to_string(), cpp_name.to_string());
+    }
+    dom_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::DOM { class Document; class Node; }");
+    generate_ffi_header_strict(
+        dom_config,
+        &[manifest_dir.join("src/dom/node_core.rs")],
+        &out_dir,
+        Path::new("DOM/RustFFI.h"),
+    );
+
     // Selector matching header - namespace Web::CSS::SelectorFFI. Generate both sides of this
     // ABI from the Rust declarations so changes to layouts or signatures cannot drift silently.
     let mut selector_config = base_config.clone();

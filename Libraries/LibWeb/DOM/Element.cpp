@@ -3960,7 +3960,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 void Element::request_fullscreen(GC::Ptr<WebIDL::Promise> promise, FullscreenRequester fullscreen_requester, Fullscreen::RequestType request_type)
 {
     // 1. Let pendingDoc be this’s node document.
-    GC::Ptr<Document> pending_doc = m_document;
+    GC::Ptr<Document> pending_doc = document();
 
     // 3. If pendingDoc is not fully active, then reject promise with a TypeError exception and return promise.
     if (!pending_doc->is_fully_active()) {
@@ -4070,7 +4070,7 @@ bool Element::is_element_ready_for_fullscreen() const
         return false;
 
     // * element’s node document is allowed to use the "fullscreen" feature.
-    if (!m_document->is_allowed_to_use_feature(PolicyControlledFeature::Fullscreen))
+    if (!document().is_allowed_to_use_feature(PolicyControlledFeature::Fullscreen))
         return false;
 
     // * element namespace is not the HTML namespace or element’s popover visibility state is hidden.

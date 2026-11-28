@@ -1030,6 +1030,7 @@ sync_rust_crate_ffi_headers(
         Layout/LayoutRustFFI.h
         Compositor/RenderClockRustFFI.h
         Animations/RustFFI.h
+        DOM/RustFFI.h
         DOM/NodeClassesGenerated.h
 )
 add_dependencies(LibWeb libweb_rust-ffi-headers)

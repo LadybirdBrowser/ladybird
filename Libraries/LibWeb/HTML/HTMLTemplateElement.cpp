@@ -24,7 +24,7 @@ void HTMLTemplateElement::initialize_element()
     // https://html.spec.whatwg.org/multipage/scripting.html#template-contents
     // When a template element is created, the user agent must run the following steps to establish the template contents:
     // 1. Let document be the template element's node document's appropriate template contents owner document.
-    auto document = m_document->appropriate_template_contents_owner_document();
+    auto document = this->document().appropriate_template_contents_owner_document();
 
     // 2. Create a DocumentFragment object whose node document is document and host is the template element.
     auto document_fragment = DOM::DocumentFragment::create(document);

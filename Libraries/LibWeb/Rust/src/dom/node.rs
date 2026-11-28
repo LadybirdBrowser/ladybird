@@ -1,0 +1,197 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! Nodes as Rust reaches them: by following the compressed node pointers of the cores, on the main thread, which owns
+//! the DOM.
+
+use core::cell::UnsafeCell;
+use core::hash::Hash;
+use core::hash::Hasher;
+use core::marker::PhantomData;
+use core::marker::PhantomPinned;
+
+use super::node_core::NODE_CORE_OFFSET;
+use super::node_core::NodeCore;
+use super::node_core::NodePointer;
+use super::node_core::NodeType;
+use crate::stage::MainThread;
+
+/// This library's copy of LibGC's heap region base, which compressed cell pointers are offsets from. LibGC fills it in
+/// through the GC::HeapRegionBaseCopyRegistration that Node.cpp makes of it, before any cell exists, and never changes
+/// it after that.
+#[repr(transparent)]
+struct HeapRegionBaseCopy(UnsafeCell<usize>);
+
+// SAFETY: The copy is written once, before any node exists, and every read of it is for a node that the main thread
+//         made since.
+unsafe impl Sync for HeapRegionBaseCopy {}
+
+// OPTIMIZATION: A copy of the base in this library, which a decode reads with one PC-relative load instead of a load of
+//               js_heap_region_base's address from the GOT first.
+#[unsafe(export_name = "rust_dom_heap_region_base")]
+static HEAP_REGION_BASE: HeapRegionBaseCopy = HeapRegionBaseCopy(UnsafeCell::new(0));
+
+/// How far a compressed cell pointer is shifted, as LibGC's COMPRESSED_POINTER_SHIFT: cells are 8-byte aligned.
+const COMPRESSED_POINTER_SHIFT: u32 = 3;
+
+#[inline(always)]
+fn heap_region_base() -> usize {
+    // SAFETY: Nothing writes the copy after the first node exists, see HeapRegionBaseCopy.
+    unsafe { *HEAP_REGION_BASE.0.get() }
+}
+
+/// Sets the heap region base to that of a test arena.
+///
+/// # Safety
+///
+/// No node may exist yet, and no other thread may read the base until it synchronizes with this one.
+#[cfg(test)]
+pub(super) unsafe fn set_heap_region_base_for_test(base: usize) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { *HEAP_REGION_BASE.0.get() = base };
+}
+
+/// A DOM::Node as C++ allocates it: the start of the node's cell, with the node's core NODE_CORE_OFFSET bytes into it.
+/// FFI entry points take and return nodes as references to it, which C++ sees as DOM::Node pointers.
+#[repr(C)]
+pub struct NodeCell {
+    // NB: The cell's state changes behind shared references to it, so a reference to it must not let the compiler
+    //     assume that the memory it leads to stays the same, which it would for a type without an UnsafeCell.
+    _opaque: UnsafeCell<[u8; 0]>,
+    // NB: C++ owns the cell, which Rust never moves, and which stays on the main thread.
+    _owned_by_cpp: PhantomData<(*mut u8, PhantomPinned)>,
+}
+
+/// A node of the DOM, borrowed on the main thread for `'a`, during which the DOM does not change.
+///
+/// Only code holding a main thread token makes one, and the handle is neither Send nor Sync, so a node is never reached
+/// from another thread. The nodes the handle's links lead to are borrowed for as long as the handle.
+///
+/// NB: The handle holds the start of the node's cell, which the conservative stack scan recognizes, rather than the
+///     address of its core, which it does not.
+#[derive(Clone, Copy)]
+pub struct Node<'a> {
+    cell: &'a NodeCell,
+}
+
+impl<'a> Node<'a> {
+    /// The node `cell` is, as an FFI entry point that holds `main_thread` is handed it.
+    ///
+    /// # Safety
+    ///
+    /// `cell` must be a live node, and the DOM must not change for `'a`.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "FFI entry points of the DOM will make nodes of the cells they take"
+        )
+    )]
+    #[inline(always)]
+    pub(crate) unsafe fn from_cell(cell: &'a NodeCell, _main_thread: &'a MainThread<'_>) -> Self {
+        Self { cell }
+    }
+
+    /// # Safety
+    ///
+    /// `pointer` must name a node that lives for `'a`.
+    #[inline(always)]
+    unsafe fn decode(pointer: NodePointer) -> Self {
+        let address = heap_region_base() + ((pointer.compressed() as usize) << COMPRESSED_POINTER_SHIFT);
+        // SAFETY: A compressed pointer decodes to the start of the cell it names, which lives for 'a.
+        Self {
+            cell: unsafe { &*(address as *const NodeCell) },
+        }
+    }
+
+    /// The node a link of this node names. The links of a node the DOM keeps alive name nodes it keeps alive.
+    #[inline(always)]
+    fn follow(self, link: Option<NodePointer>) -> Option<Node<'a>> {
+        // SAFETY: The DOM keeps this node, and so the nodes its links name, alive and unchanged for 'a.
+        link.map(|pointer| unsafe { Self::decode(pointer) })
+    }
+
+    /// The node as C++ sees it.
+    #[inline(always)]
+    pub fn cell(self) -> &'a NodeCell {
+        self.cell
+    }
+
+    #[inline(always)]
+    pub fn core(self) -> &'a NodeCore {
+        // SAFETY: Every node embeds its core NODE_CORE_OFFSET bytes into its cell, which Node.h asserts.
+        unsafe {
+            &*(self.cell as *const NodeCell)
+                .byte_add(NODE_CORE_OFFSET)
+                .cast::<NodeCore>()
+        }
+    }
+
+    #[inline(always)]
+    pub fn node_type(self) -> NodeType {
+        self.core().node_type()
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-parent
+    #[inline(always)]
+    pub fn parent(self) -> Option<Node<'a>> {
+        self.follow(self.core().parent())
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-first-child
+    #[inline(always)]
+    pub fn first_child(self) -> Option<Node<'a>> {
+        self.follow(self.core().first_child())
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-last-child
+    #[inline(always)]
+    pub fn last_child(self) -> Option<Node<'a>> {
+        self.follow(self.core().last_child())
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-next-sibling
+    #[inline(always)]
+    pub fn next_sibling(self) -> Option<Node<'a>> {
+        self.follow(self.core().next_sibling())
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-previous-sibling
+    #[inline(always)]
+    pub fn previous_sibling(self) -> Option<Node<'a>> {
+        self.follow(self.core().previous_sibling())
+    }
+
+    /// https://dom.spec.whatwg.org/#concept-tree-root
+    #[inline(always)]
+    pub fn root(self) -> Node<'a> {
+        // SAFETY: The DOM keeps this node, and so the root of its tree, alive and unchanged for 'a.
+        unsafe { Self::decode(self.core().root()) }
+    }
+}
+
+/// Two handles are equal exactly when they are the same node.
+impl PartialEq for Node<'_> {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        core::ptr::eq(self.cell, other.cell)
+    }
+}
+
+impl Eq for Node<'_> {}
+
+impl Hash for Node<'_> {
+    #[inline(always)]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::ptr::hash(self.cell, state);
+    }
+}
+
+impl core::fmt::Debug for Node<'_> {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "Node({:p}, {:?})", self.cell, self.node_type())
+    }
+}

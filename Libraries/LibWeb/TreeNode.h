@@ -52,29 +52,18 @@ TraversalDecision traverse_preorder(T root, Callback callback)
 template<typename T>
 class WEB_API TreeNode {
 public:
-    T* parent() { return m_parent.ptr(); }
-    T const* parent() const { return m_parent.ptr(); }
+    T* parent() { return links().parent.ptr(); }
+    T const* parent() const { return links().parent.ptr(); }
 
-    bool has_children() const { return !!m_first_child; }
-    T* next_sibling() { return m_next_sibling.ptr(); }
-    T* previous_sibling() { return m_previous_sibling.ptr(); }
-    T* first_child() { return m_first_child.ptr(); }
-    T* last_child() { return m_last_child.ptr(); }
-    T const* next_sibling() const { return m_next_sibling.ptr(); }
-    T const* previous_sibling() const { return m_previous_sibling.ptr(); }
-    T const* first_child() const { return m_first_child.ptr(); }
-    T const* last_child() const { return m_last_child.ptr(); }
-
-    template<typename Derived>
-    static constexpr auto parent_offset() { return GC_FIELD_OFFSET(Derived, m_parent); }
-    template<typename Derived>
-    static constexpr auto first_child_offset() { return GC_FIELD_OFFSET(Derived, m_first_child); }
-    template<typename Derived>
-    static constexpr auto last_child_offset() { return GC_FIELD_OFFSET(Derived, m_last_child); }
-    template<typename Derived>
-    static constexpr auto previous_sibling_offset() { return GC_FIELD_OFFSET(Derived, m_previous_sibling); }
-    template<typename Derived>
-    static constexpr auto next_sibling_offset() { return GC_FIELD_OFFSET(Derived, m_next_sibling); }
+    bool has_children() const { return !!links().first_child; }
+    T* next_sibling() { return links().next_sibling.ptr(); }
+    T* previous_sibling() { return links().previous_sibling.ptr(); }
+    T* first_child() { return links().first_child.ptr(); }
+    T* last_child() { return links().last_child.ptr(); }
+    T const* next_sibling() const { return links().next_sibling.ptr(); }
+    T const* previous_sibling() const { return links().previous_sibling.ptr(); }
+    T const* first_child() const { return links().first_child.ptr(); }
+    T const* last_child() const { return links().last_child.ptr(); }
 
     // https://dom.spec.whatwg.org/#concept-tree-index
     size_t index() const
@@ -145,8 +134,8 @@ public:
     void replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child);
     void remove()
     {
-        VERIFY(m_parent);
-        m_parent->remove_child(*static_cast<T*>(this));
+        VERIFY(links().parent);
+        links().parent->remove_child(*static_cast<T*>(this));
     }
 
     size_t child_count() const
@@ -475,77 +464,86 @@ protected:
 
     void visit_edges(JS::Cell::Visitor& visitor)
     {
-        visitor.visit(m_parent);
-        visitor.visit(m_first_child);
-        visitor.visit(m_last_child);
-        visitor.visit(m_next_sibling);
-        visitor.visit(m_previous_sibling);
+        visitor.visit(links().parent);
+        visitor.visit(links().first_child);
+        visitor.visit(links().last_child);
+        visitor.visit(links().next_sibling);
+        visitor.visit(links().previous_sibling);
     }
 
 private:
-    GC::Member<T> m_parent;
-    GC::Member<T> m_first_child;
-    GC::Member<T> m_last_child;
-    GC::Member<T> m_next_sibling;
-    GC::Member<T> m_previous_sibling;
+    // NB: T stores the links, as GC::Members named parent, first_child, last_child, next_sibling and previous_sibling
+    //     of what its tree_node_links() returns, so that a T can embed them in state laid out elsewhere.
+    auto& links() { return static_cast<T*>(this)->tree_node_links(); }
+    auto const& links() const { return static_cast<T const*>(this)->tree_node_links(); }
+};
+
+// The links of a T that keeps them in a field of their own.
+template<typename T>
+struct TreeNodeLinks {
+    GC::Member<T> parent;
+    GC::Member<T> first_child;
+    GC::Member<T> last_child;
+    GC::Member<T> next_sibling;
+    GC::Member<T> previous_sibling;
 };
 
 template<typename T>
 inline void TreeNode<T>::remove_child(GC::Ref<T> node)
 {
-    VERIFY(node->m_parent == this);
+    VERIFY(node->links().parent == this);
 
-    if (m_first_child == node.ptr())
-        m_first_child = node->m_next_sibling;
+    if (links().first_child == node.ptr())
+        links().first_child = node->links().next_sibling;
 
-    if (m_last_child == node.ptr())
-        m_last_child = node->m_previous_sibling;
+    if (links().last_child == node.ptr())
+        links().last_child = node->links().previous_sibling;
 
-    if (node->m_next_sibling)
-        node->m_next_sibling->m_previous_sibling = node->m_previous_sibling;
+    if (node->links().next_sibling)
+        node->links().next_sibling->links().previous_sibling = node->links().previous_sibling;
 
-    if (node->m_previous_sibling)
-        node->m_previous_sibling->m_next_sibling = node->m_next_sibling;
+    if (node->links().previous_sibling)
+        node->links().previous_sibling->links().next_sibling = node->links().next_sibling;
 
-    node->m_next_sibling = nullptr;
-    node->m_previous_sibling = nullptr;
-    node->m_parent = nullptr;
+    node->links().next_sibling = nullptr;
+    node->links().previous_sibling = nullptr;
+    node->links().parent = nullptr;
 }
 
 template<typename T>
 inline void TreeNode<T>::append_child(GC::Ref<T> node)
 {
-    VERIFY(!node->m_parent);
+    VERIFY(!node->links().parent);
 
-    if (m_last_child)
-        m_last_child->m_next_sibling = node.ptr();
-    node->m_previous_sibling = m_last_child;
-    node->m_parent = static_cast<T*>(this);
-    m_last_child = node.ptr();
-    if (!m_first_child)
-        m_first_child = m_last_child;
+    if (links().last_child)
+        links().last_child->links().next_sibling = node.ptr();
+    node->links().previous_sibling = links().last_child;
+    node->links().parent = static_cast<T*>(this);
+    links().last_child = node.ptr();
+    if (!links().first_child)
+        links().first_child = links().last_child;
 }
 
 template<typename T>
 inline void TreeNode<T>::replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child)
 {
     VERIFY(old_child != new_child);
-    VERIFY(old_child->m_parent == this);
-    VERIFY(new_child->m_parent == nullptr);
-    if (m_first_child == old_child)
-        m_first_child = new_child;
-    if (m_last_child == old_child)
-        m_last_child = new_child;
-    new_child->m_next_sibling = old_child->m_next_sibling;
-    if (new_child->m_next_sibling)
-        new_child->m_next_sibling->m_previous_sibling = new_child;
-    new_child->m_previous_sibling = old_child->m_previous_sibling;
-    if (new_child->m_previous_sibling)
-        new_child->m_previous_sibling->m_next_sibling = new_child;
-    new_child->m_parent = old_child->m_parent;
-    old_child->m_next_sibling = nullptr;
-    old_child->m_previous_sibling = nullptr;
-    old_child->m_parent = nullptr;
+    VERIFY(old_child->links().parent == this);
+    VERIFY(new_child->links().parent == nullptr);
+    if (links().first_child == old_child)
+        links().first_child = new_child;
+    if (links().last_child == old_child)
+        links().last_child = new_child;
+    new_child->links().next_sibling = old_child->links().next_sibling;
+    if (new_child->links().next_sibling)
+        new_child->links().next_sibling->links().previous_sibling = new_child;
+    new_child->links().previous_sibling = old_child->links().previous_sibling;
+    if (new_child->links().previous_sibling)
+        new_child->links().previous_sibling->links().next_sibling = new_child;
+    new_child->links().parent = old_child->links().parent;
+    old_child->links().next_sibling = nullptr;
+    old_child->links().previous_sibling = nullptr;
+    old_child->links().parent = nullptr;
 }
 
 template<typename T>
@@ -554,21 +552,21 @@ inline void TreeNode<T>::insert_before(GC::Ref<T> node, GC::Ptr<T> child)
     if (!child)
         return append_child(move(node));
 
-    VERIFY(!node->m_parent);
+    VERIFY(!node->links().parent);
     VERIFY(child->parent() == this);
 
-    node->m_previous_sibling = child->m_previous_sibling;
-    node->m_next_sibling = child.ptr();
+    node->links().previous_sibling = child->links().previous_sibling;
+    node->links().next_sibling = child.ptr();
 
-    if (child->m_previous_sibling)
-        child->m_previous_sibling->m_next_sibling = node.ptr();
+    if (child->links().previous_sibling)
+        child->links().previous_sibling->links().next_sibling = node.ptr();
 
-    if (m_first_child == child.ptr())
-        m_first_child = node.ptr();
+    if (links().first_child == child.ptr())
+        links().first_child = node.ptr();
 
-    child->m_previous_sibling = node.ptr();
+    child->links().previous_sibling = node.ptr();
 
-    node->m_parent = static_cast<T*>(this);
+    node->links().parent = static_cast<T*>(this);
 }
 
 template<typename T>

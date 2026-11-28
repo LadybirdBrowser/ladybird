@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
 #include <LibWeb/DOM/HTMLCollectionCacheRegistration.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/InvalidateDisplayList.h>
@@ -163,7 +164,7 @@ public:
 
     virtual ~Node();
 
-    NodeType type() const { return m_type; }
+    NodeType type() const { return m_core.node_type; }
     bool is_element() const { return type() == NodeType::ELEMENT_NODE; }
     bool is_text() const { return type() == NodeType::TEXT_NODE || type() == NodeType::CDATA_SECTION_NODE; }
     bool is_exclusive_text() const { return type() == NodeType::TEXT_NODE; }
@@ -195,7 +196,7 @@ public:
     bool in_a_document_tree() const;
 
     // NOTE: This is intended for the JS bindings.
-    u16 node_type() const { return (u16)m_type; }
+    u16 node_type() const { return (u16)m_core.node_type; }
 
     bool is_editable() const;
     bool is_editing_host() const;
@@ -302,8 +303,8 @@ public:
 
     GC::Ptr<HTML::LocalNavigable> navigable() const;
 
-    Document& document() { return *m_document; }
-    Document const& document() const { return *m_document; }
+    Document& document() { return *m_core.document; }
+    Document const& document() const { return *m_core.document; }
 
     // AD-HOC: Version counters of the tree this node is in, for caches that depend on tree structure or contents.
     //         The DOM tree version moves whenever a node is inserted into or removed from the tree, or an element
@@ -330,13 +331,13 @@ public:
         return const_cast<Node*>(this)->shadow_including_root();
     }
 
-    Node& root() { return *m_root; }
-    Node const& root() const { return *m_root; }
+    Node& root() { return *m_core.root; }
+    Node const& root() const { return *m_core.root; }
 
     bool is_closed_shadow_hidden_from(Node const&) const;
 
-    bool is_connected() const { return m_is_connected; }
-    void set_is_connected(bool is_connected) { m_is_connected = is_connected; }
+    bool is_connected() const { return m_core.is_connected; }
+    void set_is_connected(bool is_connected) { m_core.is_connected = is_connected; }
 
     // The generation of this node's child list in which its element children's child indices hold. A new one begins
     // whenever an element child moves relative to the element children after it.
@@ -367,11 +368,11 @@ public:
     Node* parent_node() { return parent(); }
     Node const* parent_node() const { return parent(); }
 
-    static constexpr GC::MemberOffset parent_node_offset() { return TreeNode<Node>::parent_offset<Node>(); }
-    static constexpr GC::MemberOffset first_child_offset() { return TreeNode<Node>::first_child_offset<Node>(); }
-    static constexpr GC::MemberOffset last_child_offset() { return TreeNode<Node>::last_child_offset<Node>(); }
-    static constexpr GC::MemberOffset previous_sibling_offset() { return TreeNode<Node>::previous_sibling_offset<Node>(); }
-    static constexpr GC::MemberOffset next_sibling_offset() { return TreeNode<Node>::next_sibling_offset<Node>(); }
+    static constexpr GC::MemberOffset parent_node_offset() { return GC_FIELD_OFFSET(Node, m_core.parent); }
+    static constexpr GC::MemberOffset first_child_offset() { return GC_FIELD_OFFSET(Node, m_core.first_child); }
+    static constexpr GC::MemberOffset last_child_offset() { return GC_FIELD_OFFSET(Node, m_core.last_child); }
+    static constexpr GC::MemberOffset previous_sibling_offset() { return GC_FIELD_OFFSET(Node, m_core.previous_sibling); }
+    static constexpr GC::MemberOffset next_sibling_offset() { return GC_FIELD_OFFSET(Node, m_core.next_sibling); }
 
     GC::Ptr<Element> parent_element();
     GC::Ptr<Element const> parent_element() const;
@@ -646,11 +647,20 @@ protected:
     virtual void finalize() override;
     virtual size_t external_memory_size() const override;
 
-    GC::Member<Document> m_document;
-    GC::Member<Node> m_root;
-    NodeType m_type { NodeType::INVALID };
+    // The tree state of the node, whose layout libweb_rust defines (see Rust/src/dom/node_core.rs), which reads it in
+    // place.
+    RustFFI::NodeCore m_core {};
+
     bool m_has_layout_box { false };
     bool m_has_committed_box { false };
+    bool m_in_editable_subtree { false };
+    // NB: These share a byte, which keeps every node from growing.
+    bool m_has_assigned_slot : 1 { false };
+    bool m_inside_blocking_wheel_event_handler : 1 { false };
+    bool m_style_arrival_pending : 1 { false };
+    bool m_descendant_style_arrival_pending : 1 { false };
+    bool m_child_style_arrivals_wait : 1 { false };
+    bool m_has_spelling_markers : 1 { false };
     // Which narrower rebuilds the layout tree update marks collected so far still permit.
     enum LayoutTreeUpdateReuseReason : u8 {
         ChildListInsertion = 1,
@@ -663,15 +673,6 @@ protected:
     [[nodiscard]] u8 layout_tree_update_reuse_reasons() const;
 
     u32 m_associated_animation_count_in_subtree { 0 };
-    bool m_in_editable_subtree { false };
-    bool m_is_connected { false };
-    // NB: These share a byte, which keeps every node from growing.
-    bool m_has_assigned_slot : 1 { false };
-    bool m_inside_blocking_wheel_event_handler : 1 { false };
-    bool m_style_arrival_pending : 1 { false };
-    bool m_descendant_style_arrival_pending : 1 { false };
-    bool m_child_style_arrivals_wait : 1 { false };
-    bool m_has_spelling_markers : 1 { false };
     u32 m_child_index_generation { 1 };
     // The slot of the node directory that names the node by its unique id, or 0 before anything asked for the id.
     mutable u32 m_node_directory_slot { 0 };
@@ -683,6 +684,10 @@ protected:
     static Optional<Utf16View> first_valid_id(Utf16View, Document const&);
 
 private:
+    friend class TreeNode<Node>;
+    RustFFI::NodeCore& tree_node_links() { return m_core; }
+    RustFFI::NodeCore const& tree_node_links() const { return m_core; }
+
     void run_node_iterator_pre_removing_steps();
     bool schedule_list_item_renumber_for_removal();
     void report_removal_to_style_engine(Node& parent);
@@ -709,6 +714,20 @@ private:
 
     mutable OwnPtr<RareData> m_rare_data;
 };
+
+// NB: The Rust definition of the core asserts the same layout.
+static_assert(sizeof(RustFFI::NodeCore) == 32 && alignof(RustFFI::NodeCore) == 4);
+static_assert(offsetof(RustFFI::NodeCore, parent) == 0);
+static_assert(offsetof(RustFFI::NodeCore, first_child) == 4);
+static_assert(offsetof(RustFFI::NodeCore, last_child) == 8);
+static_assert(offsetof(RustFFI::NodeCore, next_sibling) == 12);
+static_assert(offsetof(RustFFI::NodeCore, previous_sibling) == 16);
+static_assert(offsetof(RustFFI::NodeCore, document) == 20);
+static_assert(offsetof(RustFFI::NodeCore, root) == 24);
+static_assert(offsetof(RustFFI::NodeCore, node_type) == 28);
+static_assert(offsetof(RustFFI::NodeCore, is_connected) == 30);
+// NB: libweb_rust finds the core of a node at this offset into the node's cell.
+static_assert(Node::parent_node_offset().value == RustFFI::NODE_CORE_OFFSET + offsetof(RustFFI::NodeCore, parent));
 
 }
 

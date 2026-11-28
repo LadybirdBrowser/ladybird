@@ -95,6 +95,13 @@ public:
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
+
+private:
+    friend class TreeNode<SyntheticPseudoElementTreeNode>;
+    TreeNodeLinks<SyntheticPseudoElementTreeNode>& tree_node_links() { return m_tree_node_links; }
+    TreeNodeLinks<SyntheticPseudoElementTreeNode> const& tree_node_links() const { return m_tree_node_links; }
+
+    TreeNodeLinks<SyntheticPseudoElementTreeNode> m_tree_node_links;
 };
 
 class WEB_API ElementReferencePseudoElement : public PseudoElement {
