@@ -43,6 +43,8 @@ public:
 
     void did_get_answer(u64 answer_id, bool answer);
     void did_get_permission_answer(u64 answer_id, Web::Permissions::PromptOutcome);
+    void did_get_passkey_choice(u64 answer_id, Optional<u32> index);
+    void did_get_security_key_pin(u64 answer_id, Optional<String> pin);
 
     Gfx::IntSize screen_size() const;
 
@@ -96,7 +98,11 @@ private:
 
     // What the view waits to hear from the user, through the UI.
     HashMap<u64, Function<void(bool)>> m_pending_answers;
+    // The answer that the prompt for the touch of a security key gives when the user cancels it.
+    Optional<u64> m_security_key_prompt_answer_id;
     HashMap<u64, WebView::PermissionPromptCallback> m_pending_permission_answers;
+    HashMap<u64, WebView::PasskeyChoiceCallback> m_pending_passkey_choices;
+    HashMap<u64, Function<void(Optional<String>)>> m_pending_security_key_pins;
     u64 m_next_answer_id { 1 };
 };
 

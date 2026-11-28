@@ -271,6 +271,12 @@ static constexpr auto SITE_SETTINGS_ICON_PATH = "M1.5 4.5h7M12.5 4.5h1M1.5 11.5h
 static constexpr auto MICROPHONE_ICON_PATH = "M7.5 1.5a2 2 0 0 1 2 2v4a2 2 0 0 1-4 0v-4a2 2 0 0 1 2-2zM2.5 7.5a5 5 0 0 0 10 0M7.5 12.5v2M5.5 14.5h4"sv;
 static constexpr auto LOCATION_ICON_PATH = "M7.5 14.5C4.5 11.3 2.5 8.8 2.5 6.5a5 5 0 0 1 10 0c0 2.3-2 4.8-5 8zM9.5 6.5a2 2 0 1 1-4 0a2 2 0 1 1 4 0"sv;
 static constexpr auto NOTIFICATIONS_ICON_PATH = "M7.5 1.5a4 4 0 0 1 4 4v3l2 3h-13l2-3v-3a4 4 0 0 1 4-4zM5.5 14.5h4"sv;
+// A head over shoulders.
+static constexpr auto PERSON_ICON_PATH = "M10 5a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0M2.5 13.5c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5"sv;
+// A key: its bow at the top left, and two bits on the blade.
+static constexpr auto PASSKEY_ICON_PATH = "M8 5a3 3 0 1 1-6 0a3 3 0 1 1 6 0M7.2 7.2l6.3 6.3M10.5 10.5l1.5-1.5M12.5 12.5l1.5-1.5"sv;
+// A security key that stands on its end: the plug at the top, and the button to touch on its body.
+static constexpr auto SECURITY_KEY_ICON_PATH = "M5.5 5.5h4a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM5.5 5.5v-4h4v4M9 10a1.5 1.5 0 1 1-3 0a1.5 1.5 0 1 1 3 0"sv;
 static constexpr auto CHECK_CIRCLE_ICON_PATH = "M14.5 8a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0M5.2 8.2l2 2 3.8-4.2"sv;
 static constexpr auto STAR_ICON_PATH = "M7.5 1l2 4.4 4.8.6-3.5 3.3.9 4.8-4.2-2.4-4.2 2.4.9-4.8L.7 6l4.8-.6z"sv;
 static constexpr auto CONTENT_BLOCKING_ICON_PATH = "M7.5 1.5l5 2v4.5c0 3-2 5-5 6.5-3-1.5-5-3.5-5-6.5V3.5z"sv;
@@ -376,6 +382,12 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return LOCATION_ICON_PATH;
     case ChromeIcon::Notifications:
         return NOTIFICATIONS_ICON_PATH;
+    case ChromeIcon::Person:
+        return PERSON_ICON_PATH;
+    case ChromeIcon::Passkey:
+        return PASSKEY_ICON_PATH;
+    case ChromeIcon::SecurityKey:
+        return SECURITY_KEY_ICON_PATH;
     case ChromeIcon::CheckCircle:
         return CHECK_CIRCLE_ICON_PATH;
     case ChromeIcon::Warning:

@@ -162,6 +162,18 @@ void ConnectionFromUI::view_answer_permission_request(u64 view_id, u64 answer_id
     }
 }
 
+void ConnectionFromUI::view_answer_passkey_choice(u64 view_id, u64 answer_id, Optional<u32> index)
+{
+    if (auto* view = find_view(view_id))
+        view->did_get_passkey_choice(answer_id, index);
+}
+
+void ConnectionFromUI::view_answer_security_key_pin(u64 view_id, u64 answer_id, Optional<String> pin)
+{
+    if (auto* view = find_view(view_id))
+        view->did_get_security_key_pin(answer_id, move(pin));
+}
+
 void ConnectionFromUI::active_view_changed(Optional<u64> view_id)
 {
     Application::the().set_active_view(view_id);

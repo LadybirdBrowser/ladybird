@@ -244,6 +244,8 @@ endpoint HubServer
     update_settings(u64 change_id, ByteString changes_json) =|
     view_answer(u64 view_id, u64 answer_id, bool answer) =|
     view_answer_permission_request(u64 view_id, u64 answer_id, Web::Permissions::PromptOutcome outcome) =|
+    view_answer_passkey_choice(u64 view_id, u64 answer_id, Optional<u32> index) =|
+    view_answer_security_key_pin(u64 view_id, u64 answer_id, Optional<String> pin) =|
     destroy_view(u64 view_id) =|
     view_set_viewport(u64 view_id, Web::DevicePixelSize size, double device_pixel_ratio) =|
     view_set_system_theme(u64 view_id, Core::AnonymousBuffer theme) =|

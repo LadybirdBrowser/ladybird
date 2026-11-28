@@ -112,6 +112,7 @@ QString message_popover_style_sheet(QPalette const&);
 QString site_settings_popover_style_sheet(QPalette const&);
 QString feedback_popover_style_sheet(QPalette const&);
 QString permission_prompt_style_sheet(QPalette const&);
+QString passkey_prompt_style_sheet(QPalette const&);
 QString all_tabs_popover_style_sheet(QPalette const&);
 QString bookmark_popover_style_sheet(QPalette const&);
 QString zoom_popover_style_sheet(QPalette const&);

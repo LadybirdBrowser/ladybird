@@ -409,6 +409,11 @@ public:
     decltype(Hub::View::on_request_date_picker) on_request_date_picker;
     decltype(Hub::View::on_request_permission) on_request_permission;
     decltype(Hub::View::on_cancel_permission_prompt) on_cancel_permission_prompt;
+    decltype(Hub::View::on_request_passkey_choice) on_request_passkey_choice;
+    decltype(Hub::View::on_request_security_key_prompt) on_request_security_key_prompt;
+    decltype(Hub::View::on_dismiss_passkey_prompt) on_dismiss_passkey_prompt;
+    decltype(Hub::View::on_request_security_key_pin) on_request_security_key_pin;
+    decltype(Hub::View::on_show_passkey_message) on_show_passkey_message;
     decltype(Hub::View::on_tab_indicator_change) on_tab_indicator_change;
     Function<void(Hub::ViewState const& previous_state)> on_state_change;
     decltype(Hub::View::on_request_file_picker) on_request_file_picker;
