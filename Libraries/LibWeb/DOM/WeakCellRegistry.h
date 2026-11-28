@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Weak.h>
@@ -16,28 +17,32 @@
 namespace Web::DOM {
 
 // A set of cells that a cell keeps weakly, such as a document's live ranges, which libweb_rust reads in place through a
-// RustFFI::WeakCellSpan of the owner's core. See Rust/src/dom/weak_cells.rs.
+// RustFFI::WeakCellRegistryField of the owner's core. See Rust/src/dom/weak_cells.rs.
 //
 // The cells are held by GC::Weak pointers, so the registry keeps none of them alive, and the collector points each at
 // the new address of a cell it moves, and nulls one whose cell dies. After every collection, the registry drops the
-// null entries. Whenever it changes its entries, it mirrors where they are and how many into the span.
+// null entries. Whenever it changes its entries, it mirrors where they are and how many into its span.
 //
 // Each cell keeps the index of its entry, which T exposes as weak_cell_registry_index(), so that removing a cell nulls
 // its entry in constant time, and keeps the order of the others. The registry drops the null entries once they are as
 // many as the others, and after every collection.
+//
+// The owner keeps the registry as a LazyWeakCellRegistry, which allocates it as the first cell is added, and points the
+// field of its core at the span for as long as it lives.
 template<typename T>
 class WeakCellRegistry final : public GC::WeakContainer {
     AK_MAKE_NONCOPYABLE(WeakCellRegistry);
     AK_MAKE_NONMOVABLE(WeakCellRegistry);
+    AK_ALLOC_WITH_KMALLOC;
 
 public:
-    WeakCellRegistry(GC::Cell const& owner, RustFFI::WeakCellSpan& span)
+    explicit WeakCellRegistry(GC::Cell const& owner)
         : GC::WeakContainer(owner.heap())
         , m_owner(owner)
-        , m_span(span)
     {
-        mirror();
     }
+
+    RustFFI::WeakCellSpan const& span() const { return m_span; }
 
     void add(T& cell)
     {
@@ -94,16 +99,63 @@ private:
     }
 
     GC::Ref<GC::Cell const> m_owner;
-    RustFFI::WeakCellSpan& m_span;
+    RustFFI::WeakCellSpan m_span {};
     Vector<GC::Weak<T>> m_cells;
     // How many entries remove() nulled since the null entries were last dropped.
     size_t m_removed_count { 0 };
+};
+
+// A WeakCellRegistry that its owner allocates out of line once it adds the first cell, so that an owner that never adds
+// one spends a pointer on it, and the field of the owner's core that libweb_rust reads it through another.
+template<typename T>
+class LazyWeakCellRegistry {
+    AK_MAKE_NONCOPYABLE(LazyWeakCellRegistry);
+    AK_MAKE_NONMOVABLE(LazyWeakCellRegistry);
+
+public:
+    LazyWeakCellRegistry() = default;
+
+    // `field` is the field of the owner's core that points at the registry's span, which this sets as it allocates the
+    // registry. The owner passes the same field every time.
+    void add(GC::Cell const& owner, RustFFI::WeakCellSpan const*& field, T& cell)
+    {
+        if (!m_registry) {
+            m_registry = make<WeakCellRegistry<T>>(owner);
+            field = &m_registry->span();
+        }
+        m_registry->add(cell);
+    }
+
+    void remove(T& cell)
+    {
+        VERIFY(m_registry);
+        m_registry->remove(cell);
+    }
+
+    bool is_empty() const { return !m_registry || m_registry->is_empty(); }
+
+    void visit_edges(GC::Cell::Visitor& visitor) const
+    {
+        if (m_registry)
+            m_registry->visit_edges(visitor);
+    }
+
+    template<typename Callback>
+    void for_each(Callback callback) const
+    {
+        if (m_registry)
+            m_registry->for_each(move(callback));
+    }
+
+private:
+    OwnPtr<WeakCellRegistry<T>> m_registry;
 };
 
 // NB: The Rust definition of the span asserts the same layout, and reads each entry as a pointer to its GC::WeakImpl.
 static_assert(sizeof(RustFFI::WeakCellSpan) == 16 && alignof(RustFFI::WeakCellSpan) == 8);
 static_assert(offsetof(RustFFI::WeakCellSpan, entries) == 0);
 static_assert(offsetof(RustFFI::WeakCellSpan, length) == 8);
+static_assert(sizeof(RustFFI::WeakCellRegistryField) == sizeof(void*));
 static_assert(sizeof(GC::Weak<GC::Cell>) == sizeof(void*));
 static_assert(GC::WeakImpl::value_offset() == RustFFI::WEAK_IMPL_VALUE_OFFSET);
 

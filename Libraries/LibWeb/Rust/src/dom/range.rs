@@ -22,7 +22,7 @@ use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
-use super::weak_cells::WeakCellSpan;
+use super::weak_cells::WeakCellRegistryField;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -139,7 +139,7 @@ unsafe fn range_core<'a>(cell: NonNull<u8>) -> &'a RangeCore {
 #[inline(always)]
 fn for_each_live_range(
     _main_thread: &MainThread<'_>,
-    live_ranges: &WeakCellSpan,
+    live_ranges: &WeakCellRegistryField,
     mut callback: impl FnMut(&RangeCore),
 ) {
     // SAFETY: The registry's entries are as C++ last mirrored them, as nothing can call into C++ while the main thread

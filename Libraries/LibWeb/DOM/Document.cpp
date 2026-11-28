@@ -4290,7 +4290,7 @@ void Document::adopt_node_from_other_document(Node& node, Document& old_document
 
         for (NodeIterator& node_iterator : node_iterators_to_transfer) {
             old_document.m_node_iterators.remove(node_iterator);
-            m_node_iterators.add(node_iterator);
+            m_node_iterators.add(*this, m_document_core.node_iterators, node_iterator);
         }
     }
 
@@ -5898,12 +5898,12 @@ GC::Ref<TreeWalker> Document::create_tree_walker(Node& root, unsigned what_to_sh
 
 void Document::register_node_iterator(Badge<NodeIterator>, NodeIterator& node_iterator)
 {
-    m_node_iterators.add(node_iterator);
+    m_node_iterators.add(*this, m_document_core.node_iterators, node_iterator);
 }
 
 void Document::attach_range(Badge<Range>, Range& range)
 {
-    m_live_ranges.add(range);
+    m_live_ranges.add(*this, m_document_core.live_ranges, range);
 }
 
 void Document::detach_range(Badge<Range>, Range& range)

@@ -6,11 +6,14 @@
 
 //! The cells a document keeps weakly, such as its live ranges and its NodeIterators, as Rust reads them in place.
 //!
-//! C++ keeps each set as a DOM::WeakCellRegistry: a vector of GC::Weak pointers, which the document owns, and whose
-//! entries and size it mirrors into a WeakCellSpan of the document's core whenever it changes them. The vector is no
-//! root, so a cell in it dies as soon as nothing else keeps it alive, but the collector knows of each of its weak
-//! pointers: it points one at the new address of a cell it moves, and nulls one whose cell dies. After every collection,
-//! the registry drops the null entries, see WeakCellRegistry::remove_dead_cells().
+//! C++ keeps each set as a DOM::WeakCellRegistry: a vector of GC::Weak pointers, which the document allocates out of
+//! line as it registers the first cell of the set, and whose entries and size it mirrors into the WeakCellSpan the
+//! registry holds whenever it changes them. The document's core holds a WeakCellRegistryField that points at that span,
+//! or is null while the document has registered no cell of the set, so that a document without live ranges or
+//! NodeIterators, which is most of them, spends a pointer on each set and nothing more. The vector is no root, so a
+//! cell in it dies as soon as nothing else keeps it alive, but the collector knows of each of its weak pointers: it
+//! points one at the new address of a cell it moves, and nulls one whose cell dies. After every collection, the
+//! registry drops the null entries, see WeakCellRegistry::remove_dead_cells().
 //!
 //! Rust only reads the entries, and only while nothing calls into C++, which could change the vector, or collect.
 
@@ -73,19 +76,55 @@ impl WeakCellSpan {
     }
 }
 
-#[cfg(test)]
-impl WeakCellSpan {
-    pub(crate) fn empty_for_test() -> Self {
-        Self {
-            entries: Cell::new(core::ptr::null()),
-            length: Cell::new(0),
-        }
+/// A field of a core that points at the WeakCellSpan of a DOM::WeakCellRegistry, which C++ sets as it allocates the
+/// registry, which then lives as long as the document, or null while there is none. It holds no cell.
+#[repr(transparent)]
+pub struct WeakCellRegistryField(Cell<*const WeakCellSpan>);
+
+impl WeakCellRegistryField {
+    #[inline(always)]
+    fn span(&self) -> Option<&WeakCellSpan> {
+        // SAFETY: C++ points the field at the span of a registry it owns for as long as the field points at it.
+        unsafe { self.0.get().as_ref() }
     }
 
-    /// Mirrors `entries`, which must outlive the span's use, as C++ does.
-    pub(crate) fn set_for_test(&self, entries: &[*const c_void]) {
-        self.entries.set(entries.as_ptr());
-        self.length.set(entries.len());
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.span().map_or(0, WeakCellSpan::len)
+    }
+
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Calls `callback` with the start of the cell of each live entry, in the registry's order.
+    ///
+    /// # Safety
+    ///
+    /// As for WeakCellSpan::for_each_cell().
+    #[inline(always)]
+    pub unsafe fn for_each_cell(&self, callback: impl FnMut(NonNull<u8>)) {
+        if let Some(span) = self.span() {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { span.for_each_cell(callback) };
+        }
+    }
+}
+
+#[cfg(test)]
+impl WeakCellRegistryField {
+    pub(crate) fn empty_for_test() -> Self {
+        Self(Cell::new(core::ptr::null()))
+    }
+
+    /// Mirrors `entries`, which live for the rest of the process, as C++ does.
+    pub(crate) fn set_for_test(&self, entries: &'static [*const c_void]) {
+        let span = Box::leak(Box::new(WeakCellSpan {
+            entries: Cell::new(entries.as_ptr()),
+            length: Cell::new(entries.len()),
+        }));
+        self.0.set(span);
     }
 }
 
@@ -117,3 +156,4 @@ const _: () = assert!(core::mem::offset_of!(WeakImplForTest, value) == WEAK_IMPL
 const _: () = assert!(size_of::<WeakCellSpan>() == 16 && align_of::<WeakCellSpan>() == 8);
 const _: () = assert!(core::mem::offset_of!(WeakCellSpan, entries) == 0);
 const _: () = assert!(core::mem::offset_of!(WeakCellSpan, length) == 8);
+const _: () = assert!(size_of::<WeakCellRegistryField>() == 8);

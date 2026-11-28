@@ -336,7 +336,7 @@ const _: () = assert!(size_of::<AttrPrefix>() == 120 && offset_of!(AttrPrefix, c
 const _: () = assert!(size_of::<DocumentFragmentPrefix>() == 120 && offset_of!(DocumentFragmentPrefix, core) == 112);
 const _: () = assert!(size_of::<ShadowRootPrefix>() == 168 && offset_of!(ShadowRootPrefix, core) == 120);
 const _: () = assert!(
-    size_of::<DocumentPrefix>() == 232
+    size_of::<DocumentPrefix>() == 216
         && offset_of!(DocumentPrefix, global_event_handlers_vtable) == 112
         && offset_of!(DocumentPrefix, core) == 120
 );
