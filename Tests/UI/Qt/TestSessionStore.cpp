@@ -111,7 +111,7 @@ TEST_CASE(fresh_database_migrates_to_the_latest_schema)
     for (auto table : { "Sessions"sv, "SessionTabs"sv, "SessionUsedSteps"sv, "SessionHistories"sv, "SessionNestedHistories"sv, "SessionEntries"sv, "SessionUpgradeInsecureNavigations"sv })
         EXPECT(TRY_OR_FAIL(database->table_exists(table)));
 
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 13u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 14u });
 }
 
 TEST_CASE(deleting_a_session_cascades_through_its_tabs)
@@ -158,7 +158,7 @@ TEST_CASE(version_4_database_migrates_to_the_latest_schema)
     rewind_sessions_schema_to_version_4(*database);
 
     EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 13u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 14u });
     EXPECT(TRY_OR_FAIL(database->table_exists("SessionUpgradeInsecureNavigations"sv)));
     EXPECT_EQ(select_i64(*database, "SELECT pinned FROM SessionTabs WHERE id = 2;"_string), 0);
     EXPECT_EQ(select_i64(*database, "SELECT COUNT(*) FROM Sessions WHERE id = 1 AND width IS NULL;"_string), 1);
@@ -183,9 +183,37 @@ TEST_CASE(version_12_local_file_roots_migrate_to_held_local_file_content)
     TRY_OR_FAIL(database->execute_raw("UPDATE SchemaVersions SET version = 12 WHERE store = 'Sessions';"sv));
 
     EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 13u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 14u });
     EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'file:///tmp/a.html';"_string), 1);
     EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'https://b.example/';"_string), 0);
+}
+
+// Entries saved before entries recorded whether they held local file content came out of migration as holding none. A
+// file: entry did if it showed the file or the PDF viewer for it.
+TEST_CASE(version_13_file_entries_migrate_to_held_local_file_content)
+{
+    auto database = create_session_database();
+    {
+        auto store = TRY_OR_FAIL(SessionStore::create(*database));
+        auto tab = TRY_OR_FAIL(store->tab_opened({ .window_id = {}, .initial_url = parse_url("about:blank"sv), .insertion_index = {}, .is_active = SessionStore::IsActive::No }));
+        auto snapshot = make_snapshot({ "file:///tmp/a.html"sv, "file:///tmp/b.pdf"sv, "file:///tmp/c.html"sv, "file:///tmp/missing.html"sv, "https://d.example/"sv });
+        store->update_tab_state({ .tab_id = tab, .history = snapshot, .url = parse_url("https://d.example/"sv) });
+        store->flush_dirty_state();
+    }
+    TRY_OR_FAIL(database->execute_raw("UPDATE SessionEntries SET held_local_file_content = 0;"sv));
+    TRY_OR_FAIL(database->execute_raw("UPDATE SessionEntries SET origin_kind = 2, origin_scheme = NULL WHERE url = 'file:///tmp/a.html';"sv));
+    TRY_OR_FAIL(database->execute_raw("UPDATE SessionEntries SET origin_kind = 3, origin_scheme = 'resource' WHERE url = 'file:///tmp/b.pdf';"sv));
+    TRY_OR_FAIL(database->execute_raw("UPDATE SessionEntries SET origin_kind = 3, origin_scheme = 'file' WHERE url = 'file:///tmp/c.html';"sv));
+    TRY_OR_FAIL(database->execute_raw("UPDATE SessionEntries SET origin_kind = 1, origin_scheme = NULL WHERE url = 'file:///tmp/missing.html';"sv));
+    TRY_OR_FAIL(database->execute_raw("UPDATE SchemaVersions SET version = 13 WHERE store = 'Sessions';"sv));
+
+    EXPECT_EQ(TRY_OR_FAIL(SessionStore::migrate_schema(*database)), Database::MigrationOutcome::Success);
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 14u });
+    EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'file:///tmp/a.html';"_string), 1);
+    EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'file:///tmp/b.pdf';"_string), 1);
+    EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'file:///tmp/c.html';"_string), 1);
+    EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'file:///tmp/missing.html';"_string), 0);
+    EXPECT_EQ(select_i64(*database, "SELECT held_local_file_content FROM SessionEntries WHERE url = 'https://d.example/';"_string), 0);
 }
 
 TEST_CASE(pushed_tab_state_flushes_to_rows)
