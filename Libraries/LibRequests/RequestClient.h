@@ -63,6 +63,7 @@ public:
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
     // Calls back with no addresses when the lookup fails or a proxy is configured.
     void resolve_host(ByteString const& host, Function<void(Vector<ByteString>)> on_resolved);
+    void look_up_known_hsts_host(String const& host, Function<void(bool is_known)> on_answer);
     int request_server_client_id() const { return m_request_server_client_id; }
 
     // No other client this process creates has the same epoch, so a request is known by its id and this epoch.
@@ -86,6 +87,7 @@ private:
     virtual void headers_became_available(u64 request_id, URL::URL, Vector<HTTP::Header>, Optional<u32>, Optional<String>, CacheState, ByteString http_version) override;
     virtual void request_transferred(u64 request_id) override;
     virtual void host_resolved(u64 lookup_id, Vector<ByteString> addresses) override;
+    virtual void looked_up_known_hsts_host(u64 lookup_id, bool is_known) override;
 
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
@@ -106,6 +108,9 @@ private:
 
     HashMap<u64, Function<void(Vector<ByteString>)>> m_host_lookups;
     u64 m_next_host_lookup_id { 0 };
+
+    HashMap<u64, Function<void(bool)>> m_known_hsts_host_lookups;
+    u64 m_next_known_hsts_host_lookup_id { 0 };
 };
 
 }

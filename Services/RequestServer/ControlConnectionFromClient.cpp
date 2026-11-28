@@ -347,6 +347,14 @@ void ControlConnectionFromClient::retrieved_http_cookie(int client_id, u64 reque
     }
 }
 
+void ControlConnectionFromClient::looked_up_known_hsts_host(int client_id, u64 lookup_id, bool is_known)
+{
+    if (auto connection = m_connections.get(client_id); connection.has_value()) {
+        if (!(*connection)->looked_up_known_hsts_host({}, lookup_id, is_known))
+            did_misbehave("Duplicate or unexpected HSTS lookup response");
+    }
+}
+
 void ControlConnectionFromClient::stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id)
 {
     if (auto connection = m_connections.get(client_id); connection.has_value()) {

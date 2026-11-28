@@ -89,6 +89,13 @@ public:
         VERIFY(!response);
     }
 
+    void looked_up_known_hsts_host(int client_id, u64 lookup_id, bool is_known)
+    {
+        auto message = make<Messages::RequestServerControl::LookedUpKnownHstsHost>(client_id, lookup_id, is_known);
+        auto response = MUST(static_cast<RequestServerControlEndpoint::Stub&>(*m_connection).handle(move(message)));
+        VERIFY(!response);
+    }
+
     void stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id)
     {
         auto message = make<Messages::RequestServerControl::StoredResponseCookiesAndHstsPolicy>(client_id, request_id, store_request_id);
@@ -146,6 +153,11 @@ public:
     NonnullOwnPtr<Messages::RequestServerControlClient::RetrieveHttpCookie> take_cookie_request()
     {
         return take_message<RequestServerControlClientEndpoint, Messages::RequestServerControlClient::RetrieveHttpCookie>(*m_remote_transport);
+    }
+
+    NonnullOwnPtr<Messages::RequestServerControlClient::LookUpKnownHstsHost> take_known_hsts_host_lookup()
+    {
+        return take_message<RequestServerControlClientEndpoint, Messages::RequestServerControlClient::LookUpKnownHstsHost>(*m_remote_transport);
     }
 
 private:
@@ -232,6 +244,13 @@ public:
         auto request_finished = take_client_message<Messages::RequestClient::RequestFinished>();
         VERIFY(request_finished->request_id() == request_id);
         return request_finished->network_error();
+    }
+
+    void look_up_known_hsts_host(u64 lookup_id, String host)
+    {
+        auto message = make<Messages::RequestServer::LookUpKnownHstsHost>(lookup_id, move(host));
+        auto response = dispatch(move(message));
+        VERIFY(!response);
     }
 
     void ensure_connection(u64 request_id, URL::URL url)
@@ -857,6 +876,75 @@ TEST_CASE(duplicate_cookie_response_is_rejected)
 
     control.retrieve_http_cookie(connection.client_id(), 0, RequestServer::RequestType::Fetch, cookie_request->cookie_request_id());
     EXPECT(!control.is_open());
+}
+
+TEST_CASE(known_hsts_host_lookup_is_answered_by_the_ui_process)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+
+    connection.look_up_known_hsts_host(7, "example.com"_string);
+    auto lookup = control.take_known_hsts_host_lookup();
+    EXPECT_EQ(lookup->client_id(), connection.client_id());
+    EXPECT_EQ(lookup->lookup_id(), 7u);
+    EXPECT_EQ(lookup->host(), "example.com"sv);
+
+    control.looked_up_known_hsts_host(connection.client_id(), 7, false);
+    auto answer = connection.take_client_message<Messages::RequestClient::LookedUpKnownHstsHost>();
+    EXPECT_EQ(answer->lookup_id(), 7u);
+    EXPECT(!answer->is_known());
+    EXPECT(control.is_open());
+}
+
+TEST_CASE(known_hsts_host_lookup_without_a_ui_process_answers_that_the_host_is_known)
+{
+    TestServer server;
+    TestConnection connection { server };
+
+    connection.look_up_known_hsts_host(0, "example.com"_string);
+    auto answer = connection.take_client_message<Messages::RequestClient::LookedUpKnownHstsHost>();
+    EXPECT_EQ(answer->lookup_id(), 0u);
+    EXPECT(answer->is_known());
+}
+
+TEST_CASE(live_known_hsts_host_lookup_id_cannot_be_reused)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+
+    connection.look_up_known_hsts_host(0, "example.com"_string);
+    (void)control.take_known_hsts_host_lookup();
+    EXPECT(connection.is_open());
+
+    connection.look_up_known_hsts_host(0, "example.com"_string);
+    EXPECT(!connection.is_open());
+}
+
+TEST_CASE(duplicate_known_hsts_host_answer_is_rejected)
+{
+    TestServer server;
+    TestControlConnection control { server };
+    TestConnection connection { server };
+    connection.look_up_known_hsts_host(0, "example.com"_string);
+    (void)control.take_known_hsts_host_lookup();
+
+    control.looked_up_known_hsts_host(connection.client_id(), 0, true);
+    EXPECT(control.is_open());
+
+    control.looked_up_known_hsts_host(connection.client_id(), 0, true);
+    EXPECT(!control.is_open());
+}
+
+TEST_CASE(known_hsts_host_answer_for_disconnected_client_is_ignored)
+{
+    TestServer server;
+    TestControlConnection control { server };
+
+    control.looked_up_known_hsts_host(-1, 0, true);
+
+    EXPECT(control.is_open());
 }
 
 TEST_CASE(transferring_request_reissues_cookie_lookup_for_new_owner)

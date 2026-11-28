@@ -41,6 +41,7 @@ public:
     Function<void(ByteString const& host, u16 port, ByteString const& fingerprint, CertificateError, ByteString const& details)> on_rejected_certificate;
     Function<void(int client_id)> on_client_disconnected;
     Function<String(int client_id, URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const&, HTTP::Cookie::SameSiteContext)> on_retrieve_http_cookie;
+    Function<bool(int client_id, String const& host)> on_look_up_known_hsts_host;
     Function<void(int client_id, URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const&, HTTP::Cookie::SameSiteContext, Vector<HTTP::Cookie::ParsedCookie> const&, Optional<HTTP::HSTS::ParsedHSTSPolicy> const&)> on_store_response_cookies_and_hsts_policy;
     Function<void()> on_request_server_died;
     Function<void(u64 size)> on_disk_cache_size_changed;
@@ -52,6 +53,7 @@ private:
     virtual void rejected_certificate(ByteString host, u16 port, ByteString fingerprint, CertificateError, ByteString details) override;
     virtual void client_disconnected(int client_id) override;
     virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context, HTTP::Cookie::SameSiteContext same_site_context) override;
+    virtual void look_up_known_hsts_host(int client_id, u64 lookup_id, String host) override;
     virtual void store_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id, URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context, HTTP::Cookie::SameSiteContext same_site_context, Vector<HTTP::Cookie::ParsedCookie> cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> hsts_policy) override;
     virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
     virtual void removed_cache_entries(u64 clear_cache_request_id) override;

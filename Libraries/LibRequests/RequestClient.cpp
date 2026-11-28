@@ -67,6 +67,13 @@ void RequestClient::die()
             request_server_died_callback();
         });
     }
+
+    if (!m_known_hsts_host_lookups.is_empty()) {
+        Core::deferred_invoke([known_hsts_host_lookups = move(m_known_hsts_host_lookups)]() mutable {
+            for (auto& [id, on_answer] : known_hsts_host_lookups)
+                on_answer(true);
+        });
+    }
 }
 
 RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, HTTP::Cookie::SameSiteContext same_site_context, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, TransferLease transfer_lease, Optional<u32> address_selection_hint, CacheMissNotification cache_miss_notification, u64 originating_page_id, Optional<HTTP::NetworkIsolationKey> network_isolation_key)
@@ -161,6 +168,24 @@ void RequestClient::host_resolved(u64 lookup_id, Vector<ByteString> addresses)
 {
     if (auto on_resolved = m_host_lookups.take(lookup_id); on_resolved.has_value())
         (*on_resolved)(move(addresses));
+}
+
+void RequestClient::look_up_known_hsts_host(String const& host, Function<void(bool is_known)> on_answer)
+{
+    if (!is_open()) {
+        Core::deferred_invoke([on_answer = move(on_answer)] { on_answer(true); });
+        return;
+    }
+
+    auto lookup_id = m_next_known_hsts_host_lookup_id++;
+    m_known_hsts_host_lookups.set(lookup_id, move(on_answer));
+    async_look_up_known_hsts_host(lookup_id, host);
+}
+
+void RequestClient::looked_up_known_hsts_host(u64 lookup_id, bool is_known)
+{
+    if (auto on_answer = m_known_hsts_host_lookups.take(lookup_id); on_answer.has_value())
+        (*on_answer)(is_known);
 }
 
 void RequestClient::request_requires_network(u64 request_id)

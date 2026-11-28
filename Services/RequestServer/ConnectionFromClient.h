@@ -70,6 +70,7 @@ public:
     virtual void die() override;
 
     bool websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie);
+    bool looked_up_known_hsts_host(Badge<ControlConnectionFromClient>, u64 lookup_id, bool is_known);
 
     IsPrivate is_private() const { return m_is_private; }
 
@@ -96,6 +97,7 @@ private:
     virtual void import_request(u64 request_id, Requests::ExportedRequest, bool create_transfer_lease) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
     virtual void resolve_host(u64 lookup_id, ByteString host) override;
+    virtual void look_up_known_hsts_host(u64 lookup_id, String host) override;
 
     virtual void websocket_connect(u64 websocket_id, URL::URL, Optional<HTTP::NetworkIsolationKey>, ByteString, Vector<ByteString>, Vector<ByteString>, Vector<HTTP::Header>, u64 originating_page_id, HTTP::Cookie::SameSiteContext) override;
     virtual void websocket_send(u64 websocket_id, bool, ByteBuffer) override;
@@ -164,6 +166,7 @@ private:
         Function<void(String)> continuation;
     };
     HashMap<u64, WebSocketCookieRequest> m_websocket_cookie_requests;
+    HashTable<u64> m_pending_known_hsts_host_lookups;
     HashMap<u64, RefPtr<WebSocket::WebSocket>> m_websockets;
 
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;

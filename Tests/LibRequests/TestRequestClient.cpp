@@ -57,6 +57,42 @@ TEST_CASE(requests_of_two_clients_with_the_same_id_have_different_transport_epoc
     EXPECT_NE(other.client->transport_epoch(), replacement.client->transport_epoch());
 }
 
+TEST_CASE(known_hsts_host_lookups_answer_that_the_host_is_known_after_request_server_dies)
+{
+    Core::EventLoop event_loop;
+
+    auto connected = connect_client(1);
+    Vector<StringView> events;
+    connected.client->on_request_server_died = [&] { events.append("died"sv); };
+    connected.client->look_up_known_hsts_host("example.com"_string, [&](bool is_known) {
+        events.append(is_known ? "known"sv : "not known"sv);
+    });
+
+    (void)MUST(connected.request_server.create_transport());
+
+    event_loop.spin_until([&] { return events.size() == 2; });
+    EXPECT_EQ(events, (Vector<StringView> { "died"sv, "known"sv }));
+}
+
+TEST_CASE(known_hsts_host_lookups_made_after_request_server_dies_answer_that_the_host_is_known)
+{
+    Core::EventLoop event_loop;
+
+    auto connected = connect_client(1);
+    Vector<StringView> events;
+    connected.client->on_request_server_died = [&] { events.append("died"sv); };
+
+    (void)MUST(connected.request_server.create_transport());
+    event_loop.spin_until([&] { return events.size() == 1; });
+
+    connected.client->look_up_known_hsts_host("example.com"_string, [&](bool is_known) {
+        events.append(is_known ? "known"sv : "not known"sv);
+    });
+
+    event_loop.spin_until([&] { return events.size() == 2; });
+    EXPECT_EQ(events, (Vector<StringView> { "died"sv, "known"sv }));
+}
+
 TEST_CASE(a_request_keeps_its_transport_epoch_once_its_client_is_gone)
 {
     Core::EventLoop event_loop;

@@ -16,6 +16,8 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BrowsingSession.h>
+#include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/RequestServerSiteBindings.h>
@@ -151,6 +153,12 @@ ErrorOr<void> RequestServerManager::launch_process(RequestServerInstance& instan
     control_client->on_disk_cache_size_changed = [weak_instance](u64 size) {
         if (auto instance = weak_instance.strong_ref())
             the().disk_cache_size_changed(*instance, size);
+    };
+    control_client->on_look_up_known_hsts_host = [weak_instance](int client_id, String const& host) {
+        auto instance = weak_instance.strong_ref();
+        if (!instance || !instance->has_client(client_id))
+            return true;
+        return instance->session().hsts_store->is_known_hsts_host(host);
     };
     control_client->on_rejected_certificate = [weak_instance](ByteString const& host, u16 port, ByteString const& fingerprint, Requests::CertificateError errors, ByteString const& details) {
         if (auto instance = weak_instance.strong_ref())

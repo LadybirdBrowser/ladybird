@@ -15,6 +15,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
+#include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ProcessManager.h>
@@ -207,4 +208,39 @@ TEST_CASE(request_server_client_sessions)
     });
     VERIFY(worker_count == 3);
     outln("PASS: RequestServer clients use the cookies of the browsing session they were created for");
+}
+
+TEST_CASE(request_server_clients_look_up_known_hsts_hosts_of_their_session)
+{
+    Test::HeadlessTestEnvironment environment { "TestRequestServerKnownHSTSHosts"sv };
+    auto app = TRY_OR_FAIL(environment.create_application<TestApplication>());
+
+    auto& normal_session = WebView::Application::default_session();
+    auto private_session = WebView::Application::session_for_new_view(WebView::IsPrivate::Yes);
+    normal_session.hsts_store->store_policy("normal.test"_string, { AK::Duration::from_seconds(3600), false });
+    private_session->hsts_store->store_policy("private.test"_string, { AK::Duration::from_seconds(3600), false });
+
+    auto connect_client = [](WebView::BrowsingSession& session) {
+        auto connection = MUST(WebView::connect_new_request_server_client(session, RequestServer::SiteBinding::Bound));
+        return make_ref_counted<Requests::RequestClient>(MUST(connection.handle.create_transport()));
+    };
+    auto look_up = [](Requests::RequestClient& client, String const& host) {
+        Optional<bool> answer;
+        client.look_up_known_hsts_host(host, [&](bool is_known) { answer = is_known; });
+        Core::EventLoop::current().spin_until([&] { return answer.has_value(); });
+        return *answer;
+    };
+
+    auto normal_client = connect_client(normal_session);
+    auto private_client = connect_client(*private_session);
+    EXPECT(look_up(*normal_client, "normal.test"_string));
+    EXPECT(!look_up(*normal_client, "private.test"_string));
+    EXPECT(look_up(*private_client, "private.test"_string));
+    EXPECT(!look_up(*private_client, "normal.test"_string));
+
+    auto& manager = WebView::Application::request_server_manager();
+    auto normal_instance = TRY_OR_FAIL(manager.browser_instance(normal_session));
+    auto& on_look_up = normal_instance->control_client().on_look_up_known_hsts_host;
+    EXPECT(!on_look_up(client_id_of(*normal_client), "unknown.test"_string));
+    EXPECT(on_look_up(client_id_of(*private_client), "unknown.test"_string));
 }
