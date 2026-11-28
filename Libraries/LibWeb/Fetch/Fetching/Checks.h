@@ -9,8 +9,14 @@
 #include <AK/Forward.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
-#include <LibWeb/Forward.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+class Response;
+
+}
 
 namespace Web::Fetch::Fetching {
 

@@ -9,9 +9,10 @@
 #include <AK/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/RequestOrResponseBlocking.h>
-#include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Infrastructure {
+
+class Request;
 
 [[nodiscard]] WEB_API RequestOrResponseBlocking block_bad_port(Request const&);
 
