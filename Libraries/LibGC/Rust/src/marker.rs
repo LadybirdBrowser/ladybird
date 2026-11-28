@@ -438,6 +438,8 @@ impl Marker {
     }
 
     /// Visits the edges of a marked cell, and counts the cell and the memory it owns outside the heap.
+    // OPTIMIZATION: Every marked cell takes this path, which a call per cell would make slower.
+    #[inline(always)]
     fn visit_edges_of(&self, compressed: u32) {
         let job = self.job();
         let layout = &job.layout;
