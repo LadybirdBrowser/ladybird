@@ -15,6 +15,7 @@ use core::marker::PhantomPinned;
 use core::num::NonZeroU32;
 use core::ptr::NonNull;
 
+use libgc_api::Trace;
 use libgc_api::member::write_barrier;
 
 use super::event_listeners::EventListenerList;
@@ -36,6 +37,19 @@ pub struct EventTargetMember(Cell<u32>);
 /// frees. The data starts with the target's event listener list, which is all Rust reads of it.
 #[repr(transparent)]
 pub struct EventTargetDataField(UnsafeCell<*const EventListenerList>);
+
+super::trace::member_fields!(EventTargetMember);
+
+// SAFETY: Traces the target's event listener list. C++ visits the rest of the data.
+unsafe impl Trace for EventTargetDataField {
+    #[inline(always)]
+    fn trace<'c>(&'c self, visitor: &mut libgc_api::Visitor<'c>) {
+        // SAFETY: The field is that of a live event target, and C++ does not change it while its edges are visited.
+        if let Some(list) = unsafe { self.listener_list() } {
+            list.trace(visitor);
+        }
+    }
+}
 
 impl EventTargetDataField {
     /// The target's event listener list, if it ever needed one.
@@ -64,6 +78,7 @@ pub const EVENT_TARGET_HAS_GET_THE_PARENT: u8 = 1 << 0;
 /// Adding a listener sets the bit of its type, and removing one works the summaries out again from the listeners that
 /// are left, see event_listeners.rs. Capturing listeners and the others are summarized apart, as only the ones of one
 /// kind run in each phase.
+#[derive(Trace)]
 #[repr(C)]
 pub struct EventTargetCore {
     /// The EVENT_TARGET_* flags.

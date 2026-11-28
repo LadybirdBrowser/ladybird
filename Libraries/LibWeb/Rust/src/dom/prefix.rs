@@ -57,6 +57,9 @@ use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use core::mem::offset_of;
 
+use libgc_api::Trace;
+use libgc_api::layout::CELL_IDENTITY_HASH_STATE_OFFSET;
+
 use super::attr::AttrCore;
 use super::element_core::ElementCore;
 use super::event_target::EventTargetCore;
@@ -88,6 +91,12 @@ pub(super) unsafe fn prefix_of<'a, P, T>(cell: *const T) -> &'a P {
 #[repr(transparent)]
 pub struct OpaqueCxx<T, const N: usize>(UnsafeCell<MaybeUninit<[T; N]>>);
 
+// SAFETY: C++ owns what the slot holds, and visits the cells it can hold in its visit_edges().
+unsafe impl<T, const N: usize> Trace for OpaqueCxx<T, N> {
+    #[inline(always)]
+    fn trace(&self, _: &mut libgc_api::Visitor<'_>) {}
+}
+
 #[cfg(test)]
 impl<T, const N: usize> OpaqueCxx<T, N> {
     pub(crate) const fn zeroed_for_test() -> Self {
@@ -97,6 +106,7 @@ impl<T, const N: usize> OpaqueCxx<T, N> {
 
 /// The start of every Bindings::Wrappable: the header of its GC::Cell, with the wrapper preservation flags and the
 /// class id in the embedder's bytes of it, and the fields of Wrappable.
+#[derive(Trace)]
 #[repr(C)]
 pub struct WrappablePrefix {
     vtable: OpaqueCxx<u64, 1>,
@@ -115,6 +125,7 @@ impl WrappablePrefix {
 }
 
 /// The start of every DOM::EventTarget.
+#[derive(Trace)]
 #[repr(C)]
 pub struct EventTargetPrefix {
     pub(super) wrappable: WrappablePrefix,
@@ -124,6 +135,7 @@ pub struct EventTargetPrefix {
 }
 
 /// The start of every DOM::Node.
+#[derive(Trace)]
 #[repr(C)]
 pub struct NodePrefix {
     pub(super) event_target: EventTargetPrefix,
@@ -134,6 +146,7 @@ pub struct NodePrefix {
 }
 
 /// The start of every DOM::ParentNode: an element, a document or a DocumentFragment.
+#[derive(Trace)]
 #[repr(C)]
 pub struct ParentNodePrefix {
     pub(super) node: NodePrefix,
@@ -141,6 +154,7 @@ pub struct ParentNodePrefix {
 }
 
 /// The start of every DOM::CharacterData node.
+#[derive(Trace)]
 #[repr(C)]
 pub struct CharacterDataPrefix {
     pub(super) node: NodePrefix,
@@ -148,6 +162,7 @@ pub struct CharacterDataPrefix {
 }
 
 /// The start of every DOM::Text node.
+#[derive(Trace)]
 #[repr(C)]
 pub struct TextPrefix {
     pub(super) character_data: CharacterDataPrefix,
@@ -156,6 +171,7 @@ pub struct TextPrefix {
 }
 
 /// The start of every DOM::Attr node.
+#[derive(Trace)]
 #[repr(C)]
 pub struct AttrPrefix {
     pub(super) node: NodePrefix,
@@ -163,6 +179,7 @@ pub struct AttrPrefix {
 }
 
 /// The start of every DOM::DocumentFragment.
+#[derive(Trace)]
 #[repr(C)]
 pub struct DocumentFragmentPrefix {
     pub(super) parent_node: ParentNodePrefix,
@@ -170,6 +187,7 @@ pub struct DocumentFragmentPrefix {
 }
 
 /// The start of every DOM::ShadowRoot.
+#[derive(Trace)]
 #[repr(C)]
 pub struct ShadowRootPrefix {
     pub(super) document_fragment: DocumentFragmentPrefix,
@@ -177,6 +195,7 @@ pub struct ShadowRootPrefix {
 }
 
 /// The start of every DOM::Document.
+#[derive(Trace)]
 #[repr(C)]
 pub struct DocumentPrefix {
     pub(super) parent_node: ParentNodePrefix,
@@ -185,6 +204,7 @@ pub struct DocumentPrefix {
 }
 
 /// The start of every DOM::Element. HTMLElementPrefix starts with it, so it covers all of DOM::Element's fields.
+#[derive(Trace)]
 #[repr(C)]
 pub struct ElementPrefix {
     pub(super) parent_node: ParentNodePrefix,
@@ -205,6 +225,7 @@ pub struct ElementPrefix {
 }
 
 /// The start of every HTML::HTMLElement, which only HTMLSlotElementPrefix starts with. Rust reads none of it.
+#[derive(Trace)]
 #[repr(C)]
 pub struct HTMLElementPrefix {
     pub(super) element: ElementPrefix,
@@ -217,6 +238,7 @@ pub struct HTMLElementPrefix {
 }
 
 /// The start of every HTML::HTMLSlotElement.
+#[derive(Trace)]
 #[repr(C)]
 pub struct HTMLSlotElementPrefix {
     pub(super) html_element: HTMLElementPrefix,
@@ -308,7 +330,7 @@ impl ElementPrefix {
 // NB: The C++ classes assert that they start with the prefixes of the same names.
 const _: () = assert!(
     size_of::<WrappablePrefix>() == 24
-        && offset_of!(WrappablePrefix, cell_header) == 8
+        && offset_of!(WrappablePrefix, cell_header) == CELL_IDENTITY_HASH_STATE_OFFSET
         && offset_of!(WrappablePrefix, preservation_flags) == 11
         && offset_of!(WrappablePrefix, class_id) == 12
         && offset_of!(WrappablePrefix, main_world_wrapper) == 16

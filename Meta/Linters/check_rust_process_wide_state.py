@@ -210,6 +210,7 @@ RENDER_STATE_ALLOWED = {
             "css/style_compute/ffi_test_stubs.rs:FLY_STRINGS",
             "css/style_compute/ffi_test_stubs.rs:FONT_CASCADE_LIST_UNREFS",
             "css/style_compute/ffi_test_stubs.rs:NEXT",
+            "gc_test_stubs.rs:VISITED",
         ],
     ),
     f"{RENDER_STATE_CRATE}/src/css/custom_properties.rs:COMPARED_STORES": "per-thread memo of comparing immutable stores; a thread without one only walks their values again",

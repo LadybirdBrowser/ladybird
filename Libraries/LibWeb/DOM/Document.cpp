@@ -1092,7 +1092,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);
     visitor.visit(m_page);
-    visitor.visit(m_document_core.window);
     visitor.visit(m_relevant_global_event_target);
     visitor.visit(m_style_sheets);
     visitor.visit(m_hovered_node);

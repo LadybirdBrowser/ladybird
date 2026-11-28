@@ -336,9 +336,6 @@ void Node::set_webdriver_node_id(String node_id) const
 void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    TreeNode::visit_edges(visitor);
-    visitor.visit(m_core.document);
-    visitor.visit(m_core.root);
     if (m_rare_data)
         m_rare_data->visit_edges(visitor);
 }

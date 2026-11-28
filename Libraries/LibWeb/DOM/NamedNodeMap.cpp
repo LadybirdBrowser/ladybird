@@ -55,8 +55,7 @@ void NamedNodeMap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
-    for (auto const& attribute : attribute_nodes())
-        visitor.visit(attribute);
+    RustFFI::rust_dom_trace_named_node_map_core(&m_core, reinterpret_cast<GCVisitor*>(&visitor));
 }
 
 size_t NamedNodeMap::length() const

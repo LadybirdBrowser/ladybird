@@ -26,6 +26,8 @@ use core::marker::PhantomData;
 use core::marker::PhantomPinned;
 use core::mem::offset_of;
 
+use libgc_api::Trace;
+
 use super::child_index::element_children_stamp;
 use super::element::Element;
 use super::element_core::ClassNamesField;
@@ -42,6 +44,8 @@ use super::tree_version::dom_tree_version;
 use super::tree_version::last_stamp;
 use super::tree_version::take_next_stamp;
 use crate::stage::MainThread;
+
+super::trace::fields_without_cells!(CollectionFilter, CollectionScope, CollectionValidity);
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
@@ -118,11 +122,13 @@ pub enum CollectionValidity {
 }
 
 /// The state of a live collection, but for its C++ filter, which C++ keeps.
+#[derive(Trace)]
 #[repr(C)]
 pub struct CollectionCore {
     /// https://dom.spec.whatwg.org/#concept-collection
     root: NodeMember,
     /// The last node the collection reached by index, or null for none. The collection holds it weakly, see the module.
+    #[gc(untraced = "the collection holds its cursor weakly")]
     cursor: NodeMember,
     /// The index of the cursor.
     cursor_index: Cell<u32>,
@@ -150,6 +156,7 @@ pub struct CollectionCore {
     cpp_state: u8,
     /// The nodes the collection represents, as many as its length, or null where it remembers no list of them. The
     /// collection owns the list, which forget_nodes() frees, and holds its nodes weakly, see the module.
+    #[gc(untraced = "the collection holds the nodes of its list weakly")]
     list: Cell<*mut NodeMember>,
 }
 

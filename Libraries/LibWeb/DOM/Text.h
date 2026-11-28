@@ -69,7 +69,6 @@ protected:
     Text(Document&, Utf16String);
     Text(Document&, NodeType, Utf16String);
 
-    virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(Document&) override;
 
 private:

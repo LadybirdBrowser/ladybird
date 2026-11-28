@@ -16,6 +16,8 @@ use core::marker::PhantomPinned;
 use core::mem::offset_of;
 use core::ptr::NonNull;
 
+use libgc_api::Trace;
+
 use super::event_target::EventTargetMember;
 use super::event_target::EventTargetRef;
 use crate::stage::MainThread;
@@ -42,6 +44,7 @@ pub struct EventCell {
 
 /// An item of an event's path, laid out as C++ reads it, which only Rust writes.
 /// https://dom.spec.whatwg.org/#event-path-item
+#[derive(Trace)]
 #[repr(C)]
 pub struct EventPathItem {
     /// https://dom.spec.whatwg.org/#event-path-item-invocation-target
@@ -117,8 +120,8 @@ impl EventPathItem {
 }
 
 /// The path of an event, as its core holds it: its items, and the touch target list of each, in buffers that Rust
-/// allocates as dispatch appends to the path and frees as it empties it, and that C++ visits in place. Each item has
-/// the same number of touch targets, as many as the event's touch target list had as dispatch began, and the touch
+/// allocates as dispatch appends to the path and frees as it empties it, and that the event traces in place. Each item
+/// has the same number of touch targets, as many as the event's touch target list had as dispatch began, and the touch
 /// targets of item `i` are `touch_target_count` after one another, from `i * touch_target_count` on.
 /// https://dom.spec.whatwg.org/#event-path
 #[repr(C)]
@@ -128,6 +131,26 @@ pub struct EventPath {
     capacity: Cell<u32>,
     touch_targets: Cell<*mut EventTargetMember>,
     touch_target_count: Cell<u32>,
+}
+
+// SAFETY: Visits the targets of every item of the path, and every touch target of it, in place.
+unsafe impl Trace for EventPath {
+    #[inline]
+    fn trace<'c>(&'c self, visitor: &mut libgc_api::Visitor<'c>) {
+        // SAFETY: The buffer holds `touch_target_count` touch targets for each item, which only Rust writes.
+        let touch_targets = unsafe {
+            ak::slice_from_raw_parts(
+                self.touch_targets.get(),
+                self.size.get() as usize * self.touch_target_count.get() as usize,
+            )
+        };
+        // SAFETY: The event owns both buffers, which only dispatch writes, grows and frees, never a finalizer or sweep
+        //         callback.
+        unsafe {
+            visitor.visit_owned_slots(self.items());
+            visitor.visit_owned_slots(touch_targets);
+        }
+    }
 }
 
 impl EventPath {
@@ -189,7 +212,7 @@ impl EventPath {
                     .write(EventTargetMember::new(touch_target));
             }
         }
-        // NB: The item counts, and so C++ visits it, only once it is written.
+        // NB: The item counts, and so the event traces it, only once it is written.
         self.size.set(size as u32 + 1);
     }
 
@@ -265,6 +288,7 @@ unsafe fn reallocate<T>(buffer: *mut T, old_count: usize, new_count: usize) -> *
 
 /// The state of an event that dispatch reads and writes, which C++ embeds in DOM::Event as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-event
+#[derive(Trace)]
 #[repr(C)]
 pub struct EventCore {
     /// https://dom.spec.whatwg.org/#event-target

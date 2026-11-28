@@ -23,6 +23,8 @@ use super::strings::OptionalFlyStringField;
 use super::strings::units_contain_ascii_uppercase;
 use crate::stage::MainThread;
 
+super::trace::fields_without_cells!(QualifiedNameField);
+
 crate::stage::main_thread_ffi_entries!(without_host);
 
 /// The interned parts of a qualified name, which C++ reads as DOM::QualifiedName::Impl. Rust makes, interns and frees

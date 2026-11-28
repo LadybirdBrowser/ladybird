@@ -211,8 +211,8 @@ impl EventListenerRef {
 
 /// The event listener list of an event target, laid out as C++ reads it: the listeners as
 /// GC::Member<DOM::DOMEventListener>s in a buffer Rust allocates, as many as the size, with room for the capacity. Only
-/// Rust writes it. C++ visits every listener of it as it visits the edges of the target, and has Rust free the buffer
-/// as it destroys the target's data.
+/// Rust writes it, and traces every listener of it as the target's edges are visited. C++ has Rust free the buffer as
+/// it destroys the target's data.
 #[repr(C)]
 pub struct EventListenerList {
     items: Cell<*mut EventListenerMember>,
@@ -225,6 +225,19 @@ pub struct EventListenerList {
 pub struct EventListenerMember(Cell<u32>);
 
 const _: () = assert!(size_of::<EventListenerMember>() == 4 && align_of::<EventListenerMember>() == 4);
+
+super::trace::member_fields!(EventListenerMember);
+
+// SAFETY: Visits every listener of the list in place.
+unsafe impl libgc_api::Trace for EventListenerList {
+    #[inline(always)]
+    fn trace<'c>(&'c self, visitor: &mut libgc_api::Visitor<'c>) {
+        // NB: The listeners are not visited as owned slots, which no finalizer may write: MediaDevices::finalize()
+        //     removes its listener from the lists of its window and document, which may be live. A slot outside the
+        //     heap that is not owned keeps its listener where it is, as listeners are C++ cells that never move.
+        libgc_api::Trace::trace(self.pointers(), visitor);
+    }
+}
 const _: () = assert!(size_of::<EventListenerList>() == 16 && align_of::<EventListenerList>() == 8);
 const _: () = assert!(offset_of!(EventListenerList, items) == 0);
 const _: () = assert!(offset_of!(EventListenerList, size) == 8);
@@ -277,7 +290,7 @@ impl EventListenerList {
             write_barrier((*slot).0.as_ptr(), compressed);
             (*slot).0.set(compressed);
         }
-        // NB: The listener counts, and so C++ visits it, only once it is written.
+        // NB: The listener counts, and so the target traces it, only once it is written.
         self.size.set(size as u32 + 1);
     }
 

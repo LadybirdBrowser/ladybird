@@ -39,8 +39,7 @@ AbstractRange::~AbstractRange() = default;
 void AbstractRange::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_range_core.start_container);
-    visitor.visit(m_range_core.end_container);
+    RustFFI::rust_dom_trace_range_core(&m_range_core, reinterpret_cast<GCVisitor*>(&visitor));
 }
 
 }

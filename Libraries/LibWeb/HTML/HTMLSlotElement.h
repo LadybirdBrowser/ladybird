@@ -58,8 +58,6 @@ public:
 private:
     HTMLSlotElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual void visit_edges(JS::Cell::Visitor&) override;
-
     // NB: The slot's name and its lists of nodes, see Rust/src/dom/slots.rs.
     DOM::RustFFI::SlotCore m_slot_core {};
 };

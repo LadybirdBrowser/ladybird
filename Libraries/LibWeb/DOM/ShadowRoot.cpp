@@ -256,9 +256,6 @@ void ShadowRoot::visit_edges(Visitor& visitor)
     }
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_radio_button_group_registry);
-    // NB: The buffer of the slots is allocated by libweb_rust, which holds them in it strongly.
-    for (u32 i = 0; i < m_shadow_root_core.slots.size; ++i)
-        visitor.visit(m_shadow_root_core.slots.items[i]);
 }
 
 HTML::RadioButtonGroupRegistry& ShadowRoot::ensure_radio_button_group_registry()

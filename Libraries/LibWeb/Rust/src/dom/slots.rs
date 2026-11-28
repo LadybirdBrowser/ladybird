@@ -32,6 +32,7 @@ use core::cell::Cell;
 use core::mem::offset_of;
 
 use ak::Utf16StringUnits;
+use libgc_api::Trace;
 
 use super::attributes::fly_string_of;
 use super::hooks;
@@ -57,8 +58,8 @@ use crate::stage::MainThread;
 crate::stage::main_thread_ffi_entries!(without_host);
 
 /// A list of nodes that the cell which embeds it holds strongly, laid out as C++ reads it: the nodes as GC::Member<Node>s
-/// in a buffer Rust allocates, as many as the size, with room for the capacity. Only Rust writes it. C++ visits every
-/// node of it as it visits the edges of the cell, and has Rust free the buffer as it destroys the cell.
+/// in a buffer Rust allocates, as many as the size, with room for the capacity. Only Rust writes it, and traces every
+/// node of it as the cell's edges are visited. C++ has Rust free the buffer as it destroys the cell.
 #[repr(C)]
 pub struct NodeListField {
     items: Cell<*mut NodeMember>,
@@ -67,6 +68,16 @@ pub struct NodeListField {
 }
 
 const _: () = assert!(size_of::<NodeListField>() == 16 && align_of::<NodeListField>() == 8);
+
+// SAFETY: Visits every node of the list in place.
+unsafe impl Trace for NodeListField {
+    #[inline(always)]
+    fn trace<'c>(&'c self, visitor: &mut libgc_api::Visitor<'c>) {
+        // SAFETY: The cell that embeds the list owns the buffer, which only the DOM algorithms grow, write and free
+        //         while the cell lives, never a finalizer or sweep callback.
+        unsafe { visitor.visit_owned_slots(self.pointers()) };
+    }
+}
 const _: () = assert!(offset_of!(NodeListField, items) == 0);
 const _: () = assert!(offset_of!(NodeListField, size) == 8);
 const _: () = assert!(offset_of!(NodeListField, capacity) == 12);
@@ -215,6 +226,7 @@ pub const SLOT_NEEDS_ASSIGNMENT: u8 = 1 << 0;
 
 /// The state of a slot, which C++ embeds in HTML::HTMLSlotElement as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-slot
+#[derive(Trace)]
 #[repr(C)]
 pub struct SlotCore {
     /// https://dom.spec.whatwg.org/#slot-name, with none for the empty string.
@@ -258,6 +270,7 @@ pub const SLOT_ASSIGNMENT_NAMED: u8 = 1;
 /// The state of a shadow root beyond that of every DocumentFragment, which C++ embeds in DOM::ShadowRoot as its only
 /// storage of it.
 /// https://dom.spec.whatwg.org/#concept-shadow-root
+#[derive(Trace)]
 #[repr(C)]
 pub struct ShadowRootCore {
     /// The slots of the shadow tree, in tree order. While it has none, the tree has no slot, so it doubles as the
@@ -271,6 +284,7 @@ pub struct ShadowRootCore {
     /// The SHADOW_ROOT_* flags.
     flags: Cell<u8>,
     /// The elements of the shadow tree by their IDs, while it is connected, see id_map.rs.
+    #[gc(untraced = "the map holds its elements weakly")]
     ids: IdMapField,
 }
 

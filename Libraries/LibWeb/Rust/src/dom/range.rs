@@ -15,6 +15,8 @@ use core::marker::PhantomPinned;
 use core::mem::offset_of;
 use core::ptr::NonNull;
 
+use libgc_api::Trace;
+
 use super::hooks;
 use super::node::Node;
 use super::node::NodeCell;
@@ -37,6 +39,7 @@ pub const RANGE_BOUNDARY_POINT_SET_BY_MUTATION: u8 = 1 << 0;
 
 /// The boundary points of a range, which C++ embeds in DOM::AbstractRange as its only storage of them.
 /// https://dom.spec.whatwg.org/#concept-range
+#[derive(Trace)]
 #[repr(C)]
 pub struct RangeCore {
     /// https://dom.spec.whatwg.org/#concept-range-start-node

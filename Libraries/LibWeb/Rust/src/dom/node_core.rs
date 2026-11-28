@@ -10,6 +10,7 @@
 use core::cell::Cell;
 use core::num::NonZeroU32;
 
+use libgc_api::Trace;
 use libgc_api::member::write_barrier;
 
 use super::event_target::EventTargetMember;
@@ -18,6 +19,9 @@ use super::strings::StringField;
 use super::weak_cells::WeakCellRegistryField;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
+
+super::trace::member_fields!(NodeMember, DocumentMember, ElementMember, ShadowRootMember);
+super::trace::fields_without_cells!(TreeScopeField, StyleNodeField, CppNodeFlags, NodeType);
 
 /// A node, named by its compressed cell pointer: its offset into the GC heap region in units of the 8-byte cell
 /// alignment, as a GC::Member holds it. Two node pointers are equal exactly when they name the same node.
@@ -82,6 +86,7 @@ impl DocumentMember {
 /// The state of a CharacterData node beyond that of every node, which C++ embeds in DOM::CharacterData as its only
 /// storage of it.
 /// https://dom.spec.whatwg.org/#characterdata
+#[derive(Trace)]
 #[repr(C)]
 pub struct CharacterDataCore {
     data: StringField,
@@ -117,6 +122,7 @@ impl ElementMember {
 
 /// A field that holds a Window or null, laid out as C++'s GC::Member<HTML::Window>, which is what C++ sees it as. A
 /// Window starts with its event target, so it reads as one.
+#[derive(Trace)]
 #[repr(transparent)]
 pub struct WindowMember(EventTargetMember);
 
@@ -130,6 +136,7 @@ impl WindowMember {
 /// The state of a Text node beyond that of every CharacterData node, which C++ embeds in DOM::Text as its only storage
 /// of it.
 /// https://dom.spec.whatwg.org/#text
+#[derive(Trace)]
 #[repr(C)]
 pub struct TextCore {
     assigned_slot: ElementMember,
@@ -166,6 +173,7 @@ impl ShadowRootMember {
 /// The state of a DocumentFragment node beyond that of every node, which C++ embeds in DOM::DocumentFragment as its only
 /// storage of it.
 /// https://dom.spec.whatwg.org/#documentfragment
+#[derive(Trace)]
 #[repr(C)]
 pub struct DocumentFragmentCore {
     host: ElementMember,
@@ -213,6 +221,7 @@ pub const DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT: u8 
 /// The state of a document that the DOM algorithms in Rust read, which C++ embeds in DOM::Document as its only storage
 /// of it.
 /// https://dom.spec.whatwg.org/#interface-document
+#[derive(Trace)]
 #[repr(C)]
 pub struct DocumentCore {
     /// The DOCUMENT_* flags.
@@ -222,10 +231,12 @@ pub struct DocumentCore {
     /// The live ranges whose start node's node document is the document, as its DOM::WeakCellRegistry of them mirrors
     /// them, see weak_cells.rs.
     /// https://dom.spec.whatwg.org/#concept-live-range
+    #[gc(untraced = "the document holds its live ranges weakly")]
     live_ranges: WeakCellRegistryField,
     /// The NodeIterator objects whose root's node document is the document, as its DOM::WeakCellRegistry of them
     /// mirrors them.
     /// https://dom.spec.whatwg.org/#nodeiterator
+    #[gc(untraced = "the document holds its NodeIterators weakly")]
     node_iterators: WeakCellRegistryField,
     /// The stamp of the last change to the children of a node whose node document is the document, see
     /// tree_version.rs.
@@ -240,6 +251,7 @@ pub struct DocumentCore {
     /// animations, were taken at. An attribute change moves no element, so it keeps them, see attributes.rs.
     element_tree_positions_dom_tree_version: Cell<u64>,
     /// The elements of the document tree by their IDs, see id_map.rs.
+    #[gc(untraced = "the map holds its elements weakly")]
     ids: IdMapField,
 }
 
@@ -389,6 +401,7 @@ impl NodeType {
 /// The tree state of a node, which C++ embeds in DOM::Node as its only storage of it: the node's type, its node
 /// document, its root, whether it is connected, its tree links, and how it stands in its document's style engine.
 /// https://dom.spec.whatwg.org/#concept-tree
+#[derive(Trace)]
 #[repr(C)]
 pub struct NodeCore {
     parent: NodeMember,
@@ -537,6 +550,7 @@ impl NodeCore {
 
 /// The version counters of the tree a ParentNode heads, which C++ embeds in DOM::ParentNode as its only storage of them.
 /// See tree_version.rs.
+#[derive(Trace)]
 #[repr(C)]
 pub struct ParentNodeCore {
     dom_tree_version: Cell<u64>,

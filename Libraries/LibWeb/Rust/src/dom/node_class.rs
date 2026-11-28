@@ -15,6 +15,8 @@
 
 use super::prefix::WrappablePrefix;
 
+super::trace::fields_without_cells!(NodeClassId);
+
 /// The id of a class of DOM nodes, as C++'s DOM::NodeClassId names it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(transparent)]

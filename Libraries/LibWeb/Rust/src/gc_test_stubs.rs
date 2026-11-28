@@ -5,16 +5,55 @@
  */
 
 //! Stand-ins for the parts of LibGC's C interface that tracing and weak references reach, for the unit tests, which
-//! do not link LibGC.
+//! do not link LibGC, and a visitor that records what it is handed.
 
+use core::cell::RefCell;
 use core::ffi::c_void;
 
 use libgc_api::capi::{GCMarker, GCVisitor, GCWeakImpl};
 use libgc_api::layout::WEAK_IMPL_POINTER_OFFSET;
 
+std::thread_local! {
+    /// The cells the recording visitors of the thread were handed, in order.
+    static VISITED: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A visitor that does not mark, which records the start of each cell it is handed.
+pub struct RecordingVisitor {
+    /// The words of a C++ Cell::Visitor: its vtable pointer, which nothing reads, and a null marker, see
+    /// VISITOR_MARKER_OFFSET.
+    words: Box<[usize; 2]>,
+}
+
+impl Default for RecordingVisitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RecordingVisitor {
+    pub fn new() -> Self {
+        VISITED.with_borrow_mut(Vec::clear);
+        Self {
+            words: Box::new([0; 2]),
+        }
+    }
+
+    /// The visitor, for Visitor::from_raw(). The words are laid out as a visitor without a marker, which only the
+    /// stand-ins below take.
+    pub fn raw(&mut self) -> *mut GCVisitor {
+        self.words.as_mut_ptr().cast()
+    }
+
+    /// The cells visited since the visitor was made, or since the last call.
+    pub fn take_visited(&mut self) -> Vec<usize> {
+        VISITED.with_borrow_mut(core::mem::take)
+    }
+}
+
 #[unsafe(no_mangle)]
-extern "C" fn gc_visitor_visit_cell(_visitor: *mut GCVisitor, _cell: *mut c_void) {
-    unreachable!("no unit test visits cells");
+extern "C" fn gc_visitor_visit_cell(_visitor: *mut GCVisitor, cell: *mut c_void) {
+    VISITED.with_borrow_mut(|visited| visited.push(cell as usize));
 }
 
 #[unsafe(no_mangle)]
@@ -29,17 +68,17 @@ extern "C" fn gc_visitor_visit_ephemeron(_visitor: *mut GCVisitor, _key: *mut c_
 
 #[unsafe(no_mangle)]
 extern "C" fn gc_marker_visit_cell(_marker: *mut GCMarker, _cell: *mut c_void) {
-    unreachable!("no unit test marks");
+    unreachable!("a recording visitor has no marker");
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn gc_marker_visit_member(_marker: *mut GCMarker, _slot: *const u32) {
-    unreachable!("no unit test marks");
+    unreachable!("a recording visitor has no marker");
 }
 
 #[unsafe(no_mangle)]
 extern "C" fn gc_marker_visit_values(_marker: *mut GCMarker, _values: *const u64, _count: usize) {
-    unreachable!("no unit test marks");
+    unreachable!("a recording visitor has no marker");
 }
 
 #[unsafe(no_mangle)]
