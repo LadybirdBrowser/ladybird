@@ -21,6 +21,7 @@
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebCommon/Page/TextReplacement.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebView/DefaultBrowser.h>
@@ -229,6 +230,7 @@ endpoint HubServer
     spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors) =|
     spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses) =|
     spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion) =|
+    spell_checker_found_text_replacement(u64 request_id, Optional<Web::TextReplacement> replacement) =|
     external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) =|
     external_url_launched(u64 request_id, bool launched) =|
     cancel_download(u64 id) =|

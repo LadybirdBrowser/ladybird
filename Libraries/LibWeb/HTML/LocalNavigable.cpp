@@ -10,6 +10,7 @@
 #include <AK/AnyOf.h>
 #include <AK/InsertionSort.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16StringBuilder.h>
@@ -41,6 +42,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/SpellCheckController.h>
+#include <LibWeb/Editing/TextReplacement.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
@@ -6633,6 +6635,20 @@ void LocalNavigable::set_marked_text_from_input_method(Utf16View text)
 
 void LocalNavigable::commit_text_from_input_method(Utf16View text, i32 replacement_start, i32 replacement_length)
 {
+    // Committed text that ends a word ends it as a typed character does, so the word gets the user's text replacement.
+    GC::Ptr<DOM::Document> document = active_document();
+    auto* typed_into = document ? document->active_input_events_target() : nullptr;
+    auto caret_before = document ? document->cursor_position() : nullptr;
+    ScopeGuard replace_word { [&] {
+        if (!typed_into || text.is_empty() || document != active_document())
+            return;
+        // A commit the page canceled inserted nothing, and leaves the caret where it was.
+        auto caret_after = document->cursor_position();
+        if (!caret_after || (caret_before && caret_before->node() == caret_after->node() && caret_before->offset() == caret_after->offset()))
+            return;
+        Editing::replace_word_after_typing(*document, *typed_into, text.code_unit_at(text.length_in_code_units() - 1));
+    } };
+
     if ((replacement_start != 0 || replacement_length != 0) && apply_input_method_commit_replacement(text, replacement_start, replacement_length)) {
         end_input_method_composition(text);
         return;

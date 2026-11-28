@@ -176,6 +176,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_pending_writing_suggestion_requests);
     visitor.visit(m_writing_suggestions_settled_callbacks);
     visitor.visit(m_writing_suggestion_requested_callbacks);
+    visitor.visit(m_pending_text_replacement_requests);
+    visitor.visit(m_text_replacements_settled_callbacks);
     visitor.visit(m_on_spelling_menu_action_for_testing);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
@@ -1638,6 +1640,52 @@ void Page::did_get_writing_suggestion(u64 request_id, Optional<WritingSuggestion
 void Page::when_writing_suggestion_requested(GC::Ref<GC::Function<void()>> callback)
 {
     m_writing_suggestion_requested_callbacks.append(callback);
+}
+
+void Page::request_text_replacement(Utf16String const& text, TextReplacementRequest request)
+{
+    auto request_id = m_next_text_replacement_request_id++;
+    m_pending_text_replacement_requests.set(request_id, request);
+    client().page_did_request_text_replacement(request_id, text);
+}
+
+void Page::did_find_text_replacement(u64 request_id, Optional<TextReplacement> replacement)
+{
+    if (auto request = m_pending_text_replacement_requests.take(request_id); request.has_value())
+        (*request)->function()(move(replacement));
+    if (!m_pending_text_replacement_requests.is_empty())
+        return;
+    // No answer is left to find a word that a replacement moved.
+    m_text_replacement_shifts.clear();
+    GC::RootVector callbacks { exchange(m_text_replacements_settled_callbacks, {}) };
+    for (auto& callback : callbacks)
+        callback->function()();
+}
+
+void Page::record_text_replacement(DOM::Text const& text, size_t old_end, i64 delta)
+{
+    m_text_replacement_shifts.append({ text, old_end, delta, ++m_text_replacement_serial });
+}
+
+// How far the replacements recorded after the serial moved the text at the position in the text node. Each one is in
+// the text as the ones before it left it, so the position moves along with them, in order.
+i64 Page::text_replacement_shift_since(DOM::Text const& text, u64 serial, size_t position) const
+{
+    auto moved = static_cast<i64>(position);
+    for (auto const& recorded : m_text_replacement_shifts) {
+        if (recorded.serial > serial && recorded.text.ptr().ptr() == &text && static_cast<i64>(recorded.old_end) <= moved)
+            moved += recorded.delta;
+    }
+    return moved - static_cast<i64>(position);
+}
+
+void Page::when_text_replacements_settled(GC::Ref<GC::Function<void()>> callback)
+{
+    if (!m_pending_text_replacement_requests.is_empty()) {
+        m_text_replacements_settled_callbacks.append(callback);
+        return;
+    }
+    callback->function()();
 }
 
 static bool writing_suggestions_are_settled(Page& page)

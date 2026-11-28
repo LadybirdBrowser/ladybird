@@ -483,6 +483,20 @@ void SpellCheckerInUI::did_suggest(u64 request_id, Optional<Web::WritingSuggesti
         (*on_complete)(move(suggestion));
 }
 
+void SpellCheckerInUI::find_text_replacement(DocumentTag tag, Utf16String const& text, Function<void(Optional<Web::TextReplacement>)> on_complete)
+{
+    auto request_id = m_next_request_id++;
+    m_pending_text_replacements.set(request_id, move(on_complete));
+    if (auto* ui = ConnectionFromUI::the())
+        ui->async_spell_checker_find_text_replacement(request_id, tag, text);
+}
+
+void SpellCheckerInUI::did_find_text_replacement(u64 request_id, Optional<Web::TextReplacement> replacement)
+{
+    if (auto on_complete = m_pending_text_replacements.take(request_id); on_complete.has_value())
+        (*on_complete)(move(replacement));
+}
+
 ExternalURLHandlerInUI::ExternalURLHandlerInUI(u64 handler_id, String application_name, bool is_ladybird)
     : ExternalURLHandler(move(application_name), is_ladybird)
     , m_handler_id(handler_id)

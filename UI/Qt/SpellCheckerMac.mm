@@ -153,6 +153,36 @@ public:
                                                              completionHandler:handler];
     }
 
+    virtual void find_text_replacement(DocumentTag tag, Utf16String const& text, Function<void(Optional<Web::TextReplacement>)> on_complete) override
+    {
+        // Whether the user has text replacement turned on, which can change at any time.
+        if (!NSSpellChecker.isAutomaticTextReplacementEnabled) {
+            on_complete({});
+            return;
+        }
+
+        auto* string = utf16_string_to_ns_string(text);
+        NSArray<NSTextCheckingResult*>* results = [[NSSpellChecker sharedSpellChecker] checkString:string
+                                                                                             range:NSMakeRange(0, string.length)
+                                                                                             types:NSTextCheckingTypeReplacement
+                                                                                           options:nil
+                                                                            inSpellDocumentWithTag:tag
+                                                                                       orthography:nil
+                                                                                         wordCount:nil];
+        // Only a replacement for the word the text ends with counts: That's the word the user just finished typing.
+        Optional<Web::TextReplacement> replacement;
+        for (NSTextCheckingResult* result in results) {
+            if (result.resultType != NSTextCheckingTypeReplacement || NSMaxRange(result.range) != string.length || result.replacementString.length == 0)
+                continue;
+            replacement = Web::TextReplacement {
+                static_cast<u32>(result.range.location),
+                static_cast<u32>(result.range.length),
+                ns_string_to_utf16_string(result.replacementString),
+            };
+        }
+        on_complete(move(replacement));
+    }
+
 private:
     NonnullRefPtr<PendingChecks> m_pending_checks { adopt_ref(*new PendingChecks) };
     NonnullRefPtr<PendingSuggestions> m_pending_suggestions { adopt_ref(*new PendingSuggestions) };

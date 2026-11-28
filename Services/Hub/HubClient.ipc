@@ -19,6 +19,7 @@
 #include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/Translation.h>
+#include <LibWebCommon/Page/TextReplacement.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/HTML/FileFilter.h>
@@ -283,6 +284,7 @@ endpoint HubClient
     spell_checker_ignore(i64 document_tag, Utf16String word) =|
     spell_checker_learn(i64 document_tag, Utf16String word) =|
     spell_checker_suggest(u64 request_id, i64 document_tag, Utf16String text, u32 caret_offset) =|
+    spell_checker_find_text_replacement(u64 request_id, i64 document_tag, Utf16String text) =|
     app_focus_view_from_notification(u64 view_id) =|
     app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) =|
     external_url_resolve_handler(u64 request_id, URL::URL url) =|

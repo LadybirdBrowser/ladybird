@@ -98,6 +98,7 @@ public:
     GC::Ref<WebIDL::Promise> translation_settled();
 
     GC::Ref<WebIDL::Promise> request_writing_suggestion_for_testing(Utf16String const& text, WebIDL::UnsignedLong caret_offset);
+    GC::Ref<WebIDL::Promise> text_replacement_settled();
     Utf16String writing_suggestion();
     GC::Ref<WebIDL::Promise> writing_suggestion_settled();
     GC::Ref<WebIDL::Promise> writing_suggestion_request_sent();

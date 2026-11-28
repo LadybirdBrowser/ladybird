@@ -118,6 +118,7 @@ private:
     virtual void spell_checker_ignore(i64 document_tag, Utf16String word) override;
     virtual void spell_checker_learn(i64 document_tag, Utf16String word) override;
     virtual void spell_checker_suggest(u64 request_id, i64 document_tag, Utf16String text, u32 caret_offset) override;
+    virtual void spell_checker_find_text_replacement(u64 request_id, i64 document_tag, Utf16String text) override;
     virtual void app_focus_view_from_notification(u64 view_id) override;
     virtual void app_open_url_in_new_tab_from_notification(URL::URL url, Optional<u64> view_id, WebView::IsPrivate is_private) override;
     virtual void external_url_resolve_handler(u64 request_id, URL::URL url) override;

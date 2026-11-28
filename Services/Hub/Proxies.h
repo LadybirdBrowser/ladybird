@@ -201,6 +201,7 @@ public:
     void did_check(u64 request_id, Vector<Web::SpellingError>);
     void did_guess(u64 request_id, Vector<Utf16String>);
     void did_suggest(u64 request_id, Optional<Web::WritingSuggestion>);
+    void did_find_text_replacement(u64 request_id, Optional<Web::TextReplacement>);
 
 private:
     virtual DocumentTag create_document_tag() override;
@@ -212,10 +213,12 @@ private:
     virtual bool learns_for_every_tag() const override { return m_learns_for_every_tag; }
     virtual bool can_suggest() const override { return m_can_suggest; }
     virtual void suggest(DocumentTag, Utf16String const& text, u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete) override;
+    virtual void find_text_replacement(DocumentTag, Utf16String const& text, Function<void(Optional<Web::TextReplacement>)> on_complete) override;
 
     HashMap<u64, Function<void(Vector<Web::SpellingError>)>> m_pending_checks;
     HashMap<u64, Function<void(Vector<Utf16String>)>> m_pending_guesses;
     HashMap<u64, Function<void(Optional<Web::WritingSuggestion>)>> m_pending_suggestions;
+    HashMap<u64, Function<void(Optional<Web::TextReplacement>)>> m_pending_text_replacements;
     u64 m_next_request_id { 1 };
     DocumentTag m_next_document_tag { 1 };
     bool m_learns_for_every_tag { true };

@@ -705,6 +705,18 @@ void HubConnection::spell_checker_suggest(u64 request_id, i64 document_tag, Utf1
     });
 }
 
+void HubConnection::spell_checker_find_text_replacement(u64 request_id, i64 document_tag, Utf16String text)
+{
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        async_spell_checker_found_text_replacement(request_id, {});
+        return;
+    }
+    spell_checker->find_text_replacement(spell_document_tag(*spell_checker, document_tag), text, [this, request_id](Optional<Web::TextReplacement> replacement) {
+        async_spell_checker_found_text_replacement(request_id, replacement);
+    });
+}
+
 void HubConnection::app_focus_view_from_notification(u64 view_id)
 {
     Application::the().focus_view_from_notification(view_id);

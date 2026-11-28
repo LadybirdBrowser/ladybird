@@ -59,6 +59,7 @@ set(SOURCES
     Page/InputTrace.cpp
     Page/MediaContextMenu.cpp
     Page/SpellingError.cpp
+    Page/TextReplacement.cpp
     Page/Translation.cpp
     Page/WritingSuggestion.cpp
     Permissions/Permissions.cpp
