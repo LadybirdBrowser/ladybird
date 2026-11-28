@@ -28,6 +28,7 @@
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CrashReport.h>
+#include <LibWebView/CrashReportOutbox.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/HistoryStore.h>
@@ -555,7 +556,20 @@ public:
         m_debug_menu = create_application_menu(*m_application_widget, application.debug_menu());
 
         m_help_menu = new QMenu("Help", m_application_widget);
-        m_help_menu->addAction(create_application_action(*m_application_widget, application.report_website_issue_action(), IncludeActionIcon::No));
+        // The ways to send feedback are those of the toolbar's feedback panel.
+        auto* send_feedback_menu = m_help_menu->addMenu("Send Feedback");
+        send_feedback_menu->addAction(create_application_action(*m_application_widget, application.report_website_issue_action(), IncludeActionIcon::No));
+        auto* report_bug_action = make_action("Report a Bug…");
+        QObject::connect(report_bug_action, &QAction::triggered, this, [] {
+            open_feedback_page(Application::the().new_bug_report_url());
+        });
+        send_feedback_menu->addAction(report_bug_action);
+        m_review_crash_reports_action = make_action({});
+        QObject::connect(m_review_crash_reports_action, &QAction::triggered, this, [] {
+            open_feedback_page(URL::URL::about("crashes"sv));
+        });
+        send_feedback_menu->addAction(m_review_crash_reports_action);
+        update_review_crash_reports_action();
         m_help_menu->addSeparator();
         m_help_menu->addAction(create_application_action(*m_application_widget, application.open_about_page_action(), IncludeActionIcon::No));
 
@@ -633,6 +647,29 @@ public:
             repopulate_application_menu(*m_bookmarks_menu, Application::bookmarks().menu());
     }
 
+    // A page of the Send Feedback menu opens next to the current tab, or in a new window while there is none.
+    static void open_feedback_page(URL::URL const& url)
+    {
+        auto& application = Application::the();
+        if (auto* window = application.active_window_if_any()) {
+            window->new_tab_from_url(url, Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::after_current_tab());
+            window->bring_to_front();
+        } else {
+            application.new_window({ url }, application.configuration_for_new_window());
+        }
+    }
+
+    // Like the feedback panel, the menu offers the crash reports only while some are waiting.
+    void update_review_crash_reports_action()
+    {
+        // NB: The reports can change before the menus exist, which then start out with the count.
+        if (!m_review_crash_reports_action)
+            return;
+        auto count = WebView::CrashReportOutbox::the().waiting_report_count();
+        m_review_crash_reports_action->setText(QString("Crash Reports (%1 to Review)").arg(count));
+        m_review_crash_reports_action->setVisible(count > 0);
+    }
+
 private:
     friend Application;
 
@@ -652,6 +689,7 @@ private:
     QMenu* m_inspect_menu { nullptr };
     QMenu* m_debug_menu { nullptr };
     QMenu* m_help_menu { nullptr };
+    QAction* m_review_crash_reports_action { nullptr };
 
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
@@ -2025,6 +2063,8 @@ void Application::reopen_recently_closed_tab(BrowserWindow* target_window, Optio
 void Application::crash_reports_changed()
 {
     update_feedback_buttons();
+    if (m_application)
+        static_cast<LadybirdQApplication&>(*m_application).update_review_crash_reports_action();
 }
 
 void Application::update_feedback_buttons()
