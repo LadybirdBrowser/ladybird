@@ -13,7 +13,7 @@ use core::num::NonZeroU32;
 use super::event_target::EventTargetMember;
 use super::id_map::IdMapField;
 use super::strings::StringField;
-use super::weak_cells::WeakCellSpan;
+use super::weak_cells::WeakCellRegistryField;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
 
@@ -225,11 +225,11 @@ pub struct DocumentCore {
     /// The live ranges whose start node's node document is the document, as its DOM::WeakCellRegistry of them mirrors
     /// them, see weak_cells.rs.
     /// https://dom.spec.whatwg.org/#concept-live-range
-    live_ranges: WeakCellSpan,
+    live_ranges: WeakCellRegistryField,
     /// The NodeIterator objects whose root's node document is the document, as its DOM::WeakCellRegistry of them
     /// mirrors them.
     /// https://dom.spec.whatwg.org/#nodeiterator
-    node_iterators: WeakCellSpan,
+    node_iterators: WeakCellRegistryField,
     /// The stamp of the last change to the children of a node whose node document is the document, see
     /// tree_version.rs.
     node_tree_version: Cell<u64>,
@@ -274,12 +274,12 @@ impl DocumentCore {
     }
 
     #[inline(always)]
-    pub fn live_ranges(&self) -> &WeakCellSpan {
+    pub fn live_ranges(&self) -> &WeakCellRegistryField {
         &self.live_ranges
     }
 
     #[inline(always)]
-    pub fn node_iterators(&self) -> &WeakCellSpan {
+    pub fn node_iterators(&self) -> &WeakCellRegistryField {
         &self.node_iterators
     }
 
@@ -619,8 +619,8 @@ impl DocumentCore {
         Self {
             flags: Cell::new(0),
             window: WindowMember(EventTargetMember::null_for_test()),
-            live_ranges: WeakCellSpan::empty_for_test(),
-            node_iterators: WeakCellSpan::empty_for_test(),
+            live_ranges: WeakCellRegistryField::empty_for_test(),
+            node_iterators: WeakCellRegistryField::empty_for_test(),
             node_tree_version: Cell::new(0),
             element_tree_version: Cell::new(0),
             collection_attribute_versions: Default::default(),

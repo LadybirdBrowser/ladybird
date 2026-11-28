@@ -2273,12 +2273,12 @@ private:
 
     // NB: Every NodeIterator is registered with its root's node document, which keeps them weakly, so that libweb_rust
     //     can walk them in place, see Rust/src/dom/weak_cells.rs.
-    WeakCellRegistry<NodeIterator> m_node_iterators { *this, m_document_core.node_iterators };
+    LazyWeakCellRegistry<NodeIterator> m_node_iterators;
 
     // https://dom.spec.whatwg.org/#concept-live-range
     // NB: A live range keeps its owner document alive, and this keeps the live ranges weakly, so that libweb_rust can
     //     walk them in place, see Rust/src/dom/weak_cells.rs.
-    WeakCellRegistry<Range> m_live_ranges { *this, m_document_core.live_ranges };
+    LazyWeakCellRegistry<Range> m_live_ranges;
 
     // Document should not visit DocumentObserver to avoid leaks.
     // It's responsibility of object that requires DocumentObserver to keep it alive.
@@ -2377,6 +2377,7 @@ private:
     bool m_spelling_error_states_are_stale { false };
     bool m_custom_highlight_states_are_stale { false };
     bool m_has_registered_custom_highlight_ranges { false };
+    bool m_custom_highlight_observers_read_static_ranges { false };
     u64 m_custom_highlight_states_dom_tree_version { 0 };
     u64 m_custom_highlight_states_character_data_version { 0 };
     u64 m_custom_highlight_states_row_generation { 0 };
@@ -2393,16 +2394,15 @@ private:
     struct HighlightStyleObservability {
         bool observable { false };
         bool needs_update { true };
-        // The DOM tree version of the document when the state was last brought up to date.
-        u64 dom_tree_version { 0 };
-
-        bool needs_update_at(u64 current_dom_tree_version) const;
     };
     Array<HighlightStyleObservability, 4> m_highlight_style_observability;
+    // The DOM tree version of the document when the states above last took a change to the tree into account, by all
+    // starting to need an update.
+    u64 m_highlight_style_observability_dom_tree_version { 0 };
     HighlightStyleObservability& highlight_style_observability(CSS::PseudoElement);
+    void mark_highlight_styles_for_dom_tree_changes();
     void update_highlight_style_observability(CSS::PseudoElement);
     bool custom_highlight_static_ranges_may_have_changed() const;
-    bool m_custom_highlight_observers_read_static_ranges { false };
     u64 m_custom_highlight_observers_character_data_version { 0 };
 
     // NOTE: This is a cache to make finding the first <base href> or <base target> element O(1).

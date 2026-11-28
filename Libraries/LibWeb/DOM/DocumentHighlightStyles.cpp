@@ -59,16 +59,22 @@ void Document::set_needs_highlight_style_update(CSS::PseudoElement pseudo_elemen
 }
 
 // NB: Inserted or moved content can enter a selection without moving its boundary points, so a change to the tree,
-//     which moves its version, leaves every highlight style needing an update.
-bool Document::HighlightStyleObservability::needs_update_at(u64 current_dom_tree_version) const
+//     which moves its version, leaves every highlight style needing an update. Rather than every change marking them,
+//     they are marked here, once the version moved since they last were.
+void Document::mark_highlight_styles_for_dom_tree_changes()
 {
-    return needs_update || dom_tree_version != current_dom_tree_version;
+    auto current_dom_tree_version = dom_tree_version();
+    if (m_highlight_style_observability_dom_tree_version == current_dom_tree_version)
+        return;
+    m_highlight_style_observability_dom_tree_version = current_dom_tree_version;
+    for (auto& state : m_highlight_style_observability)
+        state.needs_update = true;
 }
 
 bool Document::needs_highlight_style_update() const
 {
-    auto current_dom_tree_version = dom_tree_version();
-    return any_of(m_highlight_style_observability, [&](auto const& state) { return state.needs_update_at(current_dom_tree_version); })
+    return m_highlight_style_observability_dom_tree_version != dom_tree_version()
+        || any_of(m_highlight_style_observability, [](auto const& state) { return state.needs_update; })
         || custom_highlight_static_ranges_may_have_changed();
 }
 
@@ -285,11 +291,11 @@ void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_el
 
     // OPTIMIZATION: Whatever moves what shows a highlight notes that it needs an update, so one that needs none has
     //               nothing to collect.
+    mark_highlight_styles_for_dom_tree_changes();
     auto& state = highlight_style_observability(pseudo_element);
-    auto current_dom_tree_version = dom_tree_version();
     if (pseudo_element == CSS::PseudoElement::Highlight && custom_highlight_static_ranges_may_have_changed())
         state.needs_update = true;
-    if (!state.needs_update_at(current_dom_tree_version))
+    if (!state.needs_update)
         return;
 
     if (pseudo_element == CSS::PseudoElement::Highlight) {
@@ -297,7 +303,7 @@ void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_el
         Vector<CSS::StyleAtomID> names;
         m_custom_highlight_observers_read_static_ranges = collect_custom_highlight_observing_elements(*this, style_nodes, names);
         m_custom_highlight_observers_character_data_version = character_data_version();
-        state = { .observable = !style_nodes.is_empty(), .needs_update = false, .dom_tree_version = current_dom_tree_version };
+        state = { .observable = !style_nodes.is_empty(), .needs_update = false };
         style_computer().style_engine().set_custom_highlight_observing_elements(style_nodes, names);
         return;
     }
@@ -313,7 +319,7 @@ void Document::update_highlight_style_observability(CSS::PseudoElement pseudo_el
         }
     }();
     bool observable = !inputs.is_empty();
-    state = { .observable = observable, .needs_update = false, .dom_tree_version = current_dom_tree_version };
+    state = { .observable = observable, .needs_update = false };
     // NB: The style engine restyles the elements that start or stop showing the highlight, which
     //     are the only ones whose highlight styles a style update keeps.
     Vector<CSS::StyleNodeID> style_nodes;
