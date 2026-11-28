@@ -70,7 +70,7 @@
 #include <LibWeb/HTML/SupportedImageTypes.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/HighResolutionTime/Clocks.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/LoaderConfig.h>
