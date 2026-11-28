@@ -58,6 +58,11 @@ pub struct NodeMember(Cell<u32>);
 
 impl NodeMember {
     #[inline(always)]
+    pub(super) const fn null() -> Self {
+        Self(Cell::new(0))
+    }
+
+    #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
     }
@@ -172,7 +177,19 @@ pub struct DocumentCore {
     /// mirrors them.
     /// https://dom.spec.whatwg.org/#nodeiterator
     node_iterators: WeakCellSpan,
+    /// The stamp of the last change to the children of a node whose node document is the document, see
+    /// tree_version.rs.
+    node_tree_version: Cell<u64>,
+    /// The stamp of the last change to the children of a node whose node document is the document that added or
+    /// removed an element.
+    element_tree_version: Cell<u64>,
+    /// The stamps the last changes to the attributes of the elements whose node document is the document that the
+    /// filters of collections read took, one for each HTMLCollection::AttributeInvalidationType but None.
+    collection_attribute_versions: [Cell<u64>; COLLECTION_ATTRIBUTE_TYPE_COUNT],
 }
+
+/// The number of attribute types whose changes DocumentCore counts for the collections.
+pub const COLLECTION_ATTRIBUTE_TYPE_COUNT: usize = 5;
 
 impl DocumentCore {
     #[inline(always)]
@@ -188,6 +205,34 @@ impl DocumentCore {
     #[inline(always)]
     pub fn node_iterators(&self) -> &WeakCellSpan {
         &self.node_iterators
+    }
+
+    #[inline(always)]
+    pub fn node_tree_version(&self) -> u64 {
+        self.node_tree_version.get()
+    }
+
+    #[inline(always)]
+    pub fn element_tree_version(&self) -> u64 {
+        self.element_tree_version.get()
+    }
+
+    #[inline(always)]
+    pub(super) fn set_tree_versions(&self, stamp: u64, elements_changed: bool) {
+        self.node_tree_version.set(stamp);
+        if elements_changed {
+            self.element_tree_version.set(stamp);
+        }
+    }
+
+    #[inline(always)]
+    pub fn collection_attribute_version(&self, attribute_type: usize) -> u64 {
+        self.collection_attribute_versions[attribute_type].get()
+    }
+
+    #[inline(always)]
+    pub(super) fn set_collection_attribute_version(&self, attribute_type: usize, stamp: u64) {
+        self.collection_attribute_versions[attribute_type].set(stamp);
     }
 }
 
@@ -487,6 +532,9 @@ impl DocumentCore {
             flags: Cell::new(0),
             live_ranges: WeakCellSpan::empty_for_test(),
             node_iterators: WeakCellSpan::empty_for_test(),
+            node_tree_version: Cell::new(0),
+            element_tree_version: Cell::new(0),
+            collection_attribute_versions: Default::default(),
         }
     }
 
@@ -559,10 +607,13 @@ const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<Docum
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
 const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
 // NB: Document.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentCore>() == 40 && align_of::<DocumentCore>() == 8);
+const _: () = assert!(size_of::<DocumentCore>() == 96 && align_of::<DocumentCore>() == 8);
 const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
 const _: () = assert!(offset_of!(DocumentCore, live_ranges) == 8);
 const _: () = assert!(offset_of!(DocumentCore, node_iterators) == 24);
+const _: () = assert!(offset_of!(DocumentCore, node_tree_version) == 40);
+const _: () = assert!(offset_of!(DocumentCore, element_tree_version) == 48);
+const _: () = assert!(offset_of!(DocumentCore, collection_attribute_versions) == 56);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);

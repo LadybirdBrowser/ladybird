@@ -280,60 +280,6 @@ void Node::RareData::visit_edges(Cell::Visitor& visitor)
         visitor.visit(*registered_observer_list);
 }
 
-void Node::register_html_collection_with_valid_cache(HTMLCollection& collection)
-{
-    auto& collections = ensure_rare_data().html_collections_with_valid_caches;
-    if (!collections)
-        collections = make<HTMLCollectionCacheRegistration::List>();
-    collections->append(collection);
-}
-
-void Node::invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadata::AffectsElements affects_elements)
-{
-    if (affects_elements == ChildrenChangedMetadata::AffectsElements::No || !document().has_valid_html_collection_caches())
-        return;
-
-    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
-        if (!ancestor->m_rare_data || !ancestor->m_rare_data->html_collections_with_valid_caches)
-            continue;
-
-        GC::RootVector<GC::Ref<HTMLCollection>> collections;
-        for (auto& registration : *ancestor->m_rare_data->html_collections_with_valid_caches)
-            collections.append(static_cast<HTMLCollection&>(registration));
-        for (auto& collection : collections)
-            collection->invalidate_cache_for_tree_mutation(*this);
-    }
-}
-
-void Node::invalidate_html_collection_caches_in_ancestors_for_attribute_change(HTMLCollectionCacheRegistration::AttributeInvalidationTypes invalidation_types)
-{
-    auto& element = as<Element>(*this);
-    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
-        if (!ancestor->m_rare_data || !ancestor->m_rare_data->html_collections_with_valid_caches)
-            continue;
-
-        GC::RootVector<GC::Ref<HTMLCollection>> collections;
-        for (auto& registration : *ancestor->m_rare_data->html_collections_with_valid_caches)
-            collections.append(static_cast<HTMLCollection&>(registration));
-        for (auto& collection : collections)
-            collection->invalidate_cache_for_attribute_change(element, invalidation_types);
-    }
-}
-
-static Node::ChildrenChangedMetadata::AffectsElements mutation_affects_elements(ReadonlySpan<GC::Ref<Node>> nodes)
-{
-    for (auto const& node : nodes) {
-        if (is<Element>(*node))
-            return Node::ChildrenChangedMetadata::AffectsElements::Yes;
-    }
-    return Node::ChildrenChangedMetadata::AffectsElements::No;
-}
-
-static Node::ChildrenChangedMetadata::AffectsElements mutation_affects_elements(Node& node)
-{
-    return is<Element>(node) ? Node::ChildrenChangedMetadata::AffectsElements::Yes : Node::ChildrenChangedMetadata::AffectsElements::No;
-}
-
 size_t Node::RareData::external_memory_size() const
 {
     if (!registered_observer_list)
@@ -1285,7 +1231,6 @@ struct MoveScope {
         void visit_edges(GC::Cell::Visitor& visitor) { visitor.visit(element); }
     };
 
-    Node::ChildrenChangedMetadata::AffectsElements affects_elements { Node::ChildrenChangedMetadata::AffectsElements::No };
     GC::RootVector<PreviousReadWriteState> previous_read_write_states;
 
     // A move keeps the element's identity, so nothing disconnects and nothing connects to say its relations changed.
@@ -1329,9 +1274,6 @@ void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root,
     if (is_connected() && &old_parent != &new_parent)
         document.page().keyboard_scroll_dom_tree_changed(*this);
     document.flush_deferred_style_change_event();
-
-    if (document.has_valid_html_collection_caches())
-        scope.affects_elements = mutation_affects_elements(*this);
 
     if (old_parent.in_editable_subtree() != new_parent.in_editable_subtree()) {
         for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
@@ -1494,9 +1436,6 @@ void Node::end_move(MoveScope& scope, Node& old_parent, Node& new_parent, GC::Pt
 
     // 27. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
     new_parent.queue_tree_mutation_record({ &moved_node, 1 }, {}, new_previous_sibling.ptr(), child.ptr());
-
-    old_parent.invalidate_html_collection_caches_in_ancestors(scope.affects_elements);
-    new_parent.invalidate_html_collection_caches_in_ancestors(scope.affects_elements);
 
     // NB: A move runs no children changed steps, which is where an <html> element publishes which child is the body,
     //     and where a media element keeps its resource selection pointer in place and resumes a selection that waits
@@ -2318,9 +2257,7 @@ GC::Ref<NodeList> Node::child_nodes()
 {
     auto& child_nodes = ensure_rare_data().child_nodes;
     if (!child_nodes) {
-        child_nodes = LiveNodeList::create(*this, LiveNodeList::Scope::Children, GC::create_function(heap(), [](Node const&) {
-            return true;
-        }));
+        child_nodes = LiveNodeList::create_child_nodes(*this);
     }
     return *child_nodes;
 }
@@ -4132,7 +4069,7 @@ class RustDOMHooks {
 public:
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static Node::ChildrenChangedMetadata::AffectsElements begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes)
+    static void begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes)
     {
         auto& document = parent->document();
 
@@ -4150,17 +4087,11 @@ public:
                 node->document().flush_deferred_style_change_event();
         }
 
-        auto affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
-        if (document.has_valid_html_collection_caches())
-            affects_elements = mutation_affects_elements(nodes);
-
         // 4. If node is a DocumentFragment node:
         //    2. Queue a tree mutation record for node with « », nodes, null, and null.
         //    NOTE: This step intentionally does not pay attention to suppressObservers.
         if (node && is<DocumentFragment>(*node))
             node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
-
-        return affects_elements;
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
@@ -4238,7 +4169,7 @@ public:
 
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static void end_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* previous_sibling, Node* child, bool suppress_observers, Node::ChildrenChangedMetadata::AffectsElements affects_elements)
+    static void end_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* previous_sibling, Node* child, bool suppress_observers)
     {
         // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « »,
         //    previousSibling, and child.
@@ -4256,9 +4187,8 @@ public:
             parent->queue_tree_mutation_record(nodes, {}, previous_sibling, child);
 
         // 9. Run the children changed steps for parent.
-        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
+        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Inserted, *node };
         parent->children_changed(metadata);
-        parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
 
         // NB: The parser inserts into a tree the layout tree does not hold yet, see RustFFI::InsertionKind::Parser.
         if constexpr (kind == RustFFI::InsertionKind::Parser)
@@ -4317,19 +4247,16 @@ public:
         document.flush_deferred_style_change_event();
 
         RustFFI::ChildrenRemoval children_removal {};
-        children_removal.affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
-        children_removal.track_affected_elements = document.has_valid_html_collection_caches();
         children_removal.a_child_holds_a_propagating_state_source = CSS::Invalidation::descendants_hold_a_propagating_state_source(*parent);
         return children_removal;
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
-    static void end_removing_all_children(Node* parent, RustFFI::ChildrenRemoval children_removal)
+    static void end_removing_all_children(Node* parent)
     {
         // 17. Run the children changed steps for parent.
-        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::AllChildrenRemoved, parent, children_removal.affects_elements };
+        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::AllChildrenRemoved, *parent };
         parent->children_changed(metadata);
-        parent->invalidate_html_collection_caches_in_ancestors(children_removal.affects_elements);
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
@@ -4355,8 +4282,6 @@ public:
             node->schedule_list_item_renumber_for_removal();
             facts.holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*node);
         } else {
-            if (children_removal->track_affected_elements && mutation_affects_elements(*node) == Node::ChildrenChangedMetadata::AffectsElements::Yes)
-                children_removal->affects_elements = Node::ChildrenChangedMetadata::AffectsElements::Yes;
             // NB: Every child has the same list owner, so the first child that renumbers it answers for all of them.
             if (!children_removal->list_owner_renumber_scheduled)
                 children_removal->list_owner_renumber_scheduled = node->schedule_list_item_renumber_for_removal();
@@ -4418,12 +4343,8 @@ public:
             return;
 
         // 17. Run the children changed steps for parent.
-        auto affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
-        if (node->document().has_valid_html_collection_caches())
-            affects_elements = mutation_affects_elements(*node);
-        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Removal, node, affects_elements, old_previous_sibling };
+        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Removal, *node, old_previous_sibling };
         parent->children_changed(metadata);
-        parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
     }
 
     static void run_removing_steps(Node* node, Node::IsSubtreeRoot is_subtree_root, Node* parent, Node* parent_root, bool was_tracked_by_style_engine, bool is_parent_connected)
@@ -4499,6 +4420,16 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-collection
+    static bool collection_filter_matches(Bindings::GCAllocatedWrappable const* collection, Node* node)
+    {
+        // NB: Every HTMLCollection and LiveNodeList keeps its core at the same offset into its cell.
+        auto const& core = *reinterpret_cast<RustFFI::CollectionCore const*>(reinterpret_cast<u8 const*>(collection) + RustFFI::COLLECTION_CORE_OFFSET);
+        if (core.flags & RustFFI::COLLECTION_OF_NODES)
+            return static_cast<LiveNodeList const*>(collection)->node_matches_filter(*node);
+        return static_cast<HTMLCollection const*>(collection)->element_matches_filter(static_cast<Element const&>(*node));
+    }
+
+    // https://dom.spec.whatwg.org/#queue-a-tree-mutation-record
     static void queue_tree_mutation_record(Node* target, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
     {
         target->queue_tree_mutation_record(added_nodes, removed_nodes, previous_sibling, next_sibling);
@@ -4533,6 +4464,7 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     },
     .live_range_boundary_points_set = RustDOMHooks::live_range_boundary_points_set,
     .call_node_filter = RustDOMHooks::call_node_filter,
+    .collection_filter_matches = RustDOMHooks::collection_filter_matches,
     .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
 };
 

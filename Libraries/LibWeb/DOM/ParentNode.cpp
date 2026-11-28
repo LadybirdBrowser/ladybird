@@ -97,7 +97,7 @@ GC::Ref<HTMLCollection> ParentNode::children()
     // The children getter steps are to return an HTMLCollection collection rooted at this matching only element children.
     auto& children = ensure_rare_data().children;
     if (!children) {
-        children = HTMLCollection::create(*this, HTMLCollection::Scope::Children, GC::create_function(heap(), [](Element const&) { return true; }), HTMLCollection::AttributeInvalidationType::None);
+        children = HTMLCollection::create(*this, HTMLCollection::Scope::Children, HTMLCollection::BuiltinFilter {});
     }
     return *children;
 }
@@ -135,23 +135,23 @@ GC::Ref<HTMLCollection> ParentNode::create_elements_by_tag_name_collection(Utf16
 {
     // 1. If qualifiedName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches only descendant elements.
     if (qualified_name == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), [](Element const&) { return true; }), HTMLCollection::AttributeInvalidationType::None);
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, HTMLCollection::BuiltinFilter {});
     }
 
     // 2. Otherwise, if root’s node document is an HTML document, return a HTMLCollection rooted at root, whose filter matches the following descendant elements:
+    //    - Whose namespace is the HTML namespace and whose qualified name is qualifiedName, in ASCII lowercase.
+    //    - Whose namespace is not the HTML namespace and whose qualified name is qualifiedName.
     if (root().document().document_type() == Document::Type::HTML) {
-        auto lowercase_qualified_name = qualified_name.to_ascii_lowercase();
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(qualified_name, move(lowercase_qualified_name)), [](auto const& qualified_name, auto const& lowercase_qualified_name, Element const& element) {
-            // - Whose namespace is the HTML namespace and whose qualified name is qualifiedName, in ASCII lowercase.
-            if (element.namespace_uri() == Namespace::HTML)
-                return element.qualified_name() == lowercase_qualified_name;
-
-            // - Whose namespace is not the HTML namespace and whose qualified name is qualifiedName.
-            return element.qualified_name() == qualified_name; }), HTMLCollection::AttributeInvalidationType::None);
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants,
+            HTMLCollection::BuiltinFilter {
+                .filter = RustFFI::CollectionFilter::QualifiedNameInHtmlDocument,
+                .name = qualified_name,
+                .other_name = qualified_name.to_ascii_lowercase(),
+            });
     }
 
     // 3. Otherwise, return a HTMLCollection rooted at root, whose filter matches descendant elements whose qualified name is qualifiedName.
-    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(qualified_name), [](auto const& qualified_name, Element const& element) { return element.qualified_name() == qualified_name; }), HTMLCollection::AttributeInvalidationType::None);
+    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, HTMLCollection::BuiltinFilter { .filter = RustFFI::CollectionFilter::QualifiedName, .name = qualified_name });
 }
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagnamens
@@ -164,30 +164,26 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<Utf16Fl
 
     // 2. If both namespace and localName are "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements.
     if (namespace_ == u"*"sv && local_name == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), [](Element const&) { return true; }), HTMLCollection::AttributeInvalidationType::None);
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, HTMLCollection::BuiltinFilter {});
     }
 
     // 3. Otherwise, if namespace is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose local name is localName.
     if (namespace_ == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(local_name), [](auto const& local_name, Element const& element) { return element.local_name().view() == local_name.view(); }), HTMLCollection::AttributeInvalidationType::None);
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, HTMLCollection::BuiltinFilter { .filter = RustFFI::CollectionFilter::LocalName, .name = local_name });
     }
 
     // 4. Otherwise, if localName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace.
     if (local_name == u"*"sv) {
-        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(namespace_), [](auto const& namespace_, Element const& element) {
-            auto element_namespace = element.namespace_uri();
-            if (element_namespace.has_value() != namespace_.has_value())
-                return false;
-            return !namespace_.has_value() || element_namespace->view() == namespace_->view(); }), HTMLCollection::AttributeInvalidationType::None);
+        return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, HTMLCollection::BuiltinFilter { .filter = RustFFI::CollectionFilter::Namespace, .name = move(namespace_) });
     }
 
     // 5. Otherwise, return a HTMLCollection rooted at root, whose filter matches descendant elements whose namespace is namespace and local name is localName.
-    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(namespace_, local_name), [](auto const& namespace_, auto const& local_name, Element const& element) {
-        auto element_namespace = element.namespace_uri();
-        if (element_namespace.has_value() != namespace_.has_value())
-            return false;
-        return (!namespace_.has_value() || element_namespace->view() == namespace_->view())
-            && element.local_name().view() == local_name.view(); }), HTMLCollection::AttributeInvalidationType::None);
+    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants,
+        HTMLCollection::BuiltinFilter {
+            .filter = RustFFI::CollectionFilter::NamespaceAndLocalName,
+            .name = move(namespace_),
+            .other_name = local_name,
+        });
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-prepend
@@ -270,10 +266,11 @@ WebIDL::ExceptionOr<void> ParentNode::move_before(GC::Ref<Node> node, GC::Ptr<No
 // https://dom.spec.whatwg.org/#dom-document-getelementsbyclassname
 GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16View class_names)
 {
-    Vector<Utf16String> list_of_class_names;
+    ClassNames list_of_class_names;
     auto append_class_name = [&](Utf16View class_name) {
-        if (!list_of_class_names.contains_slow(class_name))
-            list_of_class_names.append(Utf16String::from_utf16(class_name));
+        auto name = Utf16FlyString::from_utf16(class_name);
+        if (!list_of_class_names.span().contains_slow(name))
+            list_of_class_names.append(move(name));
     };
 
     Optional<size_t> token_start;
@@ -293,12 +290,13 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16View class_n
     if (token_start.has_value())
         append_class_name(class_names.substring_view(*token_start));
 
-    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, GC::create_function(heap(), GC::captures(move(list_of_class_names), document().in_quirks_mode()), [](auto const& list_of_class_names, auto quirks_mode, Element const& element) {
-        for (auto& name : list_of_class_names) {
-            if (!element.has_class(name.utf16_view(), quirks_mode ? CaseSensitivity::CaseInsensitive : CaseSensitivity::CaseSensitive))
-                return false;
-        }
-        return !list_of_class_names.is_empty(); }), HTMLCollection::AttributeInvalidationType::Class);
+    return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants,
+        HTMLCollection::BuiltinFilter {
+            .filter = RustFFI::CollectionFilter::ClassNames,
+            .class_names = move(list_of_class_names),
+            .in_quirks_mode = document().in_quirks_mode(),
+        },
+        HTMLCollection::AttributeInvalidationType::Class);
 }
 
 GC::Ptr<Element> ParentNode::get_element_by_id(Utf16View id) const

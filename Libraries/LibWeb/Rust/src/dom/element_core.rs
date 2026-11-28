@@ -274,6 +274,10 @@ impl ElementCore {
         }
     }
 
+    pub(crate) fn set_classes_for_test(&mut self, classes: &[&str]) {
+        self.classes = ClassNamesField::for_test(classes);
+    }
+
     pub(crate) fn set_shadow_root_for_test(&self, shadow_root: Option<NodePointer>) {
         self.shadow_root.set_for_test(shadow_root);
     }

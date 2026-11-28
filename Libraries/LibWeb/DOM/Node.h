@@ -21,7 +21,6 @@
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/FragmentSerializationMode.h>
-#include <LibWeb/DOM/HTMLCollectionCacheRegistration.h>
 #include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
@@ -394,10 +393,8 @@ public:
             AllChildrenRemoved,
             Mutation,
         };
-        using AffectsElements = RustFFI::AffectsElements;
         Type type {};
         GC::Ref<Node> node;
-        AffectsElements affects_elements { AffectsElements::No };
         // For a removal, the sibling that was before the removed node, if any.
         GC::Ptr<Node> old_previous_sibling {};
     };
@@ -613,7 +610,6 @@ protected:
 
         GC::Member<NodeList> child_nodes;
         GC::Member<HTMLCollection> children;
-        OwnPtr<HTMLCollectionCacheRegistration::List> html_collections_with_valid_caches;
 
         // The collections getElementsByTagName() returned, which it may return again for the same argument while the
         // type of the root's node document stays the same, so that type is kept with each.
@@ -625,10 +621,6 @@ protected:
         // The size the map grows to before the entries of collected collections are swept from it.
         size_t collections_by_tag_name_sweep_size { 0 };
     };
-
-    void register_html_collection_with_valid_cache(HTMLCollection&);
-    void invalidate_html_collection_caches_in_ancestors(ChildrenChangedMetadata::AffectsElements);
-    void invalidate_html_collection_caches_in_ancestors_for_attribute_change(HTMLCollectionCacheRegistration::AttributeInvalidationTypes);
 
     Node(Document&, NodeType);
 

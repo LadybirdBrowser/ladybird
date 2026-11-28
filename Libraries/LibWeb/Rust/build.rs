@@ -2793,6 +2793,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "RangeCore".to_string(),
         "NodeIteratorCore".to_string(),
         "TreeWalkerCore".to_string(),
+        "CollectionCore".to_string(),
+        "CollectionNames".to_string(),
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
@@ -2821,6 +2823,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("TreeWalkerCell", "Web::DOM::TreeWalker"),
         // NB: A struct C++ gets by value holds no GC::Ptr, and the GC plugin rejects a raw cell pointer field.
         ("TraversedNode", "void*"),
+        // NB: HTMLCollection and LiveNodeList share this base, whose start is theirs.
+        ("CollectionCell", "Web::Bindings::GCAllocatedWrappable"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2829,7 +2833,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct MoveScope; }",
+        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }",
     );
     generate_ffi_header_strict(
         dom_config,
@@ -2846,6 +2850,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/remove.rs"),
             manifest_dir.join("src/dom/replace.rs"),
             manifest_dir.join("src/dom/adopt.rs"),
+            manifest_dir.join("src/dom/collection.rs"),
             manifest_dir.join("src/dom/traversal.rs"),
             manifest_dir.join("src/dom/tree_version.rs"),
             manifest_dir.join("src/dom/weak_cells.rs"),

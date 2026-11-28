@@ -183,7 +183,7 @@ pub(crate) fn remove_all_children(main_thread: &mut MainThread<'_>, parent: Node
     }
 
     // 17. Run the children changed steps for parent.
-    hooks::end_removing_all_children(main_thread, parent, children_removal);
+    hooks::end_removing_all_children(main_thread, parent);
 
     bump_dom_tree_version(main_thread, parent);
 }

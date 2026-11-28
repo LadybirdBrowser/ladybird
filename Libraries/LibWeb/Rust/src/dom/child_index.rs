@@ -176,6 +176,16 @@ pub(super) fn child_about_to_unlink(parent: NodeRef, node: NodeRef) {
     begin_child_index_generation(parent);
 }
 
+/// What tells whether the element children of `parent` changed: the generation of its child list, and its last element
+/// child, which are the same as long as no element joined or left its children, see the module.
+#[inline(always)]
+pub(super) fn element_children_stamp(parent: NodeRef) -> u64 {
+    let last_element_child = core::iter::successors(parent.last_child(), |node| node.previous_sibling())
+        .find(|node| node.is_element())
+        .map_or(0, |node| node.pointer().compressed());
+    (u64::from(parent.core().child_index_generation()) << 32) | u64::from(last_element_child)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::element_core::ElementCore;

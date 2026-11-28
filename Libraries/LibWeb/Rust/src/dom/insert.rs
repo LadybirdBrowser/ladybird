@@ -10,7 +10,6 @@
 use super::adopt::adopt;
 use super::element_core::ELEMENT_IS_HTML_ELEMENT;
 use super::hooks;
-use super::hooks::AffectsElements;
 use super::hooks::DomInserter;
 use super::hooks::Inserter;
 use super::hooks::InsertionKind;
@@ -62,8 +61,8 @@ pub(crate) fn insert(
     //    2. Queue a tree mutation record for node with « », nodes, null, and null.
     //       NOTE: This step intentionally does not pay attention to suppressObservers.
     // NB: The callback also tells the editing history of the mutation and consumes the deferred style change events of
-    //     the documents, and answers whether the insertion affects the element children of parent.
-    let affects_elements = hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes);
+    //     the documents.
+    hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes);
 
     // 5. If child is non-null:
     //    1. For each live range whose start node is parent and start offset is greater than child’s index: increase its
@@ -74,15 +73,7 @@ pub(crate) fn insert(
         adjust_live_ranges_for_insertion(main_thread, parent, child, count);
     }
 
-    insert_nodes::<DomInserter>(
-        main_thread,
-        parent,
-        node,
-        nodes,
-        child,
-        suppress_observers,
-        affects_elements,
-    );
+    insert_nodes::<DomInserter>(main_thread, parent, node, nodes, child, suppress_observers);
 }
 
 /// Inserts `node`, which the HTML or XML parser has just created, into `parent` before `child`, where the style engine
@@ -97,14 +88,14 @@ fn parser_insert(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRe
     // 2. Let count be nodes’s size.
     // 3. If count is 0, then return.
     // 4. If node is a DocumentFragment node: ...
-    let affects_elements = hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes);
+    hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes);
 
     // 5. If child is non-null: ...
     if let Some(child) = child {
         adjust_live_ranges_for_insertion(main_thread, parent, child, 1);
     }
 
-    insert_nodes::<ParserInserter>(main_thread, parent, node, &nodes, child, false, affects_elements);
+    insert_nodes::<ParserInserter>(main_thread, parent, node, &nodes, child, false);
 }
 
 /// Inserts `nodes`, which have no parent and are no DocumentFragment, into `parent` before null with suppressObservers
@@ -118,13 +109,12 @@ pub(crate) fn insert_as_children_of_unobservable_fragment(
     if nodes.is_empty() {
         return;
     }
-    let affects_elements = hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes);
+    hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes);
     // NB: The children changed steps are told that parent itself was inserted, for want of the fragment.
-    insert_nodes::<DomInserter>(main_thread, parent, parent, nodes, None, true, affects_elements);
+    insert_nodes::<DomInserter>(main_thread, parent, parent, nodes, None, true);
 }
 
-/// Steps 6 and on of inserting `node`, whose nodes are `nodes`, into `parent` before `child`, which affects the element
-/// children of `parent` as `affects_elements` says.
+/// Steps 6 and on of inserting `node`, whose nodes are `nodes`, into `parent` before `child`.
 /// https://dom.spec.whatwg.org/#concept-node-insert
 fn insert_nodes<I: Inserter>(
     main_thread: &mut MainThread<'_>,
@@ -133,7 +123,6 @@ fn insert_nodes<I: Inserter>(
     nodes: &[NodeRef],
     child: Option<NodeRef>,
     suppress_observers: bool,
-    affects_elements: AffectsElements,
 ) {
     let tree_version_before_insertion_steps = last_tree_version_stamp(main_thread);
 
@@ -174,8 +163,8 @@ fn insert_nodes<I: Inserter>(
     // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
     //    and child.
     // 9. Run the children changed steps for parent.
-    // NB: The callback also invalidates the collection caches, and marks the layout tree for the inserted nodes before
-    //     the post-connection steps, which can run script that reads layout geometry.
+    // NB: The callback also marks the layout tree for the inserted nodes before the post-connection steps, which can run
+    //     script that reads layout geometry.
     hooks::end_insertion::<I>(
         main_thread,
         parent,
@@ -184,7 +173,6 @@ fn insert_nodes<I: Inserter>(
         previous_sibling,
         child,
         suppress_observers,
-        affects_elements,
     );
 
     // 10. Let staticNodeList be a list of nodes, initially « ».

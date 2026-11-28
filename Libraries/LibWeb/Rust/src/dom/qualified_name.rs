@@ -25,7 +25,7 @@ pub struct QualifiedNameImpl {
     lowercased_local_name: FlyStringField,
     _prefix: OptionalFlyStringField,
     namespace: OptionalFlyStringField,
-    _as_string: FlyStringField,
+    as_string: FlyStringField,
     _ascii_uppercased_as_string: OptionalFlyStringField,
 }
 
@@ -34,7 +34,7 @@ const _: () = assert!(offset_of!(QualifiedNameImpl, local_name) == 8);
 const _: () = assert!(offset_of!(QualifiedNameImpl, lowercased_local_name) == 16);
 const _: () = assert!(offset_of!(QualifiedNameImpl, _prefix) == 24);
 const _: () = assert!(offset_of!(QualifiedNameImpl, namespace) == 32);
-const _: () = assert!(offset_of!(QualifiedNameImpl, _as_string) == 40);
+const _: () = assert!(offset_of!(QualifiedNameImpl, as_string) == 40);
 const _: () = assert!(offset_of!(QualifiedNameImpl, _ascii_uppercased_as_string) == 48);
 
 /// A field that holds a qualified name, laid out as C++'s DOM::QualifiedName, which is what C++ sees it as: a reference
@@ -68,6 +68,14 @@ impl QualifiedNameField {
         self.parts().namespace.get()
     }
 
+    /// The qualified name as a string: the prefix, a colon and the local name, or the local name where there is no
+    /// prefix.
+    /// https://dom.spec.whatwg.org/#concept-element-qualified-name
+    #[inline(always)]
+    pub fn as_string(&self) -> &FlyStringField {
+        &self.parts().as_string
+    }
+
     /// The word that names the name, which is the same for every field holding a name equal in every part.
     #[inline(always)]
     pub fn identity(&self) -> usize {
@@ -86,7 +94,7 @@ impl QualifiedNameField {
             lowercased_local_name: FlyStringField::for_test(&local_name.to_ascii_lowercase()),
             _prefix: OptionalFlyStringField::for_test(None),
             namespace: OptionalFlyStringField::for_test(namespace),
-            _as_string: FlyStringField::for_test(local_name),
+            as_string: FlyStringField::for_test(local_name),
             _ascii_uppercased_as_string: OptionalFlyStringField::for_test(None),
         });
         Self(UnsafeCell::new(NonNull::from(Box::leak(parts))))
