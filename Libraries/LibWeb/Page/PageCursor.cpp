@@ -50,6 +50,7 @@ Gfx::Cursor css_to_gfx_cursor(CSS::CursorPredefined css_cursor)
     case CSS::CursorPredefined::None:
         return Gfx::StandardCursor::Hidden;
     case CSS::CursorPredefined::NotAllowed:
+    case CSS::CursorPredefined::NoDrop:
         return Gfx::StandardCursor::Disallowed;
     case CSS::CursorPredefined::Text:
     case CSS::CursorPredefined::VerticalText:
@@ -58,6 +59,7 @@ Gfx::Cursor css_to_gfx_cursor(CSS::CursorPredefined css_cursor)
     case CSS::CursorPredefined::AllScroll:
         return Gfx::StandardCursor::Move;
     case CSS::CursorPredefined::Progress:
+        return Gfx::StandardCursor::Progress;
     case CSS::CursorPredefined::Wait:
         return Gfx::StandardCursor::Wait;
     case CSS::CursorPredefined::ColResize:
@@ -84,13 +86,14 @@ Gfx::Cursor css_to_gfx_cursor(CSS::CursorPredefined css_cursor)
         return Gfx::StandardCursor::ZoomIn;
     case CSS::CursorPredefined::ZoomOut:
         return Gfx::StandardCursor::ZoomOut;
+    case CSS::CursorPredefined::Copy:
+        return Gfx::StandardCursor::DragCopy;
+    case CSS::CursorPredefined::Alias:
+        return Gfx::StandardCursor::DragLink;
     case CSS::CursorPredefined::Default:
         return Gfx::StandardCursor::Arrow;
     case CSS::CursorPredefined::ContextMenu:
-    case CSS::CursorPredefined::Alias:
-    case CSS::CursorPredefined::Copy:
-    case CSS::CursorPredefined::NoDrop:
-        // FIXME: No corresponding GFX Standard Cursor, fallthrough to None
+        // FIXME: No corresponding Gfx standard cursor, fall through to None.
     case CSS::CursorPredefined::Auto:
     default:
         return Gfx::StandardCursor::None;
