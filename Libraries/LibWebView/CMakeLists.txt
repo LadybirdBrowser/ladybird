@@ -5,6 +5,7 @@ set(SOURCES
     AudioServerActivity.cpp
     AudioServerControlClient.cpp
     Authenticator.cpp
+    AuthenticatorManager.cpp
     Autocomplete.cpp
     AutocompleteMuxer.cpp
     AutocompleteRanker.cpp
@@ -204,6 +205,7 @@ test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebview_rust)
 
 get_target_property(_libwebview_rust_lib libwebview_rust IMPORTED_LOCATION)
 set_property(SOURCE Authenticator.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebview_rust_lib})
+set_property(SOURCE AuthenticatorManager.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebview_rust_lib})
 set_property(SOURCE SecurityKey.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebview_rust_lib})
 
 if (LINUX)
