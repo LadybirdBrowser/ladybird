@@ -1,0 +1,10 @@
+Ladybird’s DevTools server sends a request body that isn’t valid UTF-8
+as one code point per byte, with the body’s size. Firefox’s server
+does the same: NetworkHelper.readPostDataFromRequest() decodes the
+body with the request’s charset through nsIScriptableUnicodeConverter,
+which decodes without replacement and throws on invalid input, and
+on a throw, it keeps the byte string it read, one code unit per byte.
+NetworkEventActor.getRequestPostData() then sends that text with the
+body’s size, and the netmonitor client only reads postData.text. Run
+headless against a POST of the bytes FF FE FD, the server now answers
+with the text “\u00ff\u00fe\u00fd” and size 3.
