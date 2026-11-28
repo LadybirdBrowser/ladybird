@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Fieldset anonymous content box inherits rule (reference)</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#anonymous-fieldset-content-box">
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/#propdef-rule">
+<style>
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  column-rule: 5px solid green;
+  row-rule: 5px solid green;
+  width: 200px;
+  margin: 0;
+}
+.item {
+  height: 50px;
+  background: blue;
+}
+</style>
+<p>There should be a 2-column grid with green rules in the gaps below.</p>
+<div class="container">
+  <div class="item"></div>
+  <div class="item"></div>
+  <div class="item"></div>
+  <div class="item"></div>
+</div>

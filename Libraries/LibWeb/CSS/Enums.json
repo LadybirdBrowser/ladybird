@@ -1061,6 +1061,21 @@
     "to-zero",
     "up"
   ],
+  "rule-break": [
+    "none",
+    "normal",
+    "intersection"
+  ],
+  "rule-overlap": [
+    "row-over-column",
+    "column-over-row"
+  ],
+  "rule-visibility-items": [
+    "all",
+    "around",
+    "between",
+    "normal"
+  ],
   "scroll-behavior": [
     "auto",
     "smooth"

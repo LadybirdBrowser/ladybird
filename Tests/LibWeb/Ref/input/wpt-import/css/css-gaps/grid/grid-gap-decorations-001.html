@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>
+  CSS Gap Decorations: column and row gaps are painted.
+</title>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-gaps/grid/../../reference/ref-filled-green-100px-square.xht">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+<style>
+  .grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 10px;
+    row-gap: 10px;
+    height: 100px;
+    width: 100px;
+    background: red;
+    column-rule-color: green;
+    column-rule-style: solid;
+    column-rule-width: 10px;
+    row-rule-color: green;
+    row-rule-style: solid;
+    row-rule-width: 10px;
+  }
+
+  .grid-item {
+    background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="grid-container">
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+    <div class="grid-item"></div>
+</div>

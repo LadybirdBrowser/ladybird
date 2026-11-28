@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/grid-gap-decorations-overlap-join-hidden-crossing-rule-ref.html" />
+<style>
+body { margin: 0; }
+.grid { display: grid; grid-template: 40px 40px / 40px 40px; gap: 20px; column-rule: 10px solid rgba(255 0 0 / 0.5); column-rule-break: intersection; column-rule-inset-junction: overlap-join; row-rule: 12px none; }
+.grid > div { background: gray; }
+</style>
+<div class="grid"><div></div><div></div><div></div><div></div></div>

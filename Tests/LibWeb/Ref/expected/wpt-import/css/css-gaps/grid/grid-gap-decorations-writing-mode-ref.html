@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/css-gaps-1/#gap-decorations">
+<link rel="author" title="Kevin Babbitt" href="mailto:kbabbitt@microsoft.com">
+<style>
+    body {
+        margin: 0px;
+    }
+    .section {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .grid {
+        display: grid;
+        grid-template: repeat(2, 50px) / repeat(3, 50px);
+        column-gap: 10px;
+        row-gap: 10px;
+        width: 110px;
+        height: 170px;
+    }
+    .item {
+        background: lightgray;
+    }
+    .item:first-child {
+        background: salmon;
+    }
+    .col-rule {
+        position: absolute;
+        left: 0px;
+        height: 10px;
+        width: 110px;
+        background: blue;
+    }
+    .row-rule {
+        position: absolute;
+        top: 0px;
+        left: 50px;
+        width: 10px;
+        height: 170px;
+        background: red;
+    }
+</style>
+<div class="section">
+    <div class="col-rule" style="top: 50px;"></div>
+    <div class="col-rule" style="top: 110px;"></div>
+    <div class="row-rule"></div>
+    <div class="grid" style="writing-mode: vertical-rl;">
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+</div>
+<div class="section">
+    <div class="col-rule" style="top: 50px;"></div>
+    <div class="col-rule" style="top: 110px;"></div>
+    <div class="row-rule"></div>
+    <div class="grid" style="writing-mode: vertical-lr;">
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+</div>
+<div class="section">
+    <div class="col-rule" style="top: 50px;"></div>
+    <div class="col-rule" style="top: 110px;"></div>
+    <div class="row-rule"></div>
+    <div class="grid" style="writing-mode: sideways-rl;">
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+</div>
+<div class="section">
+    <div class="col-rule" style="top: 50px;"></div>
+    <div class="col-rule" style="top: 110px;"></div>
+    <div class="row-rule"></div>
+    <div class="grid" style="writing-mode: sideways-lr;">
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+</div>

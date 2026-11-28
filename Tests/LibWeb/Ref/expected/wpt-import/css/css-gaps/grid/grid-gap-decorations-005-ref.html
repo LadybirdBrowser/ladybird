@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-gaps-1/">
+<link rel="author" title="Sam Davis Omekara Jr." href="mailto:samomekarajr@microsoft.com">
+<style>
+  body {
+    margin: 0px;
+  }
+  .container {
+    height: 110px;
+    width: 110px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 10px;
+    row-gap: 10px;
+    background: green;
+  }
+  .item {
+    background: skyblue;
+    height: 50px;
+    width: 100%;
+    margin: 0;
+  }
+  .col-rule {
+    margin: 0px;
+    padding: 0px;
+    width: 0px;
+    height: 110px;
+    border-right: 5px double;
+    border-color: pink;
+    position: absolute;
+    left: 52.5px;
+    top: 0px;
+  }
+  .row-rule {
+    margin: 0px;
+    padding: 0px;
+    height: 0px;
+    width: 110px;
+    border-bottom: 5px double;
+    border-color: pink;
+    position: absolute;
+    top: 52.5px;
+  }
+</style>
+<div class="container">
+  <div class="item"></div>
+  <div class="item"></div>
+  <div class="item"></div>
+  <div class="item"></div>
+</div>
+<div class="col-rule"></div>
+<div class="row-rule"></div>

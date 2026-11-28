@@ -170,6 +170,7 @@ pub(crate) struct BasePaintFacts {
     pub has_fixed_background: bool,
     pub has_scroll_offset_dependent_background: bool,
     pub paints_column_rules: bool,
+    pub paints_gap_decorations: bool,
     pub paint_phase_mask: u8,
 }
 
@@ -686,6 +687,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                     paintable,
                 ),
             paints_column_rules: paint::column_rule::has_visible_column_rule(style),
+            paints_gap_decorations: paint::gap_decorations::has_visible_gap_decorations(style),
             paint_phase_mask: 0,
         };
         facts.paint_phase_mask = paint::paint_phase_mask(self, paintable, style, &facts);

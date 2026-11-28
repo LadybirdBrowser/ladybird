@@ -249,6 +249,71 @@ pub(crate) struct OwnedUsedGridTracks {
     pub(crate) rows: OwnedUsedGridTrackList,
     /// The area the grid's tracks and gutters cover, relative to the container's content box.
     pub(crate) grid_area: CssPixelRect,
+    pub(crate) gaps: Option<GridGapGeometry>,
+}
+
+/// The tracks and gutters of one axis of a grid's layout frame, as its gap decorations need them.
+#[derive(PartialEq, Eq)]
+pub(crate) struct GridGapAxis {
+    /// Where the first track starts, followed by where each track and gutter ends in turn, as offsets from the content
+    /// edge the tracks start at.
+    pub(crate) interleaved_offsets: Vec<CssPixels>,
+    pub(crate) collapsed_gutters: Vec<bool>,
+    pub(crate) collapsed_tracks: Vec<bool>,
+    /// The size the offsets are mirrored in when the tracks start at the far side of the frame axis.
+    pub(crate) mirrored_in: Option<CssPixels>,
+}
+
+impl GridGapAxis {
+    pub(crate) fn track_count(&self) -> usize {
+        self.interleaved_offsets.len() / 2
+    }
+
+    /// The start and end offsets of a gutter, measured from the side the tracks start at.
+    pub(crate) fn gutter(&self, index: usize) -> (CssPixels, CssPixels) {
+        (
+            self.interleaved_offsets[index * 2 + 1],
+            self.interleaved_offsets[index * 2 + 2],
+        )
+    }
+
+    pub(crate) fn tracks_start(&self) -> CssPixels {
+        self.interleaved_offsets[0]
+    }
+
+    pub(crate) fn tracks_end(&self) -> CssPixels {
+        *self.interleaved_offsets.last().unwrap()
+    }
+
+    /// Maps a range of offsets measured from the side the tracks start at to the offset of its near edge from the
+    /// content edge the frame axis starts at.
+    pub(crate) fn frame_offset(&self, start: CssPixels, end: CssPixels) -> CssPixels {
+        match self.mirrored_in {
+            Some(size) => size - end,
+            None => start,
+        }
+    }
+}
+
+/// The tracks of each axis of the layout frame that a grid item's area covers.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct GridGapItemArea {
+    pub(crate) frame_horizontal: Range<usize>,
+    pub(crate) frame_vertical: Range<usize>,
+}
+
+/// What a grid's gap decorations are laid out from.
+// https://drafts.csswg.org/css-gaps-1/#geometry
+#[derive(PartialEq, Eq)]
+pub(crate) struct GridGapGeometry {
+    /// The frame the grid was laid out in, whose axes the geometry follows.
+    pub(crate) frame: geometry::Frame,
+    pub(crate) frame_horizontal: GridGapAxis,
+    pub(crate) frame_vertical: GridGapAxis,
+    /// Whether the grid's columns run along the frame's vertical axis, as when the grid's writing mode is orthogonal
+    /// to the frame's.
+    pub(crate) axes_are_transposed: bool,
+    pub(crate) items: Vec<GridGapItemArea>,
 }
 
 // https://drafts.csswg.org/css-grid/#overlarge-grids
@@ -5841,6 +5906,51 @@ impl<'pass> GridFormattingContext<'pass> {
                 self.track_sum(Axis::Column),
                 self.track_sum(Axis::Row),
             ),
+            gaps: self.lanes.is_none().then(|| self.gap_geometry()),
+        }
+    }
+
+    fn gap_geometry(&self) -> GridGapGeometry {
+        let axis = |axis: Axis| {
+            let mut interleaved_offsets = self.axis_track_offsets(axis).aligned_offset_after_interleaved_entries;
+            // NB: A subgridded axis has its parent's tracks and gutters. Its gaps and edges are where the extra margins
+            //     of its items at them put them: its own gutters around the parent's, and its content edges.
+            if let Some((start, end)) = self.subgrid_edge_extra_margins(axis) {
+                let last = interleaved_offsets.len() - 1;
+                interleaved_offsets[0] += start;
+                interleaved_offsets[last] -= end;
+            }
+            let gap_extra_margin = self.subgrid_gap_extra_margin(axis);
+            for gutter in 0..self.axis_tracks(axis).len().saturating_sub(1) {
+                interleaved_offsets[gutter * 2 + 1] -= gap_extra_margin;
+                interleaved_offsets[gutter * 2 + 2] += gap_extra_margin;
+            }
+            GridGapAxis {
+                interleaved_offsets,
+                collapsed_gutters: collapsed_gutters(self.axis_tracks(axis)),
+                collapsed_tracks: self.axis_tracks(axis).iter().map(|track| track.is_collapsed).collect(),
+                mirrored_in: self
+                    .tracks_are_reversed(axis)
+                    .then(|| self.grid_container_alignment_size(axis)),
+            }
+        };
+        let track_range = |item: GridItem, axis: Axis| {
+            let start = item.position(axis).max(0) as usize;
+            start..start + item.span(axis)
+        };
+        GridGapGeometry {
+            frame: self.run.pass.frame,
+            frame_horizontal: axis(Axis::Column),
+            frame_vertical: axis(Axis::Row),
+            axes_are_transposed: self.grid_axes_are_transposed,
+            items: self
+                .items
+                .iter()
+                .map(|&item| GridGapItemArea {
+                    frame_horizontal: track_range(item, Axis::Column),
+                    frame_vertical: track_range(item, Axis::Row),
+                })
+                .collect(),
         }
     }
 
