@@ -62,6 +62,7 @@ set(SOURCES
     Process.cpp
     ProcessManager.cpp
     ProcessSnapshot.cpp
+    SecurityKey.cpp
     TabDiscarder.cpp
     TabIndicators.cpp
     TabPerformanceStats.cpp
@@ -111,6 +112,7 @@ set(SOURCES
 if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
+        FidoHIDDeviceMacOS.cpp
         MediaSessionPlatformBackendMacOS.mm
         NotificationBackendMacOS.mm
         PlatformAuthenticatorBackendMacOS.mm
@@ -202,6 +204,7 @@ test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebview_rust)
 
 get_target_property(_libwebview_rust_lib libwebview_rust IMPORTED_LOCATION)
 set_property(SOURCE Authenticator.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebview_rust_lib})
+set_property(SOURCE SecurityKey.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebview_rust_lib})
 
 if (LINUX)
     # The connect broker asks the audio library where the daemon is before connecting a helper to it.
@@ -213,7 +216,7 @@ if (LINUX)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework AppKit" "-framework CoreServices" "-framework Foundation" "-framework LocalAuthentication" "-framework MediaPlayer" "-framework Security" "-framework UserNotifications")
+    target_link_libraries(LibWebView PRIVATE "-framework AppKit" "-framework CoreServices" "-framework Foundation" "-framework IOKit" "-framework LocalAuthentication" "-framework MediaPlayer" "-framework Security" "-framework UserNotifications")
 endif()
 
 if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
