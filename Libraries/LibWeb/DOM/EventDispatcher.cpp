@@ -70,7 +70,7 @@ bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListene
 
     // 2. For each listener of listeners, whose removed is false:
     for (auto& listener : listeners) {
-        if (listener->removed)
+        if (listener->removed())
             continue;
 
         // 1. If event’s type attribute value is not listener’s type, then continue.
@@ -81,15 +81,15 @@ bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListene
         found = true;
 
         // 3. If phase is "capturing" and listener’s capture is false, then continue.
-        if (phase == Event::Phase::CapturingPhase && !listener->capture)
+        if (phase == Event::Phase::CapturingPhase && !listener->capture())
             continue;
 
         // 4. If phase is "bubbling" and listener’s capture is true, then continue.
-        if (phase == Event::Phase::BubblingPhase && listener->capture)
+        if (phase == Event::Phase::BubblingPhase && listener->capture())
             continue;
 
         // 5. If listener’s once is true, then remove an event listener given event’s currentTarget attribute value and listener.
-        if (listener->once)
+        if (listener->once())
             event.current_target()->remove_an_event_listener(*listener);
 
         auto& callback = listener->callback->callback();
@@ -127,7 +127,7 @@ bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListene
         }
 
         // 11. If listener’s passive is true, then set event’s in passive listener flag.
-        if (listener->passive == true)
+        if (listener->passive() == true)
             event.set_in_passive_listener(true);
 
         // FIXME: 12. If listenerGlobal is a Window object, then record timing info for event listener given event and listener.

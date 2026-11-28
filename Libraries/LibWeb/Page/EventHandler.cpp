@@ -5078,7 +5078,7 @@ bool EventHandler::dispatch_touch_event(PointerState& pointer, DOM::Node& target
         bool has_non_passive_listener = false;
         for (auto* event_target = static_cast<DOM::EventTarget*>(&target); event_target; event_target = event_target->get_parent(*event)) {
             for (auto const& listener : event_target->event_listener_list_matching(name, {})) {
-                if (!listener->removed && listener->passive != true) {
+                if (!listener->removed() && listener->passive() != true) {
                     has_non_passive_listener = true;
                     break;
                 }

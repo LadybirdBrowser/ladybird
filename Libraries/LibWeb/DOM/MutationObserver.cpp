@@ -59,7 +59,8 @@ void MutationObserver::visit_edges(GC::Cell::Visitor& visitor)
 static MutationObserverOptions to_dom_options(Bindings::MutationObserverInit const& options)
 {
     return {
-        .attribute_filter = options.attribute_filter,
+        .attribute_filter = options.attribute_filter.value_or({}),
+        .has_attribute_filter = options.attribute_filter.has_value(),
         .attribute_old_value = options.attribute_old_value,
         .attributes = options.attributes,
         .character_data = options.character_data,
@@ -90,7 +91,7 @@ static void invoke_mutation_observer_callback(MutationObserver& mutation_observe
 WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserverOptions options)
 {
     // 1. If either options["attributeOldValue"] or options["attributeFilter"] exists, and options["attributes"] does not exist, then set options["attributes"] to true.
-    if ((options.attribute_old_value.has_value() || options.attribute_filter.has_value()) && !options.attributes.has_value())
+    if ((options.attribute_old_value.has_value() || options.has_attribute_filter) && !options.attributes.has_value())
         options.attributes = true;
 
     // 2. If options["characterDataOldValue"] exists and options["characterData"] does not exist, then set options["characterData"] to true.
@@ -108,7 +109,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
 
     // 5. If options["attributeFilter"] is present and options["attributes"] is false, then throw a TypeError.
     // NOTE: If attributeFilter is present, attributes will be present because of step 1.
-    if (options.attribute_filter.has_value() && !options.attributes.value())
+    if (options.has_attribute_filter && !options.attributes.value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "attributes must be true if attributeFilter is present."_utf16 };
 
     // 6. If options["characterDataOldValue"] is true and options["characterData"] is false, then throw a TypeError.

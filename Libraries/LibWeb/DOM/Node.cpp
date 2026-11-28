@@ -116,7 +116,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Node) == 96);
+static_assert(sizeof(Node) == 88);
 #endif
 
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
@@ -4069,7 +4069,7 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
             //    then:
             if (!(node != this && !options.subtree)
                 && !(type == MutationType::attributes && (!options.attributes.has_value() || !options.attributes.value()))
-                && !(type == MutationType::attributes && options.attribute_filter.has_value() && (attribute_namespace.has_value() || !attribute_name.has_value() || !options.attribute_filter->contains_slow(attribute_name.value())))
+                && !(type == MutationType::attributes && options.has_attribute_filter && (attribute_namespace.has_value() || !attribute_name.has_value() || !options.attribute_filter.contains_slow(attribute_name.value())))
                 && !(type == MutationType::characterData && (!options.character_data.has_value() || !options.character_data.value()))
                 && !(type == MutationType::childList && !options.child_list)) {
                 // 1. Let mo be registered’s observer.

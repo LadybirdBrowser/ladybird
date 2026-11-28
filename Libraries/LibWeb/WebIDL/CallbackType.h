@@ -13,7 +13,7 @@
 
 namespace Web::WebIDL {
 
-enum class OperationReturnsPromise {
+enum class OperationReturnsPromise : u8 {
     Yes,
     No,
 };
@@ -35,7 +35,8 @@ public:
     GC::NonnullMember<HTML::EnvironmentSettingsObject> callback_context;
 
     // Non-standard property used to distinguish Promise-returning callbacks in callback-related AOs
-    OperationReturnsPromise operation_returns_promise;
+    // NB: Kept in the embedder flags of the cell, so that the two members above fill the cell after its header.
+    OperationReturnsPromise operation_returns_promise() const { return static_cast<OperationReturnsPromise>(embedder_flags()); }
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

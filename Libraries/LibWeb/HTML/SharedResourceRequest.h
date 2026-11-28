@@ -110,6 +110,10 @@ private:
     };
 
     State m_state { State::New };
+
+    // NB: Set once a user waits for the fetch without callbacks.
+    bool m_fetch_has_user_without_callbacks { false };
+
     Optional<String> m_image_mime_type;
 
     GC::Ref<Page> m_page;
@@ -124,9 +128,6 @@ private:
     };
     Vector<Callbacks> m_callbacks;
     u64 m_next_callbacks_id { 1 };
-
-    // NB: Set once a user waits for the fetch without callbacks.
-    bool m_fetch_has_user_without_callbacks { false };
 
     Key m_key;
     bool m_can_be_shared { true };

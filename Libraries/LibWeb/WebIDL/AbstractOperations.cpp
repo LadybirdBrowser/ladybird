@@ -224,13 +224,13 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
         // 2. If getResult is an abrupt completion, set completion to getResult and jump to the step labeled return.
         if (get_result.is_throw_completion()) {
             completion = get_result.throw_completion();
-            return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+            return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise());
         }
 
         // 4. If ! IsCallable(X) is false, then set completion to a new Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}, and jump to the step labeled return.
         if (!get_result.value().is_function()) {
             completion = realm.vm().template throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, get_result.value());
-            return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+            return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise());
         }
 
         // 3. Set X to getResult.[[Value]].
@@ -250,14 +250,14 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
     // 13. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {
         completion = call_result.throw_completion();
-        return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+        return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise());
     }
 
     // 14. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
     // FIXME: This does no conversion.
     completion = call_result.value();
 
-    return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+    return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise());
 }
 
 // https://webidl.spec.whatwg.org/#ref-for-idl-ByteString%E2%91%A7
@@ -366,10 +366,10 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
     // https://webidl.spec.whatwg.org/#js-invoking-callback-functions
     // The exceptionBehavior argument must be supplied if, and only if, callable’s return type is not a promise type. If callable’s return type is neither undefined nor any, it must be "rethrow".
     // NOTE: Until call sites are updated to respect this, specifications which fail to provide a value here when it would be mandatory should be understood as supplying "rethrow".
-    if (exception_behavior == ExceptionBehavior::NotSpecified && callback.operation_returns_promise == OperationReturnsPromise::No)
+    if (exception_behavior == ExceptionBehavior::NotSpecified && callback.operation_returns_promise() == OperationReturnsPromise::No)
         exception_behavior = ExceptionBehavior::Rethrow;
 
-    VERIFY(exception_behavior == ExceptionBehavior::NotSpecified || callback.operation_returns_promise == OperationReturnsPromise::No);
+    VERIFY(exception_behavior == ExceptionBehavior::NotSpecified || callback.operation_returns_promise() == OperationReturnsPromise::No);
 
     return invoke_callback_impl(callback, move(this_argument), args, [&](JS::Realm& relevant_realm, JS::Completion completion) -> JS::Completion {
         // 3. If completion is an IDL value, return completion.
@@ -396,7 +396,7 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
         }
 
         // 7. Assert: callable’s return type is a promise type.
-        VERIFY(callback.operation_returns_promise == OperationReturnsPromise::Yes);
+        VERIFY(callback.operation_returns_promise() == OperationReturnsPromise::Yes);
 
         // 8. Let rejectedPromise be ! Call(%Promise.reject%, %Promise%, «completion.[[Value]]»).
         auto rejected_promise = create_rejected_promise(relevant_realm, completion.release_value());
@@ -415,7 +415,7 @@ JS::Completion invoke_callback(CallbackType& callback, Optional<JS::Value> this_
 //         and the caller needs a WebIDL::Promise rather than a JS::Promise.
 GC::Ref<Promise> invoke_promise_callback(CallbackType& callback, Optional<JS::Value> this_argument, ReadonlySpan<JS::Value> args)
 {
-    VERIFY(callback.operation_returns_promise == OperationReturnsPromise::Yes);
+    VERIFY(callback.operation_returns_promise() == OperationReturnsPromise::Yes);
 
     return invoke_callback_impl(callback, move(this_argument), args, [&](JS::Realm& relevant_realm, JS::Completion completion) {
         // 3. If completion is an IDL value, return completion.
