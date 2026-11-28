@@ -526,25 +526,31 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
     // its own rather than by recursion, since a page's DOM can be many thousands of levels deep, and a frame per level
     // would exhaust the thread's stack.
     // The nodes still to serialize, each with its parent's ID at the same index of pending_parent_ids.
+    // And with the point its parent's children's bounds are relative to at the same index of pending_parent_origins.
     GC::RootVector<GC::Ref<AccessibilityTreeNode const>> pending_nodes;
     Vector<i64> pending_parent_ids;
+    Vector<Gfx::IntPoint> pending_parent_origins;
     pending_nodes.append(*this);
     pending_parent_ids.append(parent_id);
+    pending_parent_origins.append({});
     while (!pending_nodes.is_empty()) {
         auto node = pending_nodes.take_last();
         auto node_parent_id = pending_parent_ids.take_last();
-        auto id = node->serialize_node_as_node_data(out, document, read, node_parent_id, tracker);
+        auto node_parent_origin = pending_parent_origins.take_last();
+        Gfx::IntPoint origin;
+        auto id = node->serialize_node_as_node_data(out, document, read, node_parent_id, node_parent_origin, origin, tracker);
         auto children = node->children();
         for (size_t i = children.size(); i > 0; --i) {
             if (should_skip_child_in_node_data(*children[i - 1]))
                 continue;
             pending_nodes.append(*children[i - 1]);
             pending_parent_ids.append(id);
+            pending_parent_origins.append(origin);
         }
     }
 }
 
-i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id, AccessibilityChangeTracker* tracker) const
+i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, Layout::BegunRead const& read, i64 parent_id, Gfx::IntPoint parent_origin, Gfx::IntPoint& origin, AccessibilityChangeTracker* tracker) const
 {
     WebView::AccessibilityNodeData node_data;
     node_data.parent_id = parent_id;
@@ -1024,6 +1030,16 @@ i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::Accessibi
         if (should_skip_child_in_node_data(*child))
             continue;
         node_data.child_ids.append(static_cast<i64>(child->value()->unique_id().value()));
+    }
+
+    // OPTIMIZATION: A node's bounds go out relative to its nearest ancestor that has bounds, so a layout that moves a
+    //               subtree, or a scroll, changes the data of only the nodes at the top of it: see
+    //               AccessibilityNodeData::bounds.
+    if (node_data.bounds == Gfx::IntRect {}) {
+        origin = parent_origin;
+    } else {
+        origin = node_data.bounds.location();
+        node_data.bounds.translate_by(-parent_origin.x(), -parent_origin.y());
     }
 
     if (!tracker || tracker->note(node_data, record_version, geometry_version))

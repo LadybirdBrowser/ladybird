@@ -499,9 +499,8 @@ static NSString* nsStringFromAK(String const& string)
     if ([attribute isEqualToString:NSAccessibilityPositionAttribute]) {
         if (!data)
             return [NSValue valueWithPoint:NSZeroPoint];
-        NSRect viewRect = NSMakeRect(
-            data->bounds.x(), data->bounds.y(),
-            data->bounds.width(), data->bounds.height());
+        auto bounds = _manager->bounds_in_viewport(*data);
+        NSRect viewRect = NSMakeRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
         NSRect screenRect = [_view accessibilityScreenRectForViewRect:viewRect];
         return [NSValue valueWithPoint:screenRect.origin];
     }
@@ -509,9 +508,8 @@ static NSString* nsStringFromAK(String const& string)
     if ([attribute isEqualToString:NSAccessibilitySizeAttribute]) {
         if (!data)
             return [NSValue valueWithSize:NSZeroSize];
-        NSRect viewRect = NSMakeRect(
-            data->bounds.x(), data->bounds.y(),
-            data->bounds.width(), data->bounds.height());
+        auto bounds = _manager->bounds_in_viewport(*data);
+        NSRect viewRect = NSMakeRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
         NSRect screenRect = [_view accessibilityScreenRectForViewRect:viewRect];
         return [NSValue valueWithSize:screenRect.size];
     }

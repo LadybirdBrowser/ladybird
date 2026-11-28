@@ -46,7 +46,7 @@ n0 generic bounds=8,8 784x116
       n8 generic bounds=8,46 233x76
         n9 text leaf name="the text that follows it on the same line, long enough to wrap" bounds=8,46 241x76 font="SerenitySans" 16 400 normal color=#000000 characters=209,0 215,0 225,0 233,0 0,20 6,20 15,20 25,20 32,20 40,20 47,20 56,20 65,20 72,20 80,20 86,20 97,20 101,20 105,20 116,20 127,20 136,20 144,20 149,20 156,20 164,20 174,20 184,20 192,20 198,20 208,20 216,20 0,40 9,40 18,40 30,40 39,40 47,40 51,40 56,40 66,40 74,40 79,40 87,40 92,40 102,40 111,40 119,40 127,40 136,40 145,40 156,40 166,40 173,40 182,40 190,40 197,40 208,40 0,60 11,60 20,60 29,60 lines=0@16 4@16 32@16 58@16
 
-== content above grew (14 nodes changed, 0 removed)
+== content above grew (11 nodes changed, 0 removed)
 n0 generic bounds=8,8 784x136
   n1 generic bounds=8,8 784x40
     n2 text leaf name="above" bounds=8,10 46x16 font="SerenitySans" 16 400 normal color=#000000 characters=0,0 9,0 18,0 29,0 37,0 lines=0@16

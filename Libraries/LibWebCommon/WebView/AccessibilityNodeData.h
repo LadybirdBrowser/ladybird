@@ -182,8 +182,10 @@ struct WEBCOMMON_API AccessibilityNodeData {
     FlyString role;
     String name;
 
-    // The node's box in CSS pixels, relative to the viewport (getBoundingClientRect). A text leaf's is the union of its
-    // rendered lines, or its parent element's box when it renders none.
+    // The node's box in CSS pixels (getBoundingClientRect). A text leaf's is the union of its rendered lines, or its
+    // parent element's box when it renders none. Empty for a node without one. WebContent sends it relative to the
+    // top-left of the nearest ancestor that has bounds (the root's relative to the viewport), so that moving a subtree
+    // changes only its top node; resolve_accessibility_bounds() and the UI's tree make it relative to the viewport.
     Gfx::IntRect bounds;
 
     bool is_focused { false };
@@ -250,6 +252,10 @@ struct WEBCOMMON_API AccessibilityNodeData {
 
     bool operator==(AccessibilityNodeData const&) const = default;
 };
+
+// Makes the bounds of the nodes of a whole tree, in tree order, relative to the viewport rather than to the nearest
+// ancestor that has bounds.
+WEBCOMMON_API void resolve_accessibility_bounds(Span<AccessibilityNodeData> nodes_in_tree_order);
 
 // A change to an accessibility tree the receiver already holds: the complete data of every node that's new or whose data
 // changed (a node whose children changed among them, with its new child IDs), in tree order, and the IDs of the nodes no

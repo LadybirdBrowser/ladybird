@@ -437,7 +437,8 @@ QRect AccessibilityInterface::rect() const
     if (!data)
         return {};
 
-    return css_rect_to_global(*m_view, QRect(data->bounds.x(), data->bounds.y(), data->bounds.width(), data->bounds.height()));
+    auto bounds = m_manager->bounds_in_viewport(*data);
+    return css_rect_to_global(*m_view, QRect(bounds.x(), bounds.y(), bounds.width(), bounds.height()));
 }
 
 QAccessible::Role AccessibilityInterface::map_role() const
@@ -755,12 +756,12 @@ static int code_point_offset_for_utf16_offset(String const& text, int utf16_offs
 // For a text leaf, return the rect of the character at 'offset' using per-character layout offsets. Per-character data
 // is populated by LibWeb from the text's rendered visual lines and correctly places each character on its own line —
 // even when the text wraps. Coordinates are widget-local.
-static QRect leaf_character_rect_local(WebView::AccessibilityNodeData const* leaf_data, int offset)
+static QRect leaf_character_rect_local(WebView::AccessibilityTreeManager const& manager, WebView::AccessibilityNodeData const* leaf_data, int offset)
 {
     if (!leaf_data)
         return {};
-    auto local_full = QRect(leaf_data->bounds.x(), leaf_data->bounds.y(),
-        leaf_data->bounds.width(), leaf_data->bounds.height());
+    auto bounds = manager.bounds_in_viewport(*leaf_data);
+    auto local_full = QRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
     auto const& geometry = *leaf_data->text_geometry;
     if (geometry.character_count() == 0 || offset < 0)
         return local_full;
@@ -780,7 +781,7 @@ static QRect leaf_character_rect_local(WebView::AccessibilityNodeData const* lea
     }
     int line_height = (line_index < static_cast<int>(geometry.line_heights().size()))
         ? geometry.line_heights()[line_index]
-        : leaf_data->bounds.height();
+        : bounds.height();
 
     int char_width = line_height / 2;
     int next_offset = offset + 1;
@@ -790,8 +791,8 @@ static QRect leaf_character_rect_local(WebView::AccessibilityNodeData const* lea
             char_width = next_pt.x() - char_pt.x();
     }
 
-    return QRect(leaf_data->bounds.x() + char_pt.x(),
-        leaf_data->bounds.y() + char_pt.y(),
+    return QRect(bounds.x() + char_pt.x(),
+        bounds.y() + char_pt.y(),
         char_width,
         line_height);
 }
@@ -816,7 +817,7 @@ QRect AccessibilityInterface::characterRect(int offset) const
 
     auto role = data->role.bytes_as_string_view();
     if (role == "text leaf"sv)
-        return to_global(leaf_character_rect_local(data, offset));
+        return to_global(leaf_character_rect_local(*m_manager, data, offset));
 
     if (is_leaf_like_container_role(role))
         return rect();
@@ -853,12 +854,12 @@ QRect AccessibilityInterface::characterRect(int offset) const
                 child_data->name.bytes().size());
             int leaf_len = leaf_string.size();
             if (offset < cumulative + leaf_len)
-                return to_global(leaf_character_rect_local(child_data, offset - cumulative));
+                return to_global(leaf_character_rect_local(*m_manager, child_data, offset - cumulative));
             cumulative += leaf_len;
         } else {
             if (offset == cumulative) {
-                auto local = QRect(child_data->bounds.x(), child_data->bounds.y(),
-                    child_data->bounds.width(), child_data->bounds.height());
+                auto bounds = m_manager->bounds_in_viewport(*child_data);
+                auto local = QRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
                 return to_global(local);
             }
             cumulative += 1;
@@ -1014,7 +1015,7 @@ static Optional<OffsetLineExtent> first_text_leaf_extent(WebView::AccessibilityT
         if (data->name.is_empty())
             return {};
         auto const& geometry = *data->text_geometry;
-        i32 y = data->bounds.y();
+        i32 y = manager->bounds_in_viewport(*data).y();
         if (geometry.character_count() > 0)
             y += geometry.character_offset(0).y();
         i32 height = geometry.line_heights().is_empty() ? data->bounds.height() : geometry.line_heights().first();
@@ -1041,6 +1042,7 @@ static void gather_offset_line_extents(WebView::AccessibilityTreeManager const* 
 
     if (data->role.bytes_as_string_view() == "text leaf"sv) {
         auto const& geometry = *data->text_geometry;
+        auto top = manager->bounds_in_viewport(*data).y();
         size_t code_point_index = 0;
         size_t line_index = 0;
         for (auto code_point : data->name.code_points()) {
@@ -1048,7 +1050,7 @@ static void gather_offset_line_extents(WebView::AccessibilityTreeManager const* 
             while (line_index + 1 < geometry.line_break_character_offsets().size()
                 && static_cast<size_t>(geometry.line_break_character_offsets()[line_index + 1]) <= code_point_index)
                 ++line_index;
-            i32 y = data->bounds.y();
+            i32 y = top;
             if (geometry.character_count() > 0)
                 y += geometry.character_offset(min(code_point_index, geometry.character_count() - 1)).y();
             i32 height = line_index < geometry.line_heights().size()
@@ -1075,7 +1077,7 @@ static void gather_offset_line_extents(WebView::AccessibilityTreeManager const* 
             // stays anchored to the line it starts on.
             out.append(*extent);
         } else {
-            out.append({ child->bounds.y(), child->bounds.height(), true });
+            out.append({ manager->bounds_in_viewport(*child).y(), child->bounds.height(), true });
         }
     }
 }

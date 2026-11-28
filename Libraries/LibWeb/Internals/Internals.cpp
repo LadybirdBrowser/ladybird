@@ -2028,6 +2028,7 @@ String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
     auto& document = node->document();
     document.update_layout(DOM::UpdateLayoutReason::InspectAccessibilityTree);
     auto nodes = document.build_accessibility_node_data();
+    WebView::resolve_accessibility_bounds(nodes);
 
     HashMap<i64, size_t> index_by_id;
     for (size_t i = 0; i < nodes.size(); ++i)

@@ -507,9 +507,12 @@ AccessibilityNodeData const* AccessibilityTreeManager::hit_test_recursive(i64 no
     if (!current)
         return nullptr;
 
+    // The children's bounds are relative to this node's top-left, or for a node without bounds, to where its own are.
+    auto children_point = current->bounds == Gfx::IntRect {} ? point : point - current->bounds.location();
+
     // Walk children in reverse order (last painted = on top) to find the deepest hit.
     for (int i = static_cast<int>(current->child_ids.size()) - 1; i >= 0; --i) {
-        auto const* result = hit_test_recursive(current->child_ids[i], point);
+        auto const* result = hit_test_recursive(current->child_ids[i], children_point);
         if (result)
             return result;
     }
@@ -518,6 +521,16 @@ AccessibilityNodeData const* AccessibilityTreeManager::hit_test_recursive(i64 no
         return current;
 
     return nullptr;
+}
+
+Gfx::IntRect AccessibilityTreeManager::bounds_in_viewport(AccessibilityNodeData const& data) const
+{
+    auto bounds = data.bounds;
+    if (bounds == Gfx::IntRect {})
+        return bounds;
+    for (auto const* ancestor = node(data.parent_id); ancestor; ancestor = node(ancestor->parent_id))
+        bounds.translate_by(ancestor->bounds.location());
+    return bounds;
 }
 
 }

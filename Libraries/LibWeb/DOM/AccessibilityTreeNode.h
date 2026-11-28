@@ -41,7 +41,8 @@ private:
     explicit AccessibilityTreeNode(GC::Ptr<DOM::Node const>);
 
     // Serializes just this node, and returns its ID: the parent ID its children's data carries.
-    i64 serialize_node_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const&, Layout::BegunRead const&, i64 parent_id, AccessibilityChangeTracker*) const;
+    // Sets origin to where the node's children's bounds are relative to.
+    i64 serialize_node_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const&, Layout::BegunRead const&, i64 parent_id, Gfx::IntPoint parent_origin, Gfx::IntPoint& origin, AccessibilityChangeTracker*) const;
 
     GC::Ptr<DOM::Node const> m_value;
     Vector<GC::Ptr<AccessibilityTreeNode>> m_children;

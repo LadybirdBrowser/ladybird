@@ -37,6 +37,9 @@ public:
     AccessibilityNodeData const* node(i64 id) const;
     AccessibilityNodeData const* root() const;
     AccessibilityNodeData const* hit_test(Gfx::IntPoint point) const;
+    // A node's bounds relative to the viewport. The node holds them relative to its nearest ancestor that has bounds:
+    // see AccessibilityNodeData::bounds.
+    Gfx::IntRect bounds_in_viewport(AccessibilityNodeData const&) const;
     // Marks the node WebContent reports focused.
     void set_focused_node(i64 node_id);
     // Marks the root focused for the assistive technology alone, until the next tree update puts back the focus that
@@ -55,6 +58,7 @@ public:
     Vector<i64> text_leaves_in_order() const;
 
 private:
+    // Takes the point relative to where the node's bounds are relative to.
     AccessibilityNodeData const* hit_test_recursive(i64 node_id, Gfx::IntPoint point) const;
     // Makes a text leaf's style the one held for every other text leaf with the same.
     void intern_text_style(AccessibilityShared<AccessibilityTextStyle>&);
