@@ -17,12 +17,6 @@ class EventDispatcher {
 public:
     static bool dispatch(GC::Ref<EventTarget>, Event&, bool legacy_target_override = false);
     static bool dispatch(GC::Ref<EventTarget>, Event&, bool legacy_target_override, bool& legacy_output_did_listeners_throw);
-
-private:
-    friend struct RustEventHooks;
-
-    static void invoke_listeners(Event&, Event::Phase, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw);
-    static bool inner_invoke(Event&, EventTarget::ClonedEventListeners&, Event::Phase, bool, bool&);
 };
 
 EventTarget* get_the_parent(EventTarget&, Event const&, EventTarget& origin);

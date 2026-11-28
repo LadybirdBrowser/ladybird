@@ -2831,6 +2831,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "AttrCore".to_string(),
         "NamedNodeMapCore".to_string(),
         "EventTargetCore".to_string(),
+        "EventListenerList".to_string(),
         "EventCore".to_string(),
         "EventHooks".to_string(),
         "InsertionKind".to_string(),
@@ -2868,6 +2869,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("EventRef", "GC::Ref<Web::DOM::Event>"),
         ("EventTargetCell", "Web::DOM::EventTarget"),
         ("EventTargetRef", "GC::Ref<Web::DOM::EventTarget>"),
+        ("EventListenerCell", "Web::DOM::DOMEventListener"),
+        ("EventListenerRef", "GC::Ref<Web::DOM::DOMEventListener>"),
+        ("EventListenerMember", "GC::Member<Web::DOM::DOMEventListener>"),
+        ("IdlEventListenerCell", "Web::DOM::IDLEventListener"),
         ("NullableEventTargetRef", "GC::Ptr<Web::DOM::EventTarget>"),
         ("NodeType", "Web::DOM::NodeType"),
         ("StyleNodeField", "Web::CSS::StyleNodeID"),
@@ -2896,7 +2901,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AbstractRange; class Document; class Element; class Event; class EventTarget; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct CloneScope; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
+        "\nnamespace Web::DOM { class AbstractRange; class DOMEventListener; class Document; class Element; class Event; class EventTarget; class IDLEventListener; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct CloneScope; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
     );
     generate_ffi_header_strict(
         dom_config,
@@ -2908,6 +2913,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/queries.rs"),
             manifest_dir.join("src/dom/dispatch.rs"),
             manifest_dir.join("src/dom/event.rs"),
+            manifest_dir.join("src/dom/event_listeners.rs"),
             manifest_dir.join("src/dom/event_target.rs"),
             manifest_dir.join("src/dom/hooks.rs"),
             manifest_dir.join("src/dom/insert.rs"),

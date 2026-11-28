@@ -350,6 +350,11 @@ impl EventCore {
     }
 
     #[inline(always)]
+    pub(super) fn stop_immediate_propagation(&self) -> bool {
+        self.stop_immediate_propagation.get()
+    }
+
+    #[inline(always)]
     pub(super) fn canceled(&self) -> bool {
         self.canceled.get()
     }

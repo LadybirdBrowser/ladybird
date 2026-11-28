@@ -5207,7 +5207,7 @@ bool EventHandler::dispatch_touch_event(PointerState& pointer, DOM::Node& target
     if (name.is_one_of(UIEvents::EventNames::touchstart, UIEvents::EventNames::touchmove)) {
         bool has_non_passive_listener = false;
         for (auto* event_target = static_cast<DOM::EventTarget*>(&target); event_target; event_target = DOM::get_the_parent(*event_target, *event, target)) {
-            for (auto const& listener : event_target->event_listener_list_matching(name, {})) {
+            for (auto const& listener : event_target->event_listener_list_matching(name)) {
                 if (!listener->removed() && listener->passive() != true) {
                     has_non_passive_listener = true;
                     break;

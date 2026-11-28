@@ -44,9 +44,10 @@ pub const EVENT_TARGET_HAS_GET_THE_PARENT: u8 = 1 << 0;
 /// The state of an event target that dispatch reads, which C++ embeds in DOM::EventTarget as its only storage of it.
 ///
 /// The listener type summaries say which event types the target may have listeners for: a type whose bit is clear has
-/// none. C++ picks the bit of a type, one of 16, from the type's interned identity (see DOM::event_type_summary_bit()),
-/// sets it as it adds a listener of the type, and works the summaries out again from the listeners that are left as it
-/// removes one. Capturing listeners and the others are summarized apart, as only the ones of one kind run in each phase.
+/// none. The bit of a type is one of 16, picked from the type's interned identity (see DOM::event_type_summary_bit()).
+/// Adding a listener sets the bit of its type, and removing one works the summaries out again from the listeners that
+/// are left, see event_listeners.rs. Capturing listeners and the others are summarized apart, as only the ones of one
+/// kind run in each phase.
 #[repr(C)]
 pub struct EventTargetCore {
     /// The EVENT_TARGET_* flags.
@@ -79,6 +80,23 @@ impl EventTargetCore {
     #[inline(always)]
     pub fn may_have_any_listeners(&self, types: u16) -> bool {
         (self.capture_listener_types.get() | self.bubble_listener_types.get()) & types != 0
+    }
+
+    #[inline(always)]
+    pub(super) fn capture_listener_types(&self) -> u16 {
+        self.capture_listener_types.get()
+    }
+
+    #[inline(always)]
+    pub(super) fn bubble_listener_types(&self) -> u16 {
+        self.bubble_listener_types.get()
+    }
+
+    /// Sets the listener type summaries, which event_listeners.rs keeps up to date as the target's listeners change.
+    #[inline(always)]
+    pub(super) fn set_listener_types(&self, capture_listener_types: u16, bubble_listener_types: u16) {
+        self.capture_listener_types.set(capture_listener_types);
+        self.bubble_listener_types.set(bubble_listener_types);
     }
 }
 

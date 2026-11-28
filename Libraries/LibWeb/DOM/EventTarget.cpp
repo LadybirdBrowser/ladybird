@@ -219,8 +219,24 @@ static_assert(offsetof(RustFFI::EventTargetCore, capture_listener_types) == 2);
 static_assert(offsetof(RustFFI::EventTargetCore, bubble_listener_types) == 4);
 EventTarget::EventTarget()
 {
-    // NB: libweb_rust finds the core of an event target at this offset into the target's cell.
+    // NB: libweb_rust finds the core of an event target at this offset into the target's cell, and its event listener
+    //     list at the start of the data this one points to.
     static_assert(offsetof(EventTarget, m_event_target_core) == RustFFI::EVENT_TARGET_CORE_OFFSET);
+    static_assert(offsetof(EventTarget, m_data) == RustFFI::EVENT_TARGET_DATA_OFFSET);
+    static_assert(sizeof(OwnPtr<Data>) == sizeof(Data*));
+    static_assert(offsetof(Data, event_listener_list) == 0);
+}
+
+EventTarget::Data::~Data()
+{
+    RustFFI::rust_dom_event_listener_list_destroy(&event_listener_list);
+}
+
+ReadonlySpan<GC::Member<DOMEventListener>> EventTarget::event_listeners() const
+{
+    if (!m_data)
+        return {};
+    return { m_data->event_listener_list.items, m_data->event_listener_list.size };
 }
 
 EventTarget::~EventTarget() = default;
@@ -237,7 +253,8 @@ void EventTarget::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
 
     if (auto const* data = m_data.ptr()) {
-        visitor.visit(data->event_listener_list);
+        for (auto const& listener : event_listeners())
+            visitor.visit(listener);
         visitor.visit(data->event_handler_map);
     }
 }
@@ -248,19 +265,17 @@ size_t EventTarget::external_memory_size() const
     if (!m_data)
         return size;
 
-    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_data->event_listener_list));
+    size = JS::saturating_add_external_memory_size(size, m_data->event_listener_list.capacity * sizeof(GC::Member<DOMEventListener>));
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_data->event_handler_map));
     return size;
 }
 
-EventTarget::ClonedEventListeners EventTarget::event_listener_list_matching(Utf16FlyString const& type, Optional<Utf16FlyString> const& legacy_type) const
+EventTarget::ClonedEventListeners EventTarget::event_listener_list_matching(Utf16FlyString const& type) const
 {
     ClonedEventListeners list;
-    if (!m_data)
-        return list;
-    for (auto& listener : m_data->event_listener_list) {
-        if (listener->type == type || (legacy_type.has_value() && listener->type == *legacy_type))
-            list.append(listener);
+    for (auto const& listener : event_listeners()) {
+        if (listener->type == type)
+            list.append(*listener);
     }
     return list;
 }
@@ -471,7 +486,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     //           and listener’s type matches the type attribute value of any of the service worker events, then report a warning to the console
     //           that this might not give the expected results. [SERVICE-WORKERS]
 
-    auto& event_listener_list = ensure_data().event_listener_list;
+    ensure_data();
 
     // 2. If listener’s signal is not null and is aborted, then return.
     if (listener.signal && listener.signal->aborted())
@@ -488,16 +503,9 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
 
     // 5. If eventTarget’s event listener list does not contain an event listener whose type is listener’s type, callback is listener’s callback,
     //    and capture is listener’s capture, then append listener to eventTarget’s event listener list.
-    auto it = event_listener_list.find_if([&](auto& entry) {
-        return entry->type == listener.type
-            && entry->callback->callback().callback == listener.callback->callback().callback
-            && entry->capture() == listener.capture();
-    });
-    if (it == event_listener_list.end()) {
+    // NB: libweb_rust looks for the listener, appends it, and sets the bit of its type in the listener type summaries.
+    if (RustFFI::rust_dom_append_event_listener_if_absent(this, &listener)) {
         prepare_to_observe_css_animation_events(*this, listener);
-        event_listener_list.append(listener);
-        auto& listener_types = listener.capture() ? m_event_target_core.capture_listener_types : m_event_target_core.bubble_listener_types;
-        listener_types |= event_type_summary_bit(listener.type);
         invalidate_compositor_keyboard_scroll_state(*this, listener);
         invalidate_compositor_wheel_event_listener_state(*this, listener);
         wake_animation_frame_pump_for_animation_event_listener(*this, listener);
@@ -520,28 +528,16 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
 // https://dom.spec.whatwg.org/#dom-eventtarget-removeeventlistener
 void EventTarget::remove_event_listener(FlyString const& type, GC::Ptr<IDLEventListener> callback, EventListenerOptions const& options)
 {
-    auto& event_listener_list = ensure_data().event_listener_list;
-
     // 1. Let capture be the result of flattening options.
     bool capture = options.capture;
 
     // 2. If this’s event listener list contains an event listener whose type is type, callback is callback, and capture is capture,
     //    then remove an event listener with this and that event listener.
-    auto callbacks_match = [&](DOMEventListener& entry) {
-        if (!entry.callback && !callback)
-            return true;
-        if (!entry.callback || !callback)
-            return false;
-        return entry.callback->callback().callback == callback->callback().callback;
-    };
+    // NB: libweb_rust looks for the listener and runs step 2 of "remove an event listener" for it, see
+    //     remove_an_event_listener().
     auto utf16_type = Utf16FlyString::from_fly_string(type);
-    auto it = event_listener_list.find_if([&](auto& entry) {
-        return entry->type == utf16_type
-            && callbacks_match(*entry)
-            && entry->capture() == capture;
-    });
-    if (it != event_listener_list.end())
-        remove_an_event_listener(**it);
+    if (auto* listener = RustFFI::rust_dom_remove_matching_event_listener(this, utf16_type.raw_identity(), callback.ptr(), capture))
+        run_event_listener_removal_steps(*listener);
 }
 
 void EventTarget::remove_event_listener(Utf16FlyString const& type, GC::Ptr<IDLEventListener> callback, EventListenerOptions const& options)
@@ -562,16 +558,17 @@ void EventTarget::remove_an_event_listener(DOMEventListener& listener)
     //           then report a warning to the console that this might not give the expected results. [SERVICE-WORKERS]
 
     // 2. Set listener’s removed to true and remove listener from eventTarget’s event listener list.
-    listener.set_removed(true);
-    VERIFY(m_data);
-    auto did_remove = m_data->event_listener_list.remove_first_matching([&](auto& entry) { return entry.ptr() == &listener; });
-    if (did_remove) {
-        update_listener_type_summaries();
-        invalidate_compositor_keyboard_scroll_state(*this, listener);
-        invalidate_compositor_wheel_event_listener_state(*this, listener);
-        update_needs_beforeunload_check(*this, listener);
-        event_listener_list_changed();
-    }
+    // NB: libweb_rust does, and works out the listener type summaries again from the listeners that are left.
+    if (RustFFI::rust_dom_remove_an_event_listener(this, &listener))
+        run_event_listener_removal_steps(listener);
+}
+
+void EventTarget::run_event_listener_removal_steps(DOMEventListener const& listener)
+{
+    invalidate_compositor_keyboard_scroll_state(*this, listener);
+    invalidate_compositor_wheel_event_listener_state(*this, listener);
+    update_needs_beforeunload_check(*this, listener);
+    event_listener_list_changed();
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-dispatchevent
@@ -962,8 +959,8 @@ void EventTarget::remove_all_event_listeners()
         return;
 
     // For each listener of eventTarget's event listener list, remove an event listener with eventTarget and listener.
-    while (!m_data->event_listener_list.is_empty())
-        remove_an_event_listener(*m_data->event_listener_list.first());
+    while (!event_listeners().is_empty())
+        remove_an_event_listener(*event_listeners().first());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#erase-all-event-listeners-and-handlers
@@ -1174,32 +1171,21 @@ bool EventTarget::dispatch_event(Event& event)
     return EventDispatcher::dispatch(*this, event);
 }
 
-// Works out the listener type summaries of the core again from the listeners, after one has been removed.
-void EventTarget::update_listener_type_summaries()
-{
-    u16 capture_listener_types = 0;
-    u16 bubble_listener_types = 0;
-    for (auto const& listener : m_data->event_listener_list)
-        (listener->capture() ? capture_listener_types : bubble_listener_types) |= event_type_summary_bit(listener->type);
-    m_event_target_core.capture_listener_types = capture_listener_types;
-    m_event_target_core.bubble_listener_types = bubble_listener_types;
-}
-
 bool EventTarget::has_event_listener(Utf16FlyString const& type) const
 {
     if (!may_have_event_listener(event_type_summary_bit(type)))
         return false;
-    return m_data->event_listener_list.contains([&type](auto listener) { return listener->type == type; });
+    return any_of(event_listeners(), [&type](auto const& listener) { return listener->type == type; });
 }
 
 bool EventTarget::has_blocking_wheel_event_listener() const
 {
-    return m_data && m_data->event_listener_list.contains(is_blocking_wheel_event_listener);
+    return any_of(event_listeners(), [](auto const& listener) { return is_blocking_wheel_event_listener(*listener); });
 }
 
 bool EventTarget::has_blocking_keyboard_event_listener() const
 {
-    return m_data && m_data->event_listener_list.contains(is_blocking_keyboard_event_listener);
+    return any_of(event_listeners(), [](auto const& listener) { return is_blocking_keyboard_event_listener(*listener); });
 }
 
 bool EventTarget::has_activation_behavior() const
