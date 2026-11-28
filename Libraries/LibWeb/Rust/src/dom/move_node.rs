@@ -24,6 +24,7 @@ use super::range::live_range_pre_remove_steps;
 use super::steps::moving_steps_do_nothing;
 use super::traversal::run_node_iterator_pre_remove_steps;
 use super::tree::for_each_shadow_including_inclusive_descendant;
+use super::tree_version::bump_dom_tree_version;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -197,7 +198,7 @@ pub(crate) fn move_node(
     // 24. Run assign slottables for a tree with node’s root.
     // NB: The callback also does what the move does for the C++ state that follows the children of newParent, the
     //     style engine and layout, see hooks::after_move_link().
-    hooks::after_move_link(main_thread, scope, node, old_parent, old_parent_root, new_parent, child);
+    hooks::after_move_link(main_thread, scope, node, old_parent, old_parent_root, new_parent);
 
     // 25. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     for_each_shadow_including_inclusive_descendant(node, &mut |inclusive_descendant| {
@@ -229,8 +230,8 @@ pub(crate) fn move_node(
 
     // 26. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
     // 27. Queue a tree mutation record for newParent with « node », « », newPreviousSibling, and child.
-    // NB: The callback also does what the move does for the styles, the collection caches and the tree versions the
-    //     move changed, see hooks::end_move().
+    // NB: The callback also does what the move does for the styles it changed, and for an <html> or media element
+    //     parent, see hooks::end_move().
     hooks::end_move(
         main_thread,
         scope,
@@ -242,6 +243,9 @@ pub(crate) fn move_node(
         new_previous_sibling,
         child,
     );
+
+    bump_dom_tree_version(main_thread, old_parent);
+    bump_dom_tree_version(main_thread, new_parent);
 
     MoveValidity::Valid
 }

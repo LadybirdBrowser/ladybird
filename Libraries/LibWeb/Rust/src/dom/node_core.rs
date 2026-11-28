@@ -277,6 +277,9 @@ pub struct NodeCore {
     /// The NODE_* flags. C++ sets NODE_IS_SHADOW_ROOT as it constructs a shadow root, and never changes it.
     flags: Cell<u8>,
     cpp_flags: CppNodeFlags,
+    /// The generation of the node's child list in which the child indices its element children remember hold, which
+    /// is never 0. See child_index.rs.
+    child_index_generation: Cell<u32>,
 }
 
 impl NodeCore {
@@ -386,6 +389,50 @@ impl NodeCore {
     pub(super) fn set_root(&self, node: NodePointer) {
         self.root.set(Some(node));
     }
+
+    #[inline(always)]
+    pub(super) fn child_index_generation(&self) -> u32 {
+        self.child_index_generation.get()
+    }
+
+    #[inline(always)]
+    pub(super) fn set_child_index_generation(&self, generation: u32) {
+        self.child_index_generation.set(generation);
+    }
+}
+
+/// Where DOM::ParentNode embeds its core, in bytes from the start of the node's cell, which ParentNode.cpp asserts. Only
+/// an element, a document or a DocumentFragment is a ParentNode.
+pub const PARENT_NODE_CORE_OFFSET: usize = 88;
+
+/// The version counters of the tree a ParentNode heads, which C++ embeds in DOM::ParentNode as its only storage of them.
+/// See tree_version.rs.
+#[repr(C)]
+pub struct ParentNodeCore {
+    dom_tree_version: Cell<u64>,
+    character_data_version: Cell<u64>,
+}
+
+impl ParentNodeCore {
+    #[inline(always)]
+    pub fn dom_tree_version(&self) -> u64 {
+        self.dom_tree_version.get()
+    }
+
+    #[inline(always)]
+    pub(super) fn set_dom_tree_version(&self, version: u64) {
+        self.dom_tree_version.set(version);
+    }
+
+    #[inline(always)]
+    pub fn character_data_version(&self) -> u64 {
+        self.character_data_version.get()
+    }
+
+    #[inline(always)]
+    pub(super) fn set_character_data_version(&self, version: u64) {
+        self.character_data_version.set(version);
+    }
 }
 
 #[cfg(test)]
@@ -483,6 +530,17 @@ impl NodeCore {
             node_type,
             flags: Cell::new(0),
             cpp_flags: CppNodeFlags(Cell::new(0)),
+            child_index_generation: Cell::new(1),
+        }
+    }
+}
+
+#[cfg(test)]
+impl ParentNodeCore {
+    pub(crate) fn for_test() -> Self {
+        Self {
+            dom_tree_version: Cell::new(0),
+            character_data_version: Cell::new(0),
         }
     }
 }
@@ -508,7 +566,7 @@ const _: () = assert!(offset_of!(DocumentCore, node_iterators) == 24);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);
-const _: () = assert!(size_of::<NodeCore>() == 36 && align_of::<NodeCore>() == 4);
+const _: () = assert!(size_of::<NodeCore>() == 40 && align_of::<NodeCore>() == 4);
 const _: () = assert!(offset_of!(NodeCore, parent) == 0);
 const _: () = assert!(offset_of!(NodeCore, first_child) == 4);
 const _: () = assert!(offset_of!(NodeCore, last_child) == 8);
@@ -520,6 +578,11 @@ const _: () = assert!(offset_of!(NodeCore, style_node_id) == 28);
 const _: () = assert!(offset_of!(NodeCore, node_type) == 32);
 const _: () = assert!(offset_of!(NodeCore, flags) == 34);
 const _: () = assert!(offset_of!(NodeCore, cpp_flags) == 35);
+const _: () = assert!(offset_of!(NodeCore, child_index_generation) == 36);
+// NB: ParentNode.cpp asserts the same layout of the struct it includes.
+const _: () = assert!(size_of::<ParentNodeCore>() == 16 && align_of::<ParentNodeCore>() == 8);
+const _: () = assert!(offset_of!(ParentNodeCore, dom_tree_version) == 0);
+const _: () = assert!(offset_of!(ParentNodeCore, character_data_version) == 8);
 
 #[cfg(test)]
 mod tests {
@@ -559,6 +622,7 @@ mod tests {
             node_type: NodeType::TEXT_NODE,
             flags: Cell::new(NODE_IS_CONNECTED | NODE_IS_SHADOW_ROOT),
             cpp_flags: CppNodeFlags(Cell::new(0xff)),
+            child_index_generation: Cell::new(1),
         };
         assert_eq!(core.parent(), Some(pointer(0x2000_0001)));
         assert_eq!(core.first_child(), Some(pointer(0x2000_0002)));

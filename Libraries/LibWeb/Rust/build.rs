@@ -2784,6 +2784,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     dom_config.export.include = vec![
         "NodeCore".to_string(),
+        "ParentNodeCore".to_string(),
         "CharacterDataCore".to_string(),
         "DocumentFragmentCore".to_string(),
         "DocumentCore".to_string(),
@@ -2846,6 +2847,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/replace.rs"),
             manifest_dir.join("src/dom/adopt.rs"),
             manifest_dir.join("src/dom/traversal.rs"),
+            manifest_dir.join("src/dom/tree_version.rs"),
             manifest_dir.join("src/dom/weak_cells.rs"),
         ],
         &out_dir,

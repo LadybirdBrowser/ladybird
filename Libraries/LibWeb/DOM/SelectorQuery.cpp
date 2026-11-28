@@ -131,21 +131,6 @@ static_assert(sizeof(Utf16FlyString) == sizeof(uintptr_t));
 
 constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
     .synchronize_style_attribute = [](Node const* element) { element_from_ffi(element).synchronize_all_attributes(); },
-    .child_index = [](Node const* element, CSS::SelectorFFI::FfiChildIndex which) {
-        using enum CSS::SelectorFFI::FfiChildIndex;
-        using enum Element::ChildIndexAmong;
-        auto const& subject = element_from_ffi(element);
-        switch (which) {
-        case FromStart:
-            return subject.child_index(Siblings);
-        case FromEnd:
-            return subject.child_index_from_end(Siblings);
-        case OfTypeFromStart:
-            return subject.child_index(SiblingsOfType);
-        case OfTypeFromEnd:
-            return subject.child_index_from_end(SiblingsOfType);
-        }
-        VERIFY_NOT_REACHED(); },
     .name_filter_bit = [](uintptr_t local_name) { return Element::name_filter_bit(Utf16FlyString::from_raw(local_name)); },
     .matches_state = [](Node const* element, u8 state) { return SelectorMatching::element_matches_state(element_from_ffi(element), pseudo_classes_by_state_fact[state]); },
     .language = [](Node const* element) -> CSS::SelectorFFI::FfiUtf16View {

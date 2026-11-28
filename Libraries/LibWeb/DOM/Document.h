@@ -414,7 +414,6 @@ public:
 
     GC::Ptr<Selection::Selection> get_selection() const;
     void set_needs_highlight_style_update(CSS::PseudoElement);
-    void set_needs_highlight_style_update_for_all_highlight_pseudo_elements();
     [[nodiscard]] bool needs_highlight_style_update() const;
     void update_highlight_style_observability();
 
@@ -2399,6 +2398,10 @@ private:
     struct HighlightStyleObservability {
         bool observable { false };
         bool needs_update { true };
+        // The DOM tree version of the document when the state was last brought up to date.
+        u64 dom_tree_version { 0 };
+
+        bool needs_update_at(u64 current_dom_tree_version) const;
     };
     Array<HighlightStyleObservability, 4> m_highlight_style_observability;
     HighlightStyleObservability& highlight_style_observability(CSS::PseudoElement);

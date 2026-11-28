@@ -339,9 +339,6 @@ public:
     bool is_connected() const { return m_core.flags & RustFFI::NODE_IS_CONNECTED; }
     void set_is_connected(bool is_connected) { set_core_flag(RustFFI::NODE_IS_CONNECTED, is_connected); }
 
-    // The generation of this node's child list in which its element children's child indices hold. A new one begins
-    // whenever an element child moves relative to the element children after it.
-    u32 child_index_generation() const { return m_child_index_generation; }
     bool is_tracked_by_style_engine() const;
 
     // The node's identity in its document's style engine, which only an element, a text node, a shadow root or a
@@ -663,7 +660,6 @@ protected:
     [[nodiscard]] u8 layout_tree_update_reuse_reasons() const;
 
     u32 m_associated_animation_count_in_subtree { 0 };
-    u32 m_child_index_generation { 1 };
     // The slot of the node directory that names the node by its unique id, or 0 before anything asked for the id.
     mutable u32 m_node_directory_slot { 0 };
 
@@ -693,21 +689,19 @@ private:
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
     void insert_node_into_children(GC::Ref<Node>, GC::Ptr<Node> child);
     void append_child_impl(GC::Ref<Node>);
-    void remove_child_impl(GC::Ref<Node>);
     void prepare_to_unlink_child(Node&);
-    void account_for_linked_child(Node&, GC::Ptr<Node> child);
-    void begin_child_index_generation();
+    void account_for_linked_child(Node&);
 
     void begin_move(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent);
     void after_move_unlink(MoveScope&, Node& old_parent, Node& old_parent_root);
-    void after_move_link(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child);
+    void after_move_link(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent);
     void end_move(MoveScope&, Node& old_parent, Node& new_parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling, GC::Ptr<Node> new_previous_sibling, GC::Ptr<Node> child);
 
     mutable OwnPtr<RareData> m_rare_data;
 };
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::NodeCore) == 36 && alignof(RustFFI::NodeCore) == 4);
+static_assert(sizeof(RustFFI::NodeCore) == 40 && alignof(RustFFI::NodeCore) == 4);
 static_assert(offsetof(RustFFI::NodeCore, parent) == 0);
 static_assert(offsetof(RustFFI::NodeCore, first_child) == 4);
 static_assert(offsetof(RustFFI::NodeCore, last_child) == 8);
@@ -719,6 +713,7 @@ static_assert(offsetof(RustFFI::NodeCore, style_node_id) == 28);
 static_assert(offsetof(RustFFI::NodeCore, node_type) == 32);
 static_assert(offsetof(RustFFI::NodeCore, flags) == 34);
 static_assert(offsetof(RustFFI::NodeCore, cpp_flags) == 35);
+static_assert(offsetof(RustFFI::NodeCore, child_index_generation) == 36);
 // NB: libweb_rust finds the core of a node at this offset into the node's cell.
 static_assert(Node::parent_node_offset().value == RustFFI::NODE_CORE_OFFSET + offsetof(RustFFI::NodeCore, parent));
 

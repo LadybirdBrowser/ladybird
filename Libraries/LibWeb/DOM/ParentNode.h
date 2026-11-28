@@ -43,19 +43,16 @@ public:
     GC::Ptr<Element> get_element_by_id(Utf16View id) const;
 
 protected:
-    ParentNode(Document& document, NodeType type)
-        : Node(document, type)
-    {
-    }
+    ParentNode(Document& document, NodeType type);
 
 private:
     friend class Node;
 
     GC::Ref<HTMLCollection> create_elements_by_tag_name_collection(Utf16FlyString const&);
 
-    // The counters behind Node::dom_tree_version() and Node::character_data_version(), for the tree rooted here.
-    u64 m_dom_tree_version { 0 };
-    u64 m_character_data_version { 0 };
+    // The counters behind Node::dom_tree_version() and Node::character_data_version(), for the tree rooted here, whose
+    // layout libweb_rust defines (see Rust/src/dom/tree_version.rs), which reads and moves them in place.
+    RustFFI::ParentNodeCore m_parent_node_core {};
 };
 
 template<typename U>
