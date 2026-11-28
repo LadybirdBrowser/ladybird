@@ -135,6 +135,7 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
         .environment = client.serialized_environment(),
         .global_kind = global_kind,
         .is_window_of_a_top_level_navigable = navigable && navigable->is_top_level_traversable() ? Context::IsWindowOfATopLevelNavigable::Yes : Context::IsWindowOfATopLevelNavigable::No,
+        .is_window_of_a_decoded_svg_image = window && window->associated_document().is_decoded_svg() ? Context::IsWindowOfADecodedSVGImage::Yes : Context::IsWindowOfADecodedSVGImage::No,
         .has_cross_site_ancestor = client.has_cross_site_ancestor() ? Infrastructure::HasCrossSiteAncestor::Yes : Infrastructure::HasCrossSiteAncestor::No,
         .cross_origin_isolated_capability = client.cross_origin_isolated_capability(),
         .is_secure_context = HTML::is_secure_context(client) ? Context::IsSecureContext::Yes : Context::IsSecureContext::No,
@@ -166,6 +167,8 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
         .environment = settings.environment,
         .global_kind = window ? Context::GlobalKind::Window : Context::GlobalKind::Worker,
         .is_window_of_a_top_level_navigable = window && window->navigable_is_top_level ? Context::IsWindowOfATopLevelNavigable::Yes : Context::IsWindowOfATopLevelNavigable::No,
+        // NB: Only its own process fetches for the document of a decoded SVG image.
+        .is_window_of_a_decoded_svg_image = Context::IsWindowOfADecodedSVGImage::No,
         .has_cross_site_ancestor = settings.has_cross_site_ancestor ? Infrastructure::HasCrossSiteAncestor::Yes : Infrastructure::HasCrossSiteAncestor::No,
         .cross_origin_isolated_capability = settings.cross_origin_isolated_capability,
         .is_secure_context = relevant_settings_object_is_secure_context ? Context::IsSecureContext::Yes : Context::IsSecureContext::No,

@@ -51,11 +51,18 @@ struct ClientContext {
         Yes,
     };
 
+    // Whether the global object is a Window whose associated Document is that of a decoded SVG image.
+    enum class IsWindowOfADecodedSVGImage : u8 {
+        No,
+        Yes,
+    };
+
     URL::Origin origin;
     URL::Origin site_for_cookies;
     HTML::SerializedEnvironment environment;
     GlobalKind global_kind { GlobalKind::Other };
     IsWindowOfATopLevelNavigable is_window_of_a_top_level_navigable { IsWindowOfATopLevelNavigable::No };
+    IsWindowOfADecodedSVGImage is_window_of_a_decoded_svg_image { IsWindowOfADecodedSVGImage::No };
     HasCrossSiteAncestor has_cross_site_ancestor { HasCrossSiteAncestor::No };
     HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability { HTML::CanUseCrossOriginIsolatedAPIs::No };
     IsSecureContext is_secure_context { IsSecureContext::No };
