@@ -43,6 +43,7 @@ public:
 
     u32 key_code() const { return m_key_code; }
     void set_key_code(u32 key_code) { m_key_code = key_code; }
+    void set_is_composing(bool is_composing) { m_is_composing = is_composing; }
     u32 char_code() const { return m_char_code; }
 
     Utf16String const& key() const { return m_key; }

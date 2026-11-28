@@ -3278,6 +3278,16 @@ EventResult EventHandler::handle_keyboard_activation(Utf16FlyString const& event
     return EventResult::Accepted;
 }
 
+// A keydown that an input method takes, as the one that accepts a writing suggestion is, says so the way an input
+// method's keydown does: with the keyCode 229, and as part of a composition, so a page's own key handling leaves it alone.
+// https://w3c.github.io/uievents/#determine-keydown-keyup-keyCode
+static void set_input_method_key_code(UIEvents::KeyboardEvent& event, u32 key_code)
+{
+    event.set_key_code(key_code);
+    if (key_code == 229)
+        event.set_is_composing(true);
+}
+
 EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, Optional<u32> key_code)
 {
     GC::Ptr<DOM::Document> document = navigable.active_document();
@@ -3300,7 +3310,7 @@ EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, 
 
         auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
         if (key_code.has_value())
-            event->set_key_code(*key_code);
+            set_input_method_key_code(*event, *key_code);
         auto cancelled = !focused_area->dispatch_event(event);
         return navigable.event_handler().handle_keyboard_activation(event_name, key, modifiers, *focused_area, cancelled, repeat);
     }
@@ -3308,7 +3318,7 @@ EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, 
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
     auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
     if (key_code.has_value())
-        event->set_key_code(*key_code);
+        set_input_method_key_code(*event, *key_code);
 
     GC::Ptr target = document->body() ?: &document->root();
     auto cancelled = !target->dispatch_event(event);
