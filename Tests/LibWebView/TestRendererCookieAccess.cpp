@@ -6,14 +6,20 @@
 
 #include "HeadlessTest.h"
 #include <AK/LexicalPath.h>
+#include <AK/MemoryStream.h>
+#include <AK/Queue.h>
 #include <LibCore/EventLoop.h>
+#include <LibGfx/SharedImage.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/Attachment.h>
+#include <LibIPC/Decoder.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <LibURL/Site.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
+#include <LibWebCommon/WebDriver/Response.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
@@ -47,6 +53,39 @@ public:
     }
 };
 
+}
+
+template<typename T>
+static ErrorOr<T> decode_byte(u8 byte)
+{
+    FixedMemoryStream stream { ReadonlyBytes { &byte, 1 } };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    return decoder.decode<T>();
+}
+
+// A message with a cookie source, same-site attribute or same-site status that is not one of the known values is
+// refused when it is decoded, so no handler ever sees such a value.
+TEST_CASE(cookie_enums_refuse_unknown_values)
+{
+    EXPECT_EQ(MUST(decode_byte<HTTP::Cookie::Source>(0)), HTTP::Cookie::Source::NonHttp);
+    EXPECT_EQ(MUST(decode_byte<HTTP::Cookie::Source>(1)), HTTP::Cookie::Source::Http);
+    EXPECT(decode_byte<HTTP::Cookie::Source>(2).is_error());
+
+    EXPECT_EQ(MUST(decode_byte<HTTP::Cookie::SameSite>(3)), HTTP::Cookie::SameSite::Lax);
+    EXPECT(decode_byte<HTTP::Cookie::SameSite>(4).is_error());
+
+    EXPECT_EQ(MUST(decode_byte<HTTP::Cookie::SameSiteStatus>(1)), HTTP::Cookie::SameSiteStatus::SameSite);
+    EXPECT(decode_byte<HTTP::Cookie::SameSiteStatus>(2).is_error());
+}
+
+// The same goes for the type tag of a WebDriver response and of a shared image.
+TEST_CASE(type_tags_refuse_unknown_values)
+{
+    EXPECT(decode_byte<Web::WebDriver::Response>(2).is_error());
+#ifndef AK_OS_MACOS
+    EXPECT(decode_byte<Gfx::SharedImage>(3).is_error());
+#endif
 }
 
 // A renderer must not read or write cookies the way an HTTP response or WebDriver does: that would expose and let it
@@ -91,12 +130,27 @@ TEST_CASE(renderer_cookie_access)
     auto& stub = static_cast<WebContentClientStub&>(view->page().client());
     auto page_id = view->page().id();
     auto page_environment_id = view->traversable().active_document().relevant_global_object().relevant_settings_object().id();
+    // A source that is neither of the known ones gets no more access than a non-HTTP one.
+    auto unknown_source = static_cast<HTTP::Cookie::Source>(2);
     for (auto const& environment_id : { Web::HTML::EnvironmentId::generate(), page_environment_id }) {
         VERIFY(stub.did_request_cookie(page_id, environment_id, victim_url, HTTP::Cookie::Source::NonHttp).cookie().cookie.is_empty());
+        VERIFY(stub.did_request_cookie(page_id, environment_id, victim_url, unknown_source).cookie().cookie.is_empty());
         VERIFY(stub.did_request_all_cookies_cookiestore(page_id, environment_id, victim_url).cookies().is_empty());
         stub.did_set_cookie(page_id, environment_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "attacker"_string }, HTTP::Cookie::Source::NonHttp);
+        stub.did_set_cookie(page_id, environment_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "changed"_string }, unknown_source);
         VERIFY(victim_cookie_value(cookie_jar, "visible"sv) == "secret"sv);
     }
+
+    // The cookie jar also takes such a source as a non-HTTP one.
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "changed"_string }, unknown_source, {}, HTTP::Cookie::SameSiteContext::same_site());
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "http-only"_string, .value = "changed"_string, .http_only_attribute_present = true }, unknown_source, {}, HTTP::Cookie::SameSiteContext::same_site());
+    HTTP::Cookie::SameSiteContext const cross_site_navigation { .status = HTTP::Cookie::SameSiteStatus::CrossSite, .is_top_level_navigation = true };
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "cross-site-http"_string, .value = "value"_string }, HTTP::Cookie::Source::Http, {}, cross_site_navigation);
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "cross-site"_string, .value = "changed"_string }, unknown_source, {}, cross_site_navigation);
+    VERIFY(victim_cookie_value(cookie_jar) == "secret"sv);
+    VERIFY(!victim_cookie_value(cookie_jar, "http-only"sv).has_value());
+    VERIFY(victim_cookie_value(cookie_jar, "cross-site-http"sv) == "value"sv);
+    VERIFY(!victim_cookie_value(cookie_jar, "cross-site"sv).has_value());
 
     // A blob URL entry has the origin of the environment that added it, and only that origin revokes it.
     auto& blob_url_store = *view->page().client().session().blob_url_store;
