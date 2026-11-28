@@ -28,15 +28,7 @@ static_assert(IsTriviallyCopyable<Gfx::ShapeFeature>);
 
 extern "C" {
 void ladybird_gfx_font_snapshot(void const*, Gfx::FFI::FfiFontSnapshot*);
-void ladybird_gfx_font_character_advances(void const*, float* average, float* maximum);
-u32 ladybird_gfx_font_glyph_id(void const*, u32);
-bool ladybird_gfx_font_contains_glyph(void const*, u32);
 bool ladybird_gfx_font_is_emoji_font(void const*);
-bool ladybird_gfx_font_is_invisible(void const*);
-Gfx::FFI::FfiMathData const* ladybird_gfx_font_math_data(void const*);
-void ladybird_gfx_font_glyph_metrics(void const*, u32, Gfx::FFI::FfiGlyphMetrics*);
-size_t ladybird_gfx_font_math_glyph_variants(void const*, u32, bool, Gfx::FFI::FfiMathGlyphVariant*, size_t);
-size_t ladybird_gfx_font_math_glyph_assembly(void const*, u32, bool, Gfx::FFI::FfiMathGlyphPart*, size_t, float*);
 void ladybird_gfx_font_ref(void const*);
 void ladybird_gfx_font_unref(void const*);
 }
@@ -44,13 +36,6 @@ void ladybird_gfx_font_unref(void const*);
 namespace Gfx {
 
 static Atomic<u64> s_next_id { 1 };
-
-struct Font::MathData {
-    AK_ALLOC_WITH_KMALLOC;
-
-public:
-    FFI::FfiMathData data {};
-};
 
 Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float point_height, FontVariationSettings const variations, ShapeFeatures const& features, FontSynthesis synthesis)
     : m_id(s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
@@ -128,6 +113,15 @@ FontPixelMetrics Font::compute_pixel_metrics() const
     metrics.advance_of_ascii_zero = m_pixel_size / 2;
     if (hb_font_get_nominal_glyph(m_harfbuzz_font, '0', &glyph_id))
         metrics.advance_of_ascii_zero = static_cast<float>(hb_font_get_glyph_h_advance(m_harfbuzz_font, glyph_id)) / text_shaping_resolution;
+
+    auto* face = hb_font_get_face(m_harfbuzz_font);
+    auto design_units_to_pixels = m_pixel_size / m_typeface->units_per_em();
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#xavgcharwidth
+    if (FontTable os2 { face, FourCC { "OS/2" } }; os2.contains(2, 2))
+        metrics.average_character_advance = max<i16>(0, os2.i16_at(2)) * design_units_to_pixels;
+    // https://learn.microsoft.com/en-us/typography/opentype/spec/hhea
+    if (FontTable hhea { face, FourCC { "hhea" } }; hhea.contains(10, 2))
+        metrics.maximum_character_advance = hhea.u16_at(10) * design_units_to_pixels;
 
     return metrics;
 }
@@ -275,42 +269,6 @@ bool Font::is_emoji_font() const
     return m_is_emoji_font.load(AK::MemoryOrder::memory_order_relaxed) == TriState::True;
 }
 
-static float harfbuzz_position_to_pixels(hb_position_t position)
-{
-    return static_cast<float>(position) / text_shaping_resolution;
-}
-
-// https://learn.microsoft.com/en-us/typography/opentype/spec/math#mathconstants-table
-Font::MathData const& Font::math_data() const
-{
-    call_once(m_math_data_once, [&] {
-        auto math_data = make<MathData>();
-        auto* data = &math_data->data;
-        data->has_math_table = hb_ot_math_has_data(hb_font_get_face(m_harfbuzz_font));
-        if (data->has_math_table) {
-            static_assert(HB_OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT + 1 == sizeof(FFI::FfiMathData::constants) / sizeof(float));
-            for (size_t index = 0; index <= HB_OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT; ++index) {
-                auto constant = static_cast<hb_ot_math_constant_t>(index);
-                auto value = hb_ot_math_get_constant(m_harfbuzz_font, constant);
-                // NB: HarfBuzz scales every constant to the font size, except for the three percentages.
-                bool is_percentage = constant == HB_OT_MATH_CONSTANT_SCRIPT_PERCENT_SCALE_DOWN
-                    || constant == HB_OT_MATH_CONSTANT_SCRIPT_SCRIPT_PERCENT_SCALE_DOWN
-                    || constant == HB_OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT;
-                data->constants[index] = is_percentage ? static_cast<float>(value) : harfbuzz_position_to_pixels(value);
-            }
-            data->horizontal_min_connector_overlap = harfbuzz_position_to_pixels(hb_ot_math_get_min_connector_overlap(m_harfbuzz_font, HB_DIRECTION_LTR));
-            data->vertical_min_connector_overlap = harfbuzz_position_to_pixels(hb_ot_math_get_min_connector_overlap(m_harfbuzz_font, HB_DIRECTION_BTT));
-        }
-
-        hb_position_t position = 0;
-        data->has_underline_thickness = hb_ot_metrics_get_position(m_harfbuzz_font, HB_OT_METRICS_TAG_UNDERLINE_SIZE, &position);
-        data->underline_thickness = harfbuzz_position_to_pixels(position);
-
-        m_math_data = move(math_data);
-    });
-    return *m_math_data;
-}
-
 }
 
 extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSnapshot* out_snapshot)
@@ -329,6 +287,8 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
         .x_height = metrics.x_height,
         .cap_height = metrics.cap_height,
         .zero_advance = metrics.advance_of_ascii_zero,
+        .average_character_advance = metrics.average_character_advance,
+        .maximum_character_advance = metrics.maximum_character_advance,
         .pixel_size = typed_font.pixel_size(),
         .point_size = typed_font.point_size(),
         .has_bounding_box_of_all_glyphs = !bounding_box_of_all_glyphs.is_empty(),
@@ -341,115 +301,15 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
         },
         .synthetic_slant = hb_font_get_synthetic_slant(typed_font.harfbuzz_font()),
         .has_synthetic_bold = typed_font.synthesis().bold,
+        .is_invisible = typed_font.is_invisible(),
+        .glyph_count = typed_font.typeface().glyph_count(),
     };
-}
-
-extern "C" void ladybird_gfx_font_character_advances(void const* font, float* average, float* maximum)
-{
-    auto const& typed_font = *static_cast<Gfx::Font const*>(font);
-    auto const& typeface = typed_font.typeface();
-    auto* face = typeface.harfbuzz_typeface();
-    auto design_units_to_pixels = typed_font.pixel_size() / typeface.units_per_em();
-
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#xavgcharwidth
-    Gfx::FontTable os2 { face, Gfx::FourCC { "OS/2" } };
-    *average = os2.contains(2, 2) ? max<i16>(0, os2.i16_at(2)) * design_units_to_pixels : 0;
-
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/hhea
-    Gfx::FontTable hhea { face, Gfx::FourCC { "hhea" } };
-    *maximum = hhea.contains(10, 2) ? hhea.u16_at(10) * design_units_to_pixels : 0;
-}
-
-extern "C" u32 ladybird_gfx_font_glyph_id(void const* font, u32 code_point)
-{
-    VERIFY(font);
-    return static_cast<Gfx::Font const*>(font)->glyph_id_for_code_point(code_point);
-}
-
-extern "C" bool ladybird_gfx_font_contains_glyph(void const* font, u32 code_point)
-{
-    VERIFY(font);
-    return static_cast<Gfx::Font const*>(font)->contains_glyph(code_point);
 }
 
 extern "C" bool ladybird_gfx_font_is_emoji_font(void const* font)
 {
     VERIFY(font);
     return static_cast<Gfx::Font const*>(font)->is_emoji_font();
-}
-
-extern "C" bool ladybird_gfx_font_is_invisible(void const* font)
-{
-    VERIFY(font);
-    return static_cast<Gfx::Font const*>(font)->is_invisible();
-}
-
-extern "C" Gfx::FFI::FfiMathData const* ladybird_gfx_font_math_data(void const* font)
-{
-    VERIFY(font);
-    return &static_cast<Gfx::Font const*>(font)->math_data().data;
-}
-
-extern "C" void ladybird_gfx_font_glyph_metrics(void const* font, u32 glyph_id, Gfx::FFI::FfiGlyphMetrics* out_metrics)
-{
-    VERIFY(font);
-    VERIFY(out_metrics);
-    auto* harfbuzz_font = static_cast<Gfx::Font const*>(font)->harfbuzz_font();
-    hb_glyph_extents_t extents {};
-    if (!hb_font_get_glyph_extents(harfbuzz_font, glyph_id, &extents))
-        extents = {};
-    *out_metrics = {
-        .advance = Gfx::harfbuzz_position_to_pixels(hb_font_get_glyph_h_advance(harfbuzz_font, glyph_id)),
-        .ascent = Gfx::harfbuzz_position_to_pixels(extents.y_bearing),
-        .descent = -Gfx::harfbuzz_position_to_pixels(extents.y_bearing + extents.height),
-    };
-}
-
-static hb_direction_t math_stretch_direction(bool horizontal)
-{
-    return horizontal ? HB_DIRECTION_LTR : HB_DIRECTION_BTT;
-}
-
-extern "C" size_t ladybird_gfx_font_math_glyph_variants(void const* font, u32 glyph_id, bool horizontal, Gfx::FFI::FfiMathGlyphVariant* out_variants, size_t capacity)
-{
-    VERIFY(font);
-    VERIFY(out_variants || capacity == 0);
-    auto* harfbuzz_font = static_cast<Gfx::Font const*>(font)->harfbuzz_font();
-    Vector<hb_ot_math_glyph_variant_t, 8> variants;
-    variants.resize(capacity);
-    unsigned count = capacity;
-    auto total = hb_ot_math_get_glyph_variants(harfbuzz_font, glyph_id, math_stretch_direction(horizontal), 0, &count, variants.data());
-    for (size_t index = 0; index < count; ++index) {
-        out_variants[index] = {
-            .glyph_id = variants[index].glyph,
-            .advance_measurement = Gfx::harfbuzz_position_to_pixels(variants[index].advance),
-        };
-    }
-    return total;
-}
-
-extern "C" size_t ladybird_gfx_font_math_glyph_assembly(void const* font, u32 glyph_id, bool horizontal, Gfx::FFI::FfiMathGlyphPart* out_parts, size_t capacity, float* out_italics_correction)
-{
-    VERIFY(font);
-    VERIFY(out_parts || capacity == 0);
-    VERIFY(out_italics_correction);
-    auto* harfbuzz_font = static_cast<Gfx::Font const*>(font)->harfbuzz_font();
-    Vector<hb_ot_math_glyph_part_t, 8> parts;
-    parts.resize(capacity);
-    unsigned count = capacity;
-    hb_position_t italics_correction = 0;
-    auto total = hb_ot_math_get_glyph_assembly(harfbuzz_font, glyph_id, math_stretch_direction(horizontal), 0, &count, parts.data(), &italics_correction);
-    for (size_t index = 0; index < count; ++index) {
-        out_parts[index] = {
-            .glyph_id = parts[index].glyph,
-            .start_connector_length = Gfx::harfbuzz_position_to_pixels(parts[index].start_connector_length),
-            .end_connector_length = Gfx::harfbuzz_position_to_pixels(parts[index].end_connector_length),
-            .full_advance = Gfx::harfbuzz_position_to_pixels(parts[index].full_advance),
-            .is_extender = (parts[index].flags & HB_OT_MATH_GLYPH_PART_FLAG_EXTENDER) != 0,
-        };
-    }
-    *out_italics_correction = Gfx::harfbuzz_position_to_pixels(italics_correction);
-    return total;
 }
 
 extern "C" void ladybird_gfx_font_ref(void const* font)

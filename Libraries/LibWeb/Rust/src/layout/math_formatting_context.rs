@@ -10,7 +10,7 @@ use super::*;
 use crate::layout::formatting_context::ChildLayoutResult;
 use crate::layout::geometry::MathStretchSizeConstraint;
 use libgfx_rust::font::FontHandle;
-use libgfx_rust::math_table::{FfiGlyphMetrics, FfiMathData, FfiMathGlyphPart, MathConstant, StretchAxis};
+use libgfx_rust::math_table::{GlyphMetrics, MathConstant, MathData, MathGlyphPart, StretchAxis};
 
 /// The layout algorithm a MathML element's tag name selects when its computed display is block math or inline math.
 /// Mirrors the C++ `MathMLLayoutKind`, which the element's construction facts carry.
@@ -824,7 +824,7 @@ impl GlyphRun {
 
 /// The size of a glyph along a stretch axis: its advance width along the inline axis, and its height along the block
 /// axis.
-fn glyph_size_along(metrics: &FfiGlyphMetrics, axis: StretchAxis) -> f32 {
+fn glyph_size_along(metrics: &GlyphMetrics, axis: StretchAxis) -> f32 {
     match axis {
         StretchAxis::Inline => metrics.advance,
         StretchAxis::Block => metrics.ascent + metrics.descent,
@@ -851,7 +851,7 @@ impl GlyphAssembly {
     /// The GlyphAssembly table of a glyph along an axis, if it is valid.
     fn new(font: &FontHandle, assembly: libgfx_rust::math_table::MathGlyphAssembly, axis: StretchAxis) -> Option<Self> {
         let minimum_overlap = font.math_data().min_connector_overlap(axis);
-        let (extenders, non_extenders): (Vec<&FfiMathGlyphPart>, Vec<&FfiMathGlyphPart>) =
+        let (extenders, non_extenders): (Vec<&MathGlyphPart>, Vec<&MathGlyphPart>) =
             assembly.parts.iter().partition(|part| part.is_extender);
         let glyph_assembly = Self {
             minimum_overlap,
@@ -1091,7 +1091,7 @@ pub(crate) struct MathGlyph {
 /// The layout constants of the first available font of a box.
 // https://w3c.github.io/mathml-core/#layout-constants-mathconstants
 struct MathConstants {
-    data: FfiMathData,
+    data: MathData,
     default_rule_thickness: CssPixels,
     x_height: CssPixels,
     em: CssPixels,

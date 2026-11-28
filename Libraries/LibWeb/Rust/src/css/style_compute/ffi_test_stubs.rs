@@ -177,10 +177,6 @@ extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void
     FONT_CASCADE_LIST_UNREFS.set(FONT_CASCADE_LIST_UNREFS.get() + 1);
 }
 #[unsafe(no_mangle)]
-extern "C" fn ladybird_gfx_font_cascade_list_equals(list: *const c_void, other: *const c_void) -> bool {
-    list == other
-}
-#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_cascade_list_frozen(_raw: *const std::ffi::c_void) -> *const std::ffi::c_void {
     std::ptr::null()
 }
@@ -216,18 +212,6 @@ unsafe extern "C" fn ladybird_gfx_font_snapshot(
             ..Default::default()
         }
     };
-}
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_gfx_font_character_advances(
-    _font: *const std::ffi::c_void,
-    average: *mut f32,
-    maximum: *mut f32,
-) {
-    // SAFETY: The caller provides valid out-pointers. Test fonts have no font tables.
-    unsafe {
-        *average = 0.0;
-        *maximum = 0.0;
-    }
 }
 
 #[unsafe(no_mangle)]

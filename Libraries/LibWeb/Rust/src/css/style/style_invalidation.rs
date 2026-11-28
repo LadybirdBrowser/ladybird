@@ -1429,10 +1429,7 @@ pub(crate) fn element_record_damage_of_views(facts: ElementDamageFacts, record_m
     let is_inline_level_absolutely_positioned = |values: ComputedValuesView<'_>| {
         values.is_absolutely_positioned() && values.display_before_box_type_transformation().is_inline_outside()
     };
-    let font_lists_equal = old_values
-        .font()
-        .font_cascade_list
-        .resolves_like(&new_values.font().font_cascade_list);
+    let font_lists_equal = old_values.font().font_cascade_resolves_like(new_values.font());
     let color_changed = old_values.inherited_text().color != new_values.inherited_text().color;
     let stroke_uses_current_color = stroke_uses_current_color(old_values) || stroke_uses_current_color(new_values);
     let table_fixup_child_changed = is_table_fixup_child(old_values) != is_table_fixup_child(new_values);

@@ -12,6 +12,7 @@
 #include <AK/StdLibExtras.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <RustFFI.h>
+#include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
 
 // The Unicode lookups that shaping in Rust makes. Declared here so that each definition has a previous declaration.
@@ -98,12 +99,38 @@ static_assert(offsetof(Gfx::FFI::HbDrawState, current_x) == offsetof(hb_draw_sta
 static_assert(offsetof(Gfx::FFI::HbDrawState, current_y) == offsetof(hb_draw_state_t, current_y));
 static_assert(offsetof(Gfx::FFI::HbDrawState, reserved) == offsetof(hb_draw_state_t, reserved1));
 
+static_assert(sizeof(Gfx::FFI::HbOtMathGlyphVariant) == sizeof(hb_ot_math_glyph_variant_t));
+static_assert(alignof(Gfx::FFI::HbOtMathGlyphVariant) == alignof(hb_ot_math_glyph_variant_t));
+static_assert(IsSame<decltype(Gfx::FFI::HbOtMathGlyphVariant::glyph), decltype(hb_ot_math_glyph_variant_t::glyph)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbOtMathGlyphVariant::advance), decltype(hb_ot_math_glyph_variant_t::advance)>);
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphVariant, glyph) == offsetof(hb_ot_math_glyph_variant_t, glyph));
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphVariant, advance) == offsetof(hb_ot_math_glyph_variant_t, advance));
+
+static_assert(sizeof(Gfx::FFI::HbOtMathGlyphPart) == sizeof(hb_ot_math_glyph_part_t));
+static_assert(alignof(Gfx::FFI::HbOtMathGlyphPart) == alignof(hb_ot_math_glyph_part_t));
+static_assert(IsSame<decltype(Gfx::FFI::HbOtMathGlyphPart::glyph), decltype(hb_ot_math_glyph_part_t::glyph)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbOtMathGlyphPart::start_connector_length), decltype(hb_ot_math_glyph_part_t::start_connector_length)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbOtMathGlyphPart::end_connector_length), decltype(hb_ot_math_glyph_part_t::end_connector_length)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbOtMathGlyphPart::full_advance), decltype(hb_ot_math_glyph_part_t::full_advance)>);
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphPart, glyph) == offsetof(hb_ot_math_glyph_part_t, glyph));
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphPart, start_connector_length) == offsetof(hb_ot_math_glyph_part_t, start_connector_length));
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphPart, end_connector_length) == offsetof(hb_ot_math_glyph_part_t, end_connector_length));
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphPart, full_advance) == offsetof(hb_ot_math_glyph_part_t, full_advance));
+static_assert(offsetof(Gfx::FFI::HbOtMathGlyphPart, flags) == offsetof(hb_ot_math_glyph_part_t, flags));
+
 // The enumerations are as wide as the u32 that the crate passes and returns them as.
 static_assert(sizeof(hb_direction_t) == sizeof(u32));
 static_assert(sizeof(hb_script_t) == sizeof(u32));
+static_assert(sizeof(hb_ot_math_constant_t) == sizeof(u32));
+static_assert(sizeof(hb_ot_math_glyph_part_flags_t) == sizeof(u32));
+static_assert(sizeof(hb_ot_metrics_tag_t) == sizeof(u32));
 static_assert(sizeof(hb_bool_t) == sizeof(int));
+static_assert(sizeof(hb_position_t) == sizeof(i32));
+static_assert(sizeof(hb_codepoint_t) == sizeof(u32));
+static_assert(sizeof(hb_tag_t) == sizeof(u32));
 static_assert(Gfx::FFI::DIRECTION_LTR == static_cast<u32>(HB_DIRECTION_LTR));
 static_assert(Gfx::FFI::DIRECTION_RTL == static_cast<u32>(HB_DIRECTION_RTL));
+static_assert(Gfx::FFI::DIRECTION_BTT == static_cast<u32>(HB_DIRECTION_BTT));
 static_assert(Gfx::FFI::SCRIPT_COMMON == static_cast<u32>(HB_SCRIPT_COMMON));
 static_assert(Gfx::FFI::SCRIPT_INHERITED == static_cast<u32>(HB_SCRIPT_INHERITED));
 static_assert(Gfx::FFI::SCRIPT_LATIN == static_cast<u32>(HB_SCRIPT_LATIN));
@@ -117,3 +144,8 @@ static_assert(Gfx::FFI::SCRIPT_SYRIAC == static_cast<u32>(HB_SCRIPT_SYRIAC));
 static_assert(Gfx::FFI::GLYPH_FLAG_UNSAFE_TO_BREAK == static_cast<u32>(HB_GLYPH_FLAG_UNSAFE_TO_BREAK));
 static_assert(Gfx::FFI::GLYPH_FLAG_DEFINED == static_cast<u32>(HB_GLYPH_FLAG_DEFINED));
 static_assert(Gfx::FFI::FEATURE_GLOBAL_END == HB_FEATURE_GLOBAL_END);
+static_assert(Gfx::FFI::OT_MATH_CONSTANT_SCRIPT_PERCENT_SCALE_DOWN == static_cast<u32>(HB_OT_MATH_CONSTANT_SCRIPT_PERCENT_SCALE_DOWN));
+static_assert(Gfx::FFI::OT_MATH_CONSTANT_SCRIPT_SCRIPT_PERCENT_SCALE_DOWN == static_cast<u32>(HB_OT_MATH_CONSTANT_SCRIPT_SCRIPT_PERCENT_SCALE_DOWN));
+static_assert(Gfx::FFI::OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT == static_cast<u32>(HB_OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT));
+static_assert(Gfx::FFI::OT_MATH_GLYPH_PART_FLAG_EXTENDER == static_cast<u32>(HB_OT_MATH_GLYPH_PART_FLAG_EXTENDER));
+static_assert(Gfx::FFI::OT_METRICS_TAG_UNDERLINE_SIZE == static_cast<u32>(HB_OT_METRICS_TAG_UNDERLINE_SIZE));
