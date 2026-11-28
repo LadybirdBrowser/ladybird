@@ -10,16 +10,8 @@
 #include <AK/Singleton.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/FontCascadeList.h>
+#include <LibGfx/RustFFI.h>
 #include <LibUnicode/CharacterTypes.h>
-
-extern "C" {
-void const* ladybird_gfx_frozen_font_list_build(void const* list);
-void ladybird_gfx_frozen_font_list_release(void const* frozen);
-void const* ladybird_gfx_frozen_font_list_font_for_code_point(void const* frozen, u32 code_point, bool is_emoji, bool forced);
-size_t ladybird_gfx_request_wanted_pending_faces();
-bool ladybird_gfx_frozen_font_lists_equal(void const*, void const*);
-bool ladybird_gfx_font_cascade_list_fills_toward(void const*, void const*);
-}
 
 namespace Gfx {
 
@@ -75,13 +67,13 @@ RefPtr<FontCascadeList::PendingFace> FontCascadeList::PendingFace::with_id(u64 i
 
 size_t request_wanted_pending_faces()
 {
-    return ladybird_gfx_request_wanted_pending_faces();
+    return FFI::ladybird_gfx_request_wanted_pending_faces();
 }
 
 FontCascadeList::~FontCascadeList()
 {
     if (m_frozen_list)
-        ladybird_gfx_frozen_font_list_release(m_frozen_list);
+        FFI::ladybird_gfx_frozen_font_list_release(m_frozen_list);
 }
 
 EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point, Optional<u32> code_point_after_next)
@@ -391,23 +383,82 @@ Vector<FontCascadeList::SnapshotEntry> FontCascadeList::snapshot_fallback_entrie
     return snapshot_entries(m_fallback_fonts, false);
 }
 
+// Gives the cascade to the callback as flat arrays, which are live for the call.
+template<typename Callback>
+static void with_flat_snapshot(FontCascadeList const& list, Callback callback)
+{
+    Vector<FFI::FfiCascadeSnapshotRange> ranges;
+    Vector<FFI::FfiCascadeSnapshotRange> fallback_ranges;
+    auto flatten = [](Vector<FontCascadeList::SnapshotEntry> const& entries, Vector<FFI::FfiCascadeSnapshotRange>& ranges) {
+        Vector<FFI::FfiCascadeSnapshotEntry> flat_entries;
+        flat_entries.ensure_capacity(entries.size());
+        for (auto const& entry : entries) {
+            flat_entries.unchecked_append({
+                .font = entry.font,
+                .range_offset = ranges.size(),
+                .range_count = entry.unicode_ranges.size(),
+                .pending_face_id = entry.pending_face_id,
+                .pending_state = to_underlying(entry.pending_state),
+                .source_face_id = entry.source_face_id,
+            });
+            for (auto const& range : entry.unicode_ranges)
+                ranges.append({ range.min_code_point(), range.max_code_point() });
+        }
+        return flat_entries;
+    };
+    auto entries = flatten(list.snapshot_entries(), ranges);
+    auto fallback_entries = flatten(list.snapshot_fallback_entries(), fallback_ranges);
+
+    FFI::FfiCascadeSnapshot snapshot {
+        .entries = entries.data(),
+        .entry_count = entries.size(),
+        .ranges = ranges.data(),
+        .range_count = ranges.size(),
+        .fallback_entries = fallback_entries.data(),
+        .fallback_entry_count = fallback_entries.size(),
+        .fallback_ranges = fallback_ranges.data(),
+        .fallback_range_count = fallback_ranges.size(),
+        .last_resort_font = list.last_resort_font(),
+        .system_fallback_features = nullptr,
+        .system_fallback_feature_count = 0,
+        .system_fallback_point_size = 0,
+        .system_fallback_weight = 0,
+        .system_fallback_width = 0,
+        .system_fallback_slope = 0,
+        .has_system_fallback = list.has_system_font_fallback_callback(),
+    };
+    if (snapshot.has_system_fallback) {
+        // The system fallback matches against the request of the cascade, as the lookup does.
+        auto const& request = list.system_fallback_request();
+        snapshot.system_fallback_features = reinterpret_cast<FFI::FfiShapeFeature const*>(request.shape_features.data());
+        snapshot.system_fallback_feature_count = request.shape_features.size();
+        snapshot.system_fallback_point_size = request.point_size;
+        snapshot.system_fallback_weight = request.weight;
+        snapshot.system_fallback_width = request.width;
+        snapshot.system_fallback_slope = request.slope;
+    }
+    callback(snapshot);
+}
+
 void FontCascadeList::freeze()
 {
     VERIFY(!m_frozen_list);
-    m_frozen_list = ladybird_gfx_frozen_font_list_build(this);
+    with_flat_snapshot(*this, [&](FFI::FfiCascadeSnapshot const& snapshot) {
+        m_frozen_list = FFI::ladybird_gfx_frozen_font_list_build(&snapshot);
+    });
 }
 
 Font const& FontCascadeList::frozen_font_for_code_point(u32 code_point, EmojiPresentationResult presentation) const
 {
     VERIFY(m_frozen_list);
-    return *static_cast<Font const*>(ladybird_gfx_frozen_font_list_font_for_code_point(m_frozen_list,
+    return *static_cast<Font const*>(FFI::ladybird_gfx_frozen_font_list_font_for_code_point(m_frozen_list,
         code_point, presentation.presentation == EmojiPresentation::Emoji, presentation.forced == ForcedPresentation::Yes));
 }
 
 bool FontCascadeList::equals(FontCascadeList const& other) const
 {
     if (m_frozen_list && other.m_frozen_list)
-        return ladybird_gfx_frozen_font_lists_equal(m_frozen_list, other.m_frozen_list);
+        return FFI::ladybird_gfx_frozen_font_lists_equal(m_frozen_list, other.m_frozen_list);
     if (!m_pending_faces.is_empty() || !other.m_pending_faces.is_empty())
         return false;
     if (m_fonts.size() != other.m_fonts.size())
@@ -423,41 +474,8 @@ bool FontCascadeList::equals(FontCascadeList const& other) const
 bool FontCascadeList::fills_toward(FontCascadeList const& resolved) const
 {
     VERIFY(m_frozen_list && resolved.m_frozen_list);
-    return ladybird_gfx_font_cascade_list_fills_toward(this, &resolved);
+    return FFI::ladybird_gfx_font_cascade_list_fills_toward(this, &resolved);
 }
-
-}
-
-namespace Gfx::FFI {
-
-// Mirrored by libgfx_rust::font.
-struct FfiCascadeSnapshotHeader {
-    size_t entry_count;
-    size_t range_count;
-    size_t fallback_entry_count;
-    size_t fallback_range_count;
-    void const* last_resort_font;
-    float system_fallback_point_size;
-    u16 system_fallback_weight;
-    u16 system_fallback_width;
-    u8 system_fallback_slope;
-    bool has_system_fallback;
-    size_t system_fallback_feature_count;
-};
-
-struct FfiCascadeSnapshotEntry {
-    void const* font;
-    size_t range_offset;
-    size_t range_count;
-    u64 pending_face_id;
-    u8 pending_state;
-    u64 source_face_id;
-};
-
-struct FfiCascadeSnapshotRange {
-    u32 first_code_point;
-    u32 last_code_point;
-};
 
 }
 
@@ -469,11 +487,7 @@ void ladybird_gfx_font_cascade_list_unref(void const*);
 bool ladybird_gfx_font_cascade_list_equals(void const*, void const*);
 u8 ladybird_gfx_emoji_presentation_for_code_point(u32, u32, bool, u32, bool);
 void const* ladybird_gfx_font_cascade_list_frozen(void const*);
-void const* ladybird_gfx_cascade_snapshot_begin(void const*);
-void ladybird_gfx_cascade_snapshot_header(void const*, Gfx::FFI::FfiCascadeSnapshotHeader*);
-void ladybird_gfx_cascade_snapshot_fill(void const*, bool, Gfx::FFI::FfiCascadeSnapshotEntry*, Gfx::FFI::FfiCascadeSnapshotRange*);
-void ladybird_gfx_cascade_snapshot_system_fallback_features(void const*, Gfx::ShapeFeature*);
-void ladybird_gfx_cascade_snapshot_end(void const*);
+void ladybird_gfx_cascade_snapshot(void const*, void*, void (*)(void*, Gfx::FFI::FfiCascadeSnapshot const*));
 bool ladybird_gfx_resolve_pending_face(u64);
 }
 
@@ -526,121 +540,24 @@ extern "C" u8 ladybird_gfx_emoji_presentation_for_code_point(u32 code_point, u32
     return encoded;
 }
 
-namespace {
-
-struct CascadeSnapshot {
-    AK_ALLOC_WITH_KMALLOC;
-
-    Vector<Gfx::FontCascadeList::SnapshotEntry> entries;
-    Vector<Gfx::FontCascadeList::SnapshotEntry> fallback_entries;
-    Gfx::Font const* last_resort_font { nullptr };
-    bool has_system_fallback { false };
-    float system_fallback_point_size { 0 };
-    u16 system_fallback_weight { 0 };
-    u16 system_fallback_width { 0 };
-    u8 system_fallback_slope { 0 };
-    Gfx::ShapeFeatures system_fallback_features {};
-};
-
-size_t total_range_count(Vector<Gfx::FontCascadeList::SnapshotEntry> const& entries)
-{
-    size_t count = 0;
-    for (auto const& entry : entries)
-        count += entry.unicode_ranges.size();
-    return count;
-}
-
-}
-
 extern "C" void const* ladybird_gfx_font_cascade_list_frozen(void const* list)
 {
     VERIFY(list);
     return static_cast<Gfx::FontCascadeList const*>(list)->frozen_list();
 }
 
-extern "C" void const* ladybird_gfx_cascade_snapshot_begin(void const* list)
+// NB: Rust reads the features of the system fallback request as its FfiShapeFeature.
+static_assert(sizeof(Gfx::ShapeFeature) == sizeof(Gfx::FFI::FfiShapeFeature));
+static_assert(offsetof(Gfx::ShapeFeature, value) == offsetof(Gfx::FFI::FfiShapeFeature, value));
+static_assert(offsetof(Gfx::ShapeFeature, set_by_feature_settings) == offsetof(Gfx::FFI::FfiShapeFeature, set_by_feature_settings));
+
+// Gives the cascade as it is now to `visit`, as flat arrays that are live for the call.
+extern "C" void ladybird_gfx_cascade_snapshot(void const* list, void* context, void (*visit)(void*, Gfx::FFI::FfiCascadeSnapshot const*))
 {
     VERIFY(list);
-    auto const& cascade_list = *static_cast<Gfx::FontCascadeList const*>(list);
-    auto* snapshot = new CascadeSnapshot {
-        .entries = cascade_list.snapshot_entries(),
-        .fallback_entries = cascade_list.snapshot_fallback_entries(),
-        .last_resort_font = cascade_list.last_resort_font(),
-        .has_system_fallback = cascade_list.has_system_font_fallback_callback(),
-    };
-    if (snapshot->has_system_fallback) {
-        // The system fallback matches against the cascade's request, exactly as the lookup does.
-        auto const& request = cascade_list.system_fallback_request();
-        snapshot->system_fallback_point_size = request.point_size;
-        snapshot->system_fallback_weight = request.weight;
-        snapshot->system_fallback_width = request.width;
-        snapshot->system_fallback_slope = request.slope;
-        snapshot->system_fallback_features = request.shape_features;
-    }
-    return snapshot;
-}
-
-extern "C" void ladybird_gfx_cascade_snapshot_header(void const* handle, Gfx::FFI::FfiCascadeSnapshotHeader* out_header)
-{
-    VERIFY(handle);
-    VERIFY(out_header);
-    auto const& snapshot = *static_cast<CascadeSnapshot const*>(handle);
-    *out_header = {
-        .entry_count = snapshot.entries.size(),
-        .range_count = total_range_count(snapshot.entries),
-        .fallback_entry_count = snapshot.fallback_entries.size(),
-        .fallback_range_count = total_range_count(snapshot.fallback_entries),
-        .last_resort_font = snapshot.last_resort_font,
-        .system_fallback_point_size = snapshot.system_fallback_point_size,
-        .system_fallback_weight = snapshot.system_fallback_weight,
-        .system_fallback_width = snapshot.system_fallback_width,
-        .system_fallback_slope = snapshot.system_fallback_slope,
-        .has_system_fallback = snapshot.has_system_fallback,
-        .system_fallback_feature_count = snapshot.system_fallback_features.size(),
-    };
-}
-
-// NB: Rust reads these as its FfiShapeFeature.
-static_assert(sizeof(Gfx::ShapeFeature) == 12);
-static_assert(offsetof(Gfx::ShapeFeature, value) == 4);
-static_assert(offsetof(Gfx::ShapeFeature, set_by_feature_settings) == 8);
-
-extern "C" void ladybird_gfx_cascade_snapshot_system_fallback_features(void const* handle, Gfx::ShapeFeature* out_features)
-{
-    VERIFY(handle);
-    auto const& features = static_cast<CascadeSnapshot const*>(handle)->system_fallback_features;
-    for (size_t index = 0; index < features.size(); ++index)
-        out_features[index] = features[index];
-}
-
-extern "C" void ladybird_gfx_cascade_snapshot_fill(void const* handle, bool fallback, Gfx::FFI::FfiCascadeSnapshotEntry* out_entries, Gfx::FFI::FfiCascadeSnapshotRange* out_ranges)
-{
-    VERIFY(handle);
-    auto const& snapshot = *static_cast<CascadeSnapshot const*>(handle);
-    auto const& entries = fallback ? snapshot.fallback_entries : snapshot.entries;
-    size_t range_offset = 0;
-    for (size_t index = 0; index < entries.size(); ++index) {
-        auto const& entry = entries[index];
-        out_entries[index] = {
-            .font = entry.font,
-            .range_offset = range_offset,
-            .range_count = entry.unicode_ranges.size(),
-            .pending_face_id = entry.pending_face_id,
-            .pending_state = to_underlying(entry.pending_state),
-            .source_face_id = entry.source_face_id,
-        };
-        for (auto const& range : entry.unicode_ranges) {
-            out_ranges[range_offset++] = {
-                .first_code_point = range.min_code_point(),
-                .last_code_point = range.max_code_point(),
-            };
-        }
-    }
-}
-
-extern "C" void ladybird_gfx_cascade_snapshot_end(void const* handle)
-{
-    delete static_cast<CascadeSnapshot const*>(handle);
+    Gfx::with_flat_snapshot(*static_cast<Gfx::FontCascadeList const*>(list), [&](Gfx::FFI::FfiCascadeSnapshot const& snapshot) {
+        visit(context, &snapshot);
+    });
 }
 
 extern "C" bool ladybird_gfx_resolve_pending_face(u64 id)
