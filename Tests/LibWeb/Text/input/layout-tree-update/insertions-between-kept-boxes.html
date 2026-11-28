@@ -101,5 +101,17 @@
         },
     }));
 
+    cases.push({
+        name: "insert a slot that shows an incrementing child before a counter user in a shadow tree",
+        setup(fixture) {
+            fixture.innerHTML = style + `<div class="counted"><div id="host"><span class="i">l</span></div></div>`;
+            const shadow = fixture.querySelector("#host").attachShadow({ mode: "open" });
+            shadow.innerHTML = `<style>.ib { display: inline-block; } .s::before { content: counter(c) " "; }</style>
+                <div id="d"><span class="ib">a</span><span id="x" class="ib s">c</span></div>`;
+            const d = shadow.querySelector("#d");
+            return () => d.insertBefore(fromMarkup(`<span class="ib"><slot></slot></span>`), d.querySelector("#x"));
+        },
+    });
+
     test(() => runLayoutTreeFullRebuildComparisonCases(cases));
 </script>
