@@ -45,17 +45,14 @@ void style_engine_set_custom_highlight_observing_elements(DocumentHost const*, R
 void style_engine_set_fold_id_and_class_name_case(DocumentHost const*, bool fold);
 void style_engine_set_html_element_namespace(DocumentHost const*, StyleAtomID namespace_atom);
 void style_engine_mark_relation_only_style_node(DocumentHost const*, StyleNodeID node);
-void style_engine_link_style_nodes_in_dom_order(DocumentHost const*, ReadonlySpan<u32> links);
 void style_engine_unlink_style_node_from_dom_order(DocumentHost const*, StyleNodeID node, StyleNodeID parent);
 void style_engine_retire_text_style_nodes(DocumentHost const*, ReadonlySpan<StyleNodeID> nodes);
 void style_engine_set_slot_assigned_nodes(DocumentHost const*, StyleNodeID slot, ReadonlySpan<StyleNodeID> assigned);
 void style_engine_set_top_layer_elements(DocumentHost const*, ReadonlySpan<StyleNodeID> members);
-void style_engine_set_text_is_ascii_whitespace(DocumentHost const*, StyleNodeID node, bool value);
 void style_engine_set_node_dom_paint_facts(DocumentHost const*, StyleNodeID node, u8 facts);
 void style_engine_set_element_unique_node_id(DocumentHost const*, StyleNodeID node, u64 unique_node_id);
 void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span);
 void style_engine_set_element_frameset_layout(DocumentHost const*, StyleNodeID node, ReadonlySpan<FfiFrameSetDimension> columns, ReadonlySpan<FfiFrameSetDimension> rows, ReadonlySpan<FfiFrameSetBorder> borders, u32 border_thickness);
-void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
 void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
 void style_engine_record_environment_change(DocumentHost const*, u8 changes);
 void style_engine_record_custom_property_registration_change(DocumentHost const*);
@@ -278,19 +275,11 @@ public:
     struct WithheldAttributeName {
         Utf16FlyString local_name;
         Optional<Utf16FlyString> namespace_uri;
-        bool operator==(WithheldAttributeName const&) const = default;
-    };
-    struct WithheldAttributeNameTraits : public DefaultTraits<WithheldAttributeName> {
-        static unsigned hash(WithheldAttributeName const& name) { return pair_int_hash(name.local_name.hash(), name.namespace_uri.has_value() ? name.namespace_uri->hash() : 0); }
     };
     // NB: An element's identity may have been retired, or taken by another element, by the time a fact withheld from
     //     it is published: what is published is read from whatever element holds the identity then.
     void note_local_link_state_withheld() { m_local_link_state_is_withheld = true; }
     void note_validity_state_withheld() { m_validity_state_is_withheld = true; }
-    void note_attribute_withheld(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
-    {
-        m_withheld_attribute_names.set({ local_name, namespace_uri });
-    }
     // What was withheld that something may read now, which is withheld no longer, with the elements it was withheld
     // from.
     struct WithheldFeaturesNowRead {
@@ -303,11 +292,33 @@ public:
     // The document host stages deltas, which cross to the engine in one batch per style flush, never one write per
     // element.
     void record_tree_delta(StyleEngineFFI::FfiTreeDelta const&);
+    // A subtree leaves in tree order, so below its root every previous sibling has already departed and none is left to
+    // name. Scanning past them would make removing a wide subtree quadratic.
+    enum class PreviousSiblings {
+        Arrived,
+        Departed,
+    };
+    // An identified element leaves the tree, from the relations the engine reads from the DOM, assigned to
+    // `assigned_slot`.
+    void record_element_departure(DOM::Element const&, PreviousSiblings, StyleNodeID assigned_slot);
+    // An identified element that stays in the tree relinks, from being assigned to `old_assigned_slot` and standing in
+    // `old_tree_scope` where one is given, to standing where the engine reads it from the DOM, assigned to
+    // `assigned_slot`. A delta that relinks is the only one that updates the engine's relation columns.
+    void record_element_relinked(DOM::Element const&, StyleNodeID assigned_slot, StyleNodeID old_assigned_slot, Optional<TreeScopeID> old_tree_scope = {});
+    // An identified shadow root leaves the tree, standing in its own scope.
+    void record_shadow_root_departure(DOM::ShadowRoot const&);
     // Everything an element's selectors test arrives with it, as one row, and the rows of many elements in one write.
-    // The atoms hold each row's custom states, classes, and attributes as name and value atom pairs in turn.
+    // The engine reads each element's name, ID, classes and attributes itself, and folds IDs and classes to ASCII
+    // lowercase where told to, as in a quirks-mode document. `custom_states` holds each row's custom states in turn.
     void record_element_arrivals(ReadonlySpan<StyleEngineFFI::FfiArrivingElement>);
-    void record_element_arrival_rows(ReadonlySpan<StyleEngineFFI::FfiElementArrivalRow>, ReadonlySpan<u32> atoms);
+    void record_element_arrival_rows(ReadonlySpan<StyleEngineFFI::FfiElementArrivalRow>, ReadonlySpan<u32> custom_states, bool fold_ids_and_classes);
     void record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const&);
+    // An identified element's ID, classes, or the value of one of its attributes changed: the engine reads the new ID
+    // and classes from the element, and stages them as facts where `is_published` says its initial features are,
+    // which they say what it is until. An attribute name nothing reads is withheld instead.
+    void record_element_id_change(DOM::Element const&, bool is_published);
+    void record_element_class_change(DOM::Element const&, bool is_published, ReadonlySpan<Utf16FlyString> old_classes);
+    void record_element_attribute_change(DOM::Element const&, bool is_published, Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& value);
     void record_state_delta(StyleEngineFFI::FfiStateDelta const&);
     // The hover moves to `target`, or off the document for none, as the events of a mouse move hover it, once the rest
     // of the recorded input is in place.
@@ -489,7 +500,6 @@ private:
     bool m_may_have_waiting_children { false };
     bool m_local_link_state_is_withheld { false };
     bool m_validity_state_is_withheld { false };
-    HashTable<WithheldAttributeName, WithheldAttributeNameTraits> m_withheld_attribute_names;
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };
     StyleAtomID m_html_element_namespace;

@@ -53,6 +53,9 @@ pub(crate) struct HostAtoms {
     names_unread_attr_generation: u64,
     /// What the `attr()`s of the declarations the host handed the engine can read.
     attr_names_read: AttrNamesRead,
+    /// The attribute names the host withheld from the engine as nothing read them, by the raw identities of their local
+    /// names and namespaces, zero for none: once something may read one, the host publishes it for every element.
+    withheld_attribute_names: FastMap<(usize, usize), (RetainedUtf16FlyString, Option<RetainedUtf16FlyString>)>,
 }
 
 /// The other names an attribute name answers to, and the local name an `attr()` reads it by where it is in no namespace.
@@ -82,6 +85,7 @@ impl HostAtoms {
             + set_bytes(&self.names_with_read_value_text)
             + set_bytes(&self.names_read)
             + set_bytes(&self.names_known_unread)
+            + map_bytes(&self.withheld_attribute_names)
     }
 
     /// Forgets the atoms the engine reclaimed, whose numbers may name other names from now on.
@@ -135,6 +139,50 @@ pub(crate) unsafe fn intern(host: &DocumentHost, raw: usize) -> StyleAtomID {
     let atom = adopt(host, lease);
     atoms.borrow_mut().names.insert(raw, (atom, name));
     atom
+}
+
+/// The ASCII-lowercase folding of the ID or class whose raw identity is `raw`, where `fold` and folding changes it. A
+/// quirks-mode document matches IDs and classes ASCII case-insensitively, and a selector there is compiled against the
+/// lowercase folding of its own name, so the name is folded the same way for the two to name one atom.
+///
+/// # Safety
+/// `raw` must be the raw identity of a live `AK::Utf16FlyString`.
+pub(crate) unsafe fn fold_id_or_class(raw: usize, fold: bool) -> Option<ak::Utf16FlyString> {
+    if !fold {
+        return None;
+    }
+    // SAFETY: Guaranteed by the caller.
+    let folded: Vec<u16> = match unsafe { ak::utf16_string_units(&raw) } {
+        ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
+            if !units.iter().any(u8::is_ascii_uppercase) {
+                return None;
+            }
+            units.iter().map(|&unit| u16::from(unit.to_ascii_lowercase())).collect()
+        }
+        ak::Utf16StringUnits::Utf16(units) => {
+            if units.iter().all(|&unit| ascii_lowercase(unit) == unit) {
+                return None;
+            }
+            units.iter().copied().map(ascii_lowercase).collect()
+        }
+    };
+    Some(ak::Utf16FlyString::from_utf16(&folded))
+}
+
+/// The atom an ID or class whose raw identity is `raw` is published under, folded where `fold` (see
+/// [`fold_id_or_class`]).
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread, and `raw` the raw identity of a live
+/// `AK::Utf16FlyString`.
+pub(crate) unsafe fn intern_id_or_class(host: &DocumentHost, raw: usize, fold: bool) -> StyleAtomID {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        match fold_id_or_class(raw, fold) {
+            Some(folded) => intern(host, folded.raw_identity()),
+            None => intern(host, raw),
+        }
+    }
 }
 
 /// The atom of `name` qualified by `namespace`, which the engine adopts as it does a name's.
@@ -212,6 +260,15 @@ pub unsafe extern "C" fn document_host_intern_attribute_name(
     namespace: usize,
 ) -> u32 {
     // SAFETY: Guaranteed by the caller.
+    unsafe { intern_attribute_name(host, local_name, namespace) }.0
+}
+
+/// See [`document_host_intern_attribute_name`].
+///
+/// # Safety
+/// As for [`document_host_intern_attribute_name`].
+pub(crate) unsafe fn intern_attribute_name(host: &DocumentHost, local_name: usize, namespace: usize) -> StyleAtomID {
+    // SAFETY: Guaranteed by the caller.
     let local = unsafe { intern(host, local_name) };
     // SAFETY: Guaranteed by the caller.
     let namespace = if namespace == 0 {
@@ -226,7 +283,7 @@ pub unsafe extern "C" fn document_host_intern_attribute_name(
         .attribute_names
         .get(&(local, namespace))
     {
-        return name.0;
+        return *name;
     }
     let in_namespace = |name| {
         if namespace.is_none() {
@@ -274,7 +331,7 @@ pub unsafe extern "C" fn document_host_intern_attribute_name(
         },
     );
     atoms.attribute_names.insert((local, namespace), name);
-    name.0
+    name
 }
 
 /// Interns the value of an attribute published under `name` whose raw identity is `value`, and hands the engine what
@@ -287,8 +344,16 @@ pub unsafe extern "C" fn document_host_intern_attribute_name(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_intern_attribute_value(host: &DocumentHost, name: u32, value: usize) -> u32 {
     // SAFETY: Guaranteed by the caller.
+    unsafe { intern_attribute_value(host, StyleAtomID(name), value) }.0
+}
+
+/// See [`document_host_intern_attribute_value`].
+///
+/// # Safety
+/// As for [`document_host_intern_attribute_value`].
+pub(crate) unsafe fn intern_attribute_value(host: &DocumentHost, name: StyleAtomID, value: usize) -> StyleAtomID {
+    // SAFETY: Guaranteed by the caller.
     let atom = unsafe { intern(host, value) };
-    let name = StyleAtomID(name);
     if value_text_is_known_unread(host, name) {
         // NB: The atom's entry in `names` holds what it spells for as long as the atom lives.
         host.engine_memo()
@@ -306,7 +371,7 @@ pub unsafe extern "C" fn document_host_intern_attribute_value(host: &DocumentHos
             .borrow_mut()
             .set_attribute_value_text(atom, text);
     }
-    atom.0
+    atom
 }
 
 /// Whether the host knows that nothing reads what the values of the attribute name `name` spell: no selector of the
@@ -376,7 +441,11 @@ pub extern "C" fn document_host_validity_is_known_untested(host: &DocumentHost) 
 /// not know, the host hands the engine each change to the attribute.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_attribute_is_known_unread(host: &DocumentHost, name: u32) -> bool {
-    let name = StyleAtomID(name);
+    attribute_is_known_unread(host, StyleAtomID(name))
+}
+
+/// See [`document_host_attribute_is_known_unread`].
+pub(crate) fn attribute_is_known_unread(host: &DocumentHost, name: StyleAtomID) -> bool {
     // The host knows nothing of the selectors where it queued a rule since its last job.
     if host
         .known_selector_attribute_value_text_requirements_version()
@@ -413,6 +482,70 @@ pub extern "C" fn document_host_attribute_is_known_unread(host: &DocumentHost, n
         atoms.names_known_unread.insert(name);
     }
     !read
+}
+
+/// Notes the attribute in `namespace` called `local_name` as one the host withholds from the engine.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread, `local_name` the raw identity of a live
+/// `AK::Utf16FlyString`, and `namespace` that of a live non-empty one, or zero for no namespace.
+pub(crate) unsafe fn note_attribute_withheld(host: &DocumentHost, local_name: usize, namespace: usize) {
+    let mut atoms = host.engine_memo().atoms.borrow_mut();
+    atoms
+        .withheld_attribute_names
+        .entry((local_name, namespace))
+        .or_insert_with(|| {
+            // SAFETY: Guaranteed by the caller.
+            unsafe {
+                (
+                    RetainedUtf16FlyString::from_borrowed_raw(local_name),
+                    (namespace != 0).then(|| RetainedUtf16FlyString::from_borrowed_raw(namespace)),
+                )
+            }
+        });
+}
+
+/// Hands `append` the local name and namespace, zero for none, of each attribute name the host withheld from the engine
+/// that something of the engine may read now, which the host withholds no longer. What the host knows of the engine's
+/// selectors is brought up to date first, where it withheld any name.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread, and `append` must take each name synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_take_withheld_attribute_names_now_read(
+    host: &DocumentHost,
+    read: &BegunRead,
+    context: *mut std::ffi::c_void,
+    append: unsafe extern "C" fn(*mut std::ffi::c_void, usize, usize),
+) {
+    let withheld: Vec<(usize, usize)> = host
+        .engine_memo()
+        .atoms
+        .borrow()
+        .withheld_attribute_names
+        .keys()
+        .copied()
+        .collect();
+    if withheld.is_empty() {
+        return;
+    }
+    document_host_learn_selector_requirements(host, read);
+    for (local_name, namespace) in withheld {
+        // SAFETY: The host holds a reference to each name it withheld.
+        let name = unsafe { intern_attribute_name(host, local_name, namespace) };
+        if attribute_is_known_unread(host, name) {
+            continue;
+        }
+        let names = host
+            .engine_memo()
+            .atoms
+            .borrow_mut()
+            .withheld_attribute_names
+            .remove(&(local_name, namespace));
+        // SAFETY: Guaranteed by the caller. The names live until the entry is dropped after the call.
+        unsafe { append(context, local_name, namespace) };
+        drop(names);
+    }
 }
 
 /// Notes what the `attr()`s of the declarations `change` hands the engine can read. Every write of the host goes through
@@ -469,6 +602,7 @@ pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &Arena
             | Engine::MintStyleNodes(_)
             | Engine::ElementUniqueNodeIds(_)
             | Engine::TextArrivals(_)
+            | Engine::DomOrderLinks(_)
             | Engine::EndStyleUpdate { .. }
             | Engine::Publish(_)
             | Engine::MoveHover(_)
@@ -478,6 +612,7 @@ pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &Arena
             | Engine::BoxKindChange { .. }
             | Engine::RetireTexts(_)
             | Engine::TreeScopeRoot { .. }
+            | Engine::ElementIdName { .. }
             | Engine::TextData { .. }
             | Engine::AdoptAtom(_)
             | Engine::ParkRandomBaseValues { .. }

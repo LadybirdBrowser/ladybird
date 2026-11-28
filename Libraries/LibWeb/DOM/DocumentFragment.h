@@ -37,7 +37,6 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-private:
     RustFFI::DocumentFragmentCore m_document_fragment_core;
 };
 

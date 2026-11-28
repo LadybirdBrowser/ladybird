@@ -6843,7 +6843,7 @@ void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_cont
 
 void Document::set_style_node_id(CSS::StyleNodeID style_node_id)
 {
-    m_style_node_id = style_node_id;
+    m_core.style_node_id = style_node_id;
     // The identity may have named a node that has since left, and the layout arena keys layout tree update marks by
     // identity alone, so the document starts with none.
     if (m_layout_node_arena && style_node_id != 0)

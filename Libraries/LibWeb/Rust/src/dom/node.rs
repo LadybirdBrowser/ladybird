@@ -22,6 +22,7 @@ use super::node_core::NodeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::strings::StringField;
+use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
 
 /// This library's copy of LibGC's heap region base, which compressed cell pointers are offsets from. LibGC fills it in
@@ -170,16 +171,28 @@ impl<'a> Node<'a> {
     /// https://dom.spec.whatwg.org/#concept-documentfragment-host
     #[inline(always)]
     pub fn host(self) -> Option<Node<'a>> {
+        // NB: An element starts with its node, which DocumentFragment::set_host() verifies, so the core names the host
+        //     as a node.
+        self.follow(self.fragment_core().host())
+    }
+
+    /// The style engine's number for the tree scope of a shadow root, which DOM::DocumentFragment keeps in its core.
+    #[inline(always)]
+    pub fn style_engine_tree_scope(self) -> TreeScopeID {
+        assert!(self.is_shadow_root());
+        self.fragment_core().style_engine_tree_scope()
+    }
+
+    #[inline(always)]
+    fn fragment_core(self) -> &'a DocumentFragmentCore {
         assert!(self.node_type() == NodeType::DOCUMENT_FRAGMENT_NODE);
         // SAFETY: Every DocumentFragment embeds its core DOCUMENT_FRAGMENT_CORE_OFFSET bytes into its cell, which
-        //         DocumentFragment.cpp asserts. An element starts with its node, which DocumentFragment::set_host()
-        //         verifies, so the core names the host as a node.
-        let core = unsafe {
+        //         DocumentFragment.cpp asserts.
+        unsafe {
             &*(self.cell as *const NodeCell)
                 .byte_add(DOCUMENT_FRAGMENT_CORE_OFFSET)
                 .cast::<DocumentFragmentCore>()
-        };
-        self.follow(core.host())
+        }
     }
 
     /// https://dom.spec.whatwg.org/#concept-tree-parent

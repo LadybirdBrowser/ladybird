@@ -596,31 +596,20 @@ pub struct FfiTreeDelta {
     pub new_relations: FfiTreeRelations,
 }
 
-/// Selector-visible facts which exist when one style node first joins the tree, all of which its
-/// projection row takes in one write. The variable-width lists occupy one shared atom column, from
-/// this row's offset on: its custom states, then its classes, then its attributes as name and value
-/// atom pairs.
+/// The selector-visible facts an element arrives with that the host gathers, all of which its projection row takes in
+/// one write with those read from the element itself (see `dom_inputs`). Its custom states occupy a shared atom column,
+/// from this row's offset on.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiElementArrival {
     /// The element's states, a bit per `FfiStateFact`.
     pub states: u64,
     pub node: u32,
-    pub tag_atom: u32,
-    /// The ASCII-lowercase folding of the tag, or the tag itself where folding leaves it as it is.
-    pub folded_tag_atom: u32,
-    /// The element's ID, or zero for none.
-    pub id_atom: u32,
-    pub namespace_atom: u32,
     pub language_atom: u32,
     pub directionality_atom: u32,
     pub custom_state_count: u32,
-    pub class_count: u32,
-    pub attribute_count: u32,
     pub heading_level: u8,
     pub is_slot: bool,
-    /// Whether a text child keeps the element from being `:empty`.
-    pub has_text_content: bool,
     /// One plus the element-backed pseudo-element kind the element stands for in its host's
     /// shadow tree, or zero.
     pub associated_pseudo_kind_plus_one: u8,
@@ -1065,22 +1054,35 @@ impl super::projection_writes::ProjectionWrites<'_> {
         self.record_tree_delta(node, old, new);
     }
 
-    /// Write the arrival the host published as `arrival`, whose custom states, classes and attribute pairs come next
+    /// Write the arrival a test publishes as `test_arrival`, whose custom states, classes and attribute pairs come next
     /// in `atoms`, the shared atom column.
     #[cfg(test)]
-    pub(crate) fn record_ffi_element_arrival(&mut self, arrival: &FfiElementArrival, atoms: &mut &[u32]) {
+    pub(crate) fn record_test_element_arrival(&mut self, test_arrival: &TestElementArrival, atoms: &mut &[u32]) {
+        let arrival = &test_arrival.arrival;
         let Some(node) = StyleNodeID::from_raw(arrival.node) else {
             debug_assert!(false, "an element arrival named an invalid style node");
             return;
         };
-        let count =
-            arrival.custom_state_count as usize + arrival.class_count as usize + 2 * arrival.attribute_count as usize;
+        let count = arrival.custom_state_count as usize
+            + test_arrival.class_count as usize
+            + 2 * test_arrival.attribute_count as usize;
         let Some((arrival_atoms, rest)) = atoms.split_at_checked(count) else {
             debug_assert!(false, "an element arrival named atoms outside the shared atom column");
             return;
         };
         *atoms = rest;
-        self.record_element_arrival(node, arrival, arrival_atoms, None);
+        let (custom_states, rest) = arrival_atoms.split_at(arrival.custom_state_count as usize);
+        let (classes, attributes) = rest.split_at(test_arrival.class_count as usize);
+        let element = super::projection_writes::ElementArrivalFacts {
+            tag: StyleAtomID(test_arrival.tag_atom),
+            folded_tag: StyleAtomID(test_arrival.folded_tag_atom),
+            namespace: StyleAtomID(test_arrival.namespace_atom),
+            id: StyleAtomID(test_arrival.id_atom),
+            has_text_content: test_arrival.has_text_content,
+            classes: StyleAtomID::slice_of_raw(classes),
+            attributes: super::index::AttributeFact::slice_of_raw(attributes.as_chunks::<2>().0),
+        };
+        self.record_element_arrival(node, arrival, &element, custom_states, None);
     }
 
     /// Write the local fact the host published as `delta`.
@@ -1115,6 +1117,21 @@ fn decode_element_declaration_kind(kind: FfiElementDeclarationKind) -> ElementDe
     }
 }
 
+/// An element's arrival as a test publishes it: what the host gathers, and the facts read from the element itself, whose
+/// classes and attribute pairs follow its custom states in the shared atom column.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub struct TestElementArrival {
+    pub arrival: FfiElementArrival,
+    pub tag_atom: u32,
+    pub folded_tag_atom: u32,
+    pub id_atom: u32,
+    pub namespace_atom: u32,
+    pub class_count: u32,
+    pub attribute_count: u32,
+    pub has_text_content: bool,
+}
+
 impl StyleEngine {
     /// Apply one flat transaction as a test's host would publish it at one barrier: its tree deltas in order, then its
     /// arrivals, local facts and states, then its declarations and style inputs.
@@ -1123,7 +1140,7 @@ impl StyleEngine {
     pub fn apply_transaction_batch(
         &mut self,
         tree_deltas: &[FfiTreeDelta],
-        arrival_columns: (&[FfiElementArrival], &[u32]),
+        arrival_columns: (&[TestElementArrival], &[u32]),
         local_feature_deltas: &[FfiLocalFeatureDelta],
         state_deltas: &[FfiStateDelta],
         element_declaration_deltas: &[FfiElementDeclarationDelta],
@@ -1135,7 +1152,7 @@ impl StyleEngine {
                 writes.record_ffi_tree_delta(delta);
             }
             for arrival in element_arrivals {
-                writes.record_ffi_element_arrival(arrival, &mut arrival_atoms);
+                writes.record_test_element_arrival(arrival, &mut arrival_atoms);
             }
             for delta in local_feature_deltas {
                 writes.record_ffi_local_feature(delta);
@@ -1144,7 +1161,7 @@ impl StyleEngine {
                 writes.record_ffi_state(delta);
             }
         });
-        for arrival in element_arrivals {
+        for TestElementArrival { arrival, .. } in element_arrivals {
             if let Some(node) = StyleNodeID::from_raw(arrival.node)
                 && arrival.associated_pseudo_kind_plus_one != 0
             {
@@ -1893,7 +1910,7 @@ mod tests {
 
     #[test]
     fn element_arrival_rows_install_intrinsic_facts() {
-        assert_eq!(size_of::<FfiElementArrival>(), 64);
+        assert_eq!(size_of::<FfiElementArrival>(), 40);
         let mut engine = StyleEngine::new();
         let mut nodes = [0_u32; 2];
         engine.allocate_style_nodes(&mut nodes);
@@ -1917,29 +1934,35 @@ mod tests {
             },
         ];
         let arrivals = [
-            FfiElementArrival {
-                node: nodes[0],
+            TestElementArrival {
+                arrival: FfiElementArrival {
+                    node: nodes[0],
+                    language_atom: 12,
+                    directionality_atom: 13,
+                    custom_state_count: 2,
+                    heading_level: 4,
+                    is_slot: true,
+                    states: 1 << StateFact::Checked as u32,
+                    ..arrival_for(0, 0).arrival
+                },
                 tag_atom: 41,
                 folded_tag_atom: 42,
                 namespace_atom: 11,
-                language_atom: 12,
-                directionality_atom: 13,
-                custom_state_count: 2,
                 class_count: 2,
                 attribute_count: 1,
-                heading_level: 4,
-                is_slot: true,
-                states: 1 << StateFact::Checked as u32,
                 ..arrival_for(0, 0)
             },
-            FfiElementArrival {
-                node: nodes[1],
+            TestElementArrival {
+                arrival: FfiElementArrival {
+                    node: nodes[1],
+                    language_atom: 22,
+                    directionality_atom: 23,
+                    custom_state_count: 1,
+                    ..arrival_for(0, 0).arrival
+                },
                 tag_atom: 51,
                 folded_tag_atom: 51,
                 namespace_atom: 21,
-                language_atom: 22,
-                directionality_atom: 23,
-                custom_state_count: 1,
                 has_text_content: true,
                 ..arrival_for(0, 0)
             },
@@ -1977,26 +2000,28 @@ mod tests {
         engine.release_transaction(transaction);
     }
 
-    fn arrival_for(node: u32, custom_state_count: u32) -> FfiElementArrival {
-        FfiElementArrival {
-            states: 0,
-            node,
+    fn arrival_for(node: u32, custom_state_count: u32) -> TestElementArrival {
+        TestElementArrival {
+            arrival: FfiElementArrival {
+                states: 0,
+                node,
+                language_atom: 2,
+                directionality_atom: 3,
+                custom_state_count,
+                adjustment_facts: 0,
+                construction_facts: 0,
+                heading_level: 0,
+                is_slot: false,
+                associated_pseudo_kind_plus_one: 0,
+                box_kind: ElementBoxKind::FromDisplay,
+            },
             tag_atom: 4,
             folded_tag_atom: 4,
             id_atom: 0,
             namespace_atom: 1,
-            language_atom: 2,
-            directionality_atom: 3,
-            custom_state_count,
             class_count: 0,
             attribute_count: 0,
-            adjustment_facts: 0,
-            construction_facts: 0,
-            heading_level: 0,
-            is_slot: false,
             has_text_content: false,
-            associated_pseudo_kind_plus_one: 0,
-            box_kind: ElementBoxKind::FromDisplay,
         }
     }
 
@@ -2013,7 +2038,7 @@ mod tests {
         let mut engine = StyleEngine::new();
         let mut nodes = [0];
         engine.allocate_style_nodes(&mut nodes);
-        let arrival = FfiElementArrival {
+        let arrival = TestElementArrival {
             attribute_count: 1,
             ..arrival_for(nodes[0], 0)
         };

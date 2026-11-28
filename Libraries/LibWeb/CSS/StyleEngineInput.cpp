@@ -75,7 +75,6 @@ static void record_element_inline_style_properties(DOM::Element&);
 static void record_heading_levels_in_subtree(DOM::Element&);
 static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>>);
 static Optional<StyleEngineFFI::FfiStateFact> state_fact_for(PseudoClass);
-static StyleAtomID intern_id_or_class_atom(StyleEngine&, DOM::Element const&, Utf16FlyString const&);
 static u32 element_construction_facts(DOM::Element const&);
 static u32 element_style_adjustment_facts(DOM::Element const&);
 static void publish_element_replaced_content_input(DOM::Element&, StyleEngine&);
@@ -115,46 +114,10 @@ static StyleNodeID identity_of(GC::Ptr<DOM::Element> element)
     return element->style_node_id();
 }
 
-// The identity a node holds in the DOM child sequence the style tree keeps beside its element-only relations. Elements
-// and text nodes are its members; comments and processing instructions never reach style or layout, so they hold no
-// place in it.
-static StyleNodeID dom_order_identity_of(DOM::Node const& node)
+// The identity of the slot the element is assigned to, or none.
+static StyleNodeID assigned_slot_identity_of(DOM::Element const& element)
 {
-    if (auto const* element = as_if<DOM::Element>(node))
-        return element->style_node_id();
-    if (auto const* text = as_if<DOM::Text>(node))
-        return text->style_node_id();
-    return no_style_node;
-}
-
-// An element, a shadow root or the document owns a child sequence. Every other node is only ever a member of one.
-static StyleNodeID dom_order_parent_of(DOM::Node const* parent)
-{
-    if (auto const* element = as_if<DOM::Element>(parent))
-        return element->style_node_id();
-    if (auto const* shadow_root = as_if<DOM::ShadowRoot>(parent))
-        return shadow_root->style_node_id();
-    if (auto const* document = as_if<DOM::Document>(parent))
-        return document->style_node_id();
-    return no_style_node;
-}
-
-// Appends the (node, parent, previous sibling) triple that links the node into its parent's child sequence.
-static void append_dom_order_link(Vector<u32, 192>& links, DOM::Node const& node)
-{
-    auto previous = no_style_node;
-    for (auto const* sibling = node.previous_sibling(); sibling && previous == no_style_node; sibling = sibling->previous_sibling())
-        previous = dom_order_identity_of(*sibling);
-    links.append(dom_order_identity_of(node).value());
-    links.append(dom_order_parent_of(node.parent()).value());
-    links.append(previous.value());
-}
-
-static void link_in_dom_order(StyleEngine& style_engine, DOM::Node const& node)
-{
-    Vector<u32, 192> links;
-    append_dom_order_link(links, node);
-    StyleEngineFFI::style_engine_link_style_nodes_in_dom_order(style_engine.host(), links.span());
+    return identity_of(element.assigned_slot_internal());
 }
 
 // A shadow root's identity, minted on first use.
@@ -233,65 +196,12 @@ TreeScopeID style_engine_tree_scope_for(DOM::Node& document_or_shadow_root)
     return tree_scope_of(document_or_shadow_root);
 }
 
-// The style-tree parent of an element: its parent element, or the shadow root it is a top-level
-// child of.
-static StyleNodeID style_tree_parent_of(DOM::Element& element, StyleEngine& style_engine)
+// A shadow root is the style-tree parent of its top-level children, and takes its identity and its link to its host as
+// they name it. The engine reads every other relation of an element from the DOM itself.
+static void identify_style_tree_parent_of(DOM::Element& element, StyleEngine& style_engine)
 {
-    if (auto parent = element.parent_element())
-        return parent->style_node_id();
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent()))
-        return identity_of_shadow_root(*shadow_root, style_engine);
-    return no_style_node;
-}
-
-// The engine's tree is the DOM without the subtrees still waiting to arrive, so a sibling relation
-// names the nearest sibling that has arrived, starting at `element`. While arrivals are taken in,
-// every waiting node already has its identity, and that is the sibling itself.
-static StyleNodeID identity_of_arrived_previous_sibling(GC::Ptr<DOM::Element> element)
-{
-    for (; element; element = element->previous_element_sibling()) {
-        if (element->style_node_id() != no_style_node)
-            return element->style_node_id();
-    }
-    return no_style_node;
-}
-
-static StyleNodeID identity_of_arrived_next_sibling(GC::Ptr<DOM::Element> element)
-{
-    for (; element; element = element->next_element_sibling()) {
-        if (element->style_node_id() != no_style_node)
-            return element->style_node_id();
-    }
-    return no_style_node;
-}
-
-// A subtree leaves in tree order, so below its root every previous sibling has already departed and
-// none is left to name. Scanning past them would make removing a wide subtree quadratic.
-enum class PreviousSiblings {
-    Arrived,
-    Departed,
-};
-
-static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope, PreviousSiblings previous_siblings = PreviousSiblings::Arrived)
-{
-    auto assigned_slot = no_style_node;
-    if (auto slot = element.assigned_slot_internal())
-        assigned_slot = slot->style_node_id();
-
-    return StyleEngineFFI::FfiTreeRelations {
-        .parent = style_tree_parent_of(element, style_engine).value(),
-        .previous_element_sibling = previous_siblings == PreviousSiblings::Departed
-            ? no_style_node.value()
-            : identity_of_arrived_previous_sibling(element.previous_element_sibling()).value(),
-        .next_element_sibling = identity_of_arrived_next_sibling(element.next_element_sibling()).value(),
-        .tree_scope = tree_scope.value(),
-        .assigned_slot = assigned_slot.value(),
-    };
-}
-
-static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine)
-{
-    return relations_of(element, style_engine, tree_scope_of(element.root()));
+        (void)identity_of_shadow_root(*shadow_root, style_engine);
 }
 
 static void record_feature(
@@ -300,30 +210,6 @@ static void record_feature(
     StyleAtomID name_atom,
     StyleEngineFFI::FfiFeatureValueKind new_kind,
     StyleAtomID new_atom);
-
-static StyleEngineFFI::FfiTreeRelations detached_relations()
-{
-    return StyleEngineFFI::FfiTreeRelations {
-        .parent = no_style_node.value(),
-        .previous_element_sibling = no_style_node.value(),
-        .next_element_sibling = no_style_node.value(),
-        .tree_scope = 0,
-        .assigned_slot = no_style_node.value(),
-    };
-}
-
-// An element that stays in the tree moves from one set of relations to another. Its delta takes the relinking path
-// rather than the neighbor one, which is the only one that updates the engine's relation columns.
-static void record_element_relinked(StyleEngine& style_engine, StyleNodeID node, StyleEngineFFI::FfiTreeRelations const& old_relations, StyleEngineFFI::FfiTreeRelations const& new_relations)
-{
-    style_engine.record_tree_delta({
-        .node = node.value(),
-        .old_connected = true,
-        .new_connected = true,
-        .old_relations = old_relations,
-        .new_relations = new_relations,
-    });
-}
 
 // How many nodes ahead a loop over a big list of nodes asks for their memory.
 static constexpr size_t nodes_ahead = 8;
@@ -571,8 +457,7 @@ void record_text_data_changed(DOM::Text& text)
     auto* style_engine = style_engine_for(text);
     if (!style_engine || text.style_node_id() == no_style_node)
         return;
-    StyleEngineFFI::style_engine_set_text_data(style_engine->host(), text.style_node_id().value(), text.data().to_raw_leaked());
-    StyleEngineFFI::style_engine_set_text_is_ascii_whitespace(style_engine->host(), text.style_node_id(), text.data().is_ascii_whitespace());
+    StyleEngineFFI::style_engine_set_text_data(style_engine->host(), text.style_node_id().value(), &text);
 }
 
 // The document's identity, minted before anything connects under it.
@@ -635,9 +520,6 @@ static u32 open_construction_facts(DOM::Element const&, ElementOpenFacts, bool i
 // and only what the name leaves open is asked of each.
 struct ElementKind {
     DOM::QualifiedName::Impl const* name { nullptr };
-    StyleAtomID tag_atom;
-    StyleAtomID folded_tag_atom;
-    StyleAtomID namespace_atom;
     u32 adjustment_facts { 0 };
     u32 construction_facts { 0 };
     ElementOpenFacts open_facts { ElementOpenFacts::None };
@@ -645,35 +527,17 @@ struct ElementKind {
     bool is_slot { false };
 };
 
-static ElementKind element_kind_of(StyleEngine& style_engine, DOM::Element const& element)
+static ElementKind element_kind_of(DOM::Element const& element)
 {
-    auto tag_atom = style_engine.intern_atom(element.local_name());
-    ElementKind kind {
+    return ElementKind {
         .name = element.qualified_name_identity(),
-        .tag_atom = tag_atom,
-        .folded_tag_atom = tag_atom,
-        .namespace_atom = {},
         .adjustment_facts = kind_style_adjustment_facts(element),
         .construction_facts = kind_construction_facts(element),
         .open_facts = element_open_facts(element),
         .state_questions = SelectorMatching::element_state_questions(element),
         .is_slot = is<HTML::HTMLSlotElement>(element),
     };
-    if (auto folded_name = element.local_name().to_ascii_lowercase(); folded_name != element.local_name())
-        kind.folded_tag_atom = style_engine.intern_atom(folded_name);
-    if (auto const& namespace_uri = element.namespace_uri(); namespace_uri.has_value() && !namespace_uri->is_empty())
-        kind.namespace_atom = style_engine.intern_atom(*namespace_uri);
-    return kind;
 }
-
-// What one attribute name settles, which is the same on every element that has it.
-struct PublishedAttributeName {
-    DOM::QualifiedName::Impl const* name { nullptr };
-    StyleAtomID atom;
-    bool is_known_unread { false };
-    bool is_lang { false };
-    bool is_dir { false };
-};
 
 // A table a batch keeps of what it found out by name. Names repeat, so a slot a name shares with another only costs
 // asking again.
@@ -710,6 +574,7 @@ public:
 
     ElementPublication(StyleEngine& style_engine, DOM::Document const& document)
         : m_style_engine(style_engine)
+        , m_folds_ids_and_classes(document.in_quirks_mode())
         , m_focus_within_chain(document)
         , m_hovered_element(hovered_element_of(document.hovered_node()))
         , m_ltr_atom(style_engine.intern_atom("ltr"_utf16_fly_string))
@@ -729,26 +594,8 @@ public:
     {
         auto& kind = m_kinds.slot_of(element.qualified_name_identity());
         if (kind.name != element.qualified_name_identity())
-            kind = element_kind_of(m_style_engine, element);
+            kind = element_kind_of(element);
         return kind;
-    }
-
-    PublishedAttributeName const& attribute_name(DOM::QualifiedName const& name)
-    {
-        auto& slot = m_attribute_names.slot_of(name.identity());
-        if (slot.name == name.identity())
-            return slot;
-        auto atom = m_style_engine.intern_attribute_name(name.local_name(), name.namespace_());
-        slot = {
-            .name = name.identity(),
-            .atom = atom,
-            .is_known_unread = m_style_engine.attribute_is_known_unread(atom),
-            .is_lang = name.local_name() == HTML::AttributeNames::lang,
-            .is_dir = name.local_name() == HTML::AttributeNames::dir,
-        };
-        if (slot.is_known_unread)
-            m_style_engine.note_attribute_withheld(name.local_name(), name.namespace_());
-        return slot;
     }
 
     // What the element's parent passes on, if it has one. Elements come mostly in tree order, so most parents were
@@ -786,8 +633,8 @@ public:
         return language.has_value() ? m_style_engine.intern_language_atom(*language) : StyleAtomID {};
     }
 
-    // Where the next row's custom states, classes and attributes go, in that order.
-    Vector<u32, 512>& atoms() { return m_atoms; }
+    // Where the next row's custom states go.
+    Vector<u32, 512>& custom_states() { return m_custom_states; }
 
     void append_row(DOM::Element& element, StyleEngineFFI::FfiElementArrivalRow const& row)
     {
@@ -800,9 +647,9 @@ public:
     // Writes the rows of the block, and answers its elements for what follows the rows.
     ReadonlySpan<GC::Ref<DOM::Element>> write_block()
     {
-        m_style_engine.record_element_arrival_rows(m_rows.span(), m_atoms.span());
+        m_style_engine.record_element_arrival_rows(m_rows.span(), m_custom_states.span(), m_folds_ids_and_classes);
         m_rows.clear_with_capacity();
-        m_atoms.clear_with_capacity();
+        m_custom_states.clear_with_capacity();
         return m_elements.span();
     }
 
@@ -826,16 +673,16 @@ private:
     };
 
     StyleEngine& m_style_engine;
+    bool m_folds_ids_and_classes { false };
     SelectorMatching::FocusWithinChain m_focus_within_chain;
     GC::Ptr<DOM::Element const> m_hovered_element;
     StyleAtomID m_ltr_atom;
     StyleAtomID m_rtl_atom;
     TableByName<ElementKind, 64> m_kinds;
-    TableByName<PublishedAttributeName, 32> m_attribute_names;
     GC::RootVector<AncestorRow, 32> m_elements_to_parent;
     GC::RootVector<GC::Ref<DOM::Element>> m_elements_asked_their_language;
     Vector<StyleEngineFFI::FfiElementArrivalRow> m_rows;
-    Vector<u32, 512> m_atoms;
+    Vector<u32, 512> m_custom_states;
     GC::RootVector<GC::Ref<DOM::Element>> m_elements;
 };
 
@@ -928,9 +775,8 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
             text.set_style_node_id(identities[i]);
             style_computer.register_style_node(identities[i], text);
             texts.unchecked_append({
-                .data = text.data().to_raw_leaked(),
+                .text = &text,
                 .node = identities[i].value(),
-                .is_ascii_whitespace = text.data().is_ascii_whitespace(),
                 .is_in_user_agent_shadow_tree = text_is_in_user_agent_shadow_tree(text),
                 .is_password_input = text.is_password_input(),
             });
@@ -981,10 +827,11 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
             // a `:host` or `::slotted()` rule in that tree reach the host instead of the document.
             if (auto shadow_root = element->shadow_root(); shadow_root && shadow_root->style_node_id() != no_style_node)
                 StyleEngineFFI::style_engine_set_shadow_root(style_engine.host(), element->style_node_id(), shadow_root->style_node_id());
+            identify_style_tree_parent_of(*element, style_engine);
             StyleEngineFFI::FfiArrivingElement arriving {
+                .element = element,
                 .unique_node_id = static_cast<u64>(element->unique_id().value()),
-                .node = element->style_node_id().value(),
-                .relations = relations_of(*element, style_engine, arrival.tree_scope),
+                .assigned_slot = assigned_slot_identity_of(*element).value(),
             };
             if (publication && element->is_connected()) {
                 style_engine.note_element_awaiting_preparation_for_style_computation(*element);
@@ -1003,14 +850,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
 
     if (dom_order_arrivals.is_empty())
         return;
-    Vector<u32, 192> links;
-    links.ensure_capacity(dom_order_arrivals.size() * 3);
-    for (size_t index = 0; index < dom_order_arrivals.size(); ++index) {
-        if (index + nodes_ahead < dom_order_arrivals.size())
-            prefetch_node(*dom_order_arrivals[index + nodes_ahead]);
-        append_dom_order_link(links, dom_order_arrivals[index]);
-    }
-    StyleEngineFFI::style_engine_link_style_nodes_in_dom_order(style_engine.host(), links.span());
+    StyleEngineFFI::style_engine_link_nodes_in_dom_order(style_engine.host(), dom_order_arrivals.span());
 
     republish_assigned_slots_of(dom_order_arrivals);
 
@@ -1307,41 +1147,24 @@ static u8 associated_pseudo_kind_plus_one(DOM::Element const& element)
 static void publish_element_selector_features(StyleEngine& style_engine, DOM::Element& element, ElementPublication& publication, Optional<StyleEngineFFI::FfiArrivingElement const&> arriving)
 {
     auto node = element.style_node_id();
-    // Everything the element's selectors test arrives as one row, which the engine writes in one go.
+    // Everything the element's selectors test arrives as one row, which the engine writes in one go, reading the
+    // element's name, ID, classes and attributes, and whether a text child keeps it from being `:empty`, itself.
     // Slot identity and namespace never change during an element's lifetime.
     auto const& kind = publication.kind_of(element);
-    StyleAtomID id_atom;
-    if (auto const& id = element.id(); id.has_value())
-        id_atom = intern_id_or_class_atom(style_engine, element, *id);
-    auto& atoms = publication.atoms();
-    auto atoms_before = atoms.size();
+    auto& custom_states = publication.custom_states();
+    auto custom_states_before = custom_states.size();
     if (auto states = element.custom_state_set()) {
         for (auto const& state : states->states())
-            atoms.append(style_engine.intern_atom(state).value());
+            custom_states.append(style_engine.intern_atom(state).value());
     }
-    auto custom_state_count = atoms.size() - atoms_before;
-    for (auto const& class_name : element.class_names())
-        atoms.append(intern_id_or_class_atom(style_engine, element, class_name).value());
-    auto class_count = atoms.size() - atoms_before - custom_state_count;
+    auto custom_state_count = custom_states.size() - custom_states_before;
+    // NB: Reading the attribute list also writes a style attribute whose declarations changed since, so that the
+    //     engine reads the attribute as it is.
     bool has_own_language = false;
     bool has_own_directionality = has_flag(kind.open_facts, ElementOpenFacts::OwnDirectionality);
-    for (auto const& [name, value] : element.attribute_list()) {
-        auto const& attribute_name = publication.attribute_name(name);
-        has_own_language |= attribute_name.is_lang;
-        has_own_directionality |= attribute_name.is_dir;
-        if (attribute_name.is_known_unread)
-            continue;
-        atoms.append(attribute_name.atom.value());
-        atoms.append(style_engine.intern_attribute_value(attribute_name.atom, value).value());
-    }
-    auto attribute_count = (atoms.size() - atoms_before - custom_state_count - class_count) / 2;
-
-    bool has_nonempty_text_child = false;
-    for (GC::Ptr<DOM::Node const> child = element.first_child(); child; child = child->next_sibling()) {
-        if (GC::Ptr<DOM::Text const> text = as_if<DOM::Text>(*child); text && !text->data().is_empty()) {
-            has_nonempty_text_child = true;
-            break;
-        }
+    for (auto const& attribute : element.attribute_list()) {
+        has_own_language |= attribute.name.local_name() == HTML::AttributeNames::lang;
+        has_own_directionality |= attribute.name.local_name() == HTML::AttributeNames::dir;
     }
 
     auto ask_local_link = SelectorMatching::AskLocalLink::Yes;
@@ -1385,28 +1208,22 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
         heading_level = static_cast<u8>(min(as<HTML::HTMLHeadingElement>(element).heading_level(), 255u));
 
     publication.append_row(element, {
+                                        .element = &element,
                                         .arrival = {
                                             .states = state_bits,
                                             .node = node.value(),
-                                            .tag_atom = kind.tag_atom.value(),
-                                            .folded_tag_atom = kind.folded_tag_atom.value(),
-                                            .id_atom = id_atom.value(),
-                                            .namespace_atom = kind.namespace_atom.value(),
                                             .language_atom = own.language_atom.value(),
                                             .directionality_atom = publication.directionality_atom(own.directionality).value(),
                                             .custom_state_count = static_cast<u32>(custom_state_count),
-                                            .class_count = static_cast<u32>(class_count),
-                                            .attribute_count = static_cast<u32>(attribute_count),
                                             .heading_level = heading_level,
                                             .is_slot = kind.is_slot,
-                                            .has_text_content = has_nonempty_text_child,
                                             .associated_pseudo_kind_plus_one = associated_pseudo_kind_plus_one(element),
                                             .box_kind = to_underlying(box_kind_for_layout(element)),
                                             .adjustment_facts = kind.adjustment_facts | open_style_adjustment_facts(element, kind.open_facts),
                                             .construction_facts = kind.construction_facts | open_construction_facts(element, kind.open_facts, own.is_in_user_agent_shadow_tree),
                                         },
                                         .unique_node_id = arriving.has_value() ? arriving->unique_node_id : 0,
-                                        .relations = arriving.has_value() ? arriving->relations : detached_relations(),
+                                        .assigned_slot = arriving.has_value() ? arriving->assigned_slot : no_style_node.value(),
                                         .has_relations = arriving.has_value(),
                                     });
 }
@@ -2042,16 +1859,6 @@ void publish_withheld_element_features(StyleEngine& style_engine, StyleComputer&
     });
 }
 
-// The atom an id or class name is published under. A quirks-mode document matches those selectors
-// ASCII case-insensitively, and a selector there is compiled against the lowercase folding of its
-// own name, so an element's name has to be folded the same way for the two to name one atom.
-static StyleAtomID intern_id_or_class_atom(StyleEngine& style_engine, DOM::Element const& element, Utf16FlyString const& name)
-{
-    if (element.document().in_quirks_mode())
-        return style_engine.intern_atom(name.to_ascii_lowercase());
-    return style_engine.intern_atom(name);
-}
-
 // Writes the block of rows the publication gathered, and what is published of their elements beside their rows.
 static void finish_element_publication(StyleEngine& style_engine, ElementPublication& publication)
 {
@@ -2059,8 +1866,6 @@ static void finish_element_publication(StyleEngine& style_engine, ElementPublica
         // The hover follows the element the events hover to where it arrives, the place a move took it to.
         if (element.ptr() == publication.hovered_element())
             style_engine.record_hover(element->style_node_id());
-        if (auto const& id = element->id(); id.has_value())
-            StyleEngineFFI::style_engine_set_element_id_name(style_engine.host(), element->style_node_id(), style_engine.intern_atom(*id));
         if (!element->part_names().is_empty())
             record_element_parts_changed(element);
         if (element->has_inline_style_declarations())
@@ -2114,12 +1919,13 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
 void record_node_moved_in_dom_order(DOM::Node& node, DOM::Node const& old_parent)
 {
     auto* style_engine = style_engine_for(node);
-    auto identity = dom_order_identity_of(node);
+    auto identity = node.style_node_id();
     if (!style_engine || identity == no_style_node)
         return;
-    StyleEngineFFI::style_engine_unlink_style_node_from_dom_order(style_engine->host(), identity, dom_order_parent_of(&old_parent));
+    StyleEngineFFI::style_engine_unlink_style_node_from_dom_order(style_engine->host(), identity, old_parent.style_node_id());
     ensure_dom_order_parent_identity(node.parent(), *style_engine);
-    link_in_dom_order(*style_engine, node);
+    GC::Ref<DOM::Node> nodes[] { node };
+    StyleEngineFFI::style_engine_link_nodes_in_dom_order(style_engine->host(), nodes);
 }
 
 void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling, DOM::Element* old_assigned_slot)
@@ -2128,21 +1934,16 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
     if (!style_engine)
         return;
 
-    auto relations = relations_of(element, *style_engine);
-    auto previous = relations;
-    // The parent the element left is a node of the style tree whether or not it is an element: a
-    // shadow root is one, and reporting no parent at all would say the element crossed out of the
-    // tree rather than moved inside it.
-    previous.parent = no_style_node.value();
-    if (auto* old_parent_element = as_if<DOM::Element>(old_parent))
-        previous.parent = old_parent_element->style_node_id().value();
-    else if (auto* old_shadow_root = as_if<DOM::ShadowRoot>(old_parent))
-        previous.parent = old_shadow_root->style_node_id().value();
-    previous.previous_element_sibling = identity_of_arrived_previous_sibling(old_previous_sibling).value();
-    previous.next_element_sibling = identity_of_arrived_next_sibling(old_next_sibling).value();
-    previous.assigned_slot = identity_of(old_assigned_slot).value();
-    if (old_parent)
-        previous.tree_scope = tree_scope_of(old_parent->root()).value();
+    identify_style_tree_parent_of(element, *style_engine);
+    StyleEngineFFI::FfiOldPlace old_place {
+        .parent = old_parent,
+        .previous_sibling = old_previous_sibling,
+        .next_sibling = old_next_sibling,
+        .assigned_slot = identity_of(old_assigned_slot).value(),
+    };
+    auto delta = StyleEngineFFI::style_engine_element_move(style_engine->host(), &element, assigned_slot_identity_of(element).value(), &old_place);
+    auto const& previous = delta.old_relations;
+    auto const& relations = delta.new_relations;
     if (previous.parent == relations.parent
         && previous.previous_element_sibling == relations.previous_element_sibling
         && previous.next_element_sibling == relations.next_element_sibling
@@ -2186,10 +1987,8 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
             element.for_each_in_subtree_of_type<DOM::Element>([&](DOM::Element& descendant) {
                 if (descendant.style_node_id() == no_style_node)
                     return TraversalDecision::Continue;
-                auto descendant_relations = relations_of(descendant, *style_engine, TreeScopeID { relations.tree_scope });
-                auto descendant_previous = descendant_relations;
-                descendant_previous.tree_scope = previous.tree_scope;
-                record_element_relinked(*style_engine, descendant.style_node_id(), descendant_previous, descendant_relations);
+                auto assigned_slot = assigned_slot_identity_of(descendant);
+                style_engine->record_element_relinked(descendant, assigned_slot, assigned_slot, TreeScopeID { previous.tree_scope });
                 return TraversalDecision::Continue;
             });
             // The hosts it and those below it are exposed to as parts are those of the tree it stands in now.
@@ -2206,7 +2005,7 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
     // anything happened: they are the engine's copy of the child sequence, and only a delta splices
     // them. Publishing this as a neighbour change leaves the columns holding the order the element
     // left, which is the order every positional question is then answered in.
-    record_element_relinked(*style_engine, element.style_node_id(), previous, relations);
+    style_engine->record_tree_delta(delta);
 }
 
 void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* old_slot)
@@ -2220,15 +2019,15 @@ void record_element_assigned_slot_changed(DOM::Element& element, DOM::Element* o
     if (!element.parent())
         return;
 
-    auto relations = relations_of(element, *style_engine);
-    auto previous = relations;
-    previous.assigned_slot = identity_of(old_slot).value();
-    if (previous.assigned_slot == relations.assigned_slot)
+    identify_style_tree_parent_of(element, *style_engine);
+    auto assigned_slot = assigned_slot_identity_of(element);
+    auto old_assigned_slot = identity_of(old_slot);
+    if (old_assigned_slot == assigned_slot)
         return;
 
     // The engine holds the slot a slottable is assigned to, and only relinking updates it. Every other relation is
     // identical on both sides, so unlinking and linking again leaves them where they were.
-    record_element_relinked(*style_engine, element.style_node_id(), previous, relations);
+    style_engine->record_element_relinked(element, assigned_slot, old_assigned_slot);
 }
 
 void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)
@@ -2297,7 +2096,7 @@ static void republish_assigned_slots_of(ReadonlySpan<GC::Ref<DOM::Node>> nodes)
         record_slot_assignment_changed(slot);
 }
 
-static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree_scope, PreviousSiblings previous_siblings)
+static void record_element_disconnecting(DOM::Element& element, StyleEngine::PreviousSiblings previous_siblings)
 {
     auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
@@ -2314,22 +2113,15 @@ static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree
             auto const* assigned_element = slottable.get_pointer<GC::Ref<DOM::Element>>();
             if (!assigned_element || (*assigned_element)->style_node_id() == no_style_node)
                 continue;
-            auto old_relations = relations_of(**assigned_element, *style_engine);
-            auto new_relations = old_relations;
-            new_relations.assigned_slot = no_style_node.value();
-            record_element_relinked(*style_engine, (*assigned_element)->style_node_id(), old_relations, new_relations);
+            identify_style_tree_parent_of(**assigned_element, *style_engine);
+            style_engine->record_element_relinked(**assigned_element, no_style_node, assigned_slot_identity_of(**assigned_element));
         }
     }
 
     style_engine->cancel_deferred_element_initial_features(element);
 
-    style_engine->record_tree_delta({
-        .node = node.value(),
-        .old_connected = true,
-        .new_connected = false,
-        .old_relations = relations_of(element, *style_engine, tree_scope, previous_siblings),
-        .new_relations = detached_relations(),
-    });
+    identify_style_tree_parent_of(element, *style_engine);
+    style_engine->record_element_departure(element, previous_siblings, assigned_slot_identity_of(element));
 
     // Dropping the identity is what makes a second removal a no-op rather than a double retirement.
     element.document().style_computer().unregister_style_node(node);
@@ -2572,17 +2364,8 @@ void record_shadow_root_disconnecting(DOM::ShadowRoot& shadow_root)
     auto node = shadow_root.style_node_id();
     if (node == no_style_node)
         return;
-    if (auto* style_engine = style_engine_for(shadow_root)) {
-        auto relations = detached_relations();
-        relations.tree_scope = tree_scope_of(shadow_root).value();
-        style_engine->record_tree_delta({
-            .node = node.value(),
-            .old_connected = true,
-            .new_connected = false,
-            .old_relations = relations,
-            .new_relations = detached_relations(),
-        });
-    }
+    if (auto* style_engine = style_engine_for(shadow_root))
+        style_engine->record_shadow_root_departure(shadow_root);
     shadow_root.document().style_computer().unregister_style_node(node);
     shadow_root.set_style_node_id(no_style_node);
 }
@@ -2595,16 +2378,19 @@ void record_subtree_disconnecting(DOM::Node& root)
         style_engine->record_hover({});
     // Only the root leaves a child sequence that stays in the tree. Every node below it leaves with the sequence it
     // belongs to.
-    if (auto identity = dom_order_identity_of(root); style_engine && identity != no_style_node)
-        StyleEngineFFI::style_engine_unlink_style_node_from_dom_order(style_engine->host(), identity, dom_order_parent_of(root.parent()));
+    // A shadow root holds no place in a child sequence.
+    if (auto identity = root.style_node_id(); style_engine && identity != no_style_node && !root.is_shadow_root())
+        StyleEngineFFI::style_engine_unlink_style_node_from_dom_order(style_engine->host(), identity, root.parent() ? root.parent()->style_node_id() : no_style_node);
+    // NB: The walk numbers the scope of each shadow tree it enters, which the engine reads from the shadow root as an
+    //     element in that tree departs.
     auto root_tree_scope = tree_scope_of(root.root());
     GC::RootVector<GC::Ref<DOM::ShadowRoot>> shadow_roots;
     Vector<StyleNodeID, 64> departing_texts;
-    auto disconnect_element = [&](DOM::Node& node, TreeScopeID tree_scope) {
+    auto disconnect_element = [&](DOM::Node& node, TreeScopeID) {
         if (auto* element = as_if<DOM::Element>(node)) {
             // Children that waited leave with the element, which takes them in again as a whole wherever it arrives.
             element->set_child_style_arrivals_wait(false);
-            record_element_disconnecting(*element, tree_scope, &node == &root ? PreviousSiblings::Arrived : PreviousSiblings::Departed);
+            record_element_disconnecting(*element, &node == &root ? StyleEngine::PreviousSiblings::Arrived : StyleEngine::PreviousSiblings::Departed);
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node)) {
             shadow_roots.append(*shadow_root);
         } else if (auto* text = as_if<DOM::Text>(node); text && style_engine && text->style_node_id() != no_style_node) {
@@ -3490,69 +3276,22 @@ void record_element_id_changed(DOM::Element& element, Optional<Utf16FlyString> c
         return;
     }
 
-    auto atom_of = [&](Optional<Utf16FlyString> const& value) -> StyleAtomID {
-        return value.has_value() ? intern_id_or_class_atom(*style_engine, element, *value) : 0;
-    };
-    auto kind_of = [](Optional<Utf16FlyString> const& value) {
-        return value.has_value() ? StyleEngineFFI::FfiFeatureValueKind::Atom : StyleEngineFFI::FfiFeatureValueKind::Absent;
-    };
-
-    record_feature(element, StyleEngineFFI::FfiFeatureKind::Id, 0, kind_of(new_value), atom_of(new_value));
-
-    // `getElementById` is case-sensitive in every mode, so the name the inverse index is keyed by
-    // is the one written rather than the one a quirks-mode selector folds it to.
-    StyleEngineFFI::style_engine_set_element_id_name(style_engine->host(), element.style_node_id(), new_value.has_value() ? style_engine->intern_atom(*new_value) : StyleAtomID {});
+    // NB: `getElementById` is case-sensitive in every mode, so the engine finds the element by its ID as it is written
+    //     rather than as a quirks-mode selector folds it.
+    style_engine->record_element_id_change(element, !element.initial_style_features_pending());
 
     if (element.is_svg_geometry_element())
         style_engine->record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
 }
 
-void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes)
+void record_element_class_list_changed(DOM::Element& element, ReadonlySpan<Utf16FlyString> old_classes)
 {
     auto* style_engine = style_engine_for_identified(element);
     if (!style_engine)
         return;
 
-    // One class delta per class that actually gained or lost membership. A class present on both
-    // sides is not a change, and journalling it would be exactly the amplification the engine
-    // exists to avoid.
-    // Two class names that differ only in case are one class where the document folds them, so
-    // membership is decided between the folded names rather than the written ones.
-    Vector<Utf16FlyString> folded_old_classes;
-    Vector<Utf16FlyString> folded_new_classes;
-    if (element.document().in_quirks_mode()) {
-        auto fold = [](ReadonlySpan<Utf16FlyString> names, Vector<Utf16FlyString>& folded_names) {
-            folded_names.ensure_capacity(names.size());
-            for (auto const& name : names)
-                folded_names.unchecked_append(name.to_ascii_lowercase());
-        };
-        fold(old_classes, folded_old_classes);
-        fold(new_classes, folded_new_classes);
-        old_classes = folded_old_classes;
-        new_classes = folded_new_classes;
-    }
-    auto contains = [](ReadonlySpan<Utf16FlyString> names, Utf16FlyString const& name) {
-        return any_of(names, [&](auto const& other) { return other == name; });
-    };
-
-    auto record_membership = [&](Utf16FlyString const& folded_name, bool was_present, bool is_present) {
-        if (was_present == is_present)
-            return;
-        auto atom = style_engine->intern_atom(folded_name);
-        record_feature(
-            element,
-            StyleEngineFFI::FfiFeatureKind::Class,
-            atom,
-            is_present ? StyleEngineFFI::FfiFeatureValueKind::Present : StyleEngineFFI::FfiFeatureValueKind::Absent,
-            0);
-    };
-
-    for (auto const& name : old_classes)
-        record_membership(name, true, contains(new_classes, name));
-    for (auto const& name : new_classes) {
-        if (!contains(old_classes, name))
-            record_membership(name, false, true);
-    }
+    // NB: One class delta per class that actually gained or lost membership, as the document folds the names.
+    style_engine->record_element_class_change(element, !element.initial_style_features_pending(), old_classes);
 }
 
 void record_element_attribute_changed(DOM::Element& element, Utf16FlyString const& name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
@@ -3594,27 +3333,7 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
     // or when an attr() can read the name, so the match evaluator reads it without asking the DOM.
     // The same name an arriving attribute publishes, with the same other forms noted alongside it.
     // See `StyleEngine::intern_attribute_name`.
-    auto atom = style_engine->intern_attribute_name(name, namespace_uri);
-    // OPTIMIZATION: Nothing of the engine reads this name, so the element's row need not hear of the change. The element
-    //               is noted as an arrival withholding the name is, and is published if something comes to read it.
-    if (style_engine->attribute_is_known_unread(atom)) {
-        style_engine->note_attribute_withheld(name, namespace_uri);
-        return;
-    }
-    auto kind_of = [](Optional<Utf16String> const& value) {
-        return value.has_value() ? StyleEngineFFI::FfiFeatureValueKind::Atom : StyleEngineFFI::FfiFeatureValueKind::Absent;
-    };
-    auto atom_of = [&](Optional<Utf16String> const& value) {
-        return value.has_value() ? style_engine->intern_attribute_value(atom, *value) : 0;
-    };
-    auto new_kind = kind_of(new_value);
-    auto new_atom = atom_of(new_value);
-    record_feature(
-        element,
-        StyleEngineFFI::FfiFeatureKind::Attribute,
-        atom,
-        new_kind,
-        new_atom);
+    style_engine->record_element_attribute_change(element, !element.initial_style_features_pending(), name, namespace_uri, new_value);
 }
 
 // OPTIMIZATION: A document records its user-agent and user sheets once it knows its mode, which decides which user-agent

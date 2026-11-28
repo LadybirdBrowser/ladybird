@@ -336,14 +336,11 @@ style_boundary! {
         set_fold_id_and_class_name_case => SetFoldIdAndClassNameCase { fold: bool };
         set_html_element_namespace => SetHtmlElementNamespace { namespace_atom: StyleAtomID };
         mark_relation_only_style_node => MarkRelationOnlyStyleNode { node: StyleNodeID };
-        link_style_nodes_in_dom_order => LinkStyleNodesInDomOrder { links: Box<[u32]> } =>
-            engine.link_style_nodes_in_dom_order(&links);
         unlink_style_node_from_dom_order => UnlinkStyleNodeFromDomOrder {
             node: StyleNodeID, parent: Option<StyleNodeID>
         };
         set_top_layer_elements => SetTopLayerElements { members: Box<[StyleNodeID]> } =>
             engine.set_top_layer_elements(&members);
-        set_text_is_ascii_whitespace => SetTextIsAsciiWhitespace { node: StyleNodeID, value: bool };
         set_node_dom_paint_facts => SetNodeDomPaintFacts { node: StyleNodeID, facts: u8 };
         set_element_unique_node_id => SetElementUniqueNodeId { node: StyleNodeID, unique_node_id: i64 };
         set_element_table_spans => SetElementTableSpans {
@@ -365,7 +362,6 @@ style_boundary! {
                 let (column_borders, row_borders) = (column_borders.into(), row_borders.into());
                 engine.set_element_frameset_layout(node, FrameSetLayout { columns, rows, column_borders, row_borders, border_thickness });
             };
-        set_element_id_name => SetElementIdName { node: StyleNodeID, name: StyleAtomID };
         record_environment_change => RecordEnvironmentChange { changes: u8 };
         record_custom_property_registration_change => RecordCustomPropertyRegistrationChange => engine.record_custom_property_registration_change();
         flush => Flush => engine.flush_without_document_root();
@@ -536,10 +532,10 @@ impl StyleChange {
         )
     }
 
-    /// Whether the change may move a fact the host knows of the render state. One that keeps records alive or notes
-    /// what a text spells never does: neither stages a style input or touches a layout box.
+    /// Whether the change may move a fact the host knows of the render state. One that keeps records alive never does:
+    /// it stages no style input and touches no layout box.
     pub(crate) fn may_move_facts(&self) -> bool {
-        !self.only_keeps_records_alive() && !matches!(self, Self::SetTextIsAsciiWhitespace { .. })
+        !self.only_keeps_records_alive()
     }
 }
 

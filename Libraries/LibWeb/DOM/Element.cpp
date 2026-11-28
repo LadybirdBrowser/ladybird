@@ -186,7 +186,7 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 }
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Element) == 288);
+static_assert(sizeof(Element) == 296);
 #endif
 
 // NB: The Rust definition of the core asserts the same layout.
@@ -2999,22 +2999,22 @@ void Element::record_style_environment_change()
 
 void Element::update_hover_link()
 {
-    if (m_style_node_id == 0)
+    if (m_core.style_node_id == 0)
         return;
     Optional<Utf16String> href;
     if (created_hyperlink())
         href = attribute(HTML::AttributeNames::href);
-    document().hover_link_reporter().set_link(m_style_node_id.value(), move(href));
+    document().hover_link_reporter().set_link(m_core.style_node_id.value(), move(href));
 }
 
 void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
 {
-    if (m_style_node_id == style_node_id)
+    if (m_core.style_node_id == style_node_id)
         return;
     m_published_presentational_hint_properties.clear();
     forget_published_effect_descriptions();
-    auto old_style_node_id = m_style_node_id;
-    m_style_node_id = style_node_id;
+    auto old_style_node_id = m_core.style_node_id;
+    m_core.style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
     if (auto* rare_data = element_rare_data()) {
         if (rare_data->implicit_anchor_element)
@@ -6373,7 +6373,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             rare_data->class_list->associated_attribute_changed(value);
 
         if (old_style_engine_classes.has_value())
-            CSS::record_element_class_list_changed(*this, old_style_engine_classes->span(), m_element_core.classes.span());
+            CSS::record_element_class_list_changed(*this, old_style_engine_classes->span());
         else if (is_connected())
             CSS::record_waiting_element_classes_changed(*this);
     } else if (local_name == HTML::AttributeNames::style) {

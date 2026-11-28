@@ -363,7 +363,6 @@ public:
 
     // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
     // elements keep 0, which is what makes them free.
-    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
     void set_style_node_id(CSS::StyleNodeID);
 
     GC::Ptr<Element> implicit_anchor_element() const;
@@ -1050,8 +1049,6 @@ private:
 
     void register_element_reference_pseudo_element(CSS::PseudoElement type, GC::Ref<Element> element);
     SyntheticPseudoElement& ensure_synthetic_pseudo_element(CSS::PseudoElement) const;
-
-    CSS::StyleNodeID m_style_node_id;
 
     friend class Attr;
     friend class NamedNodeMap;

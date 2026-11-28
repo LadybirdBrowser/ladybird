@@ -205,8 +205,8 @@ public:
     bool may_be_editable_or_editing_host() const;
     GC::Ptr<Node> editing_host();
 
-    bool has_spelling_markers() const { return m_has_spelling_markers; }
-    void set_has_spelling_markers(Badge<Editing::SpellingMarkers>, bool value) { m_has_spelling_markers = value; }
+    bool has_spelling_markers() const { return m_core.cpp_flags.has_spelling_markers; }
+    void set_has_spelling_markers(Badge<Editing::SpellingMarkers>, bool value) { m_core.cpp_flags.has_spelling_markers = value; }
     CSS::UserSelect user_select_used_value() const;
 
     bool in_editable_subtree() const { return m_in_editable_subtree; }
@@ -336,30 +336,34 @@ public:
 
     bool is_closed_shadow_hidden_from(Node const&) const;
 
-    bool is_connected() const { return m_core.is_connected; }
-    void set_is_connected(bool is_connected) { m_core.is_connected = is_connected; }
+    bool is_connected() const { return m_core.flags & RustFFI::NODE_IS_CONNECTED; }
+    void set_is_connected(bool is_connected) { set_core_flag(RustFFI::NODE_IS_CONNECTED, is_connected); }
 
     // The generation of this node's child list in which its element children's child indices hold. A new one begins
     // whenever an element child moves relative to the element children after it.
     u32 child_index_generation() const { return m_child_index_generation; }
     bool is_tracked_by_style_engine() const;
 
+    // The node's identity in its document's style engine, which only an element, a text node, a shadow root or a
+    // document takes.
+    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_core.style_node_id; }
+
     // Whether this subtree waits to take its place in the style engine's tree, and whether a shadow-including
     // descendant's subtree does. See CSS::take_in_pending_style_arrivals().
-    bool style_arrival_pending() const { return m_style_arrival_pending; }
-    void set_style_arrival_pending(bool value) { m_style_arrival_pending = value; }
-    bool descendant_style_arrival_pending() const { return m_descendant_style_arrival_pending; }
-    void set_descendant_style_arrival_pending(bool value) { m_descendant_style_arrival_pending = value; }
+    bool style_arrival_pending() const { return m_core.cpp_flags.style_arrival_pending; }
+    void set_style_arrival_pending(bool value) { m_core.cpp_flags.style_arrival_pending = value; }
+    bool descendant_style_arrival_pending() const { return m_core.cpp_flags.descendant_style_arrival_pending; }
+    void set_descendant_style_arrival_pending(bool value) { m_core.cpp_flags.descendant_style_arrival_pending = value; }
     // Whether this element arrived alone in a display:none subtree, its children waiting to arrive until something
     // could observe them. See CSS::take_in_pending_style_arrivals().
-    bool child_style_arrivals_wait() const { return m_child_style_arrivals_wait; }
-    void set_child_style_arrivals_wait(bool value) { m_child_style_arrivals_wait = value; }
+    bool child_style_arrivals_wait() const { return m_core.cpp_flags.child_style_arrivals_wait; }
+    void set_child_style_arrivals_wait(bool value) { m_core.cpp_flags.child_style_arrivals_wait = value; }
 
     // Mirrors the slottable's assigned slot; see SlottableMixin::set_assigned_slot().
-    bool has_assigned_slot() const { return m_has_assigned_slot; }
-    void set_has_assigned_slot(Badge<SlottableMixin>, bool value) { m_has_assigned_slot = value; }
+    bool has_assigned_slot() const { return m_core.cpp_flags.has_assigned_slot; }
+    void set_has_assigned_slot(Badge<SlottableMixin>, bool value) { m_core.cpp_flags.has_assigned_slot = value; }
 
-    bool inside_blocking_wheel_event_handler() const { return m_inside_blocking_wheel_event_handler; }
+    bool inside_blocking_wheel_event_handler() const { return m_core.cpp_flags.inside_blocking_wheel_event_handler; }
     bool update_inside_blocking_wheel_event_handler_state();
     void update_inside_blocking_wheel_event_handler_state_for_subtree();
 
@@ -420,13 +424,13 @@ public:
     // Whether the last layout tree build gave this node a box, and whether layout committed geometry for it. Code
     // that only needs to know whether there is a box should ask these instead of reaching for the box. The layout
     // node arena writes both as it changes the boxes they describe, so asking reads the node, not the arena.
-    [[nodiscard]] bool has_layout_box() const { return m_has_layout_box; }
+    [[nodiscard]] bool has_layout_box() const { return m_core.cpp_flags.has_layout_box; }
     [[nodiscard]] bool may_have_layout_box() const;
-    [[nodiscard]] bool is_rendered() const { return m_has_committed_box; }
+    [[nodiscard]] bool is_rendered() const { return m_core.cpp_flags.has_committed_box; }
     void set_box_presence(Badge<Layout::NodeArena>, bool has_layout_box, bool has_committed_box)
     {
-        m_has_layout_box = has_layout_box;
-        m_has_committed_box = has_committed_box;
+        m_core.cpp_flags.has_layout_box = has_layout_box;
+        m_core.cpp_flags.has_committed_box = has_committed_box;
     }
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
     // Queues `marks` for the node's box, which the render state finds as it applies them: the marks may be made beside a
@@ -652,16 +656,9 @@ protected:
     // place.
     RustFFI::NodeCore m_core {};
 
-    bool m_has_layout_box { false };
-    bool m_has_committed_box { false };
     bool m_in_editable_subtree { false };
-    // NB: These share a byte, which keeps every node from growing.
-    bool m_has_assigned_slot : 1 { false };
-    bool m_inside_blocking_wheel_event_handler : 1 { false };
-    bool m_style_arrival_pending : 1 { false };
-    bool m_descendant_style_arrival_pending : 1 { false };
-    bool m_child_style_arrivals_wait : 1 { false };
-    bool m_has_spelling_markers : 1 { false };
+
+    void set_core_flag(u8 flag, bool value) { m_core.flags = static_cast<u8>(value ? (m_core.flags | flag) : (m_core.flags & ~flag)); }
     // Which narrower rebuilds the layout tree update marks collected so far still permit.
     enum LayoutTreeUpdateReuseReason : u8 {
         ChildListInsertion = 1,
@@ -717,7 +714,7 @@ private:
 };
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::NodeCore) == 32 && alignof(RustFFI::NodeCore) == 4);
+static_assert(sizeof(RustFFI::NodeCore) == 36 && alignof(RustFFI::NodeCore) == 4);
 static_assert(offsetof(RustFFI::NodeCore, parent) == 0);
 static_assert(offsetof(RustFFI::NodeCore, first_child) == 4);
 static_assert(offsetof(RustFFI::NodeCore, last_child) == 8);
@@ -725,9 +722,10 @@ static_assert(offsetof(RustFFI::NodeCore, next_sibling) == 12);
 static_assert(offsetof(RustFFI::NodeCore, previous_sibling) == 16);
 static_assert(offsetof(RustFFI::NodeCore, document) == 20);
 static_assert(offsetof(RustFFI::NodeCore, root) == 24);
-static_assert(offsetof(RustFFI::NodeCore, node_type) == 28);
-static_assert(offsetof(RustFFI::NodeCore, is_connected) == 30);
-static_assert(offsetof(RustFFI::NodeCore, is_shadow_root) == 31);
+static_assert(offsetof(RustFFI::NodeCore, style_node_id) == 28);
+static_assert(offsetof(RustFFI::NodeCore, node_type) == 32);
+static_assert(offsetof(RustFFI::NodeCore, flags) == 34);
+static_assert(offsetof(RustFFI::NodeCore, cpp_flags) == 35);
 // NB: libweb_rust finds the core of a node at this offset into the node's cell.
 static_assert(Node::parent_node_offset().value == RustFFI::NODE_CORE_OFFSET + offsetof(RustFFI::NodeCore, parent));
 

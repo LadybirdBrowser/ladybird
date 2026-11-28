@@ -22,7 +22,7 @@ use super::strings::OptionalFlyStringField;
 pub struct QualifiedNameImpl {
     _reference_count: UnsafeCell<u32>,
     local_name: FlyStringField,
-    _lowercased_local_name: FlyStringField,
+    lowercased_local_name: FlyStringField,
     _prefix: OptionalFlyStringField,
     namespace: OptionalFlyStringField,
     _as_string: FlyStringField,
@@ -31,7 +31,7 @@ pub struct QualifiedNameImpl {
 
 const _: () = assert!(size_of::<QualifiedNameImpl>() == 56 && align_of::<QualifiedNameImpl>() == 8);
 const _: () = assert!(offset_of!(QualifiedNameImpl, local_name) == 8);
-const _: () = assert!(offset_of!(QualifiedNameImpl, _lowercased_local_name) == 16);
+const _: () = assert!(offset_of!(QualifiedNameImpl, lowercased_local_name) == 16);
 const _: () = assert!(offset_of!(QualifiedNameImpl, _prefix) == 24);
 const _: () = assert!(offset_of!(QualifiedNameImpl, namespace) == 32);
 const _: () = assert!(offset_of!(QualifiedNameImpl, _as_string) == 40);
@@ -55,11 +55,24 @@ impl QualifiedNameField {
         &self.parts().local_name
     }
 
+    /// The local name in ASCII lowercase.
+    #[inline(always)]
+    pub fn lowercased_local_name(&self) -> &FlyStringField {
+        &self.parts().lowercased_local_name
+    }
+
     /// The namespace, or none for the null namespace.
     /// https://dom.spec.whatwg.org/#concept-element-namespace
     #[inline(always)]
     pub fn namespace(&self) -> Option<&FlyStringField> {
         self.parts().namespace.get()
+    }
+
+    /// The word that names the name, which is the same for every field holding a name equal in every part.
+    #[inline(always)]
+    pub fn identity(&self) -> usize {
+        // SAFETY: C++ does not write the field while Rust borrows it.
+        unsafe { (*self.0.get()).as_ptr() as usize }
     }
 }
 
@@ -70,7 +83,7 @@ impl QualifiedNameField {
         let parts = Box::new(QualifiedNameImpl {
             _reference_count: UnsafeCell::new(1),
             local_name: FlyStringField::for_test(local_name),
-            _lowercased_local_name: FlyStringField::for_test(&local_name.to_ascii_lowercase()),
+            lowercased_local_name: FlyStringField::for_test(&local_name.to_ascii_lowercase()),
             _prefix: OptionalFlyStringField::for_test(None),
             namespace: OptionalFlyStringField::for_test(namespace),
             _as_string: FlyStringField::for_test(local_name),

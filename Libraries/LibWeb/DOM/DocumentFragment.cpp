@@ -15,15 +15,16 @@ GC_DEFINE_ALLOCATOR(DocumentFragment);
 
 DocumentFragment::DocumentFragment(Document& document)
     : ParentNode(document, NodeType::DOCUMENT_FRAGMENT_NODE)
-    , m_document_fragment_core { .host = {} }
+    , m_document_fragment_core { .host = {}, .style_engine_tree_scope = {} }
 {
     // NB: libweb_rust reads the core of a fragment in place.
     static_assert(offsetof(DocumentFragment, m_document_fragment_core) == RustFFI::DOCUMENT_FRAGMENT_CORE_OFFSET);
 }
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentFragmentCore) == 4 && alignof(RustFFI::DocumentFragmentCore) == 4);
+static_assert(sizeof(RustFFI::DocumentFragmentCore) == 8 && alignof(RustFFI::DocumentFragmentCore) == 4);
 static_assert(offsetof(RustFFI::DocumentFragmentCore, host) == 0);
+static_assert(offsetof(RustFFI::DocumentFragmentCore, style_engine_tree_scope) == 4);
 
 void DocumentFragment::visit_edges(Cell::Visitor& visitor)
 {

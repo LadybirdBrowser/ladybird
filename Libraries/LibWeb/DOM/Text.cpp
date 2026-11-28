@@ -18,7 +18,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Text) == 128);
+static_assert(sizeof(Text) == 136);
 #endif
 
 struct Text::RareData final
@@ -184,10 +184,10 @@ Utf16String Text::whole_text()
 
 void Text::set_style_node_id(CSS::StyleNodeID style_node_id)
 {
-    if (m_style_node_id == style_node_id)
+    if (m_core.style_node_id == style_node_id)
         return;
-    auto old_style_node_id = m_style_node_id;
-    m_style_node_id = style_node_id;
+    auto old_style_node_id = m_core.style_node_id;
+    m_core.style_node_id = style_node_id;
     Layout::Node::dom_node_style_node_changed(*this, old_style_node_id);
 }
 

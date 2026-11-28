@@ -151,6 +151,7 @@ pub struct AttributeFact {
 const _: () = assert!(size_of::<AttributeFact>() == size_of::<[u32; 2]>());
 const _: () = assert!(align_of::<AttributeFact>() == align_of::<[u32; 2]>());
 
+#[cfg(test)]
 impl AttributeFact {
     /// The attributes a list of raw (name, value) atom words holds, read in place.
     #[must_use]

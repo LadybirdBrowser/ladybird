@@ -147,6 +147,7 @@ ffi_entry!(crate::painting::layout_tree_dump::MainThreadFfiEntry);
 ffi_entry!(crate::painting::stacking_context::dump::MainThreadFfiEntry);
 ffi_entry!(crate::render_state::OwedWorkPayment);
 ffi_entry!(crate::css::dom_selector_matching::MainThreadFfiEntry);
+ffi_entry!(crate::css::style::dom_inputs::MainThreadFfiEntry);
 ffi_entry!(crate::dom::pre_insert::MainThreadFfiEntry);
 
 #[cfg(test)]

@@ -12,6 +12,8 @@ use core::mem::offset_of;
 use core::num::NonZeroU32;
 
 use super::strings::StringField;
+use crate::css::style::tree::StyleNodeID;
+use crate::css::style::tree::TreeScopeID;
 
 /// A node, named by its compressed cell pointer: its offset into the GC heap region in units of the 8-byte cell
 /// alignment, as a GC::Member holds it. Two node pointers are equal exactly when they name the same node.
@@ -34,7 +36,7 @@ pub const NODE_CORE_OFFSET: usize = 32;
 
 /// Where DOM::DocumentFragment embeds its core, in bytes from the start of the fragment's cell, which
 /// DocumentFragment.cpp asserts.
-pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 104;
+pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 112;
 
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
@@ -62,7 +64,7 @@ impl DocumentMember {
 }
 
 /// Where DOM::CharacterData embeds its core, in bytes from the start of the node's cell, which CharacterData.cpp asserts.
-pub const CHARACTER_DATA_CORE_OFFSET: usize = 88;
+pub const CHARACTER_DATA_CORE_OFFSET: usize = 96;
 
 /// The state of a CharacterData node beyond that of every node, which C++ embeds in DOM::CharacterData as its only
 /// storage of it.
@@ -110,6 +112,9 @@ impl ShadowRootMember {
 #[repr(C)]
 pub struct DocumentFragmentCore {
     host: ElementMember,
+    /// The style engine's number for the tree scope of a shadow root, or the document's where C++ has numbered none for
+    /// it yet. Only a shadow root has a scope of its own.
+    style_engine_tree_scope: TreeScopeField,
 }
 
 impl DocumentFragmentCore {
@@ -118,7 +123,48 @@ impl DocumentFragmentCore {
     pub fn host(&self) -> Option<NodePointer> {
         self.host.get()
     }
+
+    #[inline(always)]
+    pub fn style_engine_tree_scope(&self) -> TreeScopeID {
+        self.style_engine_tree_scope.get()
+    }
 }
+
+/// A field that holds a tree scope's number, laid out as C++'s CSS::TreeScopeID, which is what C++ sees it as, with 0 for
+/// the document's.
+#[repr(transparent)]
+pub struct TreeScopeField(Cell<u32>);
+
+impl TreeScopeField {
+    #[inline(always)]
+    pub fn get(&self) -> TreeScopeID {
+        TreeScopeID(self.0.get())
+    }
+}
+
+/// A field that holds a node's identity in its document's style engine, laid out as C++'s CSS::StyleNodeID, which is what
+/// C++ sees it as, with 0 for none.
+#[repr(transparent)]
+pub struct StyleNodeField(Cell<u32>);
+
+impl StyleNodeField {
+    #[inline(always)]
+    pub fn get(&self) -> Option<StyleNodeID> {
+        StyleNodeID::from_raw(self.0.get())
+    }
+}
+
+/// A byte of flags that only C++ reads and writes, laid out as C++'s DOM::CppNodeFlags, which is what C++ sees it as.
+/// The node keeps it in its core, beside the core's own flags, so that DOM::Node does not grow.
+#[repr(transparent)]
+pub struct CppNodeFlags(Cell<u8>);
+
+// The flags of a node's core, a bit each in its flags byte, which C++ reads and writes as well.
+
+/// Whether the node is connected.
+/// https://dom.spec.whatwg.org/#connected
+pub const NODE_IS_CONNECTED: u8 = 1 << 0;
+pub const NODE_IS_SHADOW_ROOT: u8 = 1 << 1;
 
 /// The type of a node, laid out as C++'s DOM::NodeType, which is what C++ sees it as.
 /// https://dom.spec.whatwg.org/#dom-node-nodetype
@@ -143,7 +189,7 @@ impl NodeType {
 }
 
 /// The tree state of a node, which C++ embeds in DOM::Node as its only storage of it: the node's type, its node
-/// document, its root, whether it is connected, and its tree links.
+/// document, its root, whether it is connected, its tree links, and how it stands in its document's style engine.
 /// https://dom.spec.whatwg.org/#concept-tree
 #[repr(C)]
 pub struct NodeCore {
@@ -154,11 +200,14 @@ pub struct NodeCore {
     previous_sibling: NodeMember,
     document: DocumentMember,
     root: NodeMember,
+    /// The node's identity in its document's style engine. Only an element, a text node, a shadow root or a document
+    /// takes one.
+    style_node_id: StyleNodeField,
     // NB: The type is set as the node is made, and never changes.
     node_type: NodeType,
-    is_connected: Cell<bool>,
-    // NB: C++ sets this as it constructs a shadow root, and never changes it.
-    is_shadow_root: bool,
+    /// The NODE_* flags. C++ sets NODE_IS_SHADOW_ROOT as it constructs a shadow root, and never changes it.
+    flags: Cell<u8>,
+    cpp_flags: CppNodeFlags,
 }
 
 impl NodeCore {
@@ -180,16 +229,26 @@ impl NodeCore {
         self.root.get().expect("a node always has a root")
     }
 
+    #[inline(always)]
+    fn has_flag(&self, flag: u8) -> bool {
+        self.flags.get() & flag != 0
+    }
+
     /// https://dom.spec.whatwg.org/#connected
     #[inline(always)]
     pub fn is_connected(&self) -> bool {
-        self.is_connected.get()
+        self.has_flag(NODE_IS_CONNECTED)
     }
 
     /// https://dom.spec.whatwg.org/#concept-shadow-root
     #[inline(always)]
     pub fn is_shadow_root(&self) -> bool {
-        self.is_shadow_root
+        self.has_flag(NODE_IS_SHADOW_ROOT)
+    }
+
+    #[inline(always)]
+    pub fn style_node_id(&self) -> Option<StyleNodeID> {
+        self.style_node_id.get()
     }
 
     #[inline(always)]
@@ -250,11 +309,16 @@ impl DocumentFragmentCore {
     pub(crate) fn null_for_test() -> Self {
         Self {
             host: ElementMember(Cell::new(0)),
+            style_engine_tree_scope: TreeScopeField(Cell::new(0)),
         }
     }
 
     pub(crate) fn set_host_for_test(&self, host: Option<NodePointer>) {
         self.host.0.set(host.map_or(0, NodePointer::compressed));
+    }
+
+    pub(crate) fn set_style_engine_tree_scope_for_test(&self, tree_scope: TreeScopeID) {
+        self.style_engine_tree_scope.0.set(tree_scope.0);
     }
 }
 
@@ -278,8 +342,12 @@ pub(crate) struct TestLinks<'a> {
 
 #[cfg(test)]
 impl NodeCore {
+    pub(crate) fn set_style_node_id_for_test(&self, node: Option<StyleNodeID>) {
+        self.style_node_id.0.set(node.map_or(0, StyleNodeID::raw));
+    }
+
     pub(crate) fn set_is_shadow_root_for_test(&mut self) {
-        self.is_shadow_root = true;
+        self.flags.set(self.flags.get() | NODE_IS_SHADOW_ROOT);
     }
 
     /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own and its own node
@@ -294,9 +362,10 @@ impl NodeCore {
             previous_sibling: member(None),
             document: DocumentMember(Cell::new(node.compressed())),
             root: member(Some(node)),
+            style_node_id: StyleNodeField(Cell::new(0)),
             node_type,
-            is_connected: Cell::new(false),
-            is_shadow_root: false,
+            flags: Cell::new(0),
+            cpp_flags: CppNodeFlags(Cell::new(0)),
         }
     }
 
@@ -322,9 +391,13 @@ const _: () = assert!(size_of::<ShadowRootMember>() == 4 && align_of::<ShadowRoo
 const _: () = assert!(size_of::<CharacterDataCore>() == 8 && align_of::<CharacterDataCore>() == 8);
 const _: () = assert!(offset_of!(CharacterDataCore, data) == 0);
 // NB: DocumentFragment.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentFragmentCore>() == 4 && align_of::<DocumentFragmentCore>() == 4);
+const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<DocumentFragmentCore>() == 4);
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
-const _: () = assert!(size_of::<NodeCore>() == 32 && align_of::<NodeCore>() == 4);
+const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
+const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
+const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
+const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);
+const _: () = assert!(size_of::<NodeCore>() == 36 && align_of::<NodeCore>() == 4);
 const _: () = assert!(offset_of!(NodeCore, parent) == 0);
 const _: () = assert!(offset_of!(NodeCore, first_child) == 4);
 const _: () = assert!(offset_of!(NodeCore, last_child) == 8);
@@ -332,9 +405,10 @@ const _: () = assert!(offset_of!(NodeCore, next_sibling) == 12);
 const _: () = assert!(offset_of!(NodeCore, previous_sibling) == 16);
 const _: () = assert!(offset_of!(NodeCore, document) == 20);
 const _: () = assert!(offset_of!(NodeCore, root) == 24);
-const _: () = assert!(offset_of!(NodeCore, node_type) == 28);
-const _: () = assert!(offset_of!(NodeCore, is_connected) == 30);
-const _: () = assert!(offset_of!(NodeCore, is_shadow_root) == 31);
+const _: () = assert!(offset_of!(NodeCore, style_node_id) == 28);
+const _: () = assert!(offset_of!(NodeCore, node_type) == 32);
+const _: () = assert!(offset_of!(NodeCore, flags) == 34);
+const _: () = assert!(offset_of!(NodeCore, cpp_flags) == 35);
 
 #[cfg(test)]
 mod tests {
@@ -370,9 +444,10 @@ mod tests {
             previous_sibling: member(0),
             document: DocumentMember(Cell::new(0x2000_0005)),
             root: member(0x2000_0006),
+            style_node_id: StyleNodeField(Cell::new(7)),
             node_type: NodeType::TEXT_NODE,
-            is_connected: Cell::new(true),
-            is_shadow_root: true,
+            flags: Cell::new(NODE_IS_CONNECTED | NODE_IS_SHADOW_ROOT),
+            cpp_flags: CppNodeFlags(Cell::new(0xff)),
         };
         assert_eq!(core.parent(), Some(pointer(0x2000_0001)));
         assert_eq!(core.first_child(), Some(pointer(0x2000_0002)));
@@ -384,5 +459,6 @@ mod tests {
         assert_eq!(core.node_type(), NodeType::TEXT_NODE);
         assert!(core.is_connected());
         assert!(core.is_shadow_root());
+        assert_eq!(core.style_node_id(), StyleNodeID::from_raw(7));
     }
 }

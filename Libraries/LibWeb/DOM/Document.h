@@ -588,7 +588,6 @@ public:
     void ensure_style_engine_tracks_tree();
 
     // The document's identity in the style mirror, which only names it as the root of the DOM child sequence.
-    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
     void set_style_node_id(CSS::StyleNodeID);
 
     Page& page();
@@ -2256,7 +2255,6 @@ private:
     bool m_has_completed_style_update { false };
     bool m_counter_style_scopes_need_update { true };
     bool m_style_engine_tracks_tree { false };
-    CSS::StyleNodeID m_style_node_id;
     GC::WeakHashSet<Element> m_elements_with_dirty_style_attributes;
     // Elements whose style attribute a style update left out of sync with their inline style, as nothing of the style
     // engine read it then.

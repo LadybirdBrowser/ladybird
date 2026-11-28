@@ -33,6 +33,8 @@ namespace Web::CSS {
 static_assert(StyleEngineFFI::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND == to_underlying(first_element_reference_pseudo_element));
 static_assert(StyleEngineFFI::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND == to_underlying(last_element_reference_pseudo_element));
 static_assert(!IsMoveConstructible<StyleEngine>);
+// NB: The engine reads the nodes a GC::Ref<DOM::Node> names as the pointers they hold.
+static_assert(sizeof(GC::Ref<DOM::Node>) == sizeof(DOM::Node*));
 static_assert(!IsMoveAssignable<StyleEngine>);
 
 StyleEngine::StyleEngine(StyleComputer* style_computer)
@@ -306,23 +308,23 @@ void StyleEngine::publish_html_element_namespace(StyleAtomID namespace_atom)
 StyleEngine::WithheldFeaturesNowRead StyleEngine::take_withheld_features_now_read(Layout::BegunRead const& read)
 {
     WithheldFeaturesNowRead now_read;
-    if (!m_local_link_state_is_withheld && !m_validity_state_is_withheld && m_withheld_attribute_names.is_empty())
-        return now_read;
-    StyleEngineFFI::document_host_learn_selector_requirements(host(), &read);
-    if (m_local_link_state_is_withheld && !local_link_is_known_untested()) {
-        m_local_link_state_is_withheld = false;
-        now_read.local_link_state = true;
+    if (m_local_link_state_is_withheld || m_validity_state_is_withheld) {
+        StyleEngineFFI::document_host_learn_selector_requirements(host(), &read);
+        if (m_local_link_state_is_withheld && !local_link_is_known_untested()) {
+            m_local_link_state_is_withheld = false;
+            now_read.local_link_state = true;
+        }
+        if (m_validity_state_is_withheld && !validity_is_known_untested()) {
+            m_validity_state_is_withheld = false;
+            now_read.validity_state = true;
+        }
     }
-    if (m_validity_state_is_withheld && !validity_is_known_untested()) {
-        m_validity_state_is_withheld = false;
-        now_read.validity_state = true;
-    }
-    for (auto const& name : m_withheld_attribute_names) {
-        if (!attribute_is_known_unread(intern_attribute_name(name.local_name, name.namespace_uri)))
-            now_read.attributes.append(name);
-    }
-    for (auto const& name : now_read.attributes)
-        m_withheld_attribute_names.remove(name);
+    StyleEngineFFI::document_host_take_withheld_attribute_names_now_read(host(), &read, &now_read.attributes, [](void* context, size_t local_name, size_t namespace_uri) {
+        static_cast<Vector<WithheldAttributeName>*>(context)->append({
+            .local_name = Utf16FlyString::from_raw(local_name),
+            .namespace_uri = namespace_uri ? Optional<Utf16FlyString> { Utf16FlyString::from_raw(namespace_uri) } : OptionalNone {},
+        });
+    });
     return now_read;
 }
 
@@ -339,6 +341,15 @@ void StyleEngine::publish_attribute_value_texts_if_requirements_moved(Layout::Be
 static void request_frame_for_first_recorded_input(StyleEngine const& style_engine, GC::Ptr<StyleComputer> style_computer)
 {
     if (style_engine.has_recorded_input() || !style_computer)
+        return;
+    set_rendering_pending(style_computer->document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
+    style_computer->document().page().client().request_frame();
+}
+
+// The same, after the fact, for an entry that answers whether it staged the host's first input since its last barrier.
+static void request_frame_for_staged_first_input(StyleEngine const& style_engine, GC::Ptr<StyleComputer> style_computer, bool staged_first_input)
+{
+    if (!staged_first_input || style_engine.has_pending_arrivals() || !style_computer)
         return;
     set_rendering_pending(style_computer->document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
     style_computer->document().page().client().request_frame();
@@ -402,6 +413,28 @@ void StyleEngine::record_tree_delta(StyleEngineFFI::FfiTreeDelta const& delta)
     StyleEngineFFI::style_engine_stage_tree_delta(host(), &delta);
 }
 
+void StyleEngine::record_element_departure(DOM::Element const& element, PreviousSiblings previous_siblings, StyleNodeID assigned_slot)
+{
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    StyleEngineFFI::style_engine_stage_element_departure(host(), &element, previous_siblings == PreviousSiblings::Departed, assigned_slot.value());
+}
+
+void StyleEngine::record_element_relinked(DOM::Element const& element, StyleNodeID assigned_slot, StyleNodeID old_assigned_slot, Optional<TreeScopeID> old_tree_scope)
+{
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    auto old_tree_scope_value = old_tree_scope.map([](TreeScopeID tree_scope) { return tree_scope.value(); });
+    StyleEngineFFI::style_engine_stage_element_relinked(host(), &element, assigned_slot.value(), old_assigned_slot.value(), old_tree_scope_value.has_value() ? &old_tree_scope_value.value() : nullptr);
+}
+
+void StyleEngine::record_shadow_root_departure(DOM::ShadowRoot const& shadow_root)
+{
+    flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
+    request_frame_for_first_recorded_input(*this, m_style_computer);
+    StyleEngineFFI::style_engine_stage_shadow_root_departure(host(), &shadow_root);
+}
+
 void StyleEngine::record_element_arrivals(ReadonlySpan<StyleEngineFFI::FfiArrivingElement> elements)
 {
     if (elements.is_empty())
@@ -411,19 +444,38 @@ void StyleEngine::record_element_arrivals(ReadonlySpan<StyleEngineFFI::FfiArrivi
     StyleEngineFFI::style_engine_stage_element_arrivals(host(), elements);
 }
 
-void StyleEngine::record_element_arrival_rows(ReadonlySpan<StyleEngineFFI::FfiElementArrivalRow> rows, ReadonlySpan<u32> atoms)
+void StyleEngine::record_element_arrival_rows(ReadonlySpan<StyleEngineFFI::FfiElementArrivalRow> rows, ReadonlySpan<u32> custom_states, bool fold_ids_and_classes)
 {
     if (rows.is_empty())
         return;
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    StyleEngineFFI::style_engine_stage_element_arrival_rows(host(), rows, atoms);
+    StyleEngineFFI::style_engine_stage_element_arrival_rows(host(), rows, custom_states, fold_ids_and_classes);
 }
 
 void StyleEngine::record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const& delta)
 {
     request_frame_for_first_recorded_input(*this, m_style_computer);
     StyleEngineFFI::style_engine_stage_local_feature_delta(host(), &delta);
+}
+
+void StyleEngine::record_element_id_change(DOM::Element const& element, bool is_published)
+{
+    auto staged_first_input = StyleEngineFFI::style_engine_stage_element_id_change(host(), &element, element.style_node_id().value(), is_published, element.document().in_quirks_mode());
+    request_frame_for_staged_first_input(*this, m_style_computer, staged_first_input);
+}
+
+void StyleEngine::record_element_class_change(DOM::Element const& element, bool is_published, ReadonlySpan<Utf16FlyString> old_classes)
+{
+    auto staged_first_input = StyleEngineFFI::style_engine_stage_element_class_change(host(), &element, element.style_node_id().value(), is_published, element.document().in_quirks_mode(), old_classes);
+    request_frame_for_staged_first_input(*this, m_style_computer, staged_first_input);
+}
+
+void StyleEngine::record_element_attribute_change(DOM::Element const& element, bool is_published, Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& value)
+{
+    auto namespace_identity = namespace_uri.has_value() && !namespace_uri->is_empty() ? namespace_uri->raw_identity() : 0;
+    auto staged_first_input = StyleEngineFFI::style_engine_stage_element_attribute_change(host(), element.style_node_id().value(), is_published, local_name.raw_identity(), namespace_identity, value.has_value() ? &*value : nullptr);
+    request_frame_for_staged_first_input(*this, m_style_computer, staged_first_input);
 }
 
 void StyleEngine::record_state_delta(StyleEngineFFI::FfiStateDelta const& delta)
