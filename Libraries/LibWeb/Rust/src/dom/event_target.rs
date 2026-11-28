@@ -268,9 +268,10 @@ impl EventTargetMember {
     }
 }
 
-#[cfg(test)]
 impl EventTargetMember {
-    pub(crate) fn null_for_test() -> Self {
+    /// A field that holds null, as GC::Member's default constructor makes it.
+    #[inline(always)]
+    pub(super) fn null() -> Self {
         Self(Cell::new(0))
     }
 }

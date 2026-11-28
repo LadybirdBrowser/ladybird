@@ -581,6 +581,19 @@ impl MathMLElementPrefix {
     }
 }
 
+impl DocumentPrefix {
+    /// The prefix of a new document that starts with `parent_node`, as the constructor of DOM::Document makes it, which
+    /// writes the vtable pointer of its HTML::GlobalEventHandlers base.
+    #[inline(always)]
+    pub(super) fn new(parent_node: ParentNodePrefix) -> Self {
+        Self {
+            parent_node,
+            global_event_handlers_vtable: OpaqueCxx::new([0]),
+            core: DocumentCore::new(),
+        }
+    }
+}
+
 impl TextPrefix {
     /// The prefix of a new Text node, whose SlottableMixin base C++ gives the vtable pointer `slottable_mixin_vtable`.
     #[inline(always)]

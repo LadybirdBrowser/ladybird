@@ -2917,6 +2917,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "AttrObject".to_string(),
         "DocumentFragmentObject".to_string(),
         "ShadowRootObject".to_string(),
+        "DocumentObject".to_string(),
         "NodeObjectHooks".to_string(),
         "ElementObject".to_string(),
         "HTMLElementObject".to_string(),

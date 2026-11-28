@@ -20,6 +20,7 @@ use super::strings::StringField;
 use super::weak_cells::WeakCellRegistryField;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
+use crate::stage::MainThread;
 
 super::trace::member_fields!(NodeMember, DocumentMember, ElementMember, ShadowRootMember);
 super::trace::fields_without_cells!(TreeScopeField, StyleNodeField, CppNodeFlags, NodeType);
@@ -416,6 +417,34 @@ pub struct DocumentCore {
 pub const COLLECTION_ATTRIBUTE_TYPE_COUNT: usize = 5;
 
 impl DocumentCore {
+    /// The core of a new document, which has no flags, Window, live ranges, NodeIterators or elements with IDs, and
+    /// whose tree versions rust_dom_start_tree_versions_of_document() starts, as the constructor of DOM::Document makes
+    /// it.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            flags: Cell::new(0),
+            custom_element_registry_is_global: Cell::new(false),
+            window: WindowMember(EventTargetMember::null()),
+            live_ranges: WeakCellRegistryField::empty(),
+            node_iterators: WeakCellRegistryField::empty(),
+            node_tree_version: Cell::new(0),
+            element_tree_version: Cell::new(0),
+            collection_attribute_versions: Default::default(),
+            element_tree_positions_dom_tree_version: Cell::new(0),
+            ids: IdMapField::empty(),
+        }
+    }
+
+    /// Releases the document's map of elements by ID, as LibGC destroys the document.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a document that is being destroyed, and nothing may read the map after.
+    pub(super) unsafe fn release(&self, main_thread: &mut MainThread<'_>) {
+        self.ids.release(main_thread);
+    }
+
     /// The DOCUMENT_* flags.
     #[inline(always)]
     pub fn flags(&self) -> u8 {
@@ -799,18 +828,7 @@ impl DocumentFragmentCore {
 #[cfg(test)]
 impl DocumentCore {
     pub(crate) fn for_test() -> Self {
-        Self {
-            flags: Cell::new(0),
-            custom_element_registry_is_global: Cell::new(false),
-            window: WindowMember(EventTargetMember::null_for_test()),
-            live_ranges: WeakCellRegistryField::empty_for_test(),
-            node_iterators: WeakCellRegistryField::empty_for_test(),
-            node_tree_version: Cell::new(0),
-            element_tree_version: Cell::new(0),
-            collection_attribute_versions: Default::default(),
-            element_tree_positions_dom_tree_version: Cell::new(0),
-            ids: IdMapField::empty_for_test(),
-        }
+        Self::new()
     }
 
     pub(crate) fn set_flags_for_test(&self, flags: u8) {

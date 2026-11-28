@@ -33,6 +33,7 @@ use libgc_api::{Trace, Visitor};
 use super::attr::AttrCore;
 use super::attr::attr_value;
 use super::attributes;
+use super::event_target::EventTargetCell;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node_class::NODE_OBJECT_HAS_PAYLOAD;
@@ -42,6 +43,7 @@ use super::node_core::CharacterDataCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::DocumentTypeCore;
 use super::node_core::NODE_IS_CLOSED_SHADOW_ROOT;
+use super::node_core::NODE_IS_CONNECTED;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_core::ProcessingInstructionCore;
@@ -50,6 +52,7 @@ use super::prefix::AttrPrefix;
 use super::prefix::CharacterDataPrefix;
 use super::prefix::CxxWords;
 use super::prefix::DocumentFragmentPrefix;
+use super::prefix::DocumentPrefix;
 use super::prefix::NodePrefix;
 use super::prefix::ParentNodePrefix;
 use super::prefix::ShadowRootPrefix;
@@ -107,6 +110,9 @@ struct NodeObjects {
     attr: Allocator,
     document_fragment: Allocator,
     shadow_root: Allocator,
+    document: Allocator,
+    html_document: Allocator,
+    xml_document: Allocator,
 }
 
 impl NodeObjects {
@@ -176,14 +182,23 @@ pub unsafe extern "C" fn rust_dom_register_node_objects(hooks: &'static NodeObje
             attr: allocator_of::<AttrObject>(),
             document_fragment: allocator_of::<DocumentFragmentObject>(),
             shadow_root: payload_allocator_of::<ShadowRootObject>(0),
+            document: payload_allocator_of::<DocumentObject>(1),
+            html_document: payload_allocator_of::<DocumentObject>(2),
+            xml_document: payload_allocator_of::<DocumentObject>(3),
         });
     }
 }
 
 /// The classes of nodes whose objects Rust lays out as the prefix of the class followed by a payload, which C++
 /// constructs over the prefix Rust made (see DOM::RustMadePrefix), destroys, and visits, finalizes and measures through
-/// the functions of the class: shadow roots. Each has a type info of its own, with the cell size C++ gives the class.
-const PAYLOAD_CLASSES: [(NodeClassId, &str); 1] = [(NodeClassId::ShadowRoot, "ShadowRoot")];
+/// the functions of the class: shadow roots and documents. Each has a type info of its own, with the cell size C++ gives
+/// the class.
+const PAYLOAD_CLASSES: [(NodeClassId, &str); 4] = [
+    (NodeClassId::ShadowRoot, "ShadowRoot"),
+    (NodeClassId::Document, "Document"),
+    (NodeClassId::HTMLDocument, "HTMLDocument"),
+    (NodeClassId::XMLDocument, "XMLDocument"),
+];
 
 /// The type info of each class of PAYLOAD_CLASSES, by its index there, which rust_dom_register_node_objects() writes
 /// before any node exists, and which never changes after that.
@@ -304,6 +319,44 @@ impl Drop for ShadowRootObject {
         //         of DOM::ShadowRoot takes the core as release() leaves it.
         unsafe {
             self.shadow_root.core.release(&mut main_thread());
+            destroy_payload(self);
+        }
+    }
+}
+
+/// A DOM::Document, or a document of a class that derives from it: the prefix of the class, which Rust makes, traces
+/// and releases, followed by the payload of the class.
+/// https://dom.spec.whatwg.org/#interface-document
+#[repr(C)]
+pub struct DocumentObject {
+    document: DocumentPrefix,
+}
+
+// SAFETY: Traces every field, and has C++ visit the members of the payload and of the opaque slots.
+unsafe impl Trace for DocumentObject {
+    #[inline(always)]
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        self.document.trace(visitor);
+        visit_payload_edges(self.node(), visitor);
+    }
+}
+
+// SAFETY: The object is #[repr(C)], starts with the header of its cell, which its WrappablePrefix lays out, and is the
+//         size and alignment of the prefix of DOM::Document, which fits a cell.
+unsafe impl RustCell for DocumentObject {
+    const NAME: &'static str = "Document";
+}
+
+// SAFETY: The object is the prefix of DOM::Document, which Document.cpp asserts the class starts with, and which
+//         DOM::HTMLDocument and DOM::XMLDocument derive from.
+unsafe impl PayloadObject for DocumentObject {}
+
+impl Drop for DocumentObject {
+    fn drop(&mut self) {
+        // SAFETY: LibGC destroys the object once, on the main thread, and nothing reads it after this. The destructor
+        //         of DOM::Document takes the core as release() leaves it.
+        unsafe {
+            self.document.core.release(&mut main_thread());
             destroy_payload(self);
         }
     }
@@ -882,6 +935,47 @@ pub(super) fn create_shadow_root(
     })
 }
 
+/// The prefix of a new document of the class `class_id`, which is connected and its own node document, allocated in the
+/// heap of `relevant_global_event_target`, over which C++ then constructs the payload of the class, as
+/// DOM::Document::allocate_document() does.
+///
+/// # Safety
+///
+/// `relevant_global_event_target` must be a live cell, which the caller holds on the stack.
+unsafe fn create_document(
+    _main_thread: &mut MainThread<'_>,
+    class_id: NodeClassId,
+    relevant_global_event_target: NonNull<c_void>,
+) -> NonNull<NodeCell> {
+    let objects = node_objects();
+    let allocator = match class_id {
+        NodeClassId::Document => &objects.document,
+        NodeClassId::HTMLDocument => &objects.html_document,
+        NodeClassId::XMLDocument => &objects.xml_document,
+        _ => panic!("a document is of one of the classes of documents"),
+    };
+    // NB: The constructor of DOM::Document writes the vtable pointers.
+    let words = objects.words(core::ptr::null());
+    // SAFETY: Guaranteed by the caller; the heap of the target is that of the main thread, whose token the caller holds.
+    let heap = unsafe { cell::heap_of(relevant_global_event_target) };
+    // SAFETY: The allocator is one of documents, whose objects start with a DocumentObject. The target, which the
+    //         caller holds on the stack, outlives a collection the allocation runs, and the closure neither allocates
+    //         nor reads the cell.
+    let object = unsafe {
+        cell::allocate_with(heap, allocator, |cell: NonNull<DocumentObject>| {
+            // SAFETY: A NodeCell has no size, so the uninitialized storage is one.
+            let node = compress(cell.cast::<NodeCell>().as_ref());
+            // NB: A document is its own node document, and its own shadow-including root, so it is always connected.
+            let node_prefix = NodePrefix::new(words, class_id, NodeType::DOCUMENT_NODE, node, node);
+            node_prefix.core.set_initial_flags(NODE_IS_CONNECTED);
+            DocumentObject {
+                document: DocumentPrefix::new(ParentNodePrefix::new(node_prefix)),
+            }
+        })
+    };
+    object.cast()
+}
+
 /// A new Text node with the node document `document` and the data `data`, whose reference passes to it, for
 /// DOM::Text::create().
 ///
@@ -1066,6 +1160,25 @@ pub unsafe extern "C" fn rust_dom_create_shadow_root(
     NonNull::from(node.cell())
 }
 
+/// The prefix of a new document of the class `class_id`, allocated in the heap of `relevant_global_event_target`, for
+/// DOM::Document::allocate_document(), which then constructs the payload of the class over it.
+///
+/// # Safety
+///
+/// `relevant_global_event_target` must be a live event target, which the caller holds on the stack, and the call must be
+/// made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_create_document(
+    class_id: NodeClassId,
+    relevant_global_event_target: NonNull<EventTargetCell>,
+) -> NonNull<NodeCell> {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        let mut main_thread = main_thread();
+        create_document(&mut main_thread, class_id, relevant_global_event_target.cast())
+    }
+}
+
 // NB: The C++ classes assert that they have the sizes and alignments of these.
 const _: () = assert!(size_of::<TextObject>() == 128 && align_of::<TextObject>() == 8);
 const _: () = assert!(size_of::<CDATASectionObject>() == 128 && align_of::<CDATASectionObject>() == 8);
@@ -1076,3 +1189,4 @@ const _: () = assert!(size_of::<DocumentTypeObject>() == 120 && align_of::<Docum
 const _: () = assert!(size_of::<AttrObject>() == 120 && align_of::<AttrObject>() == 8);
 const _: () = assert!(size_of::<DocumentFragmentObject>() == 120 && align_of::<DocumentFragmentObject>() == 8);
 const _: () = assert!(size_of::<ShadowRootObject>() == 168 && align_of::<ShadowRootObject>() == 8);
+const _: () = assert!(size_of::<DocumentObject>() == size_of::<DocumentPrefix>() && align_of::<DocumentObject>() == 8);

@@ -102,11 +102,6 @@ impl IdMapField {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) const fn empty_for_test() -> Self {
-        Self::empty()
-    }
-
     /// Frees the map, if any, and releases the elements in it, as LibGC destroys the tree scope whose field this is.
     pub(super) fn release(&self, _main_thread: &mut MainThread<'_>) {
         let map = self.map.replace(core::ptr::null_mut());
@@ -537,17 +532,4 @@ pub unsafe extern "C" fn rust_dom_has_element_with_id(root: &NodeCell, id: usize
     id_map_of(&root)
         .map()
         .is_some_and(|map| map.find(hash, units).is_some())
-}
-
-/// Frees the map of a document or shadow root, and releases the elements in it, as C++ destroys the tree scope.
-///
-/// # Safety
-///
-/// The field must be that of a tree scope that is being destroyed, nothing may read it after, and the call must be made
-/// on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_id_map_destroy(field: &IdMapField) {
-    // SAFETY: Guaranteed by the caller. Releasing the weak references needs the main thread, which owns the heap.
-    let mut main_thread = unsafe { main_thread() };
-    field.release(&mut main_thread);
 }
