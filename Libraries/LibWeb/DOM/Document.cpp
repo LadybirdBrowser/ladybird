@@ -333,6 +333,33 @@ struct Document::AccessibilityRecordCache {
     };
     HashMap<UniqueNodeID, Record> records;
     u64 next_version { 1 };
+
+    // OPTIMIZATION: Dropping the records of a whole subtree is put off until the records are next read, so that a
+    //               subtree that's asked to drop its records many times between two reads is walked only once. The
+    //               parser inserting a table's rows and cells one at a time drops the whole table's records each time.
+    HashTable<UniqueNodeID> subtrees_to_drop;
+
+    void drop_subtrees_to_drop()
+    {
+        if (subtrees_to_drop.is_empty())
+            return;
+        for (auto id : subtrees_to_drop) {
+            auto* root = Node::from_unique_id(id);
+            if (!root)
+                continue;
+            root->for_each_shadow_including_inclusive_descendant([&](Node const& descendant) {
+                records.remove(descendant.unique_id());
+                return TraversalDecision::Continue;
+            });
+        }
+        subtrees_to_drop.clear();
+    }
+
+    void clear()
+    {
+        records.clear();
+        subtrees_to_drop.clear();
+    }
 };
 
 static void release_text_geometry_sources(Vector<Document::CachedTextGeometry::Source>& sources)
@@ -2241,7 +2268,7 @@ void Document::set_url(URL::URL const& url)
 {
     // Link URLs resolve against the document's URL.
     if (m_accessibility_record_cache)
-        m_accessibility_record_cache->records.clear();
+        m_accessibility_record_cache->clear();
     // OPTIMIZATION: Avoid unnecessary work if the URL is already set.
     if (m_url == url)
         return;
@@ -7121,6 +7148,7 @@ Document::KeptAccessibilityRecord Document::kept_accessibility_record(Node const
 {
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
         return {};
+    m_accessibility_record_cache->drop_subtrees_to_drop();
     auto it = m_accessibility_record_cache->records.find(node.unique_id());
     if (it == m_accessibility_record_cache->records.end())
         return {};
@@ -7133,6 +7161,7 @@ u64 Document::cache_accessibility_record(Node const& node, WebView::Accessibilit
         return 0;
     if (!m_accessibility_record_cache)
         m_accessibility_record_cache = make<AccessibilityRecordCache>();
+    m_accessibility_record_cache->drop_subtrees_to_drop();
     // Leave out what every build computes again anyway, so it isn't kept, and copied out, for nothing.
     auto kept = record;
     kept.bounds = {};
@@ -7149,6 +7178,7 @@ Document::CachedTextGeometry const* Document::cached_text_geometry(Node const& n
 {
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
         return nullptr;
+    m_accessibility_record_cache->drop_subtrees_to_drop();
     auto it = m_accessibility_record_cache->records.find(node.unique_id());
     if (it == m_accessibility_record_cache->records.end() || !it->value.text_geometry.has_value())
         return nullptr;
@@ -7160,6 +7190,7 @@ u64 Document::cache_text_geometry(Node const& node, CachedTextGeometry geometry)
     // The geometry goes with the node's record, so whatever drops the record drops the geometry too.
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
         return 0;
+    m_accessibility_record_cache->drop_subtrees_to_drop();
     auto it = m_accessibility_record_cache->records.find(node.unique_id());
     if (it == m_accessibility_record_cache->records.end())
         return 0;
@@ -7189,10 +7220,7 @@ void Document::invalidate_cached_accessibility_data(Node const& node, Optional<U
     auto drop_records_of_subtree = [&](Node const& root) {
         if (!records || records->is_empty())
             return;
-        const_cast<Node&>(root).for_each_shadow_including_inclusive_descendant([&](Node const& descendant) {
-            records->remove(descendant.unique_id());
-            return TraversalDecision::Continue;
-        });
+        m_accessibility_record_cache->subtrees_to_drop.set(root.unique_id());
     };
 
     auto touches_labels = false;
@@ -7313,7 +7341,7 @@ void Document::invalidate_cached_accessibility_data(Node const& node, Optional<U
 
     // Link URLs resolve against the document's base URL.
     if (touches_base_url && records)
-        records->clear();
+        m_accessibility_record_cache->clear();
 }
 
 void Document::invalidate_cached_accessibility_records_after_style_change(Element const& element)
@@ -7340,6 +7368,8 @@ Vector<String> Document::cached_accessibility_record_mismatches()
     update_layout(UpdateLayoutReason::InspectAccessibilityTree);
     if (!m_accessibility_record_cache)
         return {};
+    // The build below bypasses the cache, so it doesn't drop the records that are waiting to be dropped.
+    m_accessibility_record_cache->drop_subtrees_to_drop();
 
     // Leave out what every build computes again anyway.
     auto kept_part = [](WebView::AccessibilityNodeData data) {
@@ -9709,7 +9739,7 @@ void Document::set_design_mode_enabled_state(bool design_mode_enabled)
 
     // Design mode makes the whole document editable.
     if (m_accessibility_record_cache)
-        m_accessibility_record_cache->records.clear();
+        m_accessibility_record_cache->clear();
 
     struct PreviousReadWriteState {
         GC::Ptr<Element> element;
