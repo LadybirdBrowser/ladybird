@@ -33,6 +33,7 @@
 #endif
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Motion.h>
+#include <UI/Qt/PasskeyPopover.h>
 #include <UI/Qt/PermissionPromptPopover.h>
 #include <UI/Qt/Popover.h>
 #include <UI/Qt/SiteSettingsPopover.h>
@@ -47,6 +48,7 @@
 #include <QClipboard>
 #include <QColorDialog>
 #include <QCursor>
+#include <QDialog>
 #include <QDialogButtonBox>
 #include <QDynamicPropertyChangeEvent>
 #include <QFileDialog>
@@ -54,6 +56,7 @@
 #include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QImage>
+#include <QLabel>
 #include <QLocale>
 #include <QMenu>
 #include <QMessageBox>
@@ -528,6 +531,8 @@ void Tab::initialize(Optional<u64> hub_view_id)
         if (m_external_url_confirmation_dialog)
             m_external_url_confirmation_dialog->close();
         m_permission_prompts.ignore_all();
+        if (m_passkey_popover)
+            m_passkey_popover->abandon();
     };
 
     view().on_request_external_url_confirmation = [this](auto const& url, auto const& initiator_origin, String const& handler_name, auto on_complete) {
@@ -590,6 +595,27 @@ void Tab::initialize(Optional<u64> hub_view_id)
         // A tab opened in the background, or in a window that was never active, has had nothing hold its prompts yet.
         update_permission_prompts();
         m_permission_prompts.enqueue(request, AK::move(on_outcome));
+    };
+
+    view().on_request_passkey_choice = [this](WebView::PasskeyChoiceKind kind, String const& rp_id, Vector<Utf16String> const& options, WebView::PasskeyChoiceCallback on_choice) {
+        passkey_popover().show_choice(kind, qstring_from_ak_string(rp_id), options, AK::move(on_choice));
+    };
+
+    view().on_request_security_key_prompt = [this](WebView::SecurityKeyPromptKind kind, String const& rp_id, Function<void()> on_cancel) {
+        passkey_popover().show_security_key_prompt(kind, qstring_from_ak_string(rp_id), AK::move(on_cancel));
+    };
+
+    view().on_request_security_key_pin = [this](WebView::SecurityKeyPinPromptReason reason, String const& rp_id, Function<void(Optional<String>)> on_pin) {
+        passkey_popover().show_pin_prompt(reason, qstring_from_ak_string(rp_id), AK::move(on_pin));
+    };
+
+    view().on_show_passkey_message = [this](WebView::PasskeyMessage message, String const& rp_id) {
+        passkey_popover().show_message(message, qstring_from_ak_string(rp_id));
+    };
+
+    view().on_dismiss_passkey_prompt = [this] {
+        if (m_passkey_popover)
+            m_passkey_popover->dismiss();
     };
 
     view().on_cancel_permission_prompt = [this](WebView::PermissionPromptRequest const& request) {
@@ -1313,10 +1339,34 @@ void Tab::showEvent(QShowEvent* event)
 // comes up over an inactive window is closed by the next click or activation anywhere else.
 void Tab::update_permission_prompts()
 {
-    if (isVisible() && isActiveWindow())
+    bool is_shown_to_user = isVisible() && isActiveWindow();
+    if (is_shown_to_user)
         m_permission_prompts.resume();
     else
         m_permission_prompts.suspend();
+
+    if (!m_passkey_popover)
+        return;
+    if (is_shown_to_user)
+        m_passkey_popover->resume();
+    else
+        m_passkey_popover->suspend();
+}
+
+// The steps of a passkey ceremony share one popover, which hangs from the site settings button as a permission prompt
+// does.
+PasskeyPopover& Tab::passkey_popover()
+{
+    if (!m_passkey_popover) {
+        m_passkey_popover = new PasskeyPopover(this);
+        m_passkey_popover->update_chrome_style(palette());
+        m_passkey_popover->on_layout_change = [this] {
+            move_popover_below(*m_passkey_popover, site_settings_anchor(), PopoverAlignment::Leading);
+        };
+        if (!isVisible() || !isActiveWindow())
+            m_passkey_popover->suspend();
+    }
+    return *m_passkey_popover;
 }
 
 void Tab::update_hover_label()
@@ -1452,6 +1502,8 @@ void Tab::update_chrome_style()
     if (m_is_updating_chrome_style)
         return;
     m_is_updating_chrome_style = true;
+    if (m_passkey_popover)
+        m_passkey_popover->update_chrome_style(palette());
     auto hover_surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface(Theme::chrome_palette(*this)));
     auto hover_border = ChromeStyle::style_sheet_color(ChromeStyle::chrome_border(Theme::chrome_palette(*this)));
     auto hover_text = ChromeStyle::style_sheet_color(ChromeStyle::chrome_text(Theme::chrome_palette(*this)));

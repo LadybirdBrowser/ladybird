@@ -22,6 +22,7 @@
 #include <LibWebView/TabPerformanceStats.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
+#include <UI/Qt/PasskeyPopover.h>
 #include <UI/Qt/PermissionPromptPopover.h>
 #include <UI/Qt/SessionStore.h>
 #include <UI/Qt/WebContentView.h>
@@ -216,6 +217,7 @@ private:
     void position_private_session_popover();
     QWidget& site_settings_anchor() const;
     void update_permission_prompts();
+    PasskeyPopover& passkey_popover();
     void hide_hover_label();
     bool hover_text_belongs_on_right(QPoint pointer) const;
     QImage render_hover_text(QString const&) const;
@@ -272,6 +274,7 @@ private:
     QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
     PermissionPromptQueue m_permission_prompts;
+    QPointer<PasskeyPopover> m_passkey_popover;
 
     bool m_suppress_javascript_dialogs_until_navigation { false };
     // The dialogs the current document has shown, and whether the user stopped it from showing more.

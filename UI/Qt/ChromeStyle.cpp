@@ -1609,6 +1609,147 @@ QPushButton#LadybirdPermissionPromptBlock:focus {{
         style_sheet_color(panel.muted), style_sheet_color(panel.control), style_sheet_color(panel.pressed), style_sheet_color(Theme::focus_ring()));
 }
 
+// The passkey prompt is a message popover too. Its options are rows, as in a menu, and the one button that goes on with
+// what the user typed is the primary one.
+QString passkey_prompt_style_sheet(QPalette const&)
+{
+    auto const& panel = Theme::panel();
+    return qformatted(R"(
+QFrame#LadybirdPasskeyPrompt {{
+    color: {0};
+    background: {1};
+    border: 1px solid {2};
+    border-radius: 12px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QLabel {{
+    color: {0};
+    background: transparent;
+    border: none;
+    font-size: 13px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QLabel#LadybirdPasskeyPromptTitle {{
+    font-weight: 600;
+}}
+
+QFrame#LadybirdPasskeyPrompt QLabel#LadybirdPasskeyPromptIcon {{
+    background: {3};
+    border-radius: 8px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QLabel#LadybirdPasskeyPromptBody {{
+    color: {4};
+}}
+
+QFrame#LadybirdPasskeyPrompt QLabel#LadybirdPasskeyPromptError {{
+    color: {8};
+    font-size: 12px;
+}}
+
+QFrame#LadybirdPasskeyPromptSeparator {{
+    background: {9};
+    border: none;
+    max-height: 1px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton {{
+    color: {0};
+    background: {5};
+    border: 0;
+    border-radius: 7px;
+    min-height: 28px;
+    padding: 0 14px;
+    font-size: 13px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton:hover,
+QFrame#LadybirdPasskeyPrompt QPushButton:pressed {{
+    background: {6};
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton:focus {{
+    border: 2px solid {7};
+    padding: 0 12px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton:disabled {{
+    color: {4};
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptOption {{
+    background: transparent;
+    min-height: 36px;
+    padding: 0 10px;
+    text-align: left;
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptOption:hover,
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptOption:focus {{
+    background: {5};
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptOption:pressed {{
+    background: {6};
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptOption:focus {{
+    padding: 0 8px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptPrimary {{
+    color: white;
+    background: {10};
+    font-weight: 600;
+}}
+
+QFrame#LadybirdPasskeyPrompt QPushButton#LadybirdPasskeyPromptPrimary:disabled {{
+    color: {4};
+    background: {5};
+}}
+
+QFrame#LadybirdPasskeyPrompt QLineEdit {{
+    color: {0};
+    background: {11};
+    border: 1px solid {2};
+    border-radius: 7px;
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 13px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QLineEdit:focus {{
+    border: 2px solid {7};
+    padding: 0 8px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 0;
+}}
+
+QFrame#LadybirdPasskeyPrompt QScrollBar::handle:vertical {{
+    background: {2};
+    border-radius: 4px;
+    min-height: 20px;
+}}
+
+QFrame#LadybirdPasskeyPrompt QScrollBar::add-line:vertical,
+QFrame#LadybirdPasskeyPrompt QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+
+QFrame#LadybirdPasskeyPrompt QScrollBar::add-page:vertical,
+QFrame#LadybirdPasskeyPrompt QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
+)",
+        style_sheet_color(panel.text), style_sheet_color(panel.surface), style_sheet_color(over(panel.edge, panel.surface)), style_sheet_color(panel.information),
+        style_sheet_color(panel.muted), style_sheet_color(panel.control), style_sheet_color(panel.pressed), style_sheet_color(Theme::focus_ring()),
+        style_sheet_color(panel.warning), style_sheet_color(panel.separator_soft), style_sheet_color(Theme::accent_fill()), style_sheet_color(panel.page));
+}
+
 // The instructions over a screenshot selection look like a message popover, with every action a secondary one.
 QString screenshot_selection_style_sheet(QPalette const&)
 {

@@ -175,6 +175,18 @@ void View::did_get_permission_answer(u64 answer_id, Web::Permissions::PromptOutc
         (*on_answer)(outcome);
 }
 
+void View::did_get_passkey_choice(u64 answer_id, Optional<u32> index)
+{
+    if (auto on_choice = m_pending_passkey_choices.take(answer_id); on_choice.has_value())
+        (*on_choice)(index);
+}
+
+void View::did_get_security_key_pin(u64 answer_id, Optional<String> pin)
+{
+    if (auto on_pin = m_pending_security_key_pins.take(answer_id); on_pin.has_value())
+        (*on_pin)(move(pin));
+}
+
 // NB: The UI may keep the tab, such as when the user sees it after all. It then stays as it is.
 void View::did_request_discard()
 {
@@ -247,6 +259,59 @@ void View::forward_callbacks_to_ui(bool is_tab)
             m_pending_permission_answers.set(answer_id, move(on_outcome));
             push_state_to_ui();
             ui->async_view_request_permission(view_id(), answer_id, request);
+        };
+
+        on_request_security_key_prompt = [this](WebView::SecurityKeyPromptKind kind, String const& rp_id, Function<void()> on_cancel) {
+            auto* ui = ConnectionFromUI::the();
+            if (!ui) {
+                on_cancel();
+                return;
+            }
+            // NB: The UI answers only when the user cancels the prompt. A prompt that is dismissed has no answer.
+            if (m_security_key_prompt_answer_id.has_value())
+                m_pending_answers.remove(*m_security_key_prompt_answer_id);
+            auto answer_id = m_next_answer_id++;
+            m_security_key_prompt_answer_id = answer_id;
+            m_pending_answers.set(answer_id, [on_cancel = move(on_cancel)](bool) { on_cancel(); });
+            push_state_to_ui();
+            ui->async_view_request_security_key_prompt(view_id(), answer_id, kind, rp_id);
+        };
+
+        on_dismiss_passkey_prompt = [this] {
+            if (m_security_key_prompt_answer_id.has_value())
+                m_pending_answers.remove(*m_security_key_prompt_answer_id);
+            m_security_key_prompt_answer_id.clear();
+            if (auto* ui = ConnectionFromUI::the())
+                ui->async_view_dismiss_passkey_prompt(view_id());
+        };
+
+        on_request_security_key_pin = [this](WebView::SecurityKeyPinPromptReason reason, String const& rp_id, Function<void(Optional<String>)> on_pin) {
+            auto* ui = ConnectionFromUI::the();
+            if (!ui) {
+                on_pin({});
+                return;
+            }
+            auto answer_id = m_next_answer_id++;
+            m_pending_security_key_pins.set(answer_id, move(on_pin));
+            push_state_to_ui();
+            ui->async_view_request_security_key_pin(view_id(), answer_id, reason, rp_id);
+        };
+
+        on_show_passkey_message = [this](WebView::PasskeyMessage message, String const& rp_id) {
+            if (auto* ui = ConnectionFromUI::the())
+                ui->async_view_show_passkey_message(view_id(), message, rp_id);
+        };
+
+        on_request_passkey_choice = [this](WebView::PasskeyChoiceKind kind, String const& rp_id, Vector<Utf16String> const& options, WebView::PasskeyChoiceCallback on_choice) {
+            auto* ui = ConnectionFromUI::the();
+            if (!ui) {
+                on_choice({});
+                return;
+            }
+            auto answer_id = m_next_answer_id++;
+            m_pending_passkey_choices.set(answer_id, move(on_choice));
+            push_state_to_ui();
+            ui->async_view_request_passkey_choice(view_id(), answer_id, kind, rp_id, options);
         };
 
         on_request_date_picker = [this](auto const&... arguments) {

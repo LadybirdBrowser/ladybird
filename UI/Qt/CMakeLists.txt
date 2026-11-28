@@ -51,6 +51,7 @@ add_library(ladybird_impl STATIC
     NotificationBar.cpp
     PageCard.cpp
     PerformanceMonitorWidget.cpp
+    PasskeyPopover.cpp
     PermissionPromptPopover.cpp
     PictureInPictureWindow.cpp
     PlainText.cpp
