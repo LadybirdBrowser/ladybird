@@ -22,7 +22,9 @@ use super::node::NodeCell;
 use super::node::compress;
 use super::node_core::CHARACTER_DATA_CORE_OFFSET;
 use super::node_core::CharacterDataCore;
+use super::node_core::DOCUMENT_CORE_OFFSET;
 use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
+use super::node_core::DocumentCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
@@ -35,8 +37,8 @@ use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
 
 /// A node's cell, with its core where DOM::Node has it, a character data core where DOM::CharacterData has it, which
-/// only a CharacterData node's cell holds, a fragment core where DOM::DocumentFragment has it, and an element core
-/// where DOM::Element has it, which only an element's cell holds.
+/// only a CharacterData node's cell holds, a fragment core where DOM::DocumentFragment has it, a document core where
+/// DOM::Document has it, and an element core where DOM::Element has it, which only an element's cell holds.
 #[repr(C, align(8))]
 struct TestCell {
     header: [u8; NODE_CORE_OFFSET],
@@ -46,13 +48,16 @@ struct TestCell {
     character_data_fields:
         [u8; DOCUMENT_FRAGMENT_CORE_OFFSET - CHARACTER_DATA_CORE_OFFSET - size_of::<CharacterDataCore>()],
     fragment_core: DocumentFragmentCore,
-    element_fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
+    fragment_fields: [u8; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
+    document_core: DocumentCore,
+    element_fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET - size_of::<DocumentCore>()],
     element_core: MaybeUninit<ElementCore>,
 }
 
 const _: () = assert!(offset_of!(TestCell, core) == NODE_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, character_data_core) == CHARACTER_DATA_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, fragment_core) == DOCUMENT_FRAGMENT_CORE_OFFSET);
+const _: () = assert!(offset_of!(TestCell, document_core) == DOCUMENT_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, element_core) == ELEMENT_CORE_OFFSET);
 
 const ARENA_CELLS: usize = 1 << 14;
@@ -175,7 +180,9 @@ fn new_node<'a>(
             - CHARACTER_DATA_CORE_OFFSET
             - size_of::<CharacterDataCore>()],
         fragment_core: DocumentFragmentCore::null_for_test(),
-        element_fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
+        fragment_fields: [0; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
+        document_core: DocumentCore::for_test(),
+        element_fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET - size_of::<DocumentCore>()],
         element_core: element_core.map_or(MaybeUninit::uninit(), MaybeUninit::new),
     });
     // SAFETY: The cell lives for the rest of the process, and only the test that made it changes its tree, which it

@@ -2766,7 +2766,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Path::new("SVG/ParserRustFFI.h"),
     );
 
-    // The node and element state that DOM::Node and DOM::Element embed, and the DOM algorithms that run on it - namespace
+    // The node, element and document state that DOM::Node, DOM::Element and DOM::Document embed, and the DOM algorithms that run on it - namespace
     // Web::DOM::RustFFI. Its node fields are GC::Members to C++, which stores, compares and visits them as it does every
     // other member, and its other fields are the AK and DOM types that C++ constructs, assigns and destroys.
     let mut dom_config = base_config.clone();
@@ -2786,6 +2786,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "NodeCore".to_string(),
         "CharacterDataCore".to_string(),
         "DocumentFragmentCore".to_string(),
+        "DocumentCore".to_string(),
         "ElementCore".to_string(),
     ];
     for (rust_name, cpp_name) in [

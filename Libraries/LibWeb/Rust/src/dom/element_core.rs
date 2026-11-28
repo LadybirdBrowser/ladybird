@@ -22,7 +22,7 @@ use super::strings::OptionalFlyStringField;
 use super::strings::StringField;
 
 /// Where DOM::Element embeds its core, in bytes from the start of the element's cell, which Element.cpp asserts.
-pub const ELEMENT_CORE_OFFSET: usize = 144;
+pub const ELEMENT_CORE_OFFSET: usize = 136;
 
 /// A field that holds the classes of an element, laid out as C++'s DOM::ClassNames, which is what C++ sees it as: one
 /// class in place, or all of them in an outline buffer, which C++ allocates and frees.
@@ -123,6 +123,22 @@ impl AttributeListField {
 
 const _: () = assert!(size_of::<AttributeListField>() == 8 && align_of::<AttributeListField>() == 8);
 
+// The flags of an element's core, a bit each in its flags byte, which C++ sets where the state they stand for changes.
+
+/// Whether the element is a DOM::HTMLElement, which C++ sets as it constructs one, and never changes.
+pub const ELEMENT_IS_HTML_ELEMENT: u8 = 1 << 0;
+/// Whether the element has insertion steps, removing steps or post-connection steps beyond those of every element and
+/// every HTML element, as its class has, or as a form-associated element has. C++ sets it as it constructs an element of
+/// such a class, and as a form-associated custom element definition is attached to an element. It is never cleared.
+pub const ELEMENT_HAS_OWN_TREE_STEPS: u8 = 1 << 1;
+/// Whether the element is an inert HTML element.
+/// https://html.spec.whatwg.org/multipage/interaction.html#inert
+pub const ELEMENT_IS_INERT: u8 = 1 << 2;
+/// Whether the element is an HTML element whose contenteditable attribute is in a state other than "inherit".
+pub const ELEMENT_HAS_CONTENT_EDITABLE_STATE: u8 = 1 << 3;
+/// Whether the element may have synthetic pseudo-elements, which C++ sets as it first makes one, and never clears.
+pub const ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS: u8 = 1 << 4;
+
 /// The state that names an element, which C++ embeds in DOM::Element as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-element
 #[repr(C)]
@@ -141,6 +157,8 @@ pub struct ElementCore {
     /// Whether script changed the declarations of the element's style attribute since C++ last wrote them to the
     /// attribute, which C++ does as the attribute is next read.
     style_attribute_is_dirty: Cell<bool>,
+    /// The ELEMENT_* flags.
+    flags: Cell<u8>,
     /// https://dom.spec.whatwg.org/#concept-element-shadow-root
     shadow_root: ShadowRootMember,
 }
@@ -178,6 +196,11 @@ impl ElementCore {
     #[inline(always)]
     pub fn style_attribute_is_dirty(&self) -> bool {
         self.style_attribute_is_dirty.get()
+    }
+
+    #[inline(always)]
+    pub fn flags(&self) -> u8 {
+        self.flags.get()
     }
 
     /// https://dom.spec.whatwg.org/#concept-element-shadow-root
@@ -219,6 +242,7 @@ impl ElementCore {
             attributes: AttributeListField(UnsafeCell::new(core::ptr::null())),
             subtree_name_filter: Cell::new(0),
             style_attribute_is_dirty: Cell::new(false),
+            flags: Cell::new(0),
             shadow_root: ShadowRootMember::null_for_test(),
         }
     }
@@ -249,6 +273,11 @@ impl ElementCore {
         self
     }
 
+    pub(crate) fn with_flags_for_test(self, flags: u8) -> Self {
+        self.flags.set(flags);
+        self
+    }
+
     pub(crate) fn with_subtree_name_filter_for_test(self, filter: u64) -> Self {
         self.subtree_name_filter.set(filter);
         self
@@ -273,6 +302,7 @@ const _: () = assert!(offset_of!(ElementCore, classes) == 16);
 const _: () = assert!(offset_of!(ElementCore, attributes) == 40);
 const _: () = assert!(offset_of!(ElementCore, subtree_name_filter) == 48);
 const _: () = assert!(offset_of!(ElementCore, style_attribute_is_dirty) == 56);
+const _: () = assert!(offset_of!(ElementCore, flags) == 57);
 const _: () = assert!(offset_of!(ElementCore, shadow_root) == 60);
 
 #[cfg(test)]

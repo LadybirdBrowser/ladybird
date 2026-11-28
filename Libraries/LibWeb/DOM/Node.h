@@ -209,7 +209,7 @@ public:
     void set_has_spelling_markers(Badge<Editing::SpellingMarkers>, bool value) { m_core.cpp_flags.has_spelling_markers = value; }
     CSS::UserSelect user_select_used_value() const;
 
-    bool in_editable_subtree() const { return m_in_editable_subtree; }
+    bool in_editable_subtree() const { return m_core.flags & RustFFI::NODE_IN_EDITABLE_SUBTREE; }
     bool recompute_editable_subtree_flag();
     void recompute_editable_subtree_flags_and_repaint();
     // Brings the editing-host and empty-text stamps of the boxes in the subtree to the nodes' editability.
@@ -650,8 +650,6 @@ protected:
     // place.
     RustFFI::NodeCore m_core {};
 
-    bool m_in_editable_subtree { false };
-
     void set_core_flag(u8 flag, bool value) { m_core.flags = static_cast<u8>(value ? (m_core.flags | flag) : (m_core.flags & ~flag)); }
     // Which narrower rebuilds the layout tree update marks collected so far still permit.
     enum LayoutTreeUpdateReuseReason : u8 {
@@ -744,15 +742,43 @@ constexpr bool node_class_is_listed_under_its_base()
 
 namespace GC {
 
-// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h).
+// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and tells libweb_rust whether its
+// class has tree steps of its own, which the class's overrides decide (see Rust/src/dom/steps.rs).
 template<typename T>
 requires(IsBaseOf<Web::DOM::Node, T>)
 struct CellConstructionHook<T> {
+    // Whether T has insertion steps, removing steps or post-connection steps beyond those of DOM::Node, DOM::Element
+    // and HTML::HTMLElement, which libweb_rust knows to do nothing for some nodes, or is form-associated, whose steps
+    // HTML::HTMLElement runs.
+    static constexpr bool has_own_tree_steps()
+    {
+        using namespace Web;
+        using DOM::Node;
+        using IsSubtreeRoot = Node::IsSubtreeRoot;
+        if (!IsOneOf<decltype(&T::inserted), void (Node::*)(), void (DOM::Element::*)(), void (HTML::HTMLElement::*)()>)
+            return true;
+        if (!IsOneOf<decltype(&T::removed_from), void (Node::*)(IsSubtreeRoot, Node*, Node&), void (DOM::Element::*)(IsSubtreeRoot, Node*, Node&), void (HTML::HTMLElement::*)(IsSubtreeRoot, Node*, Node&)>)
+            return true;
+        if (!IsSame<decltype(&T::has_post_connection_steps), bool (Node::*)() const>)
+            return true;
+        if constexpr (requires { &T::is_form_associated_element; })
+            return !IsSame<decltype(&T::is_form_associated_element), bool (HTML::FormAssociatedElement::*)() const>;
+        return false;
+    }
+
     static void did_construct(T& node)
     {
         static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
         static_assert(Web::DOM::node_class_is_listed_under_its_base<T>(), "DOM/NodeClasses.json must list each class of nodes under the class it derives from");
         static_cast<Web::Bindings::Wrappable&>(node).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
+
+        if constexpr (IsBaseOf<Web::DOM::Element, T>) {
+            if constexpr (has_own_tree_steps())
+                node.set_has_own_tree_steps();
+        } else {
+            // NB: libweb_rust takes the steps of character data and doctypes to be those of every node.
+            static_assert(!(IsBaseOf<Web::DOM::CharacterData, T> || IsBaseOf<Web::DOM::DocumentType, T>) || !has_own_tree_steps());
+        }
     }
 };
 

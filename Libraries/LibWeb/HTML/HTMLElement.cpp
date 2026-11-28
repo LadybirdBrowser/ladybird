@@ -164,6 +164,7 @@ static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& stri
 HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {
+    set_element_core_flag(DOM::RustFFI::ELEMENT_IS_HTML_ELEMENT, true);
 }
 
 HTMLElement::~HTMLElement() = default;
@@ -1152,6 +1153,7 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
             // Having an invalid value maps to the "inherit" state.
             m_content_editable_state = ContentEditableState::Inherit;
         }
+        set_element_core_flag(DOM::RustFFI::ELEMENT_HAS_CONTENT_EDITABLE_STATE, m_content_editable_state != ContentEditableState::Inherit);
         recompute_editable_subtree_flags_and_repaint();
         for (auto const& state : previous_read_write_states)
             CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);

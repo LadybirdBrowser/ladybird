@@ -82,9 +82,10 @@ public:                                                    \
     template<typename>                                     \
     friend struct GC::CellConstructionHook;
 
-// Lets the embedder finish constructing a cell with what only the class it is constructed as knows. A specialization
-// for a class T can have a static did_construct(T&), which the heap calls right after T's constructor. Every cell class
-// befriends it, so it can name the members its class keeps private.
+// Lets the embedder finish constructing a cell with what only the class it is constructed as knows, such as which
+// virtual functions that class overrides. A specialization for a class T can have a static did_construct(T&), which
+// the heap calls right after T's constructor. Every cell class befriends it, so it can name the members its class keeps
+// private.
 template<typename T>
 struct CellConstructionHook { };
 

@@ -59,6 +59,8 @@ pub struct RemovalFacts {
     pub holds_a_propagating_state_source: bool,
     /// Whether the removed node has an inclusive descendant that is a slot, in a parent whose root is a shadow root.
     pub has_descendant_slots: bool,
+    /// Whether the removed node is assigned to a slot.
+    pub is_assigned: bool,
 }
 
 /// The callbacks, as DOM/Node.cpp registers them. Each takes the nodes it acts on as GC::Ref<DOM::Node>s, or

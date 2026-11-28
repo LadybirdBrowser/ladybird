@@ -18,7 +18,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Text) == 136);
+static_assert(sizeof(Text) == 128);
 #endif
 
 struct Text::RareData final

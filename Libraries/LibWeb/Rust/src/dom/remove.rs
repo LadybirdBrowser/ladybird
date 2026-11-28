@@ -12,6 +12,8 @@ use super::hooks::IsSubtreeRoot;
 use super::links;
 use super::node::NodeCell;
 use super::node_ref::NodeRef;
+use super::steps::assign_slottables_after_removal_does_nothing;
+use super::steps::removing_steps_do_nothing;
 use super::tree::for_each_shadow_including_descendant;
 use crate::stage::MainThread;
 
@@ -51,7 +53,10 @@ pub(crate) fn remove(main_thread: &mut MainThread<'_>, node: NodeRef, suppress_o
     // 10. If node has an inclusive descendant that is a slot:
     //     1. Run assign slottables for a tree with parent’s root.
     //     2. Run assign slottables for a tree with node.
-    hooks::assign_slottables_after_removal(main_thread, node, parent, parent_root, facts);
+    // OPTIMIZATION: The cores and the facts tell when the callback has nothing to do, see steps.rs.
+    if !assign_slottables_after_removal_does_nothing(node, parent_root, facts) {
+        hooks::assign_slottables_after_removal(main_thread, node, parent, parent_root, facts);
+    }
 
     run_removing_steps_for_subtree(
         main_thread,
@@ -91,15 +96,21 @@ fn run_removing_steps_for_subtree(
     // 13. Run the removing steps with node, true, and parent.
     // AD-HOC: The removing steps run first, and isParentConnected is read after them, by the callback for node. The
     //         same goes for each descendant below, whose removing steps run before its reaction is enqueued.
-    hooks::run_removing_steps(
-        main_thread,
-        node,
-        IsSubtreeRoot::Yes,
-        parent,
-        parent_root,
-        was_tracked_by_style_engine,
-        false,
-    );
+    // OPTIMIZATION: The cores tell which nodes of a subtree the style engine did not track the removing steps have
+    //               nothing to do for, see steps.rs. Neither is such a node custom with a connected parent.
+    let steps_may_do_something =
+        |node| was_tracked_by_style_engine || !removing_steps_do_nothing(node, parent, parent_root);
+    if steps_may_do_something(node) {
+        hooks::run_removing_steps(
+            main_thread,
+            node,
+            IsSubtreeRoot::Yes,
+            parent,
+            parent_root,
+            was_tracked_by_style_engine,
+            false,
+        );
+    }
     let is_parent_connected = parent.is_connected();
 
     // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
@@ -107,6 +118,9 @@ fn run_removing_steps_for_subtree(
     //        with descendant, callback name "disconnectedCallback", and « ».
     //     2. Run the removing steps with descendant, false, and parent.
     for_each_shadow_including_descendant(node, &mut |descendant| {
+        if !steps_may_do_something(descendant) {
+            return;
+        }
         hooks::run_removing_steps(
             main_thread,
             descendant,
