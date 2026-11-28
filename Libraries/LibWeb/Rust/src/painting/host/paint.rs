@@ -181,6 +181,7 @@ impl FfiRecordingInputs {
             should_paint_overlay: self.should_paint_overlay,
             records_in_finest_runs: self.records_in_finest_runs,
             records_whole_document: self.records_whole_document,
+            isolated_subtree: None,
             notes_record_origins: self.notes_record_origins,
             canvas_fill_rect: self.canvas_fill_rect.has_value.then_some(self.canvas_fill_rect.value),
             opaque_canvas: self.opaque_canvas,

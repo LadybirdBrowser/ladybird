@@ -501,15 +501,24 @@ void commit_unrecorded_frame(Layout::BegunRead const& read, DOM::Document& docum
     });
 }
 
-Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, u64 visual_context_tree_structural_epoch, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
+struct RecordingInputsStorage {
+    Layout::RustFFI::FfiRecordingInputs inputs {};
+    Vector<Layout::RustFFI::FfiTextFragmentIndicationRange> text_fragment_indications;
+    Vector<Layout::RustFFI::FfiGridOverlayInput> grid_overlays;
+    OverlayLabelFonts grid_label_fonts;
+    Vector<Layout::RustFFI::FfiFlexOverlayInput> flex_overlays;
+    ByteString inspector_highlight_label_text;
+    OverlayLabelFonts inspector_label_fonts;
+};
+
+static void fill_recording_inputs(RecordingInputsStorage& storage, Layout::BegunRead const& read, DOM::Document& document, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
 {
-    auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
     auto navigable_of_document = document.navigable();
     auto device_viewport_rect = navigable_of_document ? navigable_of_document->present_viewport_rect() : Gfx::IntRect {};
     auto wheel_event_region_state = document.paint_state().collect_root_blocking_wheel_event_regions(document);
-    Layout::RustFFI::FfiRecordingInputs inputs {};
-    Vector<Layout::RustFFI::FfiTextFragmentIndicationRange> text_fragment_indications;
+    auto& inputs = storage.inputs;
+    auto& text_fragment_indications = storage.text_fragment_indications;
     if (!document.text_fragment_ranges().is_empty()) {
         document.for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
             auto* text = as_if<DOM::Text>(&node);
@@ -547,8 +556,8 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     inputs.tooltip_color = overlay_inputs.tooltip_color;
     inputs.tooltip_text_color = overlay_inputs.tooltip_text_color;
     inputs.tooltip_border_color = overlay_inputs.tooltip_border_color;
-    Vector<Layout::RustFFI::FfiGridOverlayInput> ffi_grid_overlays;
-    OverlayLabelFonts grid_label_fonts;
+    auto& ffi_grid_overlays = storage.grid_overlays;
+    auto& grid_label_fonts = storage.grid_label_fonts;
     if (!overlay_inputs.grid_highlights.is_empty()) {
         grid_label_fonts = overlay_label_fonts(10.0f, device_pixels_per_css_pixel);
         inputs.grid_label_fonts = grid_label_fonts.ffi();
@@ -567,7 +576,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     }
     inputs.grid_overlays = ffi_grid_overlays.data();
     inputs.grid_overlay_count = ffi_grid_overlays.size();
-    Vector<Layout::RustFFI::FfiFlexOverlayInput> ffi_flex_overlays;
+    auto& ffi_flex_overlays = storage.flex_overlays;
     for (auto const& highlight : overlay_inputs.flex_highlights) {
         ffi_flex_overlays.append({
             .paintable = committed_row_slot(*highlight.layout_node),
@@ -577,8 +586,8 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     inputs.flex_overlays = ffi_flex_overlays.data();
     inputs.flex_overlay_count = ffi_flex_overlays.size();
     inputs.caret_debug_rect = overlay_inputs.caret_debug_rect;
-    ByteString inspector_highlight_label_text;
-    OverlayLabelFonts inspector_label_fonts;
+    auto& inspector_highlight_label_text = storage.inspector_highlight_label_text;
+    auto& inspector_label_fonts = storage.inspector_label_fonts;
     if (overlay_inputs.highlighted_layout_node) {
         auto const& layout_node = *overlay_inputs.highlighted_layout_node;
         auto border_rect = absolute_border_box_rect(layout_node);
@@ -684,6 +693,14 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
             .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
         };
     }
+}
+
+Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, u64 visual_context_tree_structural_epoch, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Optional<Compositor::FlightPresentation> committed)
+{
+    auto* host = document_host(document);
+    RecordingInputsStorage storage;
+    fill_recording_inputs(storage, read, document, surface_clear_color, cache_mode, config, overlay_inputs);
+    auto const& inputs = storage.inputs;
     DisplayListRecording recording {
         .visual_context_tree_structural_epoch = visual_context_tree_structural_epoch,
         .cache_mode = cache_mode,
@@ -702,6 +719,49 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     if (Layout::RustFFI::render_state_record_display_list(host, &read, viewport, inputs) == Layout::RustFFI::FfiRecordingStart::NothingToRecord)
         return {};
     return recording;
+}
+
+Optional<ElementRaster> rasterize_element(Layout::BegunRead const& read, DOM::Document& document, Layout::Node const& layout_node, Optional<CSSPixelSize> maximum_size, Optional<CSSPixelPoint> point_in_viewport)
+{
+    static constexpr double MAXIMUM_RASTER_DIMENSION = 8192;
+
+    auto* host = document_host(document);
+    auto slot = committed_row_slot(layout_node);
+    auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
+    CSSPixelRect rect;
+    CSSPixelPoint point_in_rect;
+    if (!Layout::RustFFI::render_state_element_raster_rect(host, &read, viewport_row_slot(read, document), slot, point_in_viewport.has_value() ? &*point_in_viewport : nullptr, &rect, &point_in_rect) || rect.is_empty())
+        return {};
+
+    auto width = rect.width().to_double();
+    auto height = rect.height().to_double();
+    auto scale = 1.0;
+    if (maximum_size.has_value())
+        scale = min(scale, min(maximum_size->width().to_double() / width, maximum_size->height().to_double() / height));
+    auto device_scale = min(device_pixels_per_css_pixel * scale, min(MAXIMUM_RASTER_DIMENSION / width, MAXIMUM_RASTER_DIMENSION / height));
+    Gfx::IntSize device_size { max(1, static_cast<int>(ceil(width * device_scale))), max(1, static_cast<int>(ceil(height * device_scale))) };
+    auto bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, device_size);
+    if (bitmap.is_error())
+        return {};
+
+    HTML::PaintConfig paint_config { .records_whole_document = true };
+    if (auto navigable = document.navigable())
+        paint_config = navigable->stamp_paint_config(paint_config);
+    RecordingInputsStorage storage;
+    fill_recording_inputs(storage, read, document, {}, PaintCommandCacheMode::ReadOnly, paint_config, {});
+    RecordingPublishContext publish_context { host, read };
+    Gfx::FloatPoint device_origin { static_cast<float>(rect.x().to_double() * device_pixels_per_css_pixel), static_cast<float>(rect.y().to_double() * device_pixels_per_css_pixel) };
+    if (!document.page().compositor_host().rasterize_element(*host, read, viewport_row_slot(read, document), storage.inputs, slot, recording_publish_callbacks(publish_context), device_origin, static_cast<float>(device_scale / device_pixels_per_css_pixel), bitmap.value()))
+        return {};
+
+    auto frame = Gfx::DecodedImageFrame::create(*bitmap.value());
+    if (frame.is_error())
+        return {};
+    return ElementRaster {
+        .frame = frame.release_value(),
+        .size = rect.size().to_type<double>().scaled(scale).to_type<CSSPixels>(),
+        .point_in_raster = point_in_rect.to_type<double>().scaled(scale).to_type<CSSPixels>(),
+    };
 }
 
 void render_vector_images(Layout::BegunRead const& read, DOM::Document& document)

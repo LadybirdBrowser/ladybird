@@ -72,6 +72,8 @@ pub(crate) struct RecordingInputs {
     /// Records everything the document paints, wherever it is, and not just what shows in a window around the
     /// viewport: what a screenshot of more than the viewport and a dump of the display list read.
     pub records_whole_document: bool,
+    /// The box that a recording records alone, with what it contains.
+    pub isolated_subtree: Option<NodeSlotId>,
     /// Notes beside the records which box and phase recorded each and the text each glyph run draws, for the display
     /// list dump.
     pub notes_record_origins: bool,

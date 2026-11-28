@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/Export.h>
@@ -58,10 +59,19 @@ struct InspectorOverlayInputs {
     Optional<CSSPixelRect> caret_debug_rect;
 };
 
+struct ElementRaster {
+    Gfx::DecodedImageFrame frame;
+    CSSPixelSize size;
+    CSSPixelPoint point_in_raster;
+};
+
 // Starts recording the document's viewport against its visual context tree, of the structural epoch given, unless it has
 // no box to record. Records the document's viewport for the host to publish, or, given `committed`, the presentation of
 // the navigable's next frame, commits the frame to the render owner, which presents it beside the event loop.
 WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, u64 visual_context_tree_structural_epoch, Optional<Gfx::Color> surface_clear_color, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&, Optional<Compositor::FlightPresentation> committed = {});
+// Rasterizes the box `layout_node` of the document alone, scaled down to fit in `maximum_size`, if given. Returns the
+// raster, its size after that scale, and where `point_in_viewport` lands in it.
+WEB_API Optional<ElementRaster> rasterize_element(Layout::BegunRead const&, DOM::Document&, Layout::Node const&, Optional<CSSPixelSize> maximum_size = {}, Optional<CSSPixelPoint> point_in_viewport = {});
 // Commits the navigable's next frame, which keeps the display list the compositor has, to the render owner, which
 // presents it with `presentation` beside the event loop.
 WEB_API void commit_unrecorded_frame(Layout::BegunRead const&, DOM::Document&, Compositor::FlightPresentation presentation);

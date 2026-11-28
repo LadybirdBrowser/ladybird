@@ -28,10 +28,18 @@
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/PageId.h>
 
+namespace Compositing::RustFFI {
+
+struct NodeSlotId;
+
+}
+
 namespace Web::Layout::RustFFI {
 
 struct DocumentHost;
 struct FfiImageRasterization;
+struct FfiRecordingInputs;
+struct FfiRecordingPublishCallbacks;
 enum class RasterizationOutcome : u8;
 
 }
@@ -86,6 +94,7 @@ public:
     // Has the compositor rasterize the recording the document of the host took in last into `target`, and waits for
     // it to.
     bool rasterize_last_recording(Layout::RustFFI::DocumentHost const&, Layout::BegunRead const&, NonnullRefPtr<Gfx::Bitmap> target);
+    bool rasterize_element(Layout::RustFFI::DocumentHost const&, Layout::BegunRead const&, Compositing::RustFFI::NodeSlotId viewport, Layout::RustFFI::FfiRecordingInputs const&, Compositing::RustFFI::NodeSlotId element, Layout::RustFFI::FfiRecordingPublishCallbacks const&, Gfx::FloatPoint origin, float scale, NonnullRefPtr<Gfx::Bitmap> target);
     void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation);
     void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation);
     Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting);

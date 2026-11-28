@@ -118,6 +118,7 @@ class ImageStyleValueResource;
 namespace Web::Painting {
 
 struct DisplayListDumpOptions;
+struct ElementRaster;
 
 }
 
@@ -240,6 +241,7 @@ enum class InvalidateLayoutTreeReason {
     X(NavigableViewportScroll, false)               \
     X(NodeNameOrDescription, false)                 \
     X(RangeGetClientRects, false)                   \
+    X(RasterizeElement, false)                      \
     X(ResolvedCSSStyleDeclarationProperty, false)   \
     X(SVGDecodedImageDataRender, false)             \
     X(ScrollCursorIntoView, false)                  \
@@ -1857,6 +1859,7 @@ public:
     void remove_from_script_blocking_style_sheet_set(Element&);
 
     Utf16String dump_display_list(Painting::DisplayListDumpOptions const&);
+    Optional<Painting::ElementRaster> rasterize_element(Element&, Optional<CSSPixelSize> maximum_size = {}, Optional<CSSPixelPoint> point_in_viewport = {});
     Utf16String dump_stacking_context_tree();
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot

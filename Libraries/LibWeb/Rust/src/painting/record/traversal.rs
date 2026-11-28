@@ -144,7 +144,10 @@ fn record_display_list_impl<O: Observer>(
     if inputs.notes_record_origins {
         recorder.recorder.note_record_origins();
     }
-    let root_group_color = recorder.record_canvas();
+    let root_group_color = match inputs.isolated_subtree {
+        Some(_) => libgfx_rust::Color::TRANSPARENT,
+        None => recorder.record_canvas(),
+    };
     let prologue = recorder.take_run_chunk();
     let prologue_id = prologue.as_ref().map(|chunk| chunk.recorded().id);
     let has_inspector_overlays = inputs.inspector_highlight.is_some()
@@ -492,6 +495,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn paint_svg_box_impl(&mut self, svg_box: NodeSlotId) {
         let context = self.own_context(svg_box);
         self.recorder.set_accumulated_visual_context(context);
+        if self.leaves_out_own_painting_of(svg_box) {
+            self.svg_paint_descendants(svg_box);
+            return;
+        }
 
         // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
         // This ensures content-generating filters (feFlood, feImage) work even with empty source.
@@ -519,7 +526,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.source.node_kind_if_live(paintable),
             Some(crate::layout::node_data::NodeKind::SVGTextBox | crate::layout::node_data::NodeKind::SVGTextPathBox)
         );
-        let mut next_text_part = if is_text_box {
+        let mut next_text_part = if is_text_box && !self.leaves_out_own_painting_of(paintable) {
             crate::painting::record::paint::svg::text_parts_before_children(self, paintable)
         } else {
             None
@@ -528,7 +535,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         while let Some(child) = next_child {
             next_child = crate::painting::paint_order::next_paint_sibling(self.source, child);
             // A child that establishes a stacking context is painted by that context.
-            if !self.has_stacking_context(child) {
+            if !self.has_stacking_context(child) && self.paints_any_of(child) {
                 self.paint_svg_box(child);
             }
             if let Some(next_text_part) = &mut next_text_part {

@@ -187,6 +187,10 @@ pub(crate) trait PaintRead: GeometryRead {
         link(self.node(id)?.next_sibling())
     }
 
+    fn is_inclusive_ancestor_of(&self, ancestor: NodeSlotId, node: NodeSlotId) -> bool {
+        std::iter::successors(Some(node), |&node| self.node_parent_if_live(node)).any(|node| node == ancestor)
+    }
+
     /// The children of the node `id` names, in tree order.
     fn children(&self, id: NodeSlotId) -> impl Iterator<Item = NodeSlotId> + '_ {
         std::iter::successors(self.node_first_child_if_live(id), |&child| {

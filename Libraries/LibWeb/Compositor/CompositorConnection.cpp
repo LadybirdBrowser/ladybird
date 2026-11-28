@@ -452,6 +452,16 @@ bool CompositorConnection::rasterize_last_recording(Layout::RustFFI::DocumentHos
     return did_rasterize(Layout::RustFFI::render_state_rasterize_last_recording(to_ffi_with_one_reference(), m_poster->to_ffi_with_one_reference(), token, &document_host, &read, target.ptr()));
 }
 
+bool CompositorConnection::rasterize_element(Layout::RustFFI::DocumentHost const& document_host, Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId viewport, Layout::RustFFI::FfiRecordingInputs const& inputs, Compositing::RustFFI::NodeSlotId element, Layout::RustFFI::FfiRecordingPublishCallbacks const& publish, Gfx::FloatPoint origin, float scale, NonnullRefPtr<Gfx::Bitmap> target)
+{
+    if (!can_send_message_to_compositor())
+        return false;
+
+    VERIFY(target->anonymous_buffer().is_valid());
+    auto token = m_next_rasterization_token++;
+    return did_rasterize(Layout::RustFFI::render_state_rasterize_element(to_ffi_with_one_reference(), m_poster->to_ffi_with_one_reference(), token, &document_host, &read, viewport, inputs, element, publish, origin, scale, target.ptr()));
+}
+
 bool CompositorConnection::did_rasterize(Layout::RustFFI::RasterizationOutcome outcome)
 {
     switch (outcome) {

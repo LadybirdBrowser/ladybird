@@ -29,10 +29,18 @@
 #include <LibWeb/Forward.h>
 #include <LibWebCommon/Page/InputTrace.h>
 
+namespace Compositing::RustFFI {
+
+struct NodeSlotId;
+
+}
+
 namespace Web::Layout::RustFFI {
 
 struct DocumentHost;
 struct FfiImageRasterization;
+struct FfiRecordingInputs;
+struct FfiRecordingPublishCallbacks;
 
 }
 
@@ -147,6 +155,7 @@ public:
     // Has the compositor draw the recording the document of the host took in last into the target, a bitmap as
     // rasterize_image() takes, the size of the document's viewport. Returns false if nothing was drawn.
     bool rasterize_last_recording(Layout::RustFFI::DocumentHost const&, Layout::BegunRead const&, NonnullRefPtr<Gfx::Bitmap> target) const;
+    bool rasterize_element(Layout::RustFFI::DocumentHost const&, Layout::BegunRead const&, Compositing::RustFFI::NodeSlotId viewport, Layout::RustFFI::FfiRecordingInputs const&, Compositing::RustFFI::NodeSlotId element, Layout::RustFFI::FfiRecordingPublishCallbacks const&, Gfx::FloatPoint origin, float scale, NonnullRefPtr<Gfx::Bitmap> target) const;
 
     void destroy_context(Web::CompositorContextId);
     void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>);
