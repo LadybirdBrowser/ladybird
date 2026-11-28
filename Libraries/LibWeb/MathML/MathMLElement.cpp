@@ -18,12 +18,15 @@
 
 namespace Web::MathML {
 
-GC_DEFINE_ALLOCATOR(MathMLElement);
-
 MathMLElement::~MathMLElement() = default;
 
 MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : DOM::Element(document, move(qualified_name))
+{
+}
+
+MathMLElement::MathMLElement(DOM::VtableProbe probe)
+    : DOM::Element(probe)
 {
 }
 
@@ -74,11 +77,6 @@ Optional<ARIA::Role> MathMLElement::default_role() const
     if (local_name() == TagNames::math)
         return ARIA::Role::math;
     return {};
-}
-
-void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 bool MathMLElement::is_presentational_hint(Utf16FlyString const& name) const

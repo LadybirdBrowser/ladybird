@@ -17,6 +17,7 @@ pub mod collection;
 pub mod dispatch;
 pub mod element;
 pub mod element_core;
+pub mod element_objects;
 pub mod event;
 pub mod event_listeners;
 pub mod event_target;

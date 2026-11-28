@@ -16,14 +16,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLBRElement);
-
-HTMLBRElement::HTMLBRElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLBRElement::HTMLBRElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLBRElement::~HTMLBRElement() = default;
 
 CSS::ElementBoxKind HTMLBRElement::box_kind() const
 {

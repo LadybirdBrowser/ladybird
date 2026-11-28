@@ -13,16 +13,15 @@ namespace Web::HTML {
 
 class HTMLTableColElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTableColElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTableColElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLTableColElement() override;
-
     WebIDL::UnsignedLong span() const;
     void set_span(WebIDL::UnsignedLong);
 
 private:
-    HTMLTableColElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTableColElement(DOM::VtableProbe);
+    virtual ~HTMLTableColElement() override = default;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

@@ -12,13 +12,11 @@ namespace Web::HTML {
 
 class HTMLDListElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLDListElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLDListElement);
-
-public:
-    virtual ~HTMLDListElement() override;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    HTMLDListElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLDListElement(DOM::VtableProbe);
+    virtual ~HTMLDListElement() override = default;
 };
 
 }

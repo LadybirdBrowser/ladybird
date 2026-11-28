@@ -20,6 +20,7 @@
 //! recursion does when the call for it returns.
 
 use super::attributes::copy_attributes;
+use super::element_objects;
 use super::hooks;
 use super::hooks::CloneScope;
 use super::node::NodeCell;
@@ -110,10 +111,19 @@ fn clone_and_append(
     // NB: Rust makes the copy of a node of a class whose objects it defines, which has no cloning steps for step 3.
     //     The callback makes any other copy, and runs step 3 too for a node that is no element, whose copy has no
     //     attributes to copy first.
+    // NB: Rust also makes the copy of an element of such a class that holds nothing the cloning steps of other
+    //     specifications copy, and they then have nothing to do.
+    let mut runs_cloning_steps = true;
     let copy = match node_objects::clone_single_node(main_thread, cloning.document, node) {
         Some(copy) => copy,
-        None => hooks::clone_single_node(main_thread, cloning.scope, node, uses_fallback_registry, subtree)
-            .ok_or(CloneError::Threw)?,
+        None => match element_objects::clone_element(main_thread, cloning.document, node, uses_fallback_registry) {
+            Some(copy) => {
+                runs_cloning_steps = false;
+                copy
+            }
+            None => hooks::clone_single_node(main_thread, cloning.scope, node, uses_fallback_registry, subtree)
+                .ok_or(CloneError::Threw)?,
+        },
     };
     if node.is_element() {
         // https://dom.spec.whatwg.org/#clone-a-single-node
@@ -124,7 +134,7 @@ fn clone_and_append(
 
         // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and
         //    subtree as parameters.
-        if !hooks::run_element_cloning_steps(main_thread, cloning.scope, node, copy, subtree) {
+        if runs_cloning_steps && !hooks::run_element_cloning_steps(main_thread, cloning.scope, node, copy, subtree) {
             return Err(CloneError::Threw);
         }
     }
@@ -263,10 +273,10 @@ fn clone_children_and_shadow_roots(
 }
 
 /// "Clone a node" given `node`, `document`, which is the document of `scope`, `subtree`, `parent`, and the fallback
-/// registry of `scope`, for DOM::Node. `copies` is the core of an empty DOM::RootedNodeList that the caller makes for the call. Sets `copy` to
-/// the copy and answers PreInsertValidity::Valid where nothing throws. Answers which DOMException to throw where
-/// appending a copy throws, and leaves `copy` null where a step that C++ runs throws, whose exception `scope` then
-/// holds.
+/// registry of `scope`, which `has_fallback_registry` says is non-null, for DOM::Node. `copies` is the core of an empty
+/// DOM::RootedNodeList that the caller makes for the call. Sets `copy` to the copy and answers PreInsertValidity::Valid
+/// where nothing throws. Answers which DOMException to throw where appending a copy throws, and leaves `copy` null
+/// where a step that C++ runs throws, whose exception `scope` then holds.
 /// https://dom.spec.whatwg.org/#concept-node-clone
 ///
 /// # Safety
@@ -280,6 +290,7 @@ pub unsafe extern "C" fn rust_dom_clone_a_node(
     subtree: bool,
     parent: RawNullableNodeRef,
     scope: &mut CloneScope,
+    has_fallback_registry: bool,
     copies: &RootedNodeListCore,
     copy: &mut NullableNodeRef,
 ) -> PreInsertValidity {
@@ -297,7 +308,7 @@ pub unsafe extern "C" fn rust_dom_clone_a_node(
         node,
         subtree,
         parent.into(),
-        true,
+        has_fallback_registry,
         &mut copies,
     ) {
         Ok(node_copy) => {

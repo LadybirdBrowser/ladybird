@@ -13,13 +13,11 @@ namespace Web::HTML {
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class HTMLDirectoryElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLDirectoryElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLDirectoryElement);
-
-public:
-    virtual ~HTMLDirectoryElement() override;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    HTMLDirectoryElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLDirectoryElement(DOM::VtableProbe);
+    virtual ~HTMLDirectoryElement() override = default;
 };
 
 }

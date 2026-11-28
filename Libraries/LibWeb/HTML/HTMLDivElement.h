@@ -13,16 +13,15 @@ namespace Web::HTML {
 
 class HTMLDivElement : public HTMLElement {
     WEB_WRAPPABLE(HTMLDivElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLDivElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLDivElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-div
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::generic; }
 
 protected:
-    HTMLDivElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLDivElement(DOM::VtableProbe);
+    virtual ~HTMLDivElement() override = default;
 
 private:
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;

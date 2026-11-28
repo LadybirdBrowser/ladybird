@@ -14,11 +14,9 @@ namespace Web::HTML {
 
 class HTMLOListElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLOListElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLOListElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLOListElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-ol
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::list; }
 
@@ -26,7 +24,8 @@ public:
     void set_start(WebIDL::Long start);
 
 private:
-    HTMLOListElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLOListElement(DOM::VtableProbe);
+    virtual ~HTMLOListElement() override = default;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

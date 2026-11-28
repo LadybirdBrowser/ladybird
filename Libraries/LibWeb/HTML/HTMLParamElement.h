@@ -12,13 +12,11 @@ namespace Web::HTML {
 
 class HTMLParamElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLParamElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLParamElement);
-
-public:
-    virtual ~HTMLParamElement() override;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    HTMLParamElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLParamElement(DOM::VtableProbe);
+    virtual ~HTMLParamElement() override = default;
 };
 
 }

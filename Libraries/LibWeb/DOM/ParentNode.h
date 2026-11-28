@@ -46,6 +46,7 @@ public:
 
 protected:
     ParentNode(Document& document, NodeType type);
+    explicit ParentNode(VtableProbe);
 
 private:
     friend class Node;

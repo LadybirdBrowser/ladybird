@@ -14,8 +14,6 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLFontElement);
-
 enum class Mode {
     RelativePlus,
     RelativeMinus,
@@ -98,12 +96,10 @@ Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(Utf16View input)
     }
 }
 
-HTMLFontElement::HTMLFontElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLFontElement::HTMLFontElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLFontElement::~HTMLFontElement() = default;
 
 bool HTMLFontElement::is_presentational_hint(Utf16FlyString const& name) const
 {

@@ -19,7 +19,19 @@ super::trace::fields_without_cells!(FlyStringField, OptionalFlyStringField, Stri
 #[repr(transparent)]
 pub struct FlyStringField(UnsafeCell<usize>);
 
+/// The raw word of the empty AK::Utf16FlyString, which is a short string and so holds no reference to anything.
+const EMPTY_FLY_STRING_RAW: usize = match ak::utf16_short_string_raw("") {
+    Some(raw) => raw,
+    None => panic!("the empty string is a short string"),
+};
+
 impl FlyStringField {
+    /// A field that holds the empty string, as AK::Utf16FlyString's default constructor makes it.
+    #[inline(always)]
+    pub(super) const fn empty() -> Self {
+        Self(UnsafeCell::new(EMPTY_FLY_STRING_RAW))
+    }
+
     /// A field that holds `value`, whose reference passes to it.
     #[inline(always)]
     pub(super) fn from_owned(value: ak::Utf16FlyString) -> Self {
@@ -119,6 +131,21 @@ impl OptionalFlyStringField {
 pub struct StringField(UnsafeCell<usize>);
 
 impl StringField {
+    /// The size of the memory outside the heap that the string holds, as JS::utf16_string_external_memory_size()
+    /// measures it: that of its code units, where it keeps them in an allocation of its own.
+    #[inline(always)]
+    pub(super) fn external_memory_size(&self) -> usize {
+        // SAFETY: C++ does not write the field while Rust borrows it.
+        let raw = unsafe { *self.0.get() };
+        if raw == 0 || raw & ak::SHORT_STRING_FLAG != 0 {
+            return 0;
+        }
+        match self.units() {
+            Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units.len(),
+            Utf16StringUnits::Utf16(units) => units.len().saturating_mul(size_of::<u16>()),
+        }
+    }
+
     /// The string's code units, where the string keeps them.
     #[inline(always)]
     pub fn units(&self) -> Utf16StringUnits<'_> {
@@ -302,6 +329,16 @@ pub fn units_contain_ascii_uppercase(string: Utf16StringUnits<'_>) -> bool {
         Utf16StringUnits::Utf16(units) => units
             .iter()
             .any(|&unit| (u16::from(b'A')..=u16::from(b'Z')).contains(&unit)),
+    }
+}
+
+/// Whether `string` contains the ASCII code unit `ascii`.
+#[inline]
+pub fn units_contain_ascii(string: Utf16StringUnits<'_>, ascii: u8) -> bool {
+    debug_assert!(ascii.is_ascii());
+    match string {
+        Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units.contains(&ascii),
+        Utf16StringUnits::Utf16(units) => units.contains(&u16::from(ascii)),
     }
 }
 

@@ -9,14 +9,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLModElement);
-
-HTMLModElement::HTMLModElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLModElement::HTMLModElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLModElement::~HTMLModElement() = default;
 
 Optional<ARIA::Role> HTMLModElement::default_role() const
 {

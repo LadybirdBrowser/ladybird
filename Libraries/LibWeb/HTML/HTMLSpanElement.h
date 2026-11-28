@@ -13,16 +13,15 @@ namespace Web::HTML {
 
 class HTMLSpanElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLSpanElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLSpanElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLSpanElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-span
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::generic; }
 
 private:
-    HTMLSpanElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLSpanElement(DOM::VtableProbe);
+    virtual ~HTMLSpanElement() override = default;
 };
 
 }

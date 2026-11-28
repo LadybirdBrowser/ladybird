@@ -1899,7 +1899,7 @@ public:
     bool tree_references_id_from_aria(Node const& root, Utf16FlyString const& id) const;
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
-    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry>);
     GC::Ptr<HTML::CustomElementRegistry> effective_global_custom_element_registry() const;
 
     void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, Utf16FlyString local_name, Optional<Utf16FlyString> name = {});

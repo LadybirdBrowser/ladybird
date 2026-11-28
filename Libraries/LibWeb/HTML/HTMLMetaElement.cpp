@@ -26,14 +26,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLMetaElement);
-
-HTMLMetaElement::HTMLMetaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLMetaElement::HTMLMetaElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLMetaElement::~HTMLMetaElement() = default;
 
 Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_state() const
 {

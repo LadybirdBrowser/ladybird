@@ -11,14 +11,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLLegendElement);
-
-HTMLLegendElement::HTMLLegendElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLLegendElement::HTMLLegendElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLLegendElement::~HTMLLegendElement() = default;
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-legend-form
 HTMLFormElement* HTMLLegendElement::form()

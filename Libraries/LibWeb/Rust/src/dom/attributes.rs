@@ -66,7 +66,7 @@ use ak::Utf16StringUnits;
 crate::stage::main_thread_ffi_entries!(without_host);
 
 /// https://infra.spec.whatwg.org/#html-namespace
-const HTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
+pub(super) const HTML_NAMESPACE: &str = "http://www.w3.org/1999/xhtml";
 
 /// A qualified name to look an attribute up by.
 #[derive(Clone, Copy)]

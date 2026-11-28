@@ -12,11 +12,9 @@ namespace Web::HTML {
 
 class HTMLBRElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLBRElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLBRElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLBRElement() override;
-
     virtual CSS::ElementBoxKind box_kind() const override;
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
@@ -25,7 +23,8 @@ public:
     bool represents_empty_line(Layout::BegunRead const& read) const;
 
 private:
-    HTMLBRElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLBRElement(DOM::VtableProbe);
+    virtual ~HTMLBRElement() override = default;
 };
 
 }

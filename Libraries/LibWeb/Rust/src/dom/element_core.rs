@@ -88,6 +88,17 @@ pub struct ClassNamesField {
 }
 
 impl ClassNamesField {
+    /// A field that holds no class, as DOM::ClassNames's default constructor makes it.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            size: UnsafeCell::new(0),
+            capacity: UnsafeCell::new(1),
+            outline_buffer: UnsafeCell::new(core::ptr::null()),
+            inline_class: FlyStringField::empty(),
+        }
+    }
+
     /// The classes, in order.
     #[inline(always)]
     pub fn as_slice(&self) -> &[FlyStringField] {
@@ -264,6 +275,12 @@ const _: () = assert!(offset_of!(AttributeListPrefix, attribute_map) == 0);
 pub struct AttributeListField(UnsafeCell<*mut AttributeListHeader>);
 
 impl AttributeListField {
+    /// A field that holds no list, as DOM::AttributeList's default constructor makes it.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self(UnsafeCell::new(core::ptr::null_mut()))
+    }
+
     /// The attributes, in order.
     #[inline(always)]
     pub fn as_slice(&self) -> &[Attribute] {
@@ -282,6 +299,23 @@ impl AttributeListField {
     fn header(&self) -> *mut AttributeListHeader {
         // SAFETY: Nothing writes the field while Rust reads it.
         unsafe { *self.0.get() }
+    }
+
+    /// The size of the memory outside the heap that the list holds, as DOM::Element::external_memory_size() measures
+    /// it: the list's allocation, and the storage of each attribute's value.
+    pub(super) fn external_memory_size(&self) -> usize {
+        if self.header().is_null() {
+            return 0;
+        }
+        let allocation_size = if self.has_prefix() {
+            ATTRIBUTE_LIST_PREFIX_SIZE
+        } else {
+            0
+        } + size_of::<AttributeListHeader>()
+            + self.capacity() * size_of::<Attribute>();
+        self.as_slice().iter().fold(allocation_size, |size, attribute| {
+            size.saturating_add(attribute.value.external_memory_size())
+        })
     }
 
     /// The number of attributes the list has room for.
@@ -560,6 +594,12 @@ const _: () = assert!(size_of::<AttributeListField>() == 8 && align_of::<Attribu
 
 // The flags of an element's core, a bit each in its flags byte, which C++ sets where the state they stand for changes.
 
+/// Whether the element's custom element registry is its node document's custom element registry, which is then a global
+/// custom element registry, and so the document's effective global custom element registry. DOM::Element keeps this
+/// flag instead of a reference to the registry. C++ keeps it as the element's registry changes, and Rust sets it on a
+/// copy it makes.
+/// https://dom.spec.whatwg.org/#element-custom-element-registry
+pub const ELEMENT_USES_DOCUMENT_GLOBAL_CUSTOM_ELEMENT_REGISTRY: u8 = 1 << 0;
 /// Whether the element is a form-associated custom element, which has the insertion steps, removing steps, moving
 /// steps and attribute change steps of a form-associated element. C++ keeps it as the element's custom element
 /// definition changes.
@@ -619,6 +659,70 @@ pub struct ElementCore {
 }
 
 impl ElementCore {
+    /// The core of a new element named `name`, whose reference passes to it, with the ELEMENT_* flags `flags`, and
+    /// otherwise as DOM::Element's constructor makes it: without an ID, classes, attributes, shadow root or assigned
+    /// slot, and with no child index counted.
+    #[inline(always)]
+    pub(super) fn new(name: NonNull<QualifiedNameImpl>, flags: u8) -> Self {
+        Self {
+            qualified_name: QualifiedNameField::from_owned(name),
+            id: OptionalFlyStringField::from_owned(None),
+            classes: ClassNamesField::new(),
+            attributes: AttributeListField::new(),
+            subtree_name_filter: Cell::new(0),
+            style_attribute_is_dirty: Cell::new(false),
+            flags: Cell::new(flags),
+            reflection_flags: Cell::new(0),
+            shadow_root: ShadowRootMember::null(),
+            parent_child_index_generation: Cell::new(0),
+            child_index: Cell::new(0),
+            child_index_of_type: Cell::new(0),
+            assigned_slot: ElementMember::new(None),
+        }
+    }
+
+    /// Whether the core holds what new() writes into the core of a new element, but for the name, for C++ to check that
+    /// new() makes the core as DOM::Element's constructor does.
+    pub(super) fn holds_new_fields_but_name(&self) -> bool {
+        // SAFETY: C++ does not write the core while Rust reads it.
+        let classes_are_new = unsafe {
+            *self.classes.size.get() == 0
+                && *self.classes.capacity.get() == 1
+                && (*self.classes.outline_buffer.get()).is_null()
+        } && self.classes.inline_class.raw_identity() == FlyStringField::empty().raw_identity();
+        self.id.get().is_none()
+            && classes_are_new
+            && self.attributes.header().is_null()
+            && self.subtree_name_filter.get() == 0
+            && !self.style_attribute_is_dirty.get()
+            && self.flags.get() == 0
+            && self.reflection_flags.get() == 0
+            && self.shadow_root.get().is_none()
+            && self.parent_child_index_generation.get() == 0
+            && self.child_index.get() == 0
+            && self.child_index_of_type.get() == 0
+            && self.assigned_slot.get().is_none()
+    }
+
+    /// Releases what the core of an element that is being destroyed holds: its name, its ID, its classes and its
+    /// attributes. It leaves each field as its C++ destructor takes an empty one to be, so that the destructor of
+    /// DOM::Element can still run over the core.
+    ///
+    /// # Safety
+    ///
+    /// The element must be being destroyed, and nothing but the destructor of DOM::Element may read the core after
+    /// this.
+    #[inline(always)]
+    pub(super) unsafe fn release(&self, main_thread: &mut MainThread<'_>) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            self.qualified_name.release_leaving_null(main_thread);
+            drop(self.id.replace(None));
+            self.classes.clear();
+            self.attributes.destroy(main_thread);
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-element-qualified-name
     #[inline(always)]
     pub fn qualified_name(&self) -> &QualifiedNameField {

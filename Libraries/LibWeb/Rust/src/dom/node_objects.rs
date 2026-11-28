@@ -222,10 +222,10 @@ unsafe fn destroy_slots<T: NodeObject>(object: &T) {
     unsafe { (node_objects().hooks.destroy_slots)(object.node()) }
 }
 
-/// Allocates a node of `T` in the heap of `document`, whose value `make` makes from its node pointer. Can collect
-/// garbage, which `make` cannot.
+/// Allocates a node of `T` in the heap of `document`, whose value `make` makes from its node pointer, with `allocator`,
+/// which must be one of objects of `T`. Can collect garbage, which `make` cannot.
 #[inline(always)]
-fn allocate<T: NodeObject>(
+pub(super) fn allocate<T: RustCell>(
     _main_thread: &mut MainThread<'_>,
     document: NodeRef,
     allocator: &Allocator,

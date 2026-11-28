@@ -8,13 +8,9 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLDataElement);
-
-HTMLDataElement::HTMLDataElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLDataElement::HTMLDataElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLDataElement::~HTMLDataElement() = default;
 
 }

@@ -23,11 +23,9 @@ namespace Web::HTML {
 
 class HTMLMetaElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLMetaElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLMetaElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLMetaElement() override;
-
     enum class HttpEquivAttributeState {
 #define __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE(_, state) state,
         ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTES
@@ -37,7 +35,8 @@ public:
     Optional<HttpEquivAttributeState> http_equiv_state() const;
 
 private:
-    HTMLMetaElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLMetaElement(DOM::VtableProbe);
+    virtual ~HTMLMetaElement() override = default;
 
     void update_metadata(Optional<Utf16String> const& old_name = {});
     void update_referrer_policy();

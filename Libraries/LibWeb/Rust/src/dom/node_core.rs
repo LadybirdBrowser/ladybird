@@ -292,6 +292,12 @@ impl TextCore {
 pub struct ShadowRootMember(Cell<u32>);
 
 impl ShadowRootMember {
+    /// A field that holds null, as GC::Member's default constructor makes it.
+    #[inline(always)]
+    pub(super) fn null() -> Self {
+        Self(Cell::new(0))
+    }
+
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
@@ -354,6 +360,10 @@ pub const DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT: u8 
 pub struct DocumentCore {
     /// The DOCUMENT_* flags.
     flags: Cell<u8>,
+    /// Whether the document's custom element registry is a global custom element registry, which C++ keeps as it sets
+    /// the registry. Whether a registry is scoped never changes, so this changes only with the registry.
+    /// https://html.spec.whatwg.org/multipage/custom-elements.html#is-a-global-custom-element-registry
+    custom_element_registry_is_global: Cell<bool>,
     /// The document's Window, which is its relevant global object while it has a browsing context.
     window: WindowMember,
     /// The live ranges whose start node's node document is the document, as its DOM::WeakCellRegistry of them mirrors
@@ -391,6 +401,12 @@ impl DocumentCore {
     #[inline(always)]
     pub fn flags(&self) -> u8 {
         self.flags.get()
+    }
+
+    /// Whether the document's custom element registry is a global custom element registry.
+    #[inline(always)]
+    pub(super) fn custom_element_registry_is_global(&self) -> bool {
+        self.custom_element_registry_is_global.get()
     }
 
     /// The elements of the document tree by their IDs.
@@ -686,6 +702,15 @@ pub struct ParentNodeCore {
 }
 
 impl ParentNodeCore {
+    /// The core of a new ParentNode, whose children never changed.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            dom_tree_version: Cell::new(0),
+            character_data_version: Cell::new(0),
+        }
+    }
+
     #[inline(always)]
     pub fn dom_tree_version(&self) -> u64 {
         self.dom_tree_version.get()
@@ -757,6 +782,7 @@ impl DocumentCore {
     pub(crate) fn for_test() -> Self {
         Self {
             flags: Cell::new(0),
+            custom_element_registry_is_global: Cell::new(false),
             window: WindowMember(EventTargetMember::null_for_test()),
             live_ranges: WeakCellRegistryField::empty_for_test(),
             node_iterators: WeakCellRegistryField::empty_for_test(),

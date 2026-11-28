@@ -151,6 +151,10 @@ enum class SetNeedsLayoutTreeUpdateReason {
 // every object of the class.
 struct VtableProbe { };
 
+// The C++ half of the elements whose objects libweb_rust defines (see DOM/ElementObjects.cpp), which the shells of
+// their classes befriend.
+struct RustElementObjectHooks;
+
 // Whether T is the C++ shell of a class of nodes whose objects libweb_rust defines whole, as RustObject: it adds no
 // member to the object Rust lays out, has no allocator of its own, so that C++ cannot allocate one, and no destructor
 // that C++ can call, as Rust destroys every one.
@@ -692,6 +696,7 @@ private:
     friend class TreeNode<Node>;
     friend class RustDOMHooks;
     friend struct RustNodeObjectHooks;
+    friend struct RustElementObjectHooks;
 
     // Visits the cells the members in the opaque slots of the node's prefixes hold (see Rust/src/dom/prefix.rs), for
     // libweb_rust, which traces the rest of the nodes whose objects it defines.
@@ -732,6 +737,49 @@ static_assert(Bindings::Wrappable::main_world_wrapper_offset() >= sizeof(JS::Cel
 }
 
 namespace GC {
+
+// The size of a class C without the padding at its end, which is where the Itanium C++ ABI places what follows an object
+// of C as a base class or as a [[no_unique_address]] member: the size that Clang's __datasizeof gives, which other
+// compilers lack. The Microsoft C++ ABI places nothing in the tail padding of a base class, so there it is the size of C.
+template<typename C>
+consteval size_t size_without_tail_padding()
+{
+#if defined(AK_OS_WINDOWS)
+    return sizeof(C);
+#else
+    if constexpr (__is_abstract(C)) {
+        struct Probe : C {
+            char after;
+        };
+        return offsetof(Probe, after);
+    } else {
+        struct Probe {
+            NO_UNIQUE_ADDRESS C object;
+            char after;
+        };
+        return offsetof(Probe, after);
+    }
+#endif
+}
+
+#if defined(AK_OS_WINDOWS)
+namespace Detail {
+
+struct TailPaddingProbeBase {
+    virtual ~TailPaddingProbeBase() = default;
+    u64 word;
+    u8 byte;
+};
+
+struct TailPaddingProbe : TailPaddingProbeBase {
+    u8 after;
+};
+
+// NB: A member of a derived class comes after all of its base class, so size_without_tail_padding() is the size.
+static_assert(offsetof(TailPaddingProbe, after) == sizeof(TailPaddingProbeBase));
+
+}
+#endif
 
 // Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and works out for
 // DOM/NodeClassSteps.cpp which steps its class has (see Rust/src/dom/node_class.rs), which the class's overrides decide.
@@ -774,6 +822,24 @@ struct CellConstructionHook<T> {
         if (!IsSame<decltype(&T::has_activation_behavior), bool (DOM::EventTarget::*)() const>)
             steps |= NODE_CLASS_HAS_ACTIVATION_BEHAVIOR;
         return steps;
+    }
+
+    // Whether T adds nothing to L, the class whose prefix lays it out, that C++ runs as it makes, traces, clones,
+    // finalizes or measures a node: no member, and no override of the functions that do so. libweb_rust can then make
+    // a node of T as one of L, see Rust/src/dom/element_objects.rs. Every cell class befriends this, so the check can
+    // name the overrides a class keeps private. NB: C++ can place a member of T in the padding at the end of L, where
+    //     it leaves the size alone, so the sizes without that padding are compared as well.
+    template<typename L>
+    static constexpr bool adds_nothing_to()
+    {
+        static_assert(IsBaseOf<L, T>);
+        return sizeof(T) == sizeof(L) && size_without_tail_padding<T>() == size_without_tail_padding<L>() && alignof(T) == alignof(L)
+            && IsSame<decltype(&T::visit_edges), decltype(&L::visit_edges)>
+            && IsSame<decltype(&T::finalize), decltype(&L::finalize)>
+            && IsSame<decltype(&T::external_memory_size), decltype(&L::external_memory_size)>
+            && IsSame<decltype(&T::initialize), decltype(&L::initialize)>
+            && IsSame<decltype(&T::initialize_element), decltype(&L::initialize_element)>
+            && IsSame<decltype(&T::cloned), decltype(&L::cloned)>;
     }
 
     static void did_construct(T& node)

@@ -12,15 +12,14 @@ namespace Web::HTML {
 
 class HTMLQuoteElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLQuoteElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLQuoteElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLQuoteElement() override;
-
     virtual Optional<ARIA::Role> default_role() const override;
 
 private:
-    HTMLQuoteElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLQuoteElement(DOM::VtableProbe);
+    virtual ~HTMLQuoteElement() override = default;
 };
 
 }

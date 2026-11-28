@@ -8,13 +8,9 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLPictureElement);
-
-HTMLPictureElement::HTMLPictureElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLPictureElement::HTMLPictureElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLPictureElement::~HTMLPictureElement() = default;
 
 }

@@ -16,11 +16,9 @@ namespace Web::HTML {
 
 class HTMLLIElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLLIElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLLIElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLLIElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-li
     virtual Optional<ARIA::Role> default_role() const override
     {
@@ -39,7 +37,8 @@ public:
     void set_value(WebIDL::Long value);
 
 private:
-    HTMLLIElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLLIElement(DOM::VtableProbe);
+    virtual ~HTMLLIElement() override = default;
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;

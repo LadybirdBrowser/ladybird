@@ -365,6 +365,22 @@ impl QualifiedNameField {
         unsafe { *self.0.get() }
     }
 
+    /// Drops the field's reference to the parts it names, as the object that holds the field is destroyed, and leaves
+    /// the field null, which is what C++'s destructor of DOM::QualifiedName takes as a name that holds no reference.
+    ///
+    /// # Safety
+    ///
+    /// Nothing but that destructor may read the field after this.
+    #[inline(always)]
+    pub(super) unsafe fn release_leaving_null(&self, main_thread: &mut MainThread<'_>) {
+        // SAFETY: Guaranteed by the caller. The field holds a reference to the parts, which passes to the release. The
+        //         null that replaces it is written as a raw pointer, and never read as the field's type.
+        unsafe {
+            let parts = core::ptr::replace(self.0.get().cast::<*const QualifiedNameImpl>(), core::ptr::null());
+            release(main_thread, NonNull::new_unchecked(parts.cast_mut()));
+        }
+    }
+
     #[inline(always)]
     pub fn parts(&self) -> &QualifiedNameImpl {
         // SAFETY: C++ does not write the field while Rust borrows it, and the parts it names live as long as it does.

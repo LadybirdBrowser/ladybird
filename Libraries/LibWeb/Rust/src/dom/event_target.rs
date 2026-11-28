@@ -294,6 +294,17 @@ impl EventTargetDataField {
     pub(super) fn null() -> Self {
         Self(UnsafeCell::new(core::ptr::null()))
     }
+
+    /// Whether the target has never needed its data.
+    ///
+    /// # Safety
+    ///
+    /// The field must be that of a live event target, which C++ does not give data during the call.
+    #[inline(always)]
+    pub(super) unsafe fn is_null(&self) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { (*self.0.get()).is_null() }
+    }
 }
 
 /// An event target or null, as C++ hands one over: laid out as a GC::Ptr<DOM::EventTarget>.

@@ -13,16 +13,15 @@ namespace Web::HTML {
 
 class HTMLUListElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLUListElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLUListElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLUListElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-ul
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::list; }
 
 private:
-    HTMLUListElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLUListElement(DOM::VtableProbe);
+    virtual ~HTMLUListElement() override = default;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

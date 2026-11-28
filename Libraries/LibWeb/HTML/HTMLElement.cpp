@@ -152,8 +152,6 @@ Optional<Utf16FlyString> HTMLElement::opened_in_popover_mode() const
     return rare_data ? rare_data->opened_in_popover_mode : Optional<Utf16FlyString> {};
 }
 
-GC_DEFINE_ALLOCATOR(HTMLElement);
-
 static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& string)
 {
     if (!string.has_value())
@@ -176,6 +174,11 @@ HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_n
     static_assert(offsetof(HTMLElement, m_content_editable_state) >= sizeof(DOM::Element));
 }
 
+HTMLElement::HTMLElement(DOM::VtableProbe probe)
+    : Element(probe)
+{
+}
+
 HTMLElement::~HTMLElement() = default;
 
 // `:popover-open` is a fact about the element, and the style engine is told what an element now
@@ -187,11 +190,6 @@ void HTMLElement::set_popover_visibility_state(PopoverVisibilityState state)
         return;
     m_popover_visibility_state = state;
     CSS::record_element_state_changed(*this, CSS::PseudoClass::PopoverOpen, state == PopoverVisibilityState::Showing);
-}
-
-void HTMLElement::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-translate

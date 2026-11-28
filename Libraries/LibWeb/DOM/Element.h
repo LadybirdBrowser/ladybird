@@ -183,6 +183,8 @@ WEB_API GC::Ptr<Element> get_the_attribute_associated_element(Element const& ele
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
 WEB_API Optional<GC::RootVector<GC::Ref<Element>>> get_the_attribute_associated_elements(Element const& element, Function<Optional<Utf16String>()> const& get_the_content_attribute, Optional<Vector<GC::Weak<Element>> const&> explicitly_set_attribute_elements);
 
+// NB: libweb_rust defines, allocates and destroys every element whose class is Element, see
+//     Rust/src/dom/element_objects.rs.
 class WEB_API AK_COMPACT_EMPTY_BASES Element
     : public ParentNode
     , public ChildNode<Element>
@@ -191,11 +193,8 @@ class WEB_API AK_COMPACT_EMPTY_BASES Element
     , public ARIA::ARIAMixin
     , public Animations::Animatable {
     WEB_WRAPPABLE(Element, ParentNode);
-    GC_DECLARE_ALLOCATOR(Element);
 
 public:
-    virtual ~Element() override;
-
     virtual Node& slottable_as_node() override { return *this; }
 
     Utf16FlyString const& qualified_name() const { return m_element_core.qualified_name.as_string(); }
@@ -949,6 +948,8 @@ public:
 
 protected:
     Element(Document&, DOM::QualifiedName);
+    explicit Element(VtableProbe);
+    virtual ~Element() override;
 
     bool has_element_core_flag(u8 flag) const { return m_element_core.flags & flag; }
     void set_element_core_flag(u8 flag, bool value) { m_element_core.flags = static_cast<u8>(value ? (m_element_core.flags | flag) : (m_element_core.flags & ~flag)); }
@@ -1047,6 +1048,7 @@ private:
     friend class Attr;
     friend class NamedNodeMap;
     friend struct RustAttributeHooks;
+    friend struct RustElementObjectHooks;
 
     bool m_initial_style_features_pending : 1 { false };
     bool m_is_being_activated : 1 { false };
@@ -1065,7 +1067,6 @@ private:
     bool m_child_style_uses_tree_counting_function : 1 { false };
     bool m_style_uses_tree_counting_function : 1 { false };
     bool m_fullscreen_flag : 1 { false };
-    bool m_uses_document_global_custom_element_registry : 1 { false };
     bool m_has_name : 1 { false };
     bool m_is_in_set_of_elements_with_rendered_text : 1 { false };
     // Whether the style attribute was set while the element was not connected, so that whether Content Security

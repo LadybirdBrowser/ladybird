@@ -38,6 +38,11 @@ ParentNode::ParentNode(Document& document, NodeType type)
     static_assert(offsetof(ParentNode, m_parent_node_core) >= sizeof(Node));
 }
 
+ParentNode::ParentNode(VtableProbe probe)
+    : Node(probe)
+{
+}
+
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
 WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16String const& selector_text)
 {

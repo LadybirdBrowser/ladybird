@@ -11916,6 +11916,12 @@ GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
 }
 
 // https://dom.spec.whatwg.org/#effective-global-custom-element-registry
+void Document::set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry)
+{
+    m_custom_element_registry = custom_element_registry;
+    m_document_core.custom_element_registry_is_global = HTML::is_a_global_custom_element_registry(custom_element_registry);
+}
+
 GC::Ptr<HTML::CustomElementRegistry> Document::effective_global_custom_element_registry() const
 {
     // A document document’s effective global custom element registry is:

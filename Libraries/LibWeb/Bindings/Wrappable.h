@@ -222,7 +222,7 @@ private:
     friend WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
     friend WEB_API bool wrapper_is_preserved(JS::HostObject const&);
 
-    // NB: The preservation flags are the embedder flags of the cell.
+    // NB: The preservation flags are the embedder flags of the cell, where libweb_rust reads them.
     enum PreservationFlag : u8 {
         MainWorldWrapperIsPreserved = 1 << 0,
         HasNonMainWorldPreservedWrappers = 1 << 1,

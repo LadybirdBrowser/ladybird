@@ -13,11 +13,9 @@ namespace Web::HTML {
 
 class HTMLParagraphElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLParagraphElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLParagraphElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLParagraphElement() override;
-
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
@@ -25,7 +23,8 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::paragraph; }
 
 private:
-    HTMLParagraphElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLParagraphElement(DOM::VtableProbe);
+    virtual ~HTMLParagraphElement() override = default;
 };
 
 }

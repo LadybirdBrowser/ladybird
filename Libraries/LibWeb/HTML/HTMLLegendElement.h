@@ -12,17 +12,16 @@ namespace Web::HTML {
 
 class HTMLLegendElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLLegendElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLLegendElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLLegendElement() override;
-
     HTMLFormElement* form();
 
     virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
-    HTMLLegendElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLLegendElement(DOM::VtableProbe);
+    virtual ~HTMLLegendElement() override = default;
 
     virtual void inserted() override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<DOM::Node> old_ancestor) override;

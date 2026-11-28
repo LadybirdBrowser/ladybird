@@ -65,17 +65,16 @@ enum class IsPopover {
     No,
 };
 
+// NB: libweb_rust defines, allocates and destroys every element whose class is HTMLElement, see
+//     Rust/src/dom/element_objects.rs. Its subclasses with members of their own C++ allocates.
 class WEB_API HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGOrMathMLElement<HTMLElement>
     , public FormAssociatedElement {
     WEB_WRAPPABLE(HTMLElement, DOM::Element);
-    GC_DECLARE_ALLOCATOR(HTMLElement);
 
 public:
-    virtual ~HTMLElement() override;
-
     Optional<Utf16String> title() const { return attribute(HTML::AttributeNames::title); }
 
     bool translate() const;
@@ -208,12 +207,12 @@ public:
 
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLElement(DOM::VtableProbe);
+    virtual ~HTMLElement() override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
     virtual void inserted() override;
-
-    virtual void visit_edges(Cell::Visitor&) override;
 
     void set_inert(bool inert) { set_element_core_flag(DOM::RustFFI::ELEMENT_IS_INERT, inert); }
     void set_subtree_inertness(bool is_inert);
@@ -226,6 +225,8 @@ protected:
     void update_slider_track_style(DOM::Element& slider_track) const;
 
 private:
+    friend struct DOM::RustElementObjectHooks;
+
     struct RareData;
     virtual OwnPtr<DOM::Node::RareData> create_rare_data() const override;
     RareData& ensure_html_element_rare_data() const;

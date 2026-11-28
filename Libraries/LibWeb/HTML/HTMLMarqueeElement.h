@@ -15,11 +15,9 @@ namespace Web::HTML {
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
 class HTMLMarqueeElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLMarqueeElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLMarqueeElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLMarqueeElement() override;
-
     WebIDL::UnsignedLong scroll_amount();
     void set_scroll_amount(WebIDL::UnsignedLong);
 
@@ -27,7 +25,8 @@ public:
     void set_scroll_delay(WebIDL::UnsignedLong);
 
 private:
-    HTMLMarqueeElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLMarqueeElement(DOM::VtableProbe);
+    virtual ~HTMLMarqueeElement() override = default;
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };

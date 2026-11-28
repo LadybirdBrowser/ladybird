@@ -8,13 +8,9 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLTimeElement);
-
-HTMLTimeElement::HTMLTimeElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLTimeElement::HTMLTimeElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLTimeElement::~HTMLTimeElement() = default;
 
 }

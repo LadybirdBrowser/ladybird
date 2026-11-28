@@ -12,13 +12,11 @@ namespace Web::HTML {
 
 class HTMLHeadElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLHeadElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLHeadElement);
-
-public:
-    virtual ~HTMLHeadElement() override;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    HTMLHeadElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLHeadElement(DOM::VtableProbe);
+    virtual ~HTMLHeadElement() override = default;
 };
 
 }

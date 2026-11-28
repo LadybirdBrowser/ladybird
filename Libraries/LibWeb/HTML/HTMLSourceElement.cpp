@@ -13,14 +13,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLSourceElement);
-
-HTMLSourceElement::HTMLSourceElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLSourceElement::HTMLSourceElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLSourceElement::~HTMLSourceElement() = default;
 
 static void update_image_children_of_picture(DOM::Node& picture)
 {

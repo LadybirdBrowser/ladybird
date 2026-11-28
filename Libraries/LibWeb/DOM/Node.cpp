@@ -979,7 +979,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     CloneScope scope { .document = *document, .fallback_registry = fallback_registry, .exception = {} };
     RootedNodeList copies;
     GC::Ptr<Node> copy;
-    TRY(throw_if_not_valid(RustFFI::rust_dom_clone_a_node(this, document.ptr(), subtree, parent.ptr(), &scope, &copies.core(), &copy)));
+    TRY(throw_if_not_valid(RustFFI::rust_dom_clone_a_node(this, document.ptr(), subtree, parent.ptr(), &scope, fallback_registry != nullptr, &copies.core(), &copy)));
     if (!copy)
         return scope.exception.release_value();
     return GC::Ref { *copy };

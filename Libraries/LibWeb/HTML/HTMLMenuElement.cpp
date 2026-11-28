@@ -8,13 +8,9 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLMenuElement);
-
-HTMLMenuElement::HTMLMenuElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLMenuElement::HTMLMenuElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLMenuElement::~HTMLMenuElement() = default;
 
 }

@@ -15,14 +15,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLHRElement);
-
-HTMLHRElement::HTMLHRElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLHRElement::HTMLHRElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLHRElement::~HTMLHRElement() = default;
 
 bool HTMLHRElement::is_presentational_hint(Utf16FlyString const& name) const
 {

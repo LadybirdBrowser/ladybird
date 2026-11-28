@@ -203,6 +203,7 @@ set(SOURCES
     DOM/EditingHostManager.cpp
     DOM/Element.cpp
     DOM/ElementFactory.cpp
+    DOM/ElementObjects.cpp
     DOM/Event.cpp
     DOM/EventDispatcher.cpp
     DOM/EventTarget.cpp
@@ -483,7 +484,6 @@ set(SOURCES
     HTML/HTMLTitleElement.cpp
     HTML/HTMLTrackElement.cpp
     HTML/HTMLUListElement.cpp
-    HTML/HTMLUnknownElement.cpp
     HTML/HTMLVideoElement.cpp
     HTML/HyperlinkElementUtils.cpp
     HTML/ImageBitmap.cpp

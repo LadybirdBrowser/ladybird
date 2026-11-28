@@ -11,14 +11,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLTableColElement);
-
-HTMLTableColElement::HTMLTableColElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLTableColElement::HTMLTableColElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLTableColElement::~HTMLTableColElement() = default;
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-colgroup-span
 WebIDL::UnsignedLong HTMLTableColElement::span() const
