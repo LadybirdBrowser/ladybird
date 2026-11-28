@@ -11,7 +11,7 @@
 use crate::css::css_enums::{white_space_collapse, writing_mode};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::RenderedTextBoundary;
-use crate::layout::inline_content::LineRecord;
+use crate::layout::inline_content::{ClusterGeometry, LineRecord};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paint_read::{PaintRead, PaintRow};
@@ -247,22 +247,29 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         if let Some(offsets) =
             text_fragment::compute_selection_offsets(arena, fragment, SELECTION_STATE_START_AND_END, offset, offset)
         {
-            rect = text_fragment::rect_for_selection_offsets(arena, fragment, offsets);
-            if let Some(coordinate) = fragment
-                .glyph_run
-                .as_ref()
-                .and_then(|run| run.cluster_geometry().x_for_offset(offsets.start, downstream))
-            {
-                let origin = text_fragment::absolute_rect(arena, fragment);
-                let coordinate = CssPixels::nearest_value_for_f32(coordinate);
-                if text_fragment::is_horizontal(fragment) {
-                    rect.x = origin.x + coordinate;
-                } else if text_fragment::runs_upwards(fragment) {
-                    rect.y = origin.bottom() - coordinate - rect.height;
-                } else {
-                    rect.y = origin.y + coordinate;
+            let origin = text_fragment::absolute_rect(arena, fragment);
+            let caret_rect_in = |geometry: Option<&ClusterGeometry>| {
+                let mut rect =
+                    text_fragment::rect_for_selection_offsets_in_geometry(fragment, origin, offsets, || geometry);
+                if let Some(coordinate) = geometry.and_then(|geometry| geometry.x_for_offset(offsets.start, downstream))
+                {
+                    let coordinate = CssPixels::nearest_value_for_f32(coordinate);
+                    if text_fragment::is_horizontal(fragment) {
+                        rect.x = origin.x + coordinate;
+                    } else if text_fragment::runs_upwards(fragment) {
+                        rect.y = origin.bottom() - coordinate - rect.height;
+                    } else {
+                        rect.y = origin.y + coordinate;
+                    }
                 }
-            }
+                rect
+            };
+            // A caret is asked for one at a time, and the accessibility tree asks for one at the start of every line of
+            // text in the document: so a caret doesn't keep its run's geometry alive.
+            rect = match fragment.glyph_run.as_ref() {
+                Some(run) => run.with_cluster_geometry(|geometry| caret_rect_in(Some(geometry))),
+                None => caret_rect_in(None),
+            };
         }
         CaretRect {
             rect,
