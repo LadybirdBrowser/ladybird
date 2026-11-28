@@ -1,0 +1,16 @@
+Ladybird now moves a query to a new UDP connection to the configured
+DNS server when it’s due for a retry and nothing has come back on its
+connection since it went out, and keeps the old connection taking
+answers for five seconds more. Chrome’s DNS client does much the
+same, per attempt: Its DnsTransactionImpl::MakeUdpAttempt() asks for a
+new, randomly bound socket for each attempt, and keeps the earlier
+attempts in its attempts_ list, so a late answer to one of them still
+completes the transaction. Chrome also aborts in-flight lookups and
+clears its caches in HostResolverManager::OnIPAddressChanged(), which
+Ladybird has no counterpart to. Gecko sends no DNS over UDP itself; its
+plain lookups go through the system resolver, whose getaddrinfo()
+opens a socket for each lookup. Those are from reading the sources.
+The failure was checked in a Linux network namespace: A UDP socket
+connected to 1.1.1.1 kept its Wi-Fi source address and kept sending
+without error after the default route moved to another interface,
+while a new socket took that interface’s address.
