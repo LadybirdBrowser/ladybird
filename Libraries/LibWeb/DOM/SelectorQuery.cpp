@@ -147,7 +147,6 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
         }
         VERIFY_NOT_REACHED(); },
     .name_filter_bit = [](uintptr_t local_name) { return Element::name_filter_bit(Utf16FlyString::from_raw(local_name)); },
-    .shadow_root = [](Node const* element) -> Node const* { return element_from_ffi(element).shadow_root().ptr(); },
     .matches_state = [](Node const* element, u8 state) { return SelectorMatching::element_matches_state(element_from_ffi(element), pseudo_classes_by_state_fact[state]); },
     .language = [](Node const* element) -> CSS::SelectorFFI::FfiUtf16View {
         auto language = element_from_ffi(element).lang_view();
@@ -165,10 +164,6 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
     .has_custom_state = [](Node const* element, size_t state) {
         auto states = element_from_ffi(element).custom_state_set();
         return states && states->has_state(Utf16FlyString::from_raw(state)); },
-    .is_empty = [](Node const* pointer) {
-        // An element is never its own child, so ignoring itself ignores nothing.
-        auto const& element = element_from_ffi(pointer);
-        return SelectorMatching::element_is_empty_ignoring_child(element, element); },
 };
 
 // A selector query as the DOM matcher takes it, made in the context of the tree `node` is in and scoped to `scope`.

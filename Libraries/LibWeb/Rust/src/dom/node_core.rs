@@ -11,6 +11,8 @@ use core::cell::Cell;
 use core::mem::offset_of;
 use core::num::NonZeroU32;
 
+use super::strings::StringField;
+
 /// A node, named by its compressed cell pointer: its offset into the GC heap region in units of the 8-byte cell
 /// alignment, as a GC::Member holds it. Two node pointers are equal exactly when they name the same node.
 ///
@@ -30,10 +32,9 @@ impl NodePointer {
 /// Where DOM::Node embeds its core, in bytes from the start of the node's cell, which Node.h asserts.
 pub const NODE_CORE_OFFSET: usize = 32;
 
-/// Where DOM::DocumentFragment keeps its host, a GC::Member<Element>, in bytes from the start of the fragment's cell,
-/// which DocumentFragment.cpp asserts.
-/// https://dom.spec.whatwg.org/#concept-documentfragment-host
-pub const DOCUMENT_FRAGMENT_HOST_OFFSET: usize = 104;
+/// Where DOM::DocumentFragment embeds its core, in bytes from the start of the fragment's cell, which
+/// DocumentFragment.cpp asserts.
+pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 104;
 
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
@@ -57,6 +58,65 @@ impl DocumentMember {
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
+    }
+}
+
+/// Where DOM::CharacterData embeds its core, in bytes from the start of the node's cell, which CharacterData.cpp asserts.
+pub const CHARACTER_DATA_CORE_OFFSET: usize = 88;
+
+/// The state of a CharacterData node beyond that of every node, which C++ embeds in DOM::CharacterData as its only
+/// storage of it.
+/// https://dom.spec.whatwg.org/#characterdata
+#[repr(C)]
+pub struct CharacterDataCore {
+    data: StringField,
+}
+
+impl CharacterDataCore {
+    /// https://dom.spec.whatwg.org/#concept-cd-data
+    #[inline(always)]
+    pub fn data(&self) -> &StringField {
+        &self.data
+    }
+}
+
+/// A field that holds an element or null, laid out as C++'s GC::Member<DOM::Element>, which is what C++ sees it as. An
+/// element starts with its node, so it reads as a node.
+#[repr(transparent)]
+pub struct ElementMember(Cell<u32>);
+
+impl ElementMember {
+    #[inline(always)]
+    pub fn get(&self) -> Option<NodePointer> {
+        NonZeroU32::new(self.0.get()).map(NodePointer)
+    }
+}
+
+/// A field that holds a shadow root or null, laid out as C++'s GC::Member<DOM::ShadowRoot>, which is what C++ sees it
+/// as. A shadow root starts with its node, so it reads as a node.
+#[repr(transparent)]
+pub struct ShadowRootMember(Cell<u32>);
+
+impl ShadowRootMember {
+    #[inline(always)]
+    pub fn get(&self) -> Option<NodePointer> {
+        NonZeroU32::new(self.0.get()).map(NodePointer)
+    }
+}
+
+/// The state of a DocumentFragment node beyond that of every node, which C++ embeds in DOM::DocumentFragment as its only
+/// storage of it.
+/// https://dom.spec.whatwg.org/#documentfragment
+#[repr(C)]
+pub struct DocumentFragmentCore {
+    host: ElementMember,
+}
+
+impl DocumentFragmentCore {
+    /// https://dom.spec.whatwg.org/#concept-documentfragment-host
+    #[inline(always)]
+    pub fn host(&self) -> Option<NodePointer> {
+        self.host.get()
     }
 }
 
@@ -166,11 +226,40 @@ impl NodePointer {
 }
 
 #[cfg(test)]
-impl NodeMember {
+impl ShadowRootMember {
     pub(crate) fn null_for_test() -> Self {
         Self(Cell::new(0))
     }
 
+    pub(crate) fn set_for_test(&self, shadow_root: Option<NodePointer>) {
+        self.0.set(shadow_root.map_or(0, NodePointer::compressed));
+    }
+}
+
+#[cfg(test)]
+impl CharacterDataCore {
+    pub(crate) fn for_test(data: &str) -> Self {
+        Self {
+            data: StringField::for_test(data),
+        }
+    }
+}
+
+#[cfg(test)]
+impl DocumentFragmentCore {
+    pub(crate) fn null_for_test() -> Self {
+        Self {
+            host: ElementMember(Cell::new(0)),
+        }
+    }
+
+    pub(crate) fn set_host_for_test(&self, host: Option<NodePointer>) {
+        self.host.0.set(host.map_or(0, NodePointer::compressed));
+    }
+}
+
+#[cfg(test)]
+impl NodeMember {
     pub(crate) fn set(&self, node: Option<NodePointer>) {
         self.0.set(node.map_or(0, NodePointer::compressed));
     }
@@ -227,6 +316,14 @@ impl NodeCore {
 const _: () = assert!(size_of::<NodeMember>() == 4 && align_of::<NodeMember>() == 4);
 const _: () = assert!(size_of::<DocumentMember>() == 4 && align_of::<DocumentMember>() == 4);
 const _: () = assert!(size_of::<NodeType>() == 2 && align_of::<NodeType>() == 2);
+const _: () = assert!(size_of::<ElementMember>() == 4 && align_of::<ElementMember>() == 4);
+const _: () = assert!(size_of::<ShadowRootMember>() == 4 && align_of::<ShadowRootMember>() == 4);
+// NB: CharacterData.cpp asserts the same layout of the struct it includes.
+const _: () = assert!(size_of::<CharacterDataCore>() == 8 && align_of::<CharacterDataCore>() == 8);
+const _: () = assert!(offset_of!(CharacterDataCore, data) == 0);
+// NB: DocumentFragment.cpp asserts the same layout of the struct it includes.
+const _: () = assert!(size_of::<DocumentFragmentCore>() == 4 && align_of::<DocumentFragmentCore>() == 4);
+const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
 const _: () = assert!(size_of::<NodeCore>() == 32 && align_of::<NodeCore>() == 4);
 const _: () = assert!(offset_of!(NodeCore, parent) == 0);
 const _: () = assert!(offset_of!(NodeCore, first_child) == 4);

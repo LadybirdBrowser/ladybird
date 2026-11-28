@@ -10,6 +10,8 @@
 //! Its fields are AK and DOM types to C++, which owns what they hold: C++ constructs, assigns and destroys every field
 //! as the C++ type it sees, and Rust only reads them, in place.
 
+use super::node_core::NodePointer;
+use super::node_core::ShadowRootMember;
 use core::cell::Cell;
 use core::cell::UnsafeCell;
 use core::mem::offset_of;
@@ -139,6 +141,8 @@ pub struct ElementCore {
     /// Whether script changed the declarations of the element's style attribute since C++ last wrote them to the
     /// attribute, which C++ does as the attribute is next read.
     style_attribute_is_dirty: Cell<bool>,
+    /// https://dom.spec.whatwg.org/#concept-element-shadow-root
+    shadow_root: ShadowRootMember,
 }
 
 impl ElementCore {
@@ -175,6 +179,12 @@ impl ElementCore {
     pub fn style_attribute_is_dirty(&self) -> bool {
         self.style_attribute_is_dirty.get()
     }
+
+    /// https://dom.spec.whatwg.org/#concept-element-shadow-root
+    #[inline(always)]
+    pub fn shadow_root(&self) -> Option<NodePointer> {
+        self.shadow_root.get()
+    }
 }
 
 #[cfg(test)]
@@ -209,7 +219,12 @@ impl ElementCore {
             attributes: AttributeListField(UnsafeCell::new(core::ptr::null())),
             subtree_name_filter: Cell::new(0),
             style_attribute_is_dirty: Cell::new(false),
+            shadow_root: ShadowRootMember::null_for_test(),
         }
+    }
+
+    pub(crate) fn set_shadow_root_for_test(&self, shadow_root: Option<NodePointer>) {
+        self.shadow_root.set_for_test(shadow_root);
     }
 
     /// The core with the attributes `attributes`, in a list the test leaks.
@@ -258,6 +273,7 @@ const _: () = assert!(offset_of!(ElementCore, classes) == 16);
 const _: () = assert!(offset_of!(ElementCore, attributes) == 40);
 const _: () = assert!(offset_of!(ElementCore, subtree_name_filter) == 48);
 const _: () = assert!(offset_of!(ElementCore, style_attribute_is_dirty) == 56);
+const _: () = assert!(offset_of!(ElementCore, shadow_root) == 60);
 
 #[cfg(test)]
 mod tests {

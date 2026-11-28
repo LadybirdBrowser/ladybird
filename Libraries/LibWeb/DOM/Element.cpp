@@ -186,7 +186,7 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 }
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Element) == 296);
+static_assert(sizeof(Element) == 288);
 #endif
 
 // NB: The Rust definition of the core asserts the same layout.
@@ -197,6 +197,7 @@ static_assert(offsetof(RustFFI::ElementCore, classes) == 16);
 static_assert(offsetof(RustFFI::ElementCore, attributes) == 40);
 static_assert(offsetof(RustFFI::ElementCore, subtree_name_filter) == 48);
 static_assert(offsetof(RustFFI::ElementCore, style_attribute_is_dirty) == 56);
+static_assert(offsetof(RustFFI::ElementCore, shadow_root) == 60);
 
 Element::RareData::~RareData() = default;
 
@@ -351,6 +352,7 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .attributes = {},
         .subtree_name_filter = 0,
         .style_attribute_is_dirty = false,
+        .shadow_root = {},
     }
 {
     // NB: libweb_rust finds the core of an element at this offset into the element's cell, which starts with its node.
@@ -456,7 +458,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     Animatable::visit_edges(visitor);
 
     visitor.visit(m_inline_style);
-    visitor.visit(m_shadow_root);
+    visitor.visit(m_element_core.shadow_root);
 }
 
 size_t Element::external_memory_size() const
@@ -2248,7 +2250,7 @@ WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootOption
 GC::Ptr<ShadowRoot> Element::open_shadow_root() const
 {
     // 1. Let shadow be this’s shadow root.
-    GC::Ptr<ShadowRoot> shadow = m_shadow_root;
+    GC::Ptr<ShadowRoot> shadow = m_element_core.shadow_root;
 
     // 2. If shadow is null or its mode is "closed", then return null.
     if (shadow == nullptr || shadow->mode() == ShadowRootMode::Closed)
@@ -2420,43 +2422,43 @@ bool Element::is_document_element() const
 bool Element::is_shadow_host() const
 {
     // An element is a shadow host if its shadow root is non-null.
-    return m_shadow_root != nullptr;
+    return m_element_core.shadow_root != nullptr;
 }
 
 void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
 {
-    if (m_shadow_root == shadow_root)
+    if (m_element_core.shadow_root == shadow_root)
         return;
-    if (m_shadow_root) {
-        if (auto count = m_shadow_root->associated_animation_count_in_subtree())
+    if (m_element_core.shadow_root) {
+        if (auto count = m_element_core.shadow_root->associated_animation_count_in_subtree())
             change_associated_animation_count_in_subtree(-static_cast<i32>(count));
         if (is_connected()) {
-            m_shadow_root->detach_remaining_layout_nodes_for_removal();
-            CSS::record_subtree_disconnecting(*m_shadow_root);
+            m_element_core.shadow_root->detach_remaining_layout_nodes_for_removal();
+            CSS::record_subtree_disconnecting(*m_element_core.shadow_root);
         }
-        m_shadow_root->set_host(nullptr);
-        m_shadow_root->set_is_connected(false);
+        m_element_core.shadow_root->set_host(nullptr);
+        m_element_core.shadow_root->set_is_connected(false);
         // NB: We don't need to run the removed steps if the children have already been disconnected (or were never
         //     connected in the first place)
         if (is_connected()) {
-            m_shadow_root->for_each_shadow_including_descendant([&](DOM::Node& descendant) {
-                descendant.removed_from(IsSubtreeRoot::No, m_shadow_root.ptr(), *m_shadow_root);
+            m_element_core.shadow_root->for_each_shadow_including_descendant([&](DOM::Node& descendant) {
+                descendant.removed_from(IsSubtreeRoot::No, m_element_core.shadow_root.ptr(), *m_element_core.shadow_root);
                 return TraversalDecision::Continue;
             });
         }
     }
-    m_shadow_root = move(shadow_root);
-    if (m_shadow_root) {
+    m_element_core.shadow_root = move(shadow_root);
+    if (m_element_core.shadow_root) {
         // NB: Children shouldn't be set on shadow roots until the shadow root is attached to a host so that they
         //     correctly inherit connectedness.
-        VERIFY(!m_shadow_root->has_children());
+        VERIFY(!m_element_core.shadow_root->has_children());
 
-        m_shadow_root->set_host(this);
-        m_shadow_root->set_is_connected(is_connected());
+        m_element_core.shadow_root->set_host(this);
+        m_element_core.shadow_root->set_is_connected(is_connected());
         // A root attached to a connected host takes its StyleNodeID now rather than when a child
         // first needs it, so that a root that stays empty is named too.
-        CSS::record_shadow_root_connected(*m_shadow_root);
-        if (auto count = m_shadow_root->associated_animation_count_in_subtree())
+        CSS::record_shadow_root_connected(*m_element_core.shadow_root);
+        if (auto count = m_element_core.shadow_root->associated_animation_count_in_subtree())
             change_associated_animation_count_in_subtree(count);
     }
     set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::ElementSetShadowRoot);
@@ -2885,8 +2887,8 @@ void Element::inserted()
     play_or_cancel_animations_after_display_property_change();
 
     // A shadow root's counter style names pass on to the scope its host is in, which a move of the host can change.
-    if (m_shadow_root)
-        document().note_counter_style_scope_to_settle(*m_shadow_root);
+    if (m_element_core.shadow_root)
+        document().note_counter_style_scope_to_settle(*m_element_core.shadow_root);
 }
 
 void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
@@ -2930,8 +2932,8 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     clear_custom_highlight_styles();
 
     // A shadow root's counter style names pass on to the scope its host is in, which a move of the host can change.
-    if (m_shadow_root)
-        document().note_counter_style_scope_to_settle(*m_shadow_root);
+    if (m_element_core.shadow_root)
+        document().note_counter_style_scope_to_settle(*m_element_core.shadow_root);
 }
 
 void Element::unregister_anchor_names_before_leaving_tree_scope(Badge<Node>, Node& tree_root)
@@ -2962,8 +2964,8 @@ void Element::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancest
         HTML::FormAssociatedElement::reposition_associated_elements_after_move({}, *this);
 
     // A shadow root's counter style names pass on to the scope its host is in, which a move of the host can change.
-    if (m_shadow_root)
-        document().note_counter_style_scope_to_settle(*m_shadow_root);
+    if (m_element_core.shadow_root)
+        document().note_counter_style_scope_to_settle(*m_element_core.shadow_root);
 }
 
 void Element::children_changed(ChildrenChangedMetadata const& metadata)

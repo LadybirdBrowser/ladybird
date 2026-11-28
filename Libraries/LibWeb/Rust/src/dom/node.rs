@@ -13,12 +13,15 @@ use core::hash::Hasher;
 use core::marker::PhantomData;
 use core::marker::PhantomPinned;
 
-use super::node_core::DOCUMENT_FRAGMENT_HOST_OFFSET;
+use super::node_core::CHARACTER_DATA_CORE_OFFSET;
+use super::node_core::CharacterDataCore;
+use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
+use super::node_core::DocumentFragmentCore;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
-use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
+use super::strings::StringField;
 use crate::stage::MainThread;
 
 /// This library's copy of LibGC's heap region base, which compressed cell pointers are offsets from. LibGC fills it in
@@ -104,7 +107,7 @@ impl<'a> Node<'a> {
 
     /// The node a link of this node names. The links of a node the DOM keeps alive name nodes it keeps alive.
     #[inline(always)]
-    fn follow(self, link: Option<NodePointer>) -> Option<Node<'a>> {
+    pub(super) fn follow(self, link: Option<NodePointer>) -> Option<Node<'a>> {
         // SAFETY: The DOM keeps this node, and so the nodes its links name, alive and unchanged for 'a.
         link.map(|pointer| unsafe { Self::decode(pointer) })
     }
@@ -142,21 +145,41 @@ impl<'a> Node<'a> {
         self.core().is_shadow_root()
     }
 
-    /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps DOCUMENT_FRAGMENT_HOST_OFFSET bytes into
-    /// its cell.
+    /// The data of a CharacterData node, which DOM::CharacterData keeps in its core.
+    /// https://dom.spec.whatwg.org/#concept-cd-data
+    #[inline(always)]
+    pub fn data(self) -> &'a StringField {
+        assert!(matches!(
+            self.node_type(),
+            NodeType::TEXT_NODE
+                | NodeType::CDATA_SECTION_NODE
+                | NodeType::PROCESSING_INSTRUCTION_NODE
+                | NodeType::COMMENT_NODE
+        ));
+        // SAFETY: Every CharacterData node embeds its core CHARACTER_DATA_CORE_OFFSET bytes into its cell, which
+        //         CharacterData.cpp asserts.
+        let core = unsafe {
+            &*(self.cell as *const NodeCell)
+                .byte_add(CHARACTER_DATA_CORE_OFFSET)
+                .cast::<CharacterDataCore>()
+        };
+        core.data()
+    }
+
+    /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps in its core.
     /// https://dom.spec.whatwg.org/#concept-documentfragment-host
     #[inline(always)]
     pub fn host(self) -> Option<Node<'a>> {
         assert!(self.node_type() == NodeType::DOCUMENT_FRAGMENT_NODE);
-        // SAFETY: A fragment's cell holds its host, a GC::Member<Element>, at this offset, which DocumentFragment.cpp
-        //         asserts. An element starts with its node, which DocumentFragment::set_host() verifies, so the member
-        //         names the host as a node.
-        let host = unsafe {
+        // SAFETY: Every DocumentFragment embeds its core DOCUMENT_FRAGMENT_CORE_OFFSET bytes into its cell, which
+        //         DocumentFragment.cpp asserts. An element starts with its node, which DocumentFragment::set_host()
+        //         verifies, so the core names the host as a node.
+        let core = unsafe {
             &*(self.cell as *const NodeCell)
-                .byte_add(DOCUMENT_FRAGMENT_HOST_OFFSET)
-                .cast::<NodeMember>()
+                .byte_add(DOCUMENT_FRAGMENT_CORE_OFFSET)
+                .cast::<DocumentFragmentCore>()
         };
-        self.follow(host.get())
+        self.follow(core.host())
     }
 
     /// https://dom.spec.whatwg.org/#concept-tree-parent

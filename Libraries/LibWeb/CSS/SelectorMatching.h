@@ -22,12 +22,6 @@ enum class ValidityState : u8 {
 WEB_API ValidityState element_validity_state(DOM::Element const&);
 WEB_API ValidityState element_user_validity_state(DOM::Element const&);
 
-// Whether `:empty` would match an element as it would be without one of its children: it has no
-// other element children, and no other text child holding anything. An empty text node leaves the
-// element empty, which is why the child count cannot answer this. Ignoring a child is what a child
-// arriving, leaving, or changing its data needs to compare against.
-WEB_API bool element_is_empty_ignoring_child(DOM::Element const&, DOM::Node const& ignored_child);
-
 // Whether `:required` or `:optional` applies to an element, or neither.
 enum class RequiredState : u8 {
     NotApplicable,

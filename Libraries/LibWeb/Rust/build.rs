@@ -2731,21 +2731,30 @@ fn main() -> Result<(), Box<dyn Error>> {
     dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
     dom_config.includes = vec![
         "AK/OwnPtr.h".to_string(),
+        "AK/Utf16String.h".to_string(),
         "LibGC/Member.h".to_string(),
         "LibWeb/DOM/ClassNames.h".to_string(),
         "LibWeb/DOM/QualifiedName.h".to_string(),
         "LibWebCommon/DOM/NodeType.h".to_string(),
     ];
-    dom_config.export.include = vec!["NodeCore".to_string(), "ElementCore".to_string()];
+    dom_config.export.include = vec![
+        "NodeCore".to_string(),
+        "CharacterDataCore".to_string(),
+        "DocumentFragmentCore".to_string(),
+        "ElementCore".to_string(),
+    ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
         ("NodeMember", "GC::Member<Web::DOM::Node>"),
         ("DocumentMember", "GC::Member<Web::DOM::Document>"),
+        ("ElementMember", "GC::Member<Web::DOM::Element>"),
+        ("ShadowRootMember", "GC::Member<Web::DOM::ShadowRoot>"),
         ("NodeType", "Web::DOM::NodeType"),
         ("QualifiedNameField", "Web::DOM::QualifiedName"),
         ("OptionalFlyStringField", "AK::Optional<AK::Utf16FlyString>"),
         ("ClassNamesField", "Web::DOM::ClassNames"),
         ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
+        ("StringField", "AK::Utf16String"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2753,10 +2762,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             .rename
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
-    dom_config
-        .after_includes
-        .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::DOM { class AttributeList; class Document; class Node; }");
+    dom_config.after_includes.get_or_insert_with(String::new).push_str(
+        "\nnamespace Web::DOM { class AttributeList; class Document; class Element; class Node; class ShadowRoot; }",
+    );
     generate_ffi_header_strict(
         dom_config,
         &[

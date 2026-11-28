@@ -79,15 +79,21 @@ static bool whitespace_text_may_follow(Node const& node)
 
 CharacterData::CharacterData(Document& document, NodeType type, Utf16String data)
     : Node(document, type)
-    , m_data(move(data))
+    , m_character_data_core { .data = move(data) }
 {
+    // NB: libweb_rust reads the core of a CharacterData node in place.
+    static_assert(offsetof(CharacterData, m_character_data_core) == RustFFI::CHARACTER_DATA_CORE_OFFSET);
 }
+
+// NB: The Rust definition of the core asserts the same layout.
+static_assert(sizeof(RustFFI::CharacterDataCore) == 8 && alignof(RustFFI::CharacterDataCore) == 8);
+static_assert(offsetof(RustFFI::CharacterDataCore, data) == 0);
 
 CharacterData::~CharacterData() = default;
 
 size_t CharacterData::external_memory_size() const
 {
-    return Node::external_memory_size() + JS::utf16_string_external_memory_size(m_data);
+    return Node::external_memory_size() + JS::utf16_string_external_memory_size(m_character_data_core.data);
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-data
@@ -104,7 +110,7 @@ void CharacterData::set_data(Utf16View const& data)
 WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, size_t count) const
 {
     // 1. Let length be node’s length.
-    auto length = m_data.length_in_code_units();
+    auto length = m_character_data_core.data.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
@@ -113,10 +119,10 @@ WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, si
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return Utf16String::from_utf16(m_data.substring_view(offset));
+        return Utf16String::from_utf16(m_character_data_core.data.substring_view(offset));
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return Utf16String::from_utf16(m_data.substring_view(offset, count));
+    return Utf16String::from_utf16(m_character_data_core.data.substring_view(offset, count));
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
@@ -127,7 +133,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         history->notify_dom_mutation();
 
     // 1. Let length be node’s length.
-    auto length = m_data.length_in_code_units();
+    auto length = m_character_data_core.data.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
@@ -140,23 +146,23 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 5. Insert data into node’s data after offset code units.
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
-    auto before_data = m_data.substring_view(0, offset);
-    auto after_data = m_data.substring_view(offset + count);
+    auto before_data = m_character_data_core.data.substring_view(0, offset);
+    auto after_data = m_character_data_core.data.substring_view(offset + count);
 
     Utf16StringBuilder full_data(before_data.length_in_code_units() + data.length_in_code_units() + after_data.length_in_code_units());
     full_data.append(before_data);
     full_data.append(data);
     full_data.append(after_data);
 
-    auto old_data = m_data;
-    m_data = full_data.to_string();
+    auto old_data = m_character_data_core.data;
+    m_character_data_core.data = full_data.to_string();
 
     // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
     // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.
     queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
 
     GC::Ptr<Range> selection_range_to_preserve;
-    if (m_data == old_data && document().preserve_selection_offsets_during_identical_character_data_replacement()) {
+    if (m_character_data_core.data == old_data && document().preserve_selection_offsets_during_identical_character_data_replacement()) {
         if (auto selection = document().get_selection())
             selection_range_to_preserve = selection->range();
     }
@@ -197,7 +203,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     }
 
     // OPTIMIZATION: If the characters are the same, we can skip the remainder of this function.
-    if (m_data == old_data)
+    if (m_character_data_core.data == old_data)
         return {};
 
     // A spelling marker covers the text it was flagged on: Data replaced around it moves it, and data replaced inside
@@ -210,21 +216,21 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // A text node holding nothing leaves its parent `:empty`, so data arriving in it or leaving it
     // moves the parent's emptiness without any node being created or destroyed.
-    if (is<Text>(*this) && old_data.is_empty() != m_data.is_empty()) {
+    if (is<Text>(*this) && old_data.is_empty() != m_character_data_core.data.is_empty()) {
         if (auto* parent = as_if<Element>(parent_node()))
-            CSS::record_element_emptiness_changed(*parent, *this, !old_data.is_empty(), !m_data.is_empty());
+            CSS::record_element_emptiness_changed(*parent, *this, !old_data.is_empty(), !m_character_data_core.data.is_empty());
     }
 
     // NB: Called during DOM text mutation, layout is stale.
     if (is<Text>(*this)) {
         CSS::record_text_data_changed(as<Text>(*this));
-        auto whitespace_only_changed = old_data.is_ascii_whitespace() != m_data.is_ascii_whitespace();
+        auto whitespace_only_changed = old_data.is_ascii_whitespace() != m_character_data_core.data.is_ascii_whitespace();
         Layout::RustFFI::FfiBoxMarks marks {};
         marks.text_data_changed = true;
         mark_box(marks);
         // White space alone may render as nothing, so a text that turns into it or out of it may gain or lose its box.
         // So may white space text after it, which renders nothing after text ending in collapsible white space.
-        auto trailing_whitespace_changed = ends_in_ascii_whitespace(old_data) != ends_in_ascii_whitespace(m_data);
+        auto trailing_whitespace_changed = ends_in_ascii_whitespace(old_data) != ends_in_ascii_whitespace(m_character_data_core.data);
         if (is_connected() && (whitespace_only_changed || (trailing_whitespace_changed && whitespace_text_may_follow(*this)))) {
             if (!has_layout_box())
                 set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
@@ -239,12 +245,12 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     if (auto* rare_data = character_data_rare_data()) {
         if (rare_data->grapheme_segmenter)
-            rare_data->grapheme_segmenter->set_segmented_text(m_data);
+            rare_data->grapheme_segmenter->set_segmented_text(m_character_data_core.data);
         // The line segmenter may be the ASCII fast-path variant, which only accepts a subset of inputs; let the
         // lazy getter re-pick the implementation against the new data.
         rare_data->line_segmenter = nullptr;
         if (rare_data->word_segmenter)
-            rare_data->word_segmenter->set_segmented_text(m_data);
+            rare_data->word_segmenter->set_segmented_text(m_character_data_core.data);
     }
 
     if (is<Text>(*this)) {
@@ -281,7 +287,7 @@ Unicode::Segmenter& CharacterData::grapheme_segmenter() const
     auto& segmenter = ensure_character_data_rare_data().grapheme_segmenter;
     if (!segmenter) {
         segmenter = document().grapheme_segmenter().clone();
-        segmenter->set_segmented_text(m_data);
+        segmenter->set_segmented_text(m_character_data_core.data);
     }
 
     return *segmenter;
@@ -291,11 +297,11 @@ Unicode::Segmenter& CharacterData::line_segmenter() const
 {
     auto& segmenter = ensure_character_data_rare_data().line_segmenter;
     if (!segmenter) {
-        if (auto ascii = Unicode::Segmenter::try_create_for_ascii_line(m_data.utf16_view())) {
+        if (auto ascii = Unicode::Segmenter::try_create_for_ascii_line(m_character_data_core.data.utf16_view())) {
             segmenter = ascii.release_nonnull();
         } else {
             segmenter = document().line_segmenter().clone();
-            segmenter->set_segmented_text(m_data);
+            segmenter->set_segmented_text(m_character_data_core.data);
         }
     }
 
@@ -307,7 +313,7 @@ Unicode::Segmenter& CharacterData::word_segmenter() const
     auto& segmenter = ensure_character_data_rare_data().word_segmenter;
     if (!segmenter) {
         segmenter = document().word_segmenter().clone();
-        segmenter->set_segmented_text(m_data);
+        segmenter->set_segmented_text(m_character_data_core.data);
     }
 
     return *segmenter;
