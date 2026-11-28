@@ -108,6 +108,9 @@ class CORE_API WeakEventLoopReference : public AtomicRefCounted<WeakEventLoopRef
 public:
     StrongEventLoopReference take();
 
+    // Queues the function on the event loop if it still exists, and returns whether it did.
+    bool deferred_invoke(ESCAPING Function<void()>);
+
 private:
     friend class EventLoop;
     friend class StrongEventLoopReference;

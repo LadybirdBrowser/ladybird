@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/ConditionVariable.h>
 #include <AK/OwnPtr.h>
+#include <AK/RefCounted.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
@@ -95,6 +97,44 @@ TEST_CASE(quit_event_loop_from_another_thread)
 
     auto exit_code = MUST(thread->join<void*>());
     EXPECT_EQ(reinterpret_cast<intptr_t>(exit_code), 42);
+}
+
+TEST_CASE(weak_event_loop_reference_queues_a_function_from_another_thread)
+{
+    Core::EventLoop event_loop;
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto weak_event_loop = Core::EventLoop::current_weak();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> ran { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool queued = false;
+    auto thread = Threading::Thread::construct("Poster"sv, [&] {
+        queued = weak_event_loop->deferred_invoke([&] { ran.store(true); });
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+
+    EXPECT(queued);
+    event_loop.spin_until([&] { return ran.load(); });
+}
+
+namespace {
+
+struct CapturedObject : RefCounted<CapturedObject> { };
+
+}
+
+TEST_CASE(weak_event_loop_reference_drops_a_function_once_its_event_loop_is_gone)
+{
+    RefPtr<Core::WeakEventLoopReference> weak_event_loop;
+    {
+        Core::EventLoop event_loop;
+        weak_event_loop = Core::EventLoop::current_weak();
+    }
+
+    auto captured = make_ref_counted<CapturedObject>();
+    auto queued = weak_event_loop->deferred_invoke([captured] { });
+    EXPECT(!queued);
+    EXPECT_EQ(captured->ref_count(), 1u);
 }
 
 TEST_CASE(single_shot_timer_fires_once)
