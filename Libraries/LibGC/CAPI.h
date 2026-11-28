@@ -205,6 +205,8 @@ GC_API GCCell* gc_heap_allocate_storage_cell(GCHeap*, GCAllocator*);
 // the range are always empty while the heap collects on every allocation. Returns null if cells must always be
 // allocated through the heap, as in builds that poison free cells for AddressSanitizer.
 GC_API GCCell** gc_heap_allocator_local_free_list(GCHeap*, GCAllocator*);
+// The heap the cell was allocated in, as code that only has a cell allocates others beside it.
+GC_API GCHeap* gc_cell_heap(GCCell const*);
 // The context that the heap of the cell was created with, as code that only has a cell finds the rest of its runtime.
 GC_API void* gc_cell_heap_context(GCCell const*);
 // The type info the cell's block was allocated with.
@@ -242,6 +244,8 @@ GC_API GCCell* gc_root_cell(GCRoot const*);
 // Weak references are returned with one reference already taken, which the caller releases with
 // gc_weak_impl_unref(). The pointer lives at weak_impl_pointer_offset and becomes null once the cell is collected.
 GC_API GCWeakImpl* gc_heap_create_weak_impl(GCHeap*, GCCell*);
+// Like gc_heap_create_weak_impl(), with the heap the cell was allocated in.
+GC_API GCWeakImpl* gc_cell_create_weak_impl(GCCell*);
 GC_API GCWeakImpl* gc_weak_impl_null(void);
 GC_API void gc_weak_impl_ref(GCWeakImpl*);
 GC_API void gc_weak_impl_unref(GCWeakImpl*);

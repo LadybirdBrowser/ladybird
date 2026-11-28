@@ -6,6 +6,8 @@ members = [
     "Libraries/LibCrypto/Rust",
     "Libraries/LibDNS/Rust",
     "Libraries/LibGC/Rust",
+    "Libraries/LibGC/RustAPI",
+    "Libraries/LibGC/RustAPI/macros",
     "Libraries/LibGfx/Rust",
     "Libraries/LibHTTP/Rust",
     "Libraries/LibImageDecoders/Rust",
@@ -35,6 +37,7 @@ members = [
     "Libraries/RustAllocator",
     "Services/Compositor/Rust",
     "Services/WebRTCClient",
+    "Tests/LibGC/RustAPI",
     "Tests/LibIPC/RustEchoServer",
 ]
 exclude = [
