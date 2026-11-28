@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/Checked.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
@@ -417,8 +418,12 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
         static constexpr size_t buffer_size = 256 * KiB;
         // NB: The buffer lives on the heap, as a thread_local array this large would be static TLS that every thread
         //     of the process zeroes as it starts, reading requests or not. It is allocated the first time a thread
-        //     reads a response and kept for the life of that thread's event loop.
-        static thread_local u8* buffer = nullptr;
+        //     reads a response and freed when that thread exits.
+#ifdef AK_COMPILER_CLANG
+        AK_IGNORE_DIAGNOSTIC("-Wexit-time-destructors", static thread_local ByteBuffer buffer)
+#else
+        static thread_local ByteBuffer buffer;
+#endif
 
         // If the request was stopped while this IPC was in-flight, just bail.
         if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
@@ -426,8 +431,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
 
         NonnullRefPtr protector { *this };
 
-        if (!buffer)
-            buffer = new u8[buffer_size];
+        if (buffer.is_empty())
+            buffer.resize(buffer_size);
 
         do {
             auto bytes_to_read = buffer_size;
@@ -439,7 +444,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
                 bytes_to_read = min(bytes_to_read, *m_internal_stream_data->body_delivery_remaining_byte_count);
             }
 
-            auto result = m_internal_stream_data->read_stream->read_some({ buffer, bytes_to_read });
+            auto result = m_internal_stream_data->read_stream->read_some(buffer.bytes().trim(bytes_to_read));
             if (result.is_error() && (!result.error().is_errno() || (result.error().is_errno() && result.error().code() != EINTR)))
                 break;
             if (result.is_error())

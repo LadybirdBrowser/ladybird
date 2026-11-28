@@ -5,10 +5,13 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibCore/System.h>
+#include <LibIPC/File.h>
 #include <LibIPC/Transport.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
 #include <LibURL/Parser.h>
 
 namespace {
@@ -105,4 +108,41 @@ TEST_CASE(a_request_keeps_its_transport_epoch_once_its_client_is_gone)
         request = start_request(*connected.client);
     }
     EXPECT_EQ(request->transport_epoch(), epoch);
+}
+
+// LeakSanitizer reports what a joined thread allocated to read a response body and did not free.
+TEST_CASE(a_thread_that_read_a_response_body_can_exit)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA ByteString received_body;
+    auto thread = Threading::Thread::construct("ResponseReader"sv, [&received_body] {
+        Core::EventLoop event_loop;
+
+        auto connected = connect_client(1);
+        auto request_server = MUST(connected.request_server.create_transport());
+        auto request = start_request(*connected.client);
+        bool finished = false;
+        request->set_buffered_request_finished_callback([&](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const&, NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String>, Requests::CacheState, Core::ImmutableBytes payload) {
+            received_body = ByteString { payload.bytes() };
+            finished = true;
+        });
+
+        int body_fds[2] {};
+        MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, body_fds));
+        MUST(Core::System::set_socket_blocking(body_fds[0], false));
+        auto body = "body"sv;
+        MUST(Core::System::send(body_fds[1], body.bytes(), MSG_NOSIGNAL));
+        MUST(Core::System::close(body_fds[1]));
+
+        auto send = [&](IPC::MessageBuffer message) { MUST(message.transfer_message(*request_server)); };
+        send(MUST(Messages::RequestClient::RequestStarted::static_encode(request->id(), IPC::File::adopt_fd(body_fds[0]))));
+        send(MUST(Messages::RequestClient::HeadersBecameAvailable::static_encode(request->id(), URL::about_blank(), Vector<HTTP::Header> {}, 200, Optional<String> {}, Requests::CacheState::NotCached, ByteString {})));
+        send(MUST(Messages::RequestClient::RequestFinished::static_encode(request->id(), body.length(), Requests::RequestTimingInfo {}, Optional<Requests::NetworkError> {})));
+
+        event_loop.spin_until([&] { return finished; });
+        return static_cast<intptr_t>(0);
+    });
+    thread->start();
+    MUST(thread->join());
+
+    EXPECT_EQ(received_body, "body"sv);
 }
