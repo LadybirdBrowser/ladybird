@@ -175,64 +175,68 @@ ErrorOr<ParsedCookie> parse_cookie(Cookie const& cookie)
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.6-8
 ErrorOr<void> parse_attributes(URL::URL const& url, ParsedCookie& parsed_cookie, StringView unparsed_attributes)
 {
-    // 1. If the unparsed-attributes string is empty, skip the rest of these steps.
-    if (unparsed_attributes.is_empty())
-        return {};
+    while (true) {
+        // 1. If the unparsed-attributes string is empty, skip the rest of these steps.
+        if (unparsed_attributes.is_empty())
+            return {};
 
-    // 2. Discard the first character of the unparsed-attributes (which will be a %x3B (";") character).
-    unparsed_attributes = unparsed_attributes.substring_view(1);
+        // 2. Discard the first character of the unparsed-attributes (which will be a %x3B (";") character).
+        unparsed_attributes = unparsed_attributes.substring_view(1);
 
-    StringView cookie_av;
+        StringView cookie_av;
 
-    // 3. If the remaining unparsed-attributes contains a %x3B (";") character:
-    if (auto position = unparsed_attributes.find(';'); position.has_value()) {
-        // 1. Consume the characters of the unparsed-attributes up to, but not including, the first %x3B (";") character.
-        cookie_av = unparsed_attributes.substring_view(0, position.value());
-        unparsed_attributes = unparsed_attributes.substring_view(position.value());
+        // 3. If the remaining unparsed-attributes contains a %x3B (";") character:
+        if (auto position = unparsed_attributes.find(';'); position.has_value()) {
+            // 1. Consume the characters of the unparsed-attributes up to, but not including, the first %x3B (";")
+            //    character.
+            cookie_av = unparsed_attributes.substring_view(0, position.value());
+            unparsed_attributes = unparsed_attributes.substring_view(position.value());
+        }
+        // Otherwise:
+        else {
+            // 1. Consume the remainder of the unparsed-attributes.
+            cookie_av = unparsed_attributes;
+            unparsed_attributes = {};
+        }
+        // Let the cookie-av string be the characters consumed in this step; unparsed-attributes now contains any
+        // remaining characters.
+
+        StringView attribute_name;
+        StringView attribute_value;
+
+        // 4. If the cookie-av string contains a %x3D ("=") character:
+        if (auto position = cookie_av.find('='); position.has_value()) {
+            // 1. The (possibly empty) attribute-name string consists of the characters up to, but not including, the
+            //    first %x3D ("=") character, and the (possibly empty) attribute-value string consists of the characters
+            //    after the first %x3D ("=") character.
+            attribute_name = cookie_av.substring_view(0, position.value());
+
+            if (position.value() < cookie_av.length() - 1)
+                attribute_value = cookie_av.substring_view(position.value() + 1);
+        }
+        // Otherwise:
+        else {
+            // 1. The attribute-name string consists of the entire cookie-av string, and the attribute-value string is
+            //    empty.
+            attribute_name = cookie_av;
+        }
+
+        // 5. Remove any leading or trailing WSP characters from the attribute-name string and the attribute-value
+        //    string.
+        attribute_name = attribute_name.trim_whitespace();
+        attribute_value = attribute_value.trim_whitespace();
+
+        // 6. If the attribute-value is longer than 1024 octets, ignore the cookie-av string and return to Step 1 of
+        //    this algorithm.
+        if (attribute_value.length() > 1024)
+            continue;
+
+        // 7. Process the attribute-name and attribute-value according to the requirements in the following subsections.
+        //    (Notice that attributes with unrecognized attribute-names are ignored.)
+        TRY(process_attribute(url, parsed_cookie, attribute_name, attribute_value));
+
+        // 8. Return to Step 1 of this algorithm.
     }
-    // Otherwise:
-    else {
-        // 1. Consume the remainder of the unparsed-attributes.
-        cookie_av = unparsed_attributes;
-        unparsed_attributes = {};
-    }
-    // Let the cookie-av string be the characters consumed in this step; unparsed-attributes now contains any remaining
-    // characters.
-
-    StringView attribute_name;
-    StringView attribute_value;
-
-    // 4. If the cookie-av string contains a %x3D ("=") character:
-    if (auto position = cookie_av.find('='); position.has_value()) {
-        // 1. The (possibly empty) attribute-name string consists of the characters up to, but not including, the first
-        //    %x3D ("=") character, and the (possibly empty) attribute-value string consists of the characters after the
-        //    first %x3D ("=") character.
-        attribute_name = cookie_av.substring_view(0, position.value());
-
-        if (position.value() < cookie_av.length() - 1)
-            attribute_value = cookie_av.substring_view(position.value() + 1);
-    }
-    // Otherwise:
-    else {
-        // 1. The attribute-name string consists of the entire cookie-av string, and the attribute-value string is empty.
-        attribute_name = cookie_av;
-    }
-
-    // 5. Remove any leading or trailing WSP characters from the attribute-name string and the attribute-value string.
-    attribute_name = attribute_name.trim_whitespace();
-    attribute_value = attribute_value.trim_whitespace();
-
-    // 6. If the attribute-value is longer than 1024 octets, ignore the cookie-av string and return to Step 1 of this
-    //    algorithm.
-    if (attribute_value.length() > 1024)
-        return parse_attributes(url, parsed_cookie, unparsed_attributes);
-
-    // 7. Process the attribute-name and attribute-value according to the requirements in the following subsections.
-    //    (Notice that attributes with unrecognized attribute-names are ignored.)
-    TRY(process_attribute(url, parsed_cookie, attribute_name, attribute_value));
-
-    // 8. Return to Step 1 of this algorithm.
-    return parse_attributes(url, parsed_cookie, unparsed_attributes);
 }
 
 ErrorOr<void> process_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_name, StringView attribute_value)
