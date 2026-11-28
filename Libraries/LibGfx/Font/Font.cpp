@@ -292,6 +292,7 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
     VERIFY(out_snapshot);
     auto const& typed_font = *static_cast<Gfx::Font const*>(font);
     auto const& metrics = typed_font.pixel_metrics();
+    auto bounding_box_of_all_glyphs = typed_font.typeface().bounding_box_in_font_units();
     *out_snapshot = {
         .id = typed_font.id(),
         .ascent = metrics.ascent,
@@ -302,6 +303,16 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
         .zero_advance = metrics.advance_of_ascii_zero,
         .pixel_size = typed_font.pixel_size(),
         .point_size = typed_font.point_size(),
+        .has_bounding_box_of_all_glyphs = !bounding_box_of_all_glyphs.is_empty(),
+        .bounding_box_of_all_glyphs = {
+            .x_min = bounding_box_of_all_glyphs.x_min,
+            .y_min = bounding_box_of_all_glyphs.y_min,
+            .x_max = bounding_box_of_all_glyphs.x_max,
+            .y_max = bounding_box_of_all_glyphs.y_max,
+            .units_per_em = bounding_box_of_all_glyphs.units_per_em,
+        },
+        .synthetic_slant = hb_font_get_synthetic_slant(typed_font.harfbuzz_font()),
+        .has_synthetic_bold = typed_font.synthesis().bold,
     };
 }
 

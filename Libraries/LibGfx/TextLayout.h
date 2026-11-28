@@ -28,12 +28,6 @@ struct ShapedGlyph {
     bool is_rtl { false };
 };
 
-// Conservative bounds of the painted glyphs in device pixels, relative to the run's baseline origin (glyph
-// positions scaled by `scale`, with the font ascent added to y). The bounding box of the glyph origins is
-// expanded by the font's overall glyph bounding box, falling back to tight per-glyph extents when the font
-// doesn't record one.
-[[nodiscard]] FloatRect glyph_run_bounding_box(Font const&, ReadonlySpan<ShapedGlyph>, float scale);
-
 // Pairs of [start, end] device-pixel x values, relative to the run's baseline origin, where glyph ink intersects
 // the horizontal band [y_top, y_bottom]. One pair per painted glyph that has ink inside the band, in run order.
 [[nodiscard]] Vector<float> glyph_run_glyph_intercepts(Font const&, ReadonlySpan<ShapedGlyph>, float scale, float origin_y, float y_top, float y_bottom);

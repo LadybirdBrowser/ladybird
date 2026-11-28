@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::font::FontHandle;
+use crate::font::{FontFacts, FontHandle};
+use crate::geometry::FloatRect;
 use hashbrown::hash_map::EntryRef;
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -166,14 +167,6 @@ unsafe extern "C" {
         emit: unsafe extern "C" fn(*mut c_void, *const ShapedGlyph, usize, f32, usize, f32, f32, bool),
     );
 
-    fn ladybird_gfx_glyph_run_bounding_box(
-        font: *const c_void,
-        glyphs: *const ShapedGlyph,
-        glyph_count: usize,
-        scale: f32,
-        out_rect: *mut f32,
-    );
-
     fn ladybird_gfx_glyph_run_ink_bounding_box(
         font: *const c_void,
         glyphs: *const ShapedGlyph,
@@ -200,22 +193,75 @@ fn shaped_glyphs_of(glyphs: &GlyphBuffer) -> Vec<ShapedGlyph> {
     glyphs.placed().map(ShapedGlyph::from).collect()
 }
 
+/// How far synthetic bold can spread the ink of a font's glyphs past their outlines, in device pixels. The rasterizer
+/// decides the stroke, so this allows for the widest it's known to use: It bounds what a run may paint, and isn't a
+/// measurement of its ink.
+fn synthetic_bold_outset(facts: &FontFacts, scale: f32) -> f32 {
+    if !facts.has_synthetic_bold {
+        return 0.0;
+    }
+    (facts.pixel_size * scale / 24.0).max(1.0)
+}
+
+/// Conservative bounds of the painted glyphs in device pixels, relative to the run's baseline origin (glyph positions
+/// scaled by `scale`, with the font ascent added to y), as x, y, width and height. The box of the glyph origins is grown
+/// by the box every glyph of the font fits in, or, where the font records no such box, the tight extents of the glyphs
+/// are united instead.
 #[must_use]
 pub fn glyph_run_bounding_box(font: &FontHandle, glyphs: &GlyphBuffer, scale: f32) -> [f32; 4] {
-    let glyphs = shaped_glyphs_of(glyphs);
-    let mut out_rect = [0.0f32; 4];
-    // SAFETY: The handle keeps the font live and the glyph slice stays valid
-    // for the synchronous call, which fills the four floats out_rect points at.
-    unsafe {
-        ladybird_gfx_glyph_run_bounding_box(
-            font.as_raw(),
-            glyphs.as_ptr(),
-            glyphs.len(),
-            scale,
-            out_rect.as_mut_ptr(),
-        );
+    let facts = font.facts();
+    let mut has_painted_glyphs = false;
+    let mut min_x = f32::MAX;
+    let mut min_y = f32::MAX;
+    let mut max_x = f32::MIN;
+    let mut max_y = f32::MIN;
+    for placed in glyphs.placed() {
+        if !placed.glyph.should_paint() {
+            continue;
+        }
+        let origin_x = placed.x * scale;
+        let origin_y = (placed.y + facts.ascent) * scale;
+        if !origin_x.is_finite() || !origin_y.is_finite() {
+            return [0.0; 4];
+        }
+        min_x = min_x.min(origin_x);
+        min_y = min_y.min(origin_y);
+        max_x = max_x.max(origin_x);
+        max_y = max_y.max(origin_y);
+        has_painted_glyphs = true;
     }
-    out_rect
+    if !has_painted_glyphs {
+        return [0.0; 4];
+    }
+
+    let outset = synthetic_bold_outset(facts, scale);
+    let Some(font_bounding_box) = facts.bounding_box_of_all_glyphs else {
+        // NB: HarfBuzz slants the extents of a synthetic oblique itself.
+        let mut bounds = FloatRect::from_array(glyph_run_ink_bounding_box(font, glyphs, scale));
+        if outset > 0.0 && !bounds.is_empty() {
+            bounds = bounds.inflated(outset * 2.0, outset * 2.0);
+        }
+        return [bounds.x, bounds.y, bounds.width, bounds.height];
+    };
+
+    let font_units_to_pixels = facts.pixel_size * scale / f32::from(font_bounding_box.units_per_em);
+    // Font units have y pointing up, device pixels have y pointing down.
+    let mut left = min_x + f32::from(font_bounding_box.x_min) * font_units_to_pixels;
+    let mut right = max_x + f32::from(font_bounding_box.x_max) * font_units_to_pixels;
+    let mut top = min_y - f32::from(font_bounding_box.y_max) * font_units_to_pixels;
+    let mut bottom = max_y - f32::from(font_bounding_box.y_min) * font_units_to_pixels;
+    // A synthetic oblique shifts each point of a glyph along the line by its height above the baseline.
+    if facts.synthetic_slant != 0.0 {
+        let shift_at_top = f32::from(font_bounding_box.y_max) * font_units_to_pixels * facts.synthetic_slant;
+        let shift_at_bottom = f32::from(font_bounding_box.y_min) * font_units_to_pixels * facts.synthetic_slant;
+        left += shift_at_top.min(shift_at_bottom).min(0.0);
+        right += shift_at_top.max(shift_at_bottom).max(0.0);
+    }
+    left -= outset;
+    right += outset;
+    top -= outset;
+    bottom += outset;
+    [left, top, right - left, bottom - top]
 }
 
 /// Tight bounds of the ink of the painted glyphs, from their own extents, in the coordinates of

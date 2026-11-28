@@ -25,18 +25,8 @@
 
 namespace Gfx {
 
-// How far synthetic bold can spread the ink of a font's glyphs past their outlines, in device pixels. The rasterizer
-// decides the stroke, so this allows for the widest it's known to use: It bounds what a run may paint, and isn't a
-// measurement of its ink.
-static float synthetic_bold_outset(Font const& font, float scale)
-{
-    if (!font.synthesis().bold)
-        return 0;
-    return max(font.pixel_size() * scale / 24, 1.0f);
-}
-
-// Tight bounds of the ink of the painted glyphs, from their own extents, in the coordinates of glyph_run_bounding_box().
-// Empty if no painted glyph has ink.
+// Tight bounds of the ink of the painted glyphs, from their own extents, in device pixels relative to the run's baseline
+// origin (glyph positions scaled by `scale`, with the font ascent added to y). Empty if no painted glyph has ink.
 static FloatRect glyph_run_ink_bounding_box(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale)
 {
     auto font_ascent = font.pixel_metrics().ascent;
@@ -67,65 +57,6 @@ static FloatRect glyph_run_ink_bounding_box(Font const& font, ReadonlySpan<Shape
         };
         bounds.unite(glyph_bounds);
     }
-    return bounds;
-}
-
-FloatRect glyph_run_bounding_box(Font const& font, ReadonlySpan<ShapedGlyph> glyphs, float scale)
-{
-    auto font_ascent = font.pixel_metrics().ascent;
-
-    // NOTE: This is a plain min/max rather than FloatRect::unite(), because a run with a single glyph must still
-    //       produce a (zero-sized) origin box that gets expanded by the font bounds below.
-    bool has_painted_glyphs = false;
-    float min_x = NumericLimits<float>::max();
-    float min_y = NumericLimits<float>::max();
-    float max_x = NumericLimits<float>::lowest();
-    float max_y = NumericLimits<float>::lowest();
-    for (auto const& glyph : glyphs) {
-        if (!glyph.should_paint)
-            continue;
-        auto origin_x = glyph.position.x() * scale;
-        auto origin_y = (glyph.position.y() + font_ascent) * scale;
-        if (!__builtin_isfinite(origin_x) || !__builtin_isfinite(origin_y))
-            return {};
-        min_x = min(min_x, origin_x);
-        min_y = min(min_y, origin_y);
-        max_x = max(max_x, origin_x);
-        max_y = max(max_y, origin_y);
-        has_painted_glyphs = true;
-    }
-    if (!has_painted_glyphs)
-        return {};
-
-    auto font_bounding_box = font.typeface().bounding_box_in_font_units();
-    if (!font_bounding_box.is_empty()) {
-        auto font_units_to_pixels = font.pixel_size() * scale / font_bounding_box.units_per_em;
-        // Font units have y pointing up, device pixels have y pointing down.
-        auto left = min_x + font_bounding_box.x_min * font_units_to_pixels;
-        auto right = max_x + font_bounding_box.x_max * font_units_to_pixels;
-        auto top = min_y - font_bounding_box.y_max * font_units_to_pixels;
-        auto bottom = max_y - font_bounding_box.y_min * font_units_to_pixels;
-        // A synthetic oblique shifts each point of a glyph along the line by its height above the baseline.
-        if (auto angle = font.synthesis().oblique_angle; angle != 0) {
-            auto slant = AK::tan(AK::to_radians(angle));
-            auto shift_at_top = font_bounding_box.y_max * font_units_to_pixels * slant;
-            auto shift_at_bottom = font_bounding_box.y_min * font_units_to_pixels * slant;
-            left += min(0.0f, min(shift_at_top, shift_at_bottom));
-            right += max(0.0f, max(shift_at_top, shift_at_bottom));
-        }
-        auto outset = synthetic_bold_outset(font, scale);
-        left -= outset;
-        right += outset;
-        top -= outset;
-        bottom += outset;
-        return { left, top, right - left, bottom - top };
-    }
-
-    // The font doesn't record an overall bounding box (e.g. bitmap-only fonts), so unite the glyphs' own extents.
-    // NB: HarfBuzz slants the extents of a synthetic oblique itself.
-    auto bounds = glyph_run_ink_bounding_box(font, glyphs, scale);
-    if (auto outset = synthetic_bold_outset(font, scale); outset > 0 && !bounds.is_empty())
-        bounds.inflate(outset * 2, outset * 2);
     return bounds;
 }
 
@@ -757,7 +688,6 @@ static_assert(offsetof(Gfx::FFI::ShapedGlyph, should_paint) == offsetof(Gfx::Sha
 extern "C" {
 void ladybird_gfx_shape_text_uncached(void const*, u16 const*, size_t, Gfx::FFI::TextType, float, float, Gfx::FFI::JoiningContext, bool, void*, void (*)(void*, Gfx::FFI::ShapedGlyph const*, size_t, float, size_t, float, float, bool));
 float ladybird_gfx_font_measure_text_width(void const*, u16 const*, size_t);
-void ladybird_gfx_glyph_run_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_ink_bounding_box(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float*);
 void ladybird_gfx_glyph_run_glyph_intercepts(void const*, Gfx::FFI::ShapedGlyph const*, size_t, float, float, float, float, void*, void (*)(void*, float));
 }
@@ -810,26 +740,6 @@ extern "C" float ladybird_gfx_font_measure_text_width(
         ? Utf16View {}
         : Utf16View { reinterpret_cast<char16_t const*>(text_utf16), length_in_code_units };
     return Gfx::measure_text_width(text, *static_cast<Gfx::Font const*>(font));
-}
-
-extern "C" void ladybird_gfx_glyph_run_bounding_box(
-    void const* font,
-    Gfx::FFI::ShapedGlyph const* glyphs,
-    size_t glyph_count,
-    float scale,
-    float* out_rect)
-{
-    VERIFY(font);
-    VERIFY(glyphs || glyph_count == 0);
-    VERIFY(out_rect);
-    auto bounds = Gfx::glyph_run_bounding_box(
-        *static_cast<Gfx::Font const*>(font),
-        { reinterpret_cast<Gfx::ShapedGlyph const*>(glyphs), glyph_count },
-        scale);
-    out_rect[0] = bounds.x();
-    out_rect[1] = bounds.y();
-    out_rect[2] = bounds.width();
-    out_rect[3] = bounds.height();
 }
 
 extern "C" void ladybird_gfx_glyph_run_ink_bounding_box(
