@@ -24,8 +24,9 @@
 //!
 //! The rule for holding nodes: a `NodeRef` lives only on the stack. Mutation code never puts one in memory the
 //! collector does not scan, such as a `Vec`, a `Box` or a `SmallVec` that may spill. It holds a list of nodes either as
-//! a fixed array on its own stack, or as a span of a C++ GC::RootVector<GC::Ref<DOM::Node>> that lives in a C++ frame
-//! below the Rust code that reads it, which roots the nodes for as long as that frame does.
+//! a fixed array on its own stack, as a span of a C++ GC::RootVector<GC::Ref<DOM::Node>> that lives in a C++ frame
+//! below the Rust code that reads it, which roots the nodes for as long as that frame does, or in a
+//! [`RootedNodes`](super::rooted_nodes::RootedNodes) list, which a DOM::RootedNodeList in such a frame roots.
 //!
 //! A `NodeRef` is laid out as a GC::Ref<DOM::Node>, so a span of those reads as a slice of them. It is neither Send
 //! nor Sync, so it stays on the main thread, which owns the DOM.

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // normalize() runs its steps for the descendant exclusive Text nodes of this, which a Text node has none of.
+        const parent = document.createElement("div");
+        const emptyTextNode = document.createTextNode("");
+        const textNode1 = document.createTextNode("1");
+        const textNode2 = document.createTextNode("2");
+        parent.append(emptyTextNode, textNode1, textNode2);
+        emptyTextNode.normalize();
+        textNode1.normalize();
+        println(`Child nodes after normalize() on Text nodes: ${parent.childNodes.length}`);
+        println(`Text node 1 data: ${textNode1.data}`);
+        parent.normalize();
+        println(`Child nodes after normalize() on their parent: ${parent.childNodes.length}`);
+        println(`Text node 1 data: ${textNode1.data}`);
+    });
+</script>

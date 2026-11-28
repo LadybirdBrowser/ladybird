@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // normalize() removes the Text nodes it merges, which are then no longer descendants of this, so it does not
+        // replace their data.
+        const parent = document.createElement("p");
+        parent.append(document.createTextNode("a"), document.createTextNode("b"));
+        const observer = new MutationObserver(records => {
+            for (const record of records)
+                println(`${record.type} on ${record.target.nodeName} "${record.target.data ?? ""}"`);
+            done();
+        });
+        observer.observe(parent, { subtree: true, characterData: true, childList: true });
+        parent.normalize();
+    });
+</script>

@@ -21,11 +21,16 @@ use super::mutation_observers::character_data_mutation_record_is_heard;
 use super::node::NodeCell;
 use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
 use super::node_core::DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT;
+use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use super::queries::concatenated_data;
 use super::queries::is_text;
+use super::range::adjust_live_ranges_for_normalize;
 use super::range::adjust_live_ranges_for_replaced_data;
 use super::range::adjust_live_ranges_for_split_text;
+use super::remove::remove;
+use super::rooted_nodes::RootedNodeListCore;
+use super::rooted_nodes::RootedNodes;
 use super::strings::BorrowedString;
 use super::strings::raw_strings_equal;
 use crate::stage::MainThread;
@@ -321,6 +326,142 @@ pub unsafe extern "C" fn rust_dom_split_text(node: &NodeCell, new_node: &NodeCel
         Utf16StringUnits::Ascii(&[]),
         None,
     )
+}
+
+/// Whether `node` is an exclusive Text node, a Text node that is not a CDATASection node.
+/// https://dom.spec.whatwg.org/#exclusive-text-node
+#[inline(always)]
+fn is_exclusive_text(node: NodeRef) -> bool {
+    node.node_type() == NodeType::TEXT_NODE
+}
+
+/// The contiguous exclusive Text nodes of `node`, excluding itself, in tree order.
+/// https://dom.spec.whatwg.org/#contiguous-exclusive-text-nodes
+fn contiguous_exclusive_text_nodes_excluding_itself(node: NodeRef) -> impl Iterator<Item = NodeRef> {
+    // The contiguous exclusive Text nodes of a node node are node, node's previous sibling exclusive Text node, if any,
+    // and its contiguous exclusive Text nodes, and node's next sibling exclusive Text node, if any, and its contiguous
+    // exclusive Text nodes, avoiding any duplicates.
+    let mut first = node;
+    while let Some(previous) = first.previous_sibling().filter(|&previous| is_exclusive_text(previous)) {
+        first = previous;
+    }
+    let mut current = Some(first);
+    core::iter::from_fn(move || {
+        loop {
+            let candidate = current?;
+            current = candidate.next_sibling().filter(|&next| is_exclusive_text(next));
+            if candidate != node {
+                return Some(candidate);
+            }
+        }
+    })
+}
+
+/// The length of the CharacterData node `node`.
+/// https://dom.spec.whatwg.org/#concept-node-length
+#[inline(always)]
+fn length_of(main_thread: &MainThread<'_>, node: NodeRef) -> usize {
+    units_length(&node.read(main_thread).data().units())
+}
+
+/// https://dom.spec.whatwg.org/#dom-node-normalize
+/// `nodes` is an empty list that holds the descendant exclusive Text nodes, which the steps remove from their trees.
+fn normalize(main_thread: &mut MainThread<'_>, this: NodeRef, nodes: &mut RootedNodes<'_>) {
+    // The normalize() method steps are to run these steps for each descendant exclusive Text node node of this:
+    // NB: The nodes are collected first, as the steps change the tree.
+    let mut current = this.first_child();
+    while let Some(node) = current {
+        if is_exclusive_text(node) {
+            nodes.push(node);
+        }
+        current = node.first_child().or_else(|| {
+            let mut up = node;
+            loop {
+                if up == this {
+                    return None;
+                }
+                if let Some(next) = up.next_sibling() {
+                    return Some(next);
+                }
+                up = up.parent().expect("a descendant of this has a parent");
+            }
+        });
+    }
+
+    for index in 0..nodes.len() {
+        let node = nodes.get(index);
+
+        // NB: A node that an earlier node merged removed from its parent is no longer a descendant of this.
+        if node.parent().is_none() {
+            continue;
+        }
+
+        // 1. Let length be node's length.
+        let mut length = length_of(main_thread, node);
+
+        // 2. If length is zero, then remove node and continue with the next exclusive Text node, if any.
+        if length == 0 {
+            remove(main_thread, node, false);
+            continue;
+        }
+
+        // 3. Let data be the concatenation of the data of node's contiguous exclusive Text nodes (excluding itself), in
+        //    tree order.
+        let data = concatenated_data(main_thread, contiguous_exclusive_text_nodes_excluding_itself(node));
+
+        // 4. Replace data with node node, offset length, count 0, and data data.
+        let data_units = data.as_units();
+        let replaced = replace_data(main_thread, node, length, 0, data_units, None);
+        debug_assert!(replaced, "the offset is the node's length");
+        drop(data);
+
+        // 5. Let currentNode be node's next sibling.
+        let mut current_node = node.next_sibling();
+
+        // 6. While currentNode is an exclusive Text node:
+        while let Some(text) = current_node.filter(|&current_node| is_exclusive_text(current_node)) {
+            // 1. For each live range whose start node is currentNode: add length to its start offset and set its start
+            //    node to node.
+            // 2. For each live range whose end node is currentNode: add length to its end offset and set its end node
+            //    to node.
+            // 3. For each live range whose start node is currentNode's parent and start offset is currentNode's index:
+            //    set its start node to node and its start offset to length.
+            // 4. For each live range whose end node is currentNode's parent and end offset is currentNode's index: set
+            //    its end node to node and its end offset to length.
+            adjust_live_ranges_for_normalize(main_thread, node.read(main_thread), text.read(main_thread), length);
+
+            // 5. Add currentNode's length to length.
+            length += length_of(main_thread, text);
+
+            // 6. Set currentNode to its next sibling.
+            current_node = text.next_sibling();
+        }
+
+        // 7. Remove node's contiguous exclusive Text nodes (excluding itself), in tree order.
+        // NB: Each removal changes the siblings, so the first one left is removed until none is.
+        while let Some(text) = contiguous_exclusive_text_nodes_excluding_itself(node).next() {
+            remove(main_thread, text, false);
+        }
+    }
+}
+
+/// Runs normalize() for `node`, with `nodes`, the core of an empty DOM::RootedNodeList that the caller makes for the
+/// call.
+/// https://dom.spec.whatwg.org/#dom-node-normalize
+///
+/// # Safety
+///
+/// The node must be live, `nodes` the core of a DOM::RootedNodeList that lives for the call, and the call must be made
+/// on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_normalize(node: &NodeCell, nodes: &RootedNodeListCore) {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The node is live.
+    let node = unsafe { NodeRef::from_cell(node, &main_thread) };
+    // SAFETY: The list lives for the call, and only this code uses it.
+    let mut nodes = unsafe { RootedNodes::from_core(nodes) };
+    normalize(&mut main_thread, node, &mut nodes);
 }
 
 /// The raw word of a reference to the string of the Text node's wholeText, which passes to the caller.
