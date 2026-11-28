@@ -83,9 +83,8 @@ impl HeapAllocator {
     }
 }
 
-/// The allocator that the cells of a class derived at run time come from: one that the class shares with the other
-/// classes of its layout, or for the class of an embedder's cells, one of its own, as each C++ class that declares
-/// GC_DECLARE_ALLOCATOR has. It belongs to the heap that created it and lives as long as it.
+/// The allocator of a class derived at run time, which only the cells of that class come from, as each C++ class that
+/// declares GC_DECLARE_ALLOCATOR has one of its own. It belongs to the heap that created it and lives as long as it.
 #[derive(Clone, Copy)]
 pub struct RuntimeClassAllocator {
     class: &'static Class,
@@ -205,11 +204,6 @@ impl Heap {
 
     /// Where the head of the local free list of the allocator of `class` is, for code that allocates its cells itself.
     pub fn local_free_list_of(&self, class: &'static Class) -> Option<NonNull<*mut c_void>> {
-        assert!(
-            !class.shares_allocator(),
-            "a {} keeps its class after it, which only Heap::allocate() writes",
-            class.name
-        );
         self.allocator_for(class).local_free_list()
     }
 
@@ -248,23 +242,6 @@ impl Heap {
     pub fn allocate<T: GcCell>(&self, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
         const { assert!(size_of::<T>() >= MIN_CELL_SIZE) };
         let allocator = self.allocator_for(T::CLASS);
-        if T::CLASS.shares_allocator() {
-            let initialize_tail = |tail: *mut u8| {
-                // SAFETY: A cell of a shared allocator has room for its class right after the T, 8-byte aligned.
-                unsafe { tail.cast::<&'static Class>().write(T::CLASS) };
-            };
-            // SAFETY: The allocator is the one that the cell's static class shares, whose cells have the size of a T
-            //         and a word, and the alignment of the class with the same layout that T extends.
-            return unsafe {
-                self.allocate_with(
-                    allocator,
-                    size_of::<T>() + size_of::<&'static Class>(),
-                    AllocationKind::Cell,
-                    build,
-                    initialize_tail,
-                )
-            };
-        }
         // SAFETY: The allocator is the one of the cell's static class, whose cells have the size and alignment of a T.
         unsafe { self.allocate_with(allocator, size_of::<T>(), AllocationKind::Cell, build, |_| {}) }
     }
@@ -547,7 +524,7 @@ impl Heap {
             // SAFETY: The allocator is live and has not allocated yet.
             unsafe { capi::gc_allocator_set_traced_on_owner_thread_only(raw.as_ptr()) };
         }
-        // NB: The classes that share an allocator are never movable, even if the class they extend is.
+        // NB: The classes derived at run time that share an allocator are never movable.
         if class.is_movable() && !class_in_tail {
             // SAFETY: The allocator is live and has not allocated yet.
             unsafe { capi::gc_allocator_set_movable(raw.as_ptr()) };
@@ -555,6 +532,20 @@ impl Heap {
         // SAFETY: The heap and the allocator are live.
         let local_free_list = unsafe { capi::gc_heap_allocator_local_free_list(self.raw.as_ptr(), raw.as_ptr()) };
         HeapAllocator { raw, local_free_list }
+    }
+
+    /// The allocator of `class`, a class derived at run time, which the first call for the class creates.
+    pub fn runtime_class_allocator(&self, class: &'static Class) -> RuntimeClassAllocator {
+        assert!(
+            class.is_derived_at_run_time(),
+            "the cells of {} come from the allocator of its id",
+            class.name
+        );
+        RuntimeClassAllocator {
+            class,
+            allocator: self.allocator_kept_by_class_address(class),
+            class_in_tail: false,
+        }
     }
 
     /// The allocator of `class`, a class derived at run time that shares the allocator of `allocating_class`, a class it
@@ -579,17 +570,8 @@ impl Heap {
             class.name,
             allocating_class.name
         );
-        RuntimeClassAllocator {
-            class,
-            allocator: self.shared_allocator_of(allocating_class),
-            class_in_tail: true,
-        }
-    }
-
-    /// The allocator that the classes with the layout of `allocating_class` share, which the first call for the class
-    /// creates. Its cells have a word more than those of the class, for the class of each cell.
-    fn shared_allocator_of(&self, allocating_class: &'static Class) -> HeapAllocator {
-        self.shared_class_allocators
+        let allocator = self
+            .shared_class_allocators
             .borrow_mut()
             .entry(core::ptr::from_ref(allocating_class) as usize)
             .or_insert_with(|| {
@@ -604,7 +586,12 @@ impl Heap {
                     _type_info: type_info,
                 }
             })
-            .allocator
+            .allocator;
+        RuntimeClassAllocator {
+            class,
+            allocator,
+            class_in_tail: true,
+        }
     }
 
     /// The allocator of `class`, the class of an embedder's cells, which the first call for the class creates. Such
@@ -655,11 +642,6 @@ impl Heap {
             class.name
         );
         assert!(
-            !class.shares_allocator(),
-            "{} shares an allocator, whose cells all have one size",
-            class.name
-        );
-        assert!(
             class.id != ClassId::EmbedderCell,
             "the class of an embedder's cells, {}, shares its id",
             class.name
@@ -704,12 +686,8 @@ impl Heap {
             "the cells of an embedder class, {}, come from the allocator kept by its address",
             class.name
         );
-        let allocator = if class.shares_allocator() {
-            self.shared_allocator_of(class.allocating_class())
-        } else {
-            // SAFETY: The class and its name are static, so they outlive the allocator.
-            unsafe { self.create_allocator(&raw const class.type_info, class, false) }
-        };
+        // SAFETY: The class and its name are static, so they outlive the allocator.
+        let allocator = unsafe { self.create_allocator(&raw const class.type_info, class, false) };
         slot.set(Some(allocator));
         allocator
     }
@@ -828,12 +806,8 @@ impl Drop for Heap {
         // SAFETY: This owns the heap. The allocators outlive it, as LibGC requires.
         unsafe {
             capi::gc_heap_destroy(self.raw.as_ptr());
-            // NB: The classes that share an allocator each keep it by their id, and it is destroyed once, below.
-            let shared = self.shared_class_allocators.get_mut();
             for allocator in self.allocators.iter().filter_map(Cell::get) {
-                if !shared.values().any(|shared| shared.allocator.raw == allocator.raw) {
-                    capi::gc_allocator_destroy(allocator.raw.as_ptr());
-                }
+                capi::gc_allocator_destroy(allocator.raw.as_ptr());
             }
             for allocator in self.runtime_class_allocators.get_mut().values() {
                 capi::gc_allocator_destroy(allocator.raw.as_ptr());
