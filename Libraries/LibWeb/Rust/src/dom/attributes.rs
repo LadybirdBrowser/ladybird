@@ -269,6 +269,86 @@ fn append_an_attribute(
     hooks::release_qualified_name(main_thread, name);
 }
 
+/// Step 2.5 of cloning a single node, for the element `node` and its copy `copy`, which has no attributes.
+/// https://dom.spec.whatwg.org/#clone-a-single-node
+pub(super) fn copy_attributes(main_thread: &mut MainThread<'_>, node: NodeRef, copy: NodeRef) {
+    // NB: The style attribute is written out first where script changed its declarations, as reading it does.
+    synchronize_attribute(main_thread, node, || true);
+    let count = node
+        .element_core()
+        .expect("only an element has attributes")
+        .attributes()
+        .len();
+    if count == 0 {
+        return;
+    }
+    // NB: The copy takes all of the attributes, so its list is made with room for them at once.
+    hooks::reserve_attributes(main_thread, copy, count);
+
+    // 5. For each attribute of node's attribute list:
+    // NB: Handling an attribute change can run script that changes node's attributes, so the list is read anew for
+    //     each attribute.
+    let mut index = 0;
+    loop {
+        let core = node.element_core().expect("only an element has attributes");
+        let Some(attribute) = core.attributes().get(index) else {
+            break;
+        };
+        index += 1;
+
+        // 1. Let copyAttribute be the result of cloning a single node given attribute, document, and null.
+        // NB: An attribute that is no Attr node has a namespace, namespace prefix, local name and value, which the copy
+        //     shares.
+        let name = hold_qualified_name(attribute.name().parts());
+        let value = attribute.value().to_utf16_string();
+
+        // 2. Append copyAttribute to copy.
+        append_an_attribute_named(main_thread, copy, name, value);
+        hooks::release_qualified_name(main_thread, name);
+    }
+}
+
+/// Appends an attribute named `name`, which the caller holds a reference to, whose value is `value`, to `element`.
+/// https://dom.spec.whatwg.org/#concept-element-attributes-append
+fn append_an_attribute_named(
+    main_thread: &mut MainThread<'_>,
+    element: NodeRef,
+    name: NonNull<QualifiedNameImpl>,
+    value: ak::Utf16String,
+) {
+    let new_value = value.raw_identity();
+    let core = element.element_core().expect("only an element has attributes");
+    // SAFETY: The caller holds a reference to the name's parts.
+    let local_name = unsafe { name.as_ref() }.local_name().raw_identity();
+
+    // 1. Append attribute to element's attribute list.
+    if core.attribute_list().has_room_for_one_more() {
+        add_to_subtree_name_filter(element, name_filter_bit(local_name));
+        // SAFETY: The list has room, and nothing borrows its attributes. The list takes a reference to the name.
+        unsafe {
+            core.attribute_list()
+                .append_unchecked(hold_qualified_name(name.as_ref()), value);
+        }
+    } else {
+        // SAFETY: The caller holds a reference to the name's parts.
+        let parts = unsafe { name.as_ref() };
+        hooks::append_attribute(
+            main_thread,
+            element,
+            local_name,
+            parts.prefix().map_or(0, |prefix| prefix.raw_identity()),
+            parts.namespace().map_or(0, |namespace| namespace.raw_identity()),
+            value,
+        );
+    }
+
+    // 2. Set attribute's element to element.
+    // 3. Set attribute's node document to element's node document.
+    // 4. Handle attribute changes for attribute with element, null, and attribute's value.
+    // NB: The list holds a reference to the value, which stays alive while the changes are handled.
+    handle_attribute_changes(main_thread, element, name, None, Some(new_value), IsRemoval::No);
+}
+
 /// https://dom.spec.whatwg.org/#concept-element-attributes-remove
 fn remove_an_attribute(main_thread: &mut MainThread<'_>, element: NodeRef, index: usize) {
     // 1. Let element be attribute's element.

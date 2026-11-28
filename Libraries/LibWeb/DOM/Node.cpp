@@ -1049,6 +1049,15 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     return child;
 }
 
+// The C++ state of cloning a node, which libweb_rust's "clone a node" (see Rust/src/dom/clone.rs) hands to each of its
+// callbacks. It lives in the frame of Node::clone_node(), below the Rust code.
+struct CloneScope {
+    GC::Ref<Document> document;
+    GC::Ptr<HTML::CustomElementRegistry> fallback_registry;
+    // The exception a callback threw, which ends the clone.
+    Optional<WebIDL::Exception> exception;
+};
+
 // https://dom.spec.whatwg.org/#concept-node-clone
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, bool subtree, GC::Ptr<Node> parent, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
 {
@@ -1061,59 +1070,14 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     // 1. Assert: node is not a document or node is document.
     VERIFY(!is_document() || this == document.ptr());
 
-    // 2. Let copy be the result of cloning a single node given node, document, and fallbackRegistry.
-    auto copy = TRY(clone_single_node(*document, fallback_registry));
-
-    // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree as
-    //    parameters.
-    TRY(cloned(*copy, subtree));
-
-    // 4. If parent is non-null, then append copy to parent.
-    if (parent)
-        TRY(parent->append_child(copy));
-
-    // 5. If subtree is true, then for each child of node’s children, in tree order:
-    //    clone a node given child with document set to document, subtree set to subtree, parent set to copy, and
-    //    fallbackRegistry set to fallbackRegistry.
-    if (subtree) {
-        for (auto child = first_child(); child; child = child->next_sibling()) {
-            TRY(child->clone_node(document, subtree, copy, fallback_registry));
-        }
-    }
-
-    // 6. If node is an element, node is a shadow host, and node’s shadow root’s clonable is true:
-    if (auto* node_element = as_if<Element>(*this); node_element && node_element->is_shadow_host() && node_element->shadow_root()->clonable()) {
-        // 1. Assert: copy is not a shadow host.
-        auto& copy_element = as<Element>(*copy);
-        VERIFY(!copy_element.is_shadow_host());
-
-        // 2. Let shadowRootRegistry be node’s shadow root’s custom element registry.
-        auto shadow_root_registry = node_element->shadow_root()->custom_element_registry();
-
-        // 3. If shadowRootRegistry is a global custom element registry, then set shadowRootRegistry to document’s
-        //    effective global custom element registry.
-        if (is_a_global_custom_element_registry(shadow_root_registry))
-            shadow_root_registry = document->effective_global_custom_element_registry();
-
-        // 4. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
-        //    node’s shadow root’s delegates focus, node’s shadow root’s slot assignment, and shadowRootRegistry.
-        TRY(copy_element.attach_a_shadow_root(node_element->shadow_root()->mode(), true, node_element->shadow_root()->serializable(), node_element->shadow_root()->delegates_focus(), node_element->shadow_root()->slot_assignment(), shadow_root_registry));
-
-        // 5. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
-        copy_element.shadow_root()->set_declarative(node_element->shadow_root()->declarative());
-
-        // 6. Set copy’s shadow root’s keep custom element registry null to node’s shadow root’s keep custom element
-        //    registry null.
-        copy_element.shadow_root()->set_keep_custom_element_registry_null(node_element->shadow_root()->keep_custom_element_registry_null());
-
-        // 7. For each child of node’s shadow root’s children, in tree order: clone a node given child with document set
-        //    to document, subtree set to true, and parent set to copy’s shadow root.
-        for (auto child = node_element->shadow_root()->first_child(); child; child = child->next_sibling()) {
-            TRY(child->clone_node(document, true, copy_element.shadow_root()));
-        }
-    }
-
-    // 7. Return copy.
+    // NB: libweb_rust runs the rest, see Rust/src/dom/clone.rs. The list holds the nodes whose children it clones,
+    //     and their copies.
+    CloneScope scope { .document = *document, .fallback_registry = fallback_registry, .exception = {} };
+    RootedNodeList copies;
+    GC::Ptr<Node> copy;
+    TRY(throw_if_not_valid(RustFFI::rust_dom_clone_a_node(this, subtree, parent.ptr(), &scope, &copies.core(), &copy)));
+    if (!copy)
+        return scope.exception.release_value();
     return GC::Ref { *copy };
 }
 
@@ -1348,6 +1312,7 @@ void Node::end_move(MoveScope& scope, Node& old_parent, Node& new_parent, GC::Pt
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
+// NB: This leaves out the attributes of an element, which libweb_rust copies, see Rust/src/dom/clone.rs.
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
 {
     // To clone a single node given a node node, document document, and null or a CustomElementRegistry object fallbackRegistry:
@@ -1374,15 +1339,10 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
         auto element_copy = TRY(DOM::create_element(document, element->local_name(), element->namespace_uri(), element->prefix(), element->is_value(), false, registry));
 
         // 5. For each attribute of node’s attribute list:
-        element->for_each_attribute([&](QualifiedName const& name, Utf16View value) {
-            // 1. Let copyAttribute be the result of cloning a single node given attribute, document, and null.
-            // 2. Append copyAttribute to copy.
-            element_copy->append_attribute(name, Utf16String::from_utf16(value));
-        });
-
-        // INTEROP: The copy takes the inline style declarations of node instead of having Content Security Policy
-        //          check the style attribute it was given again, so that styles set through CSSOM survive cloning.
-        element_copy->clone_inline_style_from(*element);
+        //    1. Let copyAttribute be the result of cloning a single node given attribute, document, and null.
+        //    2. Append copyAttribute to copy.
+        // NB: libweb_rust copies the attributes after this, see Rust/src/dom/clone.rs, and
+        //     run_element_cloning_steps() then takes the inline style declarations.
 
         copy = move(element_copy);
     }
@@ -4119,6 +4079,84 @@ public:
         node->end_move(*scope, *old_parent, *new_parent, old_previous_sibling, old_next_sibling, new_previous_sibling, child);
     }
 
+    // https://dom.spec.whatwg.org/#clone-a-single-node
+    static bool clone_single_node(CloneScope* scope, Node* node, bool uses_fallback_registry, bool subtree, GC::Ptr<Node>* copy)
+    {
+        auto result = node->clone_single_node(scope->document, uses_fallback_registry ? scope->fallback_registry : nullptr);
+        if (result.is_error()) {
+            scope->exception = result.release_error();
+            return false;
+        }
+        *copy = result.value();
+        if (node->is_element())
+            return true;
+
+        // https://dom.spec.whatwg.org/#concept-node-clone
+        // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree
+        //    as parameters.
+        if (auto cloned = node->cloned(**copy, subtree); cloned.is_error()) {
+            scope->exception = cloned.release_error();
+            return false;
+        }
+        return true;
+    }
+
+    static bool run_element_cloning_steps(CloneScope* scope, Node* node, Node* copy, bool subtree)
+    {
+        // https://dom.spec.whatwg.org/#clone-a-single-node
+        // INTEROP: The copy takes the inline style declarations of node instead of having Content Security Policy
+        //          check the style attribute it was given again, so that styles set through CSSOM survive cloning.
+        static_cast<Element&>(*copy).clone_inline_style_from(static_cast<Element const&>(*node));
+
+        // https://dom.spec.whatwg.org/#concept-node-clone
+        // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree
+        //    as parameters.
+        if (auto cloned = node->cloned(*copy, subtree); cloned.is_error()) {
+            scope->exception = cloned.release_error();
+            return false;
+        }
+        return true;
+    }
+
+    // https://dom.spec.whatwg.org/#concept-node-clone
+    static bool attach_shadow_root_copy(CloneScope* scope, Node* node, Node* copy, GC::Ptr<Node>* shadow_root_copy)
+    {
+        // 6. If node is an element, node is a shadow host, and node’s shadow root’s clonable is true:
+        auto& node_element = static_cast<Element&>(*node);
+        if (!node_element.shadow_root()->clonable())
+            return true;
+
+        // 1. Assert: copy is not a shadow host.
+        auto& copy_element = as<Element>(*copy);
+        VERIFY(!copy_element.is_shadow_host());
+
+        // 2. Let shadowRootRegistry be node’s shadow root’s custom element registry.
+        auto shadow_root_registry = node_element.shadow_root()->custom_element_registry();
+
+        // 3. If shadowRootRegistry is a global custom element registry, then set shadowRootRegistry to document’s
+        //    effective global custom element registry.
+        if (is_a_global_custom_element_registry(shadow_root_registry))
+            shadow_root_registry = scope->document->effective_global_custom_element_registry();
+
+        // 4. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
+        //    node’s shadow root’s delegates focus, node’s shadow root’s slot assignment, and shadowRootRegistry.
+        if (auto attached = copy_element.attach_a_shadow_root(node_element.shadow_root()->mode(), true, node_element.shadow_root()->serializable(), node_element.shadow_root()->delegates_focus(), node_element.shadow_root()->slot_assignment(), shadow_root_registry); attached.is_error()) {
+            scope->exception = attached.release_error();
+            return false;
+        }
+
+        // 5. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
+        copy_element.shadow_root()->set_declarative(node_element.shadow_root()->declarative());
+
+        // 6. Set copy’s shadow root’s keep custom element registry null to node’s shadow root’s keep custom element
+        //    registry null.
+        copy_element.shadow_root()->set_keep_custom_element_registry_null(node_element.shadow_root()->keep_custom_element_registry_null());
+
+        // NB: libweb_rust runs step 7, see Rust/src/dom/clone.rs.
+        *shadow_root_copy = copy_element.shadow_root();
+        return true;
+    }
+
     // https://dom.spec.whatwg.org/#live-range-pre-remove-steps
     static void live_range_boundary_points_set(Node* document)
     {
@@ -4179,11 +4217,17 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
         .run_moving_steps = RustDOMHooks::run_moving_steps,
         .end_move = RustDOMHooks::end_move,
     },
+    .cloning = {
+        .clone_single_node = RustDOMHooks::clone_single_node,
+        .run_element_cloning_steps = RustDOMHooks::run_element_cloning_steps,
+        .attach_shadow_root_copy = RustDOMHooks::attach_shadow_root_copy,
+    },
     .live_range_boundary_points_set = RustDOMHooks::live_range_boundary_points_set,
     .call_node_filter = RustDOMHooks::call_node_filter,
     .collection_filter_matches = RustDOMHooks::collection_filter_matches,
     .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
     .append_attribute = RustAttributeHooks::append_attribute,
+    .reserve_attributes = RustAttributeHooks::reserve_attributes,
     .attribute_changed = RustAttributeHooks::attribute_changed,
     .synchronize_style_attribute = RustAttributeHooks::synchronize_style_attribute,
     .release_qualified_name = RustAttributeHooks::release_qualified_name,

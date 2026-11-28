@@ -200,7 +200,9 @@ pub(crate) fn ensure_pre_insert_validity_of(
 ///
 /// `nodes` are the nodes of step 1 of inserting, which the caller collects into a span it roots in a frame below this
 /// one. Answers which DOMException to throw where step 1 throws one.
-fn pre_insert(
+// NB: appendChild() and insertBefore() call this through rust_dom_pre_insert(), which it is inlined into.
+#[inline(always)]
+pub(super) fn pre_insert(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
     parent: NodeRef,

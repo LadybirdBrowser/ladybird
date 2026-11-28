@@ -22,6 +22,7 @@ use super::collection::CollectionCell;
 use super::mutation_observers::has_observed_inclusive_ancestor;
 use super::mutation_observers::tree_mutation_record_is_heard;
 use super::node_ref::NodeRef;
+use super::node_ref::NullableNodeRef;
 use super::node_ref::RawNodeRef;
 use super::node_ref::RawNullableNodeRef;
 use super::qualified_name::QualifiedNameImpl;
@@ -104,6 +105,39 @@ pub struct MoveScope {
     _private: [u8; 0],
     // NB: The marker makes the scope neither Send, Sync nor Unpin, as C++ owns it.
     _marker: core::marker::PhantomData<(*mut u8, core::marker::PhantomPinned)>,
+}
+
+/// What the C++ side of cloning a node keeps across the clone, opaque to Rust: DOM::CloneScope, which lives in the C++
+/// frame below the Rust code that clones the node. It holds the document and the fallback registry the copies are made
+/// with, and the exception a callback threw.
+#[repr(C)]
+pub struct CloneScope {
+    _private: [u8; 0],
+    // NB: The marker makes the scope neither Send, Sync nor Unpin, as C++ owns it.
+    _marker: core::marker::PhantomData<(*mut u8, core::marker::PhantomPinned)>,
+}
+
+/// The callbacks of cloning a node.
+#[repr(C)]
+pub struct CloneHooks {
+    /// See [`clone_single_node`].
+    pub clone_single_node: unsafe extern "C" fn(
+        scope: &mut CloneScope,
+        node: RawNodeRef,
+        uses_fallback_registry: bool,
+        subtree: bool,
+        copy: &mut NullableNodeRef,
+    ) -> bool,
+    /// See [`run_element_cloning_steps`].
+    pub run_element_cloning_steps:
+        unsafe extern "C" fn(scope: &mut CloneScope, node: RawNodeRef, copy: RawNodeRef, subtree: bool) -> bool,
+    /// See [`attach_shadow_root_copy`].
+    pub attach_shadow_root_copy: unsafe extern "C" fn(
+        scope: &mut CloneScope,
+        node: RawNodeRef,
+        copy: RawNodeRef,
+        shadow_root_copy: &mut NullableNodeRef,
+    ) -> bool,
 }
 
 /// The callbacks of moving a node.
@@ -221,6 +255,8 @@ pub struct DomHooks {
         unsafe extern "C" fn(node: RawNodeRef, old_document: RawNodeRef, document: RawNodeRef),
     /// The callbacks of moving a node.
     pub moving: MoveHooks,
+    /// The callbacks of cloning a node.
+    pub cloning: CloneHooks,
     /// See [`live_range_boundary_points_set`].
     pub live_range_boundary_points_set: unsafe extern "C" fn(document: RawNodeRef),
     /// See [`call_node_filter`].
@@ -240,6 +276,8 @@ pub struct DomHooks {
     /// to, and appends it to the element's attribute list. Allocates, and runs no script.
     pub append_attribute:
         unsafe extern "C" fn(element: RawNodeRef, local_name: usize, prefix: usize, namespace_uri: usize, value: usize),
+    /// Makes room in the element's attribute list for `count` more attributes. Allocates, and runs no script.
+    pub reserve_attributes: unsafe extern "C" fn(element: RawNodeRef, count: usize),
     /// Runs the steps of handling attribute changes that C++ owns, which `steps` names (see ATTRIBUTE_CHANGE_*),
     /// for the attribute named `name` of the element, whose old and new values are the strings whose raw words are
     /// `old_value` and `new_value`. Can run script.
@@ -793,6 +831,81 @@ pub(crate) fn append_attribute(
     // SAFETY: The callback is called on the main thread with a live element and live strings, and takes over the
     //         reference to the value.
     unsafe { (hooks(main_thread).append_attribute)(element, local_name, prefix, namespace_uri, value.into_raw()) }
+}
+
+/// Makes room in the element's attribute list for `count` more attributes, see DomHooks::reserve_attributes.
+#[inline]
+pub(crate) fn reserve_attributes(main_thread: &mut MainThread<'_>, element: NodeRef, count: usize) {
+    // SAFETY: The callback is called on the main thread with a live element.
+    unsafe { (hooks(main_thread).reserve_attributes)(element, count) }
+}
+
+/// Steps 1 to 4 and 6 of cloning a single node `node` with the document and, where `uses_fallback_registry` says so,
+/// the fallback registry of `scope`: makes the copy, and gives it the state of `node` that its interface has but for an
+/// element's attributes, which the caller copies. For a node that is no element, also runs the cloning steps of
+/// cloning a node with `subtree`, step 3 of it. Answers the copy, or none where a step threw, whose exception `scope`
+/// then holds.
+/// https://dom.spec.whatwg.org/#clone-a-single-node
+/// https://dom.spec.whatwg.org/#concept-node-clone
+///
+/// Allocates, and changes no tree but for the template contents the cloning steps of a template clone into. Runs no
+/// script, as it creates elements without synchronous custom element constructors.
+#[inline]
+pub(crate) fn clone_single_node(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut CloneScope,
+    node: NodeRef,
+    uses_fallback_registry: bool,
+    subtree: bool,
+) -> Option<NodeRef> {
+    let mut copy = NullableNodeRef::from(None);
+    // SAFETY: The callback is called on the main thread with a live node and the scope of the clone.
+    let ok = unsafe {
+        (hooks(main_thread).cloning.clone_single_node)(scope, node, uses_fallback_registry, subtree, &mut copy)
+    };
+    ok.then(|| Option::from(copy).expect("a callback that does not throw makes a copy"))
+}
+
+/// The rest of cloning a single node, the element `node`, into `copy` after its attributes: has `copy` take the inline
+/// style declarations of `node`, and runs the cloning steps of cloning a node with `subtree`, step 3 of it. Answers
+/// false where a step threw, whose exception `scope` then holds.
+/// https://dom.spec.whatwg.org/#clone-a-single-node
+/// https://dom.spec.whatwg.org/#concept-node-clone
+///
+/// Allocates, and changes no tree but for the template contents the cloning steps of a template clone into. Runs no
+/// script.
+#[inline]
+pub(crate) fn run_element_cloning_steps(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut CloneScope,
+    node: NodeRef,
+    copy: NodeRef,
+    subtree: bool,
+) -> bool {
+    // SAFETY: The callback is called on the main thread with live nodes and the scope of the clone.
+    unsafe { (hooks(main_thread).cloning.run_element_cloning_steps)(scope, node, copy, subtree) }
+}
+
+/// Steps 6.1 to 6.6 of cloning a node, for `node`, a shadow host, and its copy `copy`: where the shadow root of `node`
+/// is clonable, attaches a shadow root to `copy` like it, and answers it. Answers Ok(None) where the shadow root is not
+/// clonable, and Err(()) where a step threw, whose exception `scope` then holds.
+/// https://dom.spec.whatwg.org/#concept-node-clone
+///
+/// Allocates. Runs no script, and changes no tree.
+#[inline]
+pub(crate) fn attach_shadow_root_copy(
+    main_thread: &mut MainThread<'_>,
+    scope: &mut CloneScope,
+    node: NodeRef,
+    copy: NodeRef,
+) -> Result<Option<NodeRef>, ()> {
+    let mut shadow_root_copy = NullableNodeRef::from(None);
+    // SAFETY: The callback is called on the main thread with live nodes and the scope of the clone.
+    let ok = unsafe { (hooks(main_thread).cloning.attach_shadow_root_copy)(scope, node, copy, &mut shadow_root_copy) };
+    match ok {
+        true => Ok(shadow_root_copy.into()),
+        false => Err(()),
+    }
 }
 
 /// Runs the C++ steps of handling attribute changes, see DomHooks::attribute_changed. The callback can run script.
