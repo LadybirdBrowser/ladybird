@@ -53,6 +53,8 @@ pub struct MarkerLayout {
     pub type_info_visit_edges_offset: u32,
     /// `size_t (*)(Cell const*)`, which may be null.
     pub type_info_external_memory_size_offset: u32,
+    /// `bool (*)(Cell const*)`, which may be null, see CellTypeInfo::traced_on_owner_thread.
+    pub type_info_traced_on_owner_thread_offset: u32,
     /// The bits that are all set in a NaN-boxed value that holds a cell, whose bits under value_offset_mask are then the
     /// cell's offset into the heap region.
     pub value_is_cell_pattern: u64,
@@ -89,6 +91,7 @@ pub struct MarkRequest {
 
 type VisitEdges = unsafe extern "C" fn(cell: *mut c_void, visitor: *mut c_void);
 type ExternalMemorySize = unsafe extern "C" fn(cell: *const c_void) -> usize;
+type TracedOnOwnerThread = unsafe extern "C" fn(cell: *const c_void) -> bool;
 
 /// What every marker of one collection shares.
 struct Job<'a> {
@@ -457,9 +460,23 @@ impl Marker {
         if unsafe { cell.cast::<u8>().add(layout.cell_state_offset as usize).read() } != layout.cell_state_live {
             return;
         }
+        let type_info = descriptor.type_info.cast::<u8>();
+        if !self.is_owner {
+            // SAFETY: The type info of a block outlives it, and the layout says where the function is.
+            let traced_on_owner_thread = unsafe {
+                type_info
+                    .add(layout.type_info_traced_on_owner_thread_offset as usize)
+                    .cast::<Option<TracedOnOwnerThread>>()
+                    .read()
+            };
+            // SAFETY: The cell is a live cell of the type whose function this is, which only reads it.
+            if traced_on_owner_thread.is_some_and(|traced_on_owner_thread| unsafe { traced_on_owner_thread(cell) }) {
+                job.owner_queue.push(compressed);
+                return;
+            }
+        }
         let marked_cell_bytes = &self.marked_cell_bytes[heap_index];
         marked_cell_bytes.set(marked_cell_bytes.get() + descriptor.cell_size as usize);
-        let type_info = descriptor.type_info.cast::<u8>();
         // SAFETY: The type info of a block outlives it, and the layout says where its functions are.
         let (external_memory_size, visit_edges) = unsafe {
             (

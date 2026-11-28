@@ -21,6 +21,9 @@ pub struct CellTypeInfo {
     pub destroy: Option<unsafe extern "C" fn(cell: *mut c_void)>,
     pub external_memory_size: Option<unsafe extern "C" fn(cell: *const c_void) -> usize>,
     pub class_name: Option<unsafe extern "C" fn(cell: *const c_void, length: *mut usize) -> *const c_char>,
+    /// Whether the cell must be traced on the thread that owns its heap, although its allocator lets cells be traced on
+    /// any thread. It may only read the cell.
+    pub traced_on_owner_thread: Option<unsafe extern "C" fn(cell: *const c_void) -> bool>,
 }
 
 /// LibGC's heap, which Rust only ever refers to. It has no size and is not Unpin, so a reference to it claims nothing

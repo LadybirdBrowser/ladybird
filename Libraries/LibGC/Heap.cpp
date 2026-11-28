@@ -2101,6 +2101,7 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
             .cell_state_live = to_underlying(Cell::State::Live),
             .type_info_visit_edges_offset = static_cast<u32>(offsetof(CellTypeInfo, visit_edges)),
             .type_info_external_memory_size_offset = static_cast<u32>(offsetof(CellTypeInfo, external_memory_size)),
+            .type_info_traced_on_owner_thread_offset = static_cast<u32>(offsetof(CellTypeInfo, traced_on_owner_thread)),
             .value_is_cell_pattern = SHIFTED_IS_CELL_PATTERN,
             .value_offset_mask = HEAP_REGION_OFFSET_MASK,
         },

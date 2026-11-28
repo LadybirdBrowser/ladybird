@@ -24,6 +24,10 @@ struct CellTypeInfo {
     void (*destroy)(Cell*) { nullptr };
     size_t (*external_memory_size)(Cell const*) { nullptr };
     char const* (*class_name)(Cell const*, size_t* length) { nullptr };
+    // Whether a cell of a type whose cells may be traced on any thread must be traced on the thread that owns its heap,
+    // as a cell that reaches into C++ must. The collector asks before it traces such a cell on another thread. Null
+    // where every cell of the type may be traced on any thread, or none of them on another than the owner.
+    bool (*traced_on_owner_thread)(Cell const*) { nullptr };
 };
 
 struct CellTypeThunks {

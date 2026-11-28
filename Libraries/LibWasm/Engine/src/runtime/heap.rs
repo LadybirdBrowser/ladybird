@@ -29,6 +29,7 @@ pub struct CellTypeInfo {
     pub destroy: Option<unsafe extern "C" fn(cell: *mut c_void)>,
     pub external_memory_size: Option<unsafe extern "C" fn(cell: *const c_void) -> usize>,
     pub class_name: Option<unsafe extern "C" fn(cell: *const c_void, length: *mut usize) -> *const c_char>,
+    pub traced_on_owner_thread: Option<unsafe extern "C" fn(cell: *const c_void) -> bool>,
 }
 
 /// Mirrors GCLayout.
@@ -278,6 +279,7 @@ fn type_info(cell_type: CellType) -> (&'static CellTypeInfo, &'static str) {
         destroy: Some(destroy),
         external_memory_size,
         class_name: Some(class_name),
+        traced_on_owner_thread: None,
     }));
     (info, name)
 }

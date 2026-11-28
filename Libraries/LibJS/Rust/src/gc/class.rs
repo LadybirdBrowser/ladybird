@@ -104,6 +104,7 @@ impl Class {
                 },
                 external_memory_size: None,
                 class_name: Some(class_name),
+                traced_on_owner_thread: None,
             },
             name,
             id,
