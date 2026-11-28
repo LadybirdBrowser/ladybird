@@ -18,6 +18,8 @@
 //! function per byte among those of at least 1 KiB, the cost of the smallest functions, and the nodes, stack slots
 //! and moves per byte. Module decoding and validation are not included.
 
+#![allow(clippy::disallowed_macros)]
+
 use libwasm_jit::{CompileContext, CompileRequest, Options, PHASES, RuntimeInfo, Stats};
 use std::collections::BTreeMap;
 use std::sync::Arc;

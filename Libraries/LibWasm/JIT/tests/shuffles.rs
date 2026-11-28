@@ -10,6 +10,7 @@
 //! the JIT's options are the process's.
 
 #![cfg(any(target_arch = "x86_64", all(target_arch = "aarch64", not(windows))))]
+#![allow(clippy::disallowed_macros)]
 
 mod harness;
 

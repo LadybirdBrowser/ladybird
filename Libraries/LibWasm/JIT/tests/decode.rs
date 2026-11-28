@@ -6,6 +6,8 @@
 
 //! The decoder reads every body of the spec testsuite's valid modules to its end, with balanced nesting.
 
+#![allow(clippy::disallowed_macros)]
+
 use libwasm_jit::decode::{Decoder, nesting_change};
 use std::path::PathBuf;
 

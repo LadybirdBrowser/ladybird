@@ -162,6 +162,7 @@ pub extern "C" fn rust_inline_style_blocks_insert(
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_macros)]
 mod tests {
     use super::*;
     use crate::css::parser::syntax_parser::parse_shared_block;

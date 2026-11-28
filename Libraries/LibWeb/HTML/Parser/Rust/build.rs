@@ -7,6 +7,8 @@
 //! Build script that generates a DAFSA (Deterministic Acyclic Finite State Automaton)
 //! for named character reference matching.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;

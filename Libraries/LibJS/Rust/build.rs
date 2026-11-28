@@ -10,6 +10,8 @@
 //! LibJS/Embedding/Layout.h, which the build script of embedding_headers writes from the same module. It also
 //! generates the frontend's instruction types from interpreter.flap.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::env;
 use std::fs;
 use std::path::PathBuf;

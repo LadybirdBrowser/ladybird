@@ -12,6 +12,8 @@
 //! Each ceiling is what the unit may hold, which a change growing it has to raise, beside the
 //! typical figure the unit is measured against.
 
+#![allow(clippy::disallowed_macros)]
+
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::parser::syntax_parser::parse_stylesheet_uncached;
 use crate::css::parser::value_parser::ParseContext;

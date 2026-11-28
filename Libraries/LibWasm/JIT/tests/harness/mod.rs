@@ -11,6 +11,7 @@
 //! start is the trap exit, the trampolines and the stubs.
 
 #![allow(dead_code)]
+#![allow(clippy::disallowed_macros)]
 
 #[cfg(target_arch = "aarch64")]
 mod aarch64;

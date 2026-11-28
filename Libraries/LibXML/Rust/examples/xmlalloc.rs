@@ -8,6 +8,8 @@
 //! bytes allocated at once, and how many bytes the finished document holds on to. The row count is there to judge
 //! how well the parser guesses the size of its result from the size of the source.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::alloc::GlobalAlloc;
 use std::alloc::Layout;
 use std::alloc::System;

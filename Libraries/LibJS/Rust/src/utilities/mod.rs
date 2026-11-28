@@ -6,6 +6,8 @@
 
 //! The command line tools built on the runtime, which their C++ mains in Utilities/ call into.
 
+#![allow(clippy::disallowed_macros)]
+
 pub mod js;
 pub mod line_editor;
 // test262-runner is not built on Windows: it relies on pipes, alarm() and rlimits.

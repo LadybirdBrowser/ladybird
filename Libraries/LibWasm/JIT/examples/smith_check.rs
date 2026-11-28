@@ -15,6 +15,8 @@
 //! `--features` turns on proposals besides the default ones, in every module. Modules that wait on shared memory are
 //! skipped, since nothing would wake them. With GC, modules get less fuel, since the stores never free objects.
 
+#![allow(clippy::disallowed_macros)]
+
 #[path = "../tests/harness/mod.rs"]
 mod harness;
 

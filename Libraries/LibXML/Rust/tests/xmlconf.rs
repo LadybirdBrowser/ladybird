@@ -8,6 +8,8 @@
 //! `xmlconf.xml` in it). Set `XMLCONF_VERBOSE` to list the tests that don't do what the suite says, or to `all` to
 //! include the ones that can't without reading external entities.
 
+#![allow(clippy::disallowed_macros)]
+
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;

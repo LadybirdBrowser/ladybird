@@ -11,6 +11,8 @@
 //! the `Instruction` enum and the field readers are shared with
 //! `Libraries/LibJS/Rust/build.rs` through `flapc::rust_bytecode`.
 
+#![allow(clippy::disallowed_macros)]
+
 use flapc::metadata::Field;
 use flapc::metadata::InstructionDefinition;
 use flapc::metadata::ParameterMode;

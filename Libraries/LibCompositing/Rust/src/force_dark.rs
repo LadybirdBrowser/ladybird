@@ -580,6 +580,7 @@ pub fn should_filter(features: &ImageFeatures) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::disallowed_macros)]
 mod tests {
     use super::*;
 
