@@ -44,6 +44,11 @@ static void handle_signal(int signal)
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
+#if !defined(AK_OS_WINDOWS)
+    // A write to a pipe whose reader has exited, such as a stderr that's gone, then fails instead of ending the process.
+    MUST(Core::System::signal(SIGPIPE, SIG_IGN));
+#endif
+
     AK::set_rich_debug_enabled(true);
 
     Vector<ByteString> certificates;
@@ -99,10 +104,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         else
             RequestServer::g_resource_substitution_map = map.release_value();
     }
-
-#if !defined(AK_OS_WINDOWS)
-    MUST(Core::System::signal(SIGPIPE, SIG_IGN));
-#endif
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
     // FIXME: Have another way to signal the event loop to gracefully quit on windows.

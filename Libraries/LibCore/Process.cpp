@@ -300,7 +300,10 @@ NO_SANITIZE_ADDRESS static int spawned_child_main(void* argument)
         KernelSignalAction action {};
         if (syscall(SYS_rt_sigaction, signal_number, nullptr, &action, kernel_signal_set_size) < 0)
             continue;
-        if (action.handler == reinterpret_cast<void*>(SIG_IGN) || action.handler == reinterpret_cast<void*>(SIG_DFL))
+        // NB: An ignored signal stays ignored across exec(), except SIGPIPE: Our processes ignore it, but other programs
+        //     expect a write to a pipe whose reader has exited to end them.
+        if (action.handler == reinterpret_cast<void*>(SIG_DFL)
+            || (action.handler == reinterpret_cast<void*>(SIG_IGN) && signal_number != SIGPIPE))
             continue;
         KernelSignalAction default_action {};
         default_action.handler = reinterpret_cast<void*>(SIG_DFL);
@@ -458,6 +461,14 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
             CHECK(posix_spawn_file_actions_addinherit_np(&spawn_actions, fd));
     }
 #endif
+
+    // Our processes ignore SIGPIPE, which would stay ignored across exec(), but other programs expect a write to a pipe
+    // whose reader has exited to end them.
+    sigset_t default_signals;
+    sigemptyset(&default_signals);
+    sigaddset(&default_signals, SIGPIPE);
+    CHECK(posix_spawnattr_setsigdefault(&spawn_attributes, &default_signals));
+    spawn_flags |= POSIX_SPAWN_SETSIGDEF;
 
     CHECK(posix_spawnattr_setflags(&spawn_attributes, spawn_flags));
 
