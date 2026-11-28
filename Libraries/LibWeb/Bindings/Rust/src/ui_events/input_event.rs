@@ -18,7 +18,6 @@ unsafe extern "C" {
 
 /// https://w3c.github.io/uievents/#inputevent
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppInputEvent(CppCell);
 
 impl CppInputEvent {

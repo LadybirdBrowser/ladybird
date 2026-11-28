@@ -20,7 +20,7 @@ use core::ffi::c_void;
 use core::ops::Deref;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::embedding::abi_types::{
     JSRealm, JSUtf16View, cell_from_abi, cell_into_abi, completion_from_abi, optional_cell_from_abi, vm_from_abi,

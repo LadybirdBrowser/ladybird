@@ -8,12 +8,12 @@ use core::cell::Cell;
 use core::ops::Deref;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Class, Finalize, GcCell, cast_ref, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::object::Object;

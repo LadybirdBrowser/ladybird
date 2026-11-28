@@ -22,7 +22,6 @@ use crate::webidl::dom_exception::DOMExceptionFields;
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Crypto {
     subtle: Ref<SubtleCrypto>,
 }

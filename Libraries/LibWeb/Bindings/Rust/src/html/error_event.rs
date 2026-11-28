@@ -33,7 +33,6 @@ pub(crate) struct ErrorEventInit {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ErrorEvent {
     event: CppEvent,
     message: Utf16String,

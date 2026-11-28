@@ -20,7 +20,6 @@ pub(crate) const MOUSE_POINTER_ID: i32 = 0;
 
 /// https://w3c.github.io/pointerevents/#pointerevent-interface
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppPointerEvent(CppCell);
 
 impl CppPointerEvent {

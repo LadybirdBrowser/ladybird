@@ -33,7 +33,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct AgentObjects {
     requests: GcRefCell<HashMap<EntryId, LockRequestRef>>,
     locks: GcRefCell<HashMap<EntryId, LockDataRef>>,

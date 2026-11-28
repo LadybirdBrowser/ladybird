@@ -11,12 +11,12 @@ use std::thread::ThreadId;
 use std::time::{Duration, Instant};
 
 use ak::waiter_list::{self, AsyncWaiter, AtomicWaitResult};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::embedding::async_wait::AsyncWaitHooks;
 use crate::gc::heap_function::HeapFunction;
 use crate::gc::sweep::Sweep;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::function_object::FunctionObject;

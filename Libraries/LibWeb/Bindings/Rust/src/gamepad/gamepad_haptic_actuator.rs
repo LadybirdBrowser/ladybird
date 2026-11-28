@@ -41,7 +41,6 @@ unsafe extern "C" {
 
 /// The enumeration GamepadHapticsResult of Gamepad/GamepadHapticActuator.idl.
 #[derive(Clone, Copy, PartialEq, Eq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum GamepadHapticsResult {
     Complete,
     Preempted,
@@ -58,7 +57,6 @@ impl GamepadHapticsResult {
 
 /// The enumeration GamepadHapticEffectType of Gamepad/GamepadHapticActuator.idl.
 #[derive(Clone, Copy, PartialEq, Eq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum GamepadHapticEffectType {
     DualRumble,
     TriggerRumble,
@@ -66,7 +64,6 @@ pub(crate) enum GamepadHapticEffectType {
 
 /// The dictionary GamepadEffectParameters of Gamepad/GamepadHapticActuator.idl.
 #[derive(Clone, Copy, Default, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GamepadEffectParameters {
     pub(crate) duration: u64,
     pub(crate) start_delay: u64,
@@ -77,7 +74,6 @@ pub(crate) struct GamepadEffectParameters {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct HapticsCompletionSteps {
     promise: WebIdlPromise,
     queue_on: Option<Gc<Object>>,
@@ -118,7 +114,6 @@ const MAX_VIBRATION_DURATION: u64 = 5000;
 
 // https://w3c.github.io/gamepad/#gamepadhapticactuator-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GamepadHapticActuator {
     gamepad: Ref<Gamepad>,
     window: CppWindow,

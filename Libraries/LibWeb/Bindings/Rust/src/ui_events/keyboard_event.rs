@@ -19,7 +19,6 @@ unsafe extern "C" {
 
 /// https://w3c.github.io/uievents/#keyboardevent
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppKeyboardEvent(CppCell);
 
 impl CppKeyboardEvent {

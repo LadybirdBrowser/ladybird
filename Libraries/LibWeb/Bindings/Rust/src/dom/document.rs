@@ -65,11 +65,9 @@ unsafe extern "C" {
 
 /// https://dom.spec.whatwg.org/#document
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppDocument(CppCell);
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WeakCppDocument(WeakCppCell);
 
 impl WeakCppDocument {

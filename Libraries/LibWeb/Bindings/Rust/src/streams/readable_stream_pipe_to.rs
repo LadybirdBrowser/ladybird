@@ -42,7 +42,6 @@ use crate::streams::writable_stream_default_writer::{
 
 /// The action that the pipe shuts down with, https://streams.spec.whatwg.org/#rs-pipeTo-shutdown-with-action
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 enum ShutdownAction {
     /// ! WritableStreamAbort(dest, source.[[storedError]])
     AbortDestination,
@@ -58,7 +57,6 @@ enum ShutdownAction {
 
 /// What shutting down the pipe does once every chunk that has been read has been written.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 enum ShutdownSteps {
     /// The steps of shutting down with an action, passing along originalError if it was given.
     WithAction {
@@ -71,7 +69,6 @@ enum ShutdownSteps {
 
 /// The state of a pipe, https://streams.spec.whatwg.org/#ref-for-in-parallel
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PipeTo {
     promise: WebIdlPromise,
     source: Ref<ReadableStream>,

@@ -20,7 +20,6 @@ use crate::streams::readable_stream_tee::{ByteTeeBYOBReadRequest, ByteTeeState, 
 
 /// A read request, https://streams.spec.whatwg.org/#read-request
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum ReadRequest {
     /// The read request of ReadableStreamDefaultReader's read(), https://streams.spec.whatwg.org/#default-reader-read
     DefaultReaderRead(WebIdlPromise),
@@ -100,7 +99,6 @@ impl ReadRequest {
 
 /// A read-into request, https://streams.spec.whatwg.org/#read-into-request
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum ReadIntoRequest {
     /// The read-into request of ReadableStreamBYOBReader's read(), https://streams.spec.whatwg.org/#byob-reader-read
     BYOBReaderRead(WebIdlPromise),

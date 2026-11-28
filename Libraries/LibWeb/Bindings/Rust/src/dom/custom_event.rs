@@ -28,7 +28,6 @@ pub(crate) struct CustomEventInit {
 
 // https://dom.spec.whatwg.org/#customevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CustomEvent {
     event: CppEvent,
     // https://dom.spec.whatwg.org/#dom-customevent-initcustomevent-type-bubbles-cancelable-detail-detail

@@ -35,7 +35,6 @@ use crate::crypto::subtle_crypto::{
 
 // https://w3c.github.io/webcrypto/#algorithm-overview
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AlgorithmParams {
     pub(crate) name: Utf16String,
 }
@@ -163,7 +162,6 @@ fn parse_a_private_key_info(data: &[u8]) -> WebIdlResult<KeyInfo> {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Bytes(#[gc(untraced)] Rc<Vec<u8>>);
 
 impl Bytes {
@@ -182,21 +180,18 @@ pub(crate) enum ExportKeyResult {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum ImportKeyData {
     Bytes(Bytes),
     JsonWebKey(JsonWebKey),
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct EncapsulatedBitsData {
     pub(crate) shared_key: Bytes,
     pub(crate) ciphertext: Bytes,
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct EncapsulatedKeyData {
     pub(crate) shared_key: Ref<CryptoKey>,
     pub(crate) ciphertext: Bytes,
@@ -418,7 +413,6 @@ fn get_optional_buffer_source(vm: &Vm, object: Gc<Object>, name: &PropertyKey) -
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CShakeParams {
     output_length: u32,
     function_name: Option<Bytes>,
@@ -455,7 +449,6 @@ impl CShakeParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Sha;
 
 impl AlgorithmMethods for Sha {
@@ -824,7 +817,6 @@ fn kmac_calculate_mac(
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct HmacImportParams {
     #[gc(untraced)]
     hash: HashAlgorithmIdentifier,
@@ -848,7 +840,6 @@ impl HmacImportParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct HmacKeyGenParams {
     #[gc(untraced)]
     hash: HashAlgorithmIdentifier,
@@ -872,7 +863,6 @@ impl HmacKeyGenParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Hmac;
 
 impl AlgorithmMethods for Hmac {
@@ -1345,7 +1335,6 @@ impl AlgorithmMethods for HmacImportParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct KmacParams {
     output_length: u32,
     customization: Option<Bytes>,
@@ -1380,7 +1369,6 @@ impl KmacParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct KmacKeyGenParams {
     length: Option<u32>,
 }
@@ -1401,7 +1389,6 @@ impl KmacKeyGenParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct KmacImportParams {
     length: Option<u32>,
 }
@@ -1821,7 +1808,6 @@ impl AlgorithmMethods for KmacImportParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Kmac;
 
 impl AlgorithmMethods for Kmac {
@@ -1894,7 +1880,6 @@ impl AlgorithmMethods for Kmac {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct HkdfParams {
     #[gc(untraced)]
     hash: HashAlgorithmIdentifier,
@@ -1928,7 +1913,6 @@ impl HkdfParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Pbkdf2Params {
     salt: Bytes,
     iterations: u32,
@@ -1959,7 +1943,6 @@ impl Pbkdf2Params {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Argon2Params {
     nonce: Bytes,
     parallelism: u32,
@@ -2043,7 +2026,6 @@ fn sha_hash_kind(hash_algorithm: &Utf16String) -> Result<ShaHashKind, Utf16Strin
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Hkdf;
 
 impl AlgorithmMethods for Hkdf {
@@ -2203,7 +2185,6 @@ impl AlgorithmMethods for HkdfParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Pbkdf2;
 
 impl AlgorithmMethods for Pbkdf2Params {
@@ -2348,7 +2329,6 @@ impl AlgorithmMethods for Pbkdf2 {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Argon2;
 
 impl AlgorithmMethods for Argon2 {
@@ -2527,7 +2507,6 @@ impl AlgorithmMethods for Argon2Params {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct AesCbcParams {
     iv: Bytes,
 }
@@ -2547,7 +2526,6 @@ impl AesCbcParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct AesCtrParams {
     counter: Bytes,
     length: u8,
@@ -2571,7 +2549,6 @@ impl AesCtrParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct AesKeyGenParams {
     length: u16,
 }
@@ -2586,7 +2563,6 @@ impl AesKeyGenParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct AesDerivedKeyParams {
     length: u16,
 }
@@ -2601,7 +2577,6 @@ impl AesDerivedKeyParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct AeadParams {
     iv: Bytes,
     additional_data: Option<Bytes>,
@@ -2657,7 +2632,6 @@ pub(crate) enum AesParameterType {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 enum AesParameters {
     Base,
     Cbc(AesCbcParams),
@@ -2683,7 +2657,6 @@ impl AesParameters {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AesCbc {
     parameters: AesParameters,
 }
@@ -3125,7 +3098,6 @@ impl AlgorithmMethods for AesCbc {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AesCtr {
     parameters: AesParameters,
 }
@@ -3576,7 +3548,6 @@ impl AlgorithmMethods for AesCtr {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AesGcm {
     parameters: AesParameters,
 }
@@ -4085,7 +4056,6 @@ impl AlgorithmMethods for AesGcm {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AesKw {
     parameters: AesParameters,
 }
@@ -4465,7 +4435,6 @@ impl AlgorithmMethods for AesKw {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AesOcb {
     parameters: AesParameters,
 }
@@ -4977,7 +4946,6 @@ impl AlgorithmMethods for AesOcb {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ChaCha20Poly1305 {
     parameters: Option<AeadParams>,
 }
@@ -5356,14 +5324,12 @@ impl AlgorithmMethods for ChaCha20Poly1305 {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct RsaKeyGenParams {
     modulus_length: u32,
     public_exponent: Bytes,
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct RsaHashedKeyGenParams {
     key_gen: RsaKeyGenParams,
     #[gc(untraced)]
@@ -5411,7 +5377,6 @@ fn big_integer_from_api_big_integer(vm: &Vm, big_integer: Gc<TypedArrayBase>) ->
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct RsaHashedImportParams {
     #[gc(untraced)]
     hash: HashAlgorithmIdentifier,
@@ -5426,7 +5391,6 @@ impl RsaHashedImportParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct RsaOaepParams {
     label: Bytes,
 }
@@ -5450,7 +5414,6 @@ impl RsaOaepParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct RsaPssParams {
     salt_length: u32,
 }
@@ -5474,7 +5437,6 @@ pub(crate) enum RsaParameterType {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 enum RsaParameters {
     Base,
     KeyGen(RsaHashedKeyGenParams),
@@ -5578,7 +5540,6 @@ fn key_format_to_string(format: KeyFormat) -> &'static str {
     }
 }
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RsaOaep {
     parameters: RsaParameters,
 }
@@ -6267,7 +6228,6 @@ impl AlgorithmMethods for RsaOaep {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RsaPss {
     parameters: RsaParameters,
 }
@@ -6956,7 +6916,6 @@ impl AlgorithmMethods for RsaPss {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RsassaPkcs1 {
     parameters: RsaParameters,
 }
@@ -7636,7 +7595,6 @@ impl AlgorithmMethods for RsassaPkcs1 {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct EcdsaParams {
     #[gc(untraced)]
     hash: HashAlgorithmIdentifier,
@@ -7651,7 +7609,6 @@ impl EcdsaParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct EcKeyGenParams {
     named_curve: Utf16String,
 }
@@ -7665,7 +7622,6 @@ impl EcKeyGenParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct EcdhKeyDeriveParams {
     public_key: Ref<CryptoKey>,
 }
@@ -7678,7 +7634,6 @@ impl EcdhKeyDeriveParams {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct EcKeyImportParams {
     named_curve: Utf16String,
 }
@@ -7701,7 +7656,6 @@ pub(crate) enum EcParameterType {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 enum EcParameters {
     Base,
     SignOrVerify(EcdsaParams),
@@ -7773,7 +7727,6 @@ fn copy_bytes(vm: &Vm, bytes: &[u8]) -> WebIdlResult<Vec<u8>> {
     Ok(copy)
 }
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Ecdsa {
     parameters: EcParameters,
 }
@@ -8771,7 +8724,6 @@ impl AlgorithmMethods for Ecdsa {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Ecdh {
     parameters: EcParameters,
 }
@@ -9711,7 +9663,6 @@ impl AlgorithmMethods for Ecdh {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct Ed448Params {
     context: Option<Bytes>,
 }
@@ -9776,7 +9727,6 @@ fn data_error(error: CryptoError) -> Exception {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Ed25519;
 
 impl AlgorithmMethods for Ed25519 {
@@ -10333,7 +10283,6 @@ impl AlgorithmMethods for Ed25519 {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Ed448 {
     parameters: Option<Ed448Params>,
 }
@@ -10931,7 +10880,6 @@ impl AlgorithmMethods for Ed448 {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct X25519 {
     parameters: Option<EcdhKeyDeriveParams>,
 }
@@ -11539,7 +11487,6 @@ impl AlgorithmMethods for X25519 {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct X448 {
     parameters: Option<EcdhKeyDeriveParams>,
 }
@@ -12143,7 +12090,6 @@ fn ml_export_der(key: Ref<CryptoKey>, algorithm: KeyAlgorithm) -> WebIdlResult<B
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MlDsa {
     parameters: Option<ContextParams>,
 }
@@ -12921,7 +12867,6 @@ impl AlgorithmMethods for MlDsa {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MlKem;
 
 impl AlgorithmMethods for MlKem {

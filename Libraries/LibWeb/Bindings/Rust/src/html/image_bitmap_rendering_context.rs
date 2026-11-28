@@ -29,7 +29,6 @@ enum BitmapMode {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ImageBitmapRenderingContext {
     canvas_cell: ForeignCellSlot,
     #[gc(untraced)]

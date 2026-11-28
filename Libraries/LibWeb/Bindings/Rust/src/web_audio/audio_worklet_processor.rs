@@ -26,7 +26,6 @@ unsafe extern "C" {
 
 // https://webaudio.github.io/web-audio-api/#AudioWorkletProcessor
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioWorkletProcessor {
     global_scope: CppCell,
     pub(super) node_reference: Ref<AudioWorkletNode>,

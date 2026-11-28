@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Compiles each tests/ui/*.rs with the driver against stand-ins for libjs_rust and smallvec, and checks the diagnostics against
+//! Compiles each tests/ui/*.rs with the driver against stand-ins for libgc_api, libjs_rust and smallvec, and checks the diagnostics against
 //! the file's annotations: `//~ ERROR text` for a diagnostic on the same line, `//~^ ERROR text` for the line above.
 
 use std::path::{Path, PathBuf};
@@ -108,13 +108,16 @@ fn main() -> ExitCode {
     let out_dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("ui");
     std::fs::create_dir_all(&out_dir).expect("create the output directory");
 
-    // Stand-ins for the crates whose items the lints know by path. The tests name libjs_rust's as `js`, as code outside
-    // LibJS may not name the runtime's own modules (see Meta/Linters/check_libjs_rust_api.py).
+    // Stand-ins for the crates whose items the lints know by path, each built against those before it. The tests name
+    // libjs_rust's as `js`, as code outside LibJS may not name the runtime's own modules (see
+    // Meta/Linters/check_libjs_rust_api.py).
     let mut externs = Vec::new();
+    let mut dependencies: Vec<String> = Vec::new();
     for (crate_name, alias, crate_type) in [
+        ("libgc_api_macros", "libgc_api_macros", "proc-macro"),
+        ("libgc_api", "libgc_api", "lib"),
         ("libjs_rust", "js", "lib"),
         ("smallvec", "smallvec", "lib"),
-        ("libjs_runtime_macros", "libjs_runtime_macros", "proc-macro"),
     ] {
         let source = ui.join(format!("auxiliary/{crate_name}.rs"));
         let library = match crate_type {
@@ -131,11 +134,16 @@ fn main() -> ExitCode {
             format!("--crate-type={crate_type}"),
             format!("--crate-name={crate_name}"),
             "--edition=2024".to_owned(),
+            "-L".to_owned(),
+            out_dir.to_str().expect("UTF-8 path").to_owned(),
             "--out-dir".to_owned(),
             out_dir.to_str().expect("UTF-8 path").to_owned(),
         ];
         if crate_type == "proc-macro" {
             args.extend(["--extern".to_owned(), "proc_macro".to_owned()]);
+        }
+        for dependency in &dependencies {
+            args.extend(["--extern".to_owned(), dependency.clone()]);
         }
         let stderr = run_driver(&args.iter().map(String::as_str).collect::<Vec<_>>());
         if !library.exists() {
@@ -143,6 +151,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
         externs.push(format!("{alias}={}", library.display()));
+        dependencies.push(format!("{crate_name}={}", library.display()));
     }
 
     let filter = std::env::args().nth(1);

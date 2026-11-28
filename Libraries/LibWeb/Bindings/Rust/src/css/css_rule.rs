@@ -99,7 +99,6 @@ pub(crate) use impl_rule_wrappable;
 
 /// A rule's part of every rule, which the attributes of CSSRule run on.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSRule {
     /// The rule of the sheet that the object represents.
     #[gc(untraced)]
@@ -222,7 +221,6 @@ impl CSSRule {
 
 /// The object of a CSSRule, of an interface that inherits from it.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 #[expect(clippy::enum_variant_names, reason = "the variants are named after the interfaces")]
 #[expect(
     dead_code,

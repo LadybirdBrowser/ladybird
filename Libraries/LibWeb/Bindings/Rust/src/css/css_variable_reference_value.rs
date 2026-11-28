@@ -20,7 +20,6 @@ use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSVariableReferenceValue {
     #[gc(untraced)]
     variable: RefCell<Utf16String>,

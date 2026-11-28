@@ -144,7 +144,6 @@ struct InitializedInputs {
 
 // https://w3c.github.io/gamepad/#dom-gamepad
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Gamepad {
     window: CppWindow,
     #[gc(untraced)]

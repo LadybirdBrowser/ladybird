@@ -40,7 +40,6 @@ impl WrapperWorld {
 }
 
 #[derive(Default, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RealmData {
     #[gc(untraced)]
     wrapper_world: Cell<Option<WrapperWorld>>,

@@ -20,7 +20,6 @@ use crate::geometry::dom_matrix::DOMMatrix;
 use crate::geometry::matrix::Matrix4;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSSkewY {
     transform_component: CSSTransformComponent,
     ay: GcRefCell<AnyCSSNumericValue>,

@@ -22,7 +22,6 @@ use crate::encoding::utf8::{self, EncodeIntoProgress};
 
 /// A TextEncoder has no state: it always encodes UTF-8.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TextEncoder;
 
 impl Wrappable for TextEncoder {}

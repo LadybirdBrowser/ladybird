@@ -9,11 +9,11 @@ use core::ops::Deref;
 use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
+use libgc_api::Trace;
 use libjs_abi::Builtin;
-use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;

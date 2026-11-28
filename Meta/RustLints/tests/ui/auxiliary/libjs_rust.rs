@@ -36,24 +36,13 @@ pub mod layout {
 
 pub mod gc {
     pub mod visitor {
-        pub struct Visitor;
-
-        /// # Safety
-        ///
-        /// Stand-in.
-        pub unsafe trait Trace {
-            fn trace(&self, visitor: &mut Visitor);
-        }
+        pub use libgc_api::visitor::{Trace, Visitor};
 
         unsafe impl<T> Trace for crate::layout::cell::Gc<T> {
             fn trace(&self, _: &mut Visitor) {}
         }
 
         unsafe impl Trace for crate::layout::value::Value {
-            fn trace(&self, _: &mut Visitor) {}
-        }
-
-        unsafe impl<T: Trace> Trace for Vec<T> {
             fn trace(&self, _: &mut Visitor) {}
         }
     }

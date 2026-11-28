@@ -21,7 +21,6 @@ use crate::streams::transform_stream::TransformStream;
 use crate::streams::writable_stream::WritableStream;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TextEncoderStream {
     // https://streams.spec.whatwg.org/#generictransformstream-transform
     transform: Ref<TransformStream>,
@@ -75,7 +74,6 @@ impl TextEncoderStream {
 /// The UTF-8 encoder of a TextEncoderStream, with its leading surrogate, which the algorithms of the stream's
 /// transform run on.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct Encoder {
     // https://encoding.spec.whatwg.org/#textencoderstream-pending-high-surrogate
     leading_surrogate: Cell<Option<u16>>,

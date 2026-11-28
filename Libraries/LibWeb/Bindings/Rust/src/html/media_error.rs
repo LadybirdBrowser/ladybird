@@ -17,7 +17,6 @@ use crate::bindings::lent_string::LentUtf16String;
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaError {
     code: u16,
     message: Utf16String,

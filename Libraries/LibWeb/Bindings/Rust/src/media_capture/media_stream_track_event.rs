@@ -33,7 +33,6 @@ pub(crate) struct MediaStreamTrackEventInit {
 
 // https://w3c.github.io/mediacapture-main/#mediastreamtrackevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaStreamTrackEvent {
     event: CppEvent,
     track: CppCell,

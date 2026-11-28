@@ -16,7 +16,6 @@ use crate::geolocation::geolocation_position_error_code::GeolocationPositionErro
 
 // https://w3c.github.io/geolocation/#dom-geolocationpositionerror
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GeolocationPositionError {
     #[gc(untraced)]
     code: GeolocationPositionErrorCode,

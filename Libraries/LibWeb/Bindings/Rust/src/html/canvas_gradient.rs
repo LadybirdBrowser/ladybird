@@ -46,7 +46,6 @@ enum GradientGeometry {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CanvasGradient {
     #[gc(untraced)]
     geometry: GradientGeometry,

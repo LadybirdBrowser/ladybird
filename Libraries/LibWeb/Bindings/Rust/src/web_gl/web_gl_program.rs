@@ -16,7 +16,6 @@ use super::web_gl_shader::WebGLShader;
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLProgram {
     object: WebGLObject,
     pub(crate) attached_vertex_shader: Cell<Option<Ref<WebGLShader>>>,

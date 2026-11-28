@@ -7,7 +7,7 @@
 use core::cell::Cell;
 use core::ops::Deref;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{GcCell, cast_ref, define_cell};

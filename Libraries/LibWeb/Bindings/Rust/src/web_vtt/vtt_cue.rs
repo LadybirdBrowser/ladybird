@@ -83,7 +83,6 @@ enum WritingDirection {
 
 // https://w3c.github.io/webvtt/#vttcue
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct VTTCue {
     cue: TextTrackCue,
 

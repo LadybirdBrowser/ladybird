@@ -72,7 +72,6 @@ unsafe extern "C" {
 
 // https://w3c.github.io/clipboard-apis/#system-clipboard-representation
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SystemClipboardRepresentation {
     #[gc(untraced)]
     pub(crate) name: String,
@@ -82,7 +81,6 @@ pub(crate) struct SystemClipboardRepresentation {
 
 // https://w3c.github.io/clipboard-apis/#system-clipboard-item
 #[derive(Clone, Default, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SystemClipboardItem {
     pub(crate) system_clipboard_representations: Vec<SystemClipboardRepresentation>,
 }
@@ -338,13 +336,11 @@ const WRITING_IS_NOT_ALLOWED: &str = "Clipboard writing is only allowed through 
 
 /// The dictionary ClipboardUnsanitizedFormats of Clipboard/Clipboard.idl.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ClipboardUnsanitizedFormats {
     pub(crate) unsanitized: Option<Vec<Utf16String>>,
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct ReadRequest {
     realm: Gc<Realm>,
     promise: WebIdlPromise,
@@ -358,7 +354,6 @@ impl EmbedderValue for ReadRequest {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct ReadTextRequest {
     realm: Gc<Realm>,
     promise: WebIdlPromise,
@@ -371,14 +366,12 @@ impl EmbedderValue for ReadTextRequest {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct ReadItem {
     item: Ref<ClipboardItem>,
     originating: Option<SystemClipboardItem>,
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct ReadItems {
     request: Gc<EmbedderCell<ReadRequest>>,
     snapshot_change_count: usize,
@@ -392,7 +385,6 @@ impl EmbedderValue for ReadItems {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct WriteData {
     realm: Gc<Realm>,
     promise: WebIdlPromise,
@@ -406,7 +398,6 @@ impl EmbedderValue for WriteData {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct ItemList {
     realm: Gc<Realm>,
     promise: WebIdlPromise,
@@ -421,7 +412,6 @@ impl EmbedderValue for ItemList {
 
 // https://w3c.github.io/clipboard-apis/#clipboard
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Clipboard {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

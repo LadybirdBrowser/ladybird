@@ -30,7 +30,6 @@ pub(crate) struct ImageDataSettings {
 const BYTES_PER_PIXEL: u32 = 4;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ImageData {
     /// The Uint8ClampedArray of the data attribute, in whose buffer the pixels are, RGBA8888 and unpremultiplied, row
     /// by row. Script can detach the buffer, and shrink one that is resizable, at any time.

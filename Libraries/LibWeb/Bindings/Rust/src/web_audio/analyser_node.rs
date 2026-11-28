@@ -35,7 +35,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#AnalyserNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AnalyserNode {
     node: AudioNode,
     fft_size: Cell<u32>,

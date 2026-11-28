@@ -19,7 +19,7 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::OpenOptionsExt;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::ast::ProgramType;
 use crate::breakpoint::{Breakpoint, BreakpointID};

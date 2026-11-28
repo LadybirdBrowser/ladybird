@@ -25,7 +25,6 @@ pub(crate) struct WebGLContextEventInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLContextEvent {
     event: CppEvent,
     status_message: Utf16String,

@@ -18,7 +18,6 @@ use crate::bindings::interface::Wrappable;
 
 // https://xhr.spec.whatwg.org/#xmlhttprequesteventtarget
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct XMLHttpRequestEventTarget {
     event_target: CppEventTarget,
 }

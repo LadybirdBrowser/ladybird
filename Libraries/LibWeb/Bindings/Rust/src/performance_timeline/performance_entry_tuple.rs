@@ -13,7 +13,6 @@ use crate::performance_timeline::performance_entry::AnyPerformanceEntry;
 
 // https://w3c.github.io/performance-timeline/#dfn-performance-entry-buffer-map
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceEntryTuple {
     /// The key of the tuple in the map.
     #[gc(untraced)]

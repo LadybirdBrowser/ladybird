@@ -33,7 +33,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StyleSheet {
     /// The cell that holds the Web::CSS::StyleSheetState, which attaches the sheet to its documents and loads it.
     state: CppCell,

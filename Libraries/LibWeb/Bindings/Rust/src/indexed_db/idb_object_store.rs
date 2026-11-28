@@ -53,7 +53,6 @@ pub(crate) struct IDBGetAllOptions {
 // https://w3c.github.io/IndexedDB/#object-store-interface
 // https://w3c.github.io/IndexedDB/#object-store-handle-construct
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBObjectStore {
     // An object store handle has an associated object store and an associated transaction.
     store: ObjectStoreRef,

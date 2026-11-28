@@ -26,7 +26,6 @@ unsafe extern "C" {
 
 /// https://w3c.github.io/event-timing/#sec-event-counts
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct EventCounts {
     #[gc(untraced)]
     entries: RefCell<Vec<(Utf16String, u64)>>,

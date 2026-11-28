@@ -47,8 +47,9 @@ A cell exists by value only while `Heap::allocate()` builds it, in the closure i
 that lasts until the cell is in the heap: C++ constructs cells in place the same way. The constructors of cells and of
 their storage that hold GC pointers in heap memory take a `&DeferGc`, so that only such a builder can call them.
 
-The lints find the types of the GC through the traits in `libjs_rust::gc::lint_markers` (and `Trace`, `GcCell` and
-`SweptAfterCollection`), and stop with an error if libjs_rust no longer has one, so that moving a type does not hide it.
+The lints find the types of the GC through the traits in `libjs_rust::gc::lint_markers` (and `GcCell` and
+`SweptAfterCollection`) and through libgc_api's `Trace`, and stop with an error if one is no longer where they look, so
+that moving a type does not hide it.
 
 ## Running
 

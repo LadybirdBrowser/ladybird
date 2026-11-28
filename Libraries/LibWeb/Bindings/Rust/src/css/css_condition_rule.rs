@@ -18,7 +18,6 @@ use crate::bindings::interface::{Inherits, Wrappable};
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSConditionRule {
     grouping_rule: CSSGroupingRule,
 }

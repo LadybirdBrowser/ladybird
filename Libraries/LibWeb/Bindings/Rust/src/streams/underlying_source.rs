@@ -44,7 +44,6 @@ pub(crate) enum ReadableStreamType {
 
 /// https://streams.spec.whatwg.org/#typedefdef-readablestreamcontroller
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum ReadableStreamController {
     ReadableStreamDefaultController(Ref<ReadableStreamDefaultController>),
     ReadableByteStreamController(Ref<ReadableByteStreamController>),

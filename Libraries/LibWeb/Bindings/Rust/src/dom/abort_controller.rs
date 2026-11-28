@@ -14,7 +14,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 use crate::dom::abort_signal::AbortSignal;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AbortController {
     signal: Ref<AbortSignal>,
 }

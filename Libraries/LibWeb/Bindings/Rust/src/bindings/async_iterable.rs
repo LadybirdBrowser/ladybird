@@ -52,7 +52,6 @@ pub(crate) trait DefaultAsyncIteratorClasses: AsyncIterable {
 /// A default asynchronous iterator object, https://webidl.spec.whatwg.org/#default-asynchronous-iterator-object,
 /// which is the host data of a host object of the asynchronous iterator class of its interface.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DefaultAsyncIterator<T: AsyncIterable> {
     realm: Gc<Realm>,
     state: T::IteratorState,

@@ -16,7 +16,6 @@ use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, filter
 
 // https://w3c.github.io/performance-timeline/#performanceobserverentrylist-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceObserverEntryList {
     realm: Gc<Realm>,
     // https://w3c.github.io/performance-timeline/#dfn-entry-list

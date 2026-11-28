@@ -41,7 +41,6 @@ pub(crate) enum PermissionState {
 
 // https://w3c.github.io/permissions/#permissionstatus-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PermissionStatus {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

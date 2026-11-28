@@ -29,7 +29,6 @@ pub(crate) struct HashChangeEventInit {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#hashchangeevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct HashChangeEvent {
     event: CppEvent,
     old_url: UsvString,

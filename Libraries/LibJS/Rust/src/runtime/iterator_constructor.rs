@@ -6,7 +6,7 @@
 
 use core::cell::Cell;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{Finalize, GcCell, define_cell};

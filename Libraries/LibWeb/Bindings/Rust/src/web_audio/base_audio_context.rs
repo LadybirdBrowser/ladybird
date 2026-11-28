@@ -696,7 +696,6 @@ impl BaseAudioContext {
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 #[allow(clippy::enum_variant_names, reason = "the variants have the interfaces’ names")]
 pub(crate) enum AnyBaseAudioContext {
     BaseAudioContext(Ref<BaseAudioContext>),
@@ -784,7 +783,6 @@ impl Drop for DecodedAudioData {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct DecodingOperation {
     context: AnyBaseAudioContext,
     promise: WebIdlPromise,
@@ -801,7 +799,6 @@ impl EmbedderValue for DecodingOperation {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct DetachedAudioDataError {
     realm: Gc<Realm>,
     callback: CallbackFunction,

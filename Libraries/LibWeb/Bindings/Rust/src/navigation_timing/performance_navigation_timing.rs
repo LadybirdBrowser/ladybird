@@ -43,7 +43,6 @@ impl NavigationTimingType {
 
 /// https://w3c.github.io/navigation-timing/#dom-performancenavigationtiming
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceNavigationTiming {
     resource_timing: PerformanceResourceTiming,
     document: CppDocument,

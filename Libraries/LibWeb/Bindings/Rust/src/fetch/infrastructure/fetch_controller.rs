@@ -20,7 +20,6 @@ unsafe extern "C" {
 
 /// https://fetch.spec.whatwg.org/#fetch-controller
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppFetchController(CppCell);
 
 impl PartialEq for CppFetchController {

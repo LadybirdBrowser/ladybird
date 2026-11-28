@@ -7,7 +7,7 @@
 //! %Temporal.Duration.prototype%.
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;

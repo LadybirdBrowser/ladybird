@@ -37,7 +37,6 @@ fn compare_index_records(a: &IndexRecord, b: &IndexRecord) -> Ordering {
 
 // https://w3c.github.io/IndexedDB/#index-construct
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Index {
     // An index [...] has a referenced object store.
     object_store: ObjectStoreRef,

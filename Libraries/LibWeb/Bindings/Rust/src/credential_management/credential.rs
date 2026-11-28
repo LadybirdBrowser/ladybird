@@ -32,7 +32,6 @@ pub(crate) enum CredentialMediationRequirement {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Credential {
     id: UsvString,
     r#type: Utf16String,
@@ -66,7 +65,6 @@ impl Credential {
 }
 
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyCredential {
     Credential(Ref<Credential>),
     FederatedCredential(Ref<FederatedCredential>),

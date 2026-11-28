@@ -26,7 +26,6 @@ pub(crate) struct SpeechRecognitionEventInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SpeechRecognitionEvent {
     event: CppEvent,
     result_index: u32,

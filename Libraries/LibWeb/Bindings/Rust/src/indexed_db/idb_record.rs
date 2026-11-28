@@ -36,7 +36,6 @@ pub(crate) struct IndexRecord {
 // https://w3c.github.io/IndexedDB/#record-snapshot
 // https://w3c.github.io/IndexedDB/#record-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBRecord {
     #[gc(untraced)]
     key: Rc<Key>,

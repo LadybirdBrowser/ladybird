@@ -43,7 +43,6 @@ pub(crate) enum OrientationLockType {
 
 // https://w3c.github.io/screen-orientation/#screenorientation-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ScreenOrientation {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

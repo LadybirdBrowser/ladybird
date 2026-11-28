@@ -44,7 +44,6 @@ impl From<CompressionFormat> for Format {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CompressionStream {
     // https://streams.spec.whatwg.org/#generictransformstream-transform
     transform: Ref<TransformStream>,
@@ -84,7 +83,6 @@ impl CompressionStream {
 
 /// https://compression.spec.whatwg.org/#compression-context, which the algorithms of the stream's transform run on.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct CompressionContext {
     #[gc(untraced)]
     compressor: RefCell<Compressor>,

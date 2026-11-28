@@ -23,7 +23,6 @@ use crate::bindings::{CallContext, Exception, MustNotThrow, WebIdlResult};
 use crate::dom::element::CppElement;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DOMTokenList {
     associated_element: CppElement,
     associated_attribute: Utf16FlyString,

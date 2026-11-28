@@ -31,7 +31,6 @@ pub(crate) struct StorageEventInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct StorageEventState {
     key: Option<Utf16String>,
     old_value: Option<Utf16String>,
@@ -43,7 +42,6 @@ struct StorageEventState {
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storageevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StorageEvent {
     event: CppEvent,
     state: GcRefCell<StorageEventState>,

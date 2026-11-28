@@ -7,11 +7,11 @@
 use std::collections::HashMap;
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::utf16::{Utf16View, utf16_string_external_memory_size};

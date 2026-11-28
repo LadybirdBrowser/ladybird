@@ -32,7 +32,6 @@ pub(crate) use libweb_rust::web_audio::rendering::node_message::OscillatorType;
 
 // https://webaudio.github.io/web-audio-api/#OscillatorNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct OscillatorNode {
     node: AudioScheduledSourceNode,
 

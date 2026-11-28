@@ -22,7 +22,6 @@ use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, Perfor
 
 /// https://w3c.github.io/largest-contentful-paint/#sec-largest-contentful-paint-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct LargestContentfulPaint {
     entry: PerformanceEntry,
     #[gc(untraced)]

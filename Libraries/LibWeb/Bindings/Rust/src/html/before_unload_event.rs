@@ -22,7 +22,6 @@ use crate::dom::event::EventInit;
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#beforeunloadevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct BeforeUnloadEvent {
     event: CppEvent,
     #[gc(untraced)]

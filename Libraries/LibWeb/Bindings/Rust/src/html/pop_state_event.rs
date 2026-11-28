@@ -28,7 +28,6 @@ pub(crate) struct PopStateEventInit {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#popstateevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PopStateEvent {
     event: CppEvent,
     state: Value,

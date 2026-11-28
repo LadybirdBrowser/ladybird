@@ -30,7 +30,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioBufferSourceNode {
     node: AudioScheduledSourceNode,
     buffer: Cell<Option<Ref<AudioBuffer>>>,

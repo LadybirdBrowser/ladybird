@@ -22,7 +22,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 /// What an accessor of a CSS property captures. NB: The name is static, so the collector has nothing to see in it.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSPropertyAccessor {
     #[gc(untraced)]
     property_name: &'static str,
@@ -36,7 +35,6 @@ impl CSSPropertyAccessor {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleProperties {
     declaration: CSSStyleDeclaration,
 }

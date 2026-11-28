@@ -15,7 +15,7 @@ use std::rc::Rc;
 
 use ak::{ScopeGuard, Utf16FlyString};
 use indexmap::IndexMap;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::breakpoint::{Breakpoint, BreakpointID};
 use crate::bytecode::executable::{Executable, LocalVariableScopeRange};
@@ -23,7 +23,7 @@ use crate::bytecode::source_map::SourceMapEntry;
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::gc::weak::SweptAfterCollection;
 use crate::interpreter::vm::{EvalMode, StackTraceElement, Vm};
 use crate::layout::cell::Gc;

@@ -48,7 +48,6 @@ pub(crate) enum TransactionState {
 
 // AD-HOC: Per-store mutation logs for data and schema change reversion.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct StoreMutationLog {
     store: ObjectStoreRef,
     log: MutationLogRef,
@@ -56,7 +55,6 @@ struct StoreMutationLog {
 
 // https://w3c.github.io/IndexedDB/#transaction
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBTransaction {
     event_target: CppEventTarget,
 

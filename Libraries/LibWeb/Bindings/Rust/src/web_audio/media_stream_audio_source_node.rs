@@ -32,7 +32,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#MediaStreamAudioSourceNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaStreamAudioSourceNode {
     node: AudioNode,
 

@@ -13,7 +13,6 @@ use super::web_gl_program::WebGLProgram;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLUniformLocation {
     #[gc(untraced)]
     handle: i32,

@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::ast::ProgramType;
 use crate::bytecode::executable::Executable;

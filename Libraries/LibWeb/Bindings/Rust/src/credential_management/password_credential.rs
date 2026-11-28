@@ -37,7 +37,6 @@ pub(crate) enum PasswordCredentialInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PasswordCredential {
     credential: Credential,
     user_data: CredentialUserData,

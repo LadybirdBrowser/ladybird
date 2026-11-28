@@ -7,7 +7,7 @@
 //! Temporal.PlainYearMonth objects and the ISO Year-Month Record operations.
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 use num_traits::Zero;
 
 use crate::gc::class::{GcCell, define_cell};

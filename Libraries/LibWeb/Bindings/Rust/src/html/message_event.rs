@@ -27,7 +27,6 @@ use crate::html::message_port::MessagePort;
 
 /// The union MessageEventSource of HTML/MessageEvent.idl, whose members the bindings convert.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum MessageEventSource {
     WindowProxy(CppInterface),
     MessagePort(Ref<MessagePort>),
@@ -70,7 +69,6 @@ enum MessageEventOrigin {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct MessageEventState {
     data: Value,
     #[gc(untraced)]
@@ -83,7 +81,6 @@ struct MessageEventState {
 
 // https://html.spec.whatwg.org/multipage/comms.html#messageevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MessageEvent {
     event: CppEvent,
     state: GcRefCell<MessageEventState>,

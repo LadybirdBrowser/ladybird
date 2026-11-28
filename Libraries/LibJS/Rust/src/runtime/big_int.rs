@@ -5,7 +5,7 @@
  */
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 use num_bigint::Sign;
 use num_traits::FromPrimitive;
 
@@ -24,6 +24,7 @@ pub use num_bigint::BigInt as SignedBigInteger;
 #[derive(Trace)]
 pub struct BigInt {
     header: CellHeader,
+    #[gc(untraced = "holds no cells")]
     big_integer: SignedBigInteger,
 }
 

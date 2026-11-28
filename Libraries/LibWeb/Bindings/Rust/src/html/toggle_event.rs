@@ -32,7 +32,6 @@ pub(crate) struct ToggleEventInit {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#toggleevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ToggleEvent {
     event: CppEvent,
     old_state: Utf16String,

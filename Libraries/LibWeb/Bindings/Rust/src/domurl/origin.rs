@@ -20,7 +20,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::message_event::MessageEvent;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Origin {
     // https://html.spec.whatwg.org/multipage/browsers.html#concept-origin-origin
     // Origin objects have an associated origin, which holds an origin.

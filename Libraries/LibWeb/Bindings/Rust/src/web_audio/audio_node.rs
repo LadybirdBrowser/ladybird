@@ -65,7 +65,6 @@ pub(crate) struct AudioNodeDefaultOptions {
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 struct AudioNodeConnection {
     destination_node: AnyAudioNode,
     output: u32,
@@ -73,7 +72,6 @@ struct AudioNodeConnection {
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 struct AudioParamConnection {
     destination_param: Ref<AudioParam>,
     output: u32,
@@ -81,7 +79,6 @@ struct AudioParamConnection {
 
 // https://webaudio.github.io/web-audio-api/#AudioNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioNode {
     event_target: CppEventTarget,
     context: AnyBaseAudioContext,
@@ -628,7 +625,6 @@ impl AudioNode {
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 #[allow(clippy::enum_variant_names, reason = "the variants have the interfaces’ names")]
 pub(crate) enum AnyAudioNode {
     AudioNode(Ref<AudioNode>),

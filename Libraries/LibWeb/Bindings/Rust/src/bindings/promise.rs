@@ -376,7 +376,6 @@ pub(crate) fn get_promise_for_wait_for_all(vm: &Vm, realm: Gc<Realm>, promises: 
 /// The state of waiting for all of some promises, https://webidl.spec.whatwg.org/#wait-for-all, whose success and
 /// failure steps settle `promise`.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct WaitForAll {
     promise: WebIdlPromise,
     realm: Gc<Realm>,

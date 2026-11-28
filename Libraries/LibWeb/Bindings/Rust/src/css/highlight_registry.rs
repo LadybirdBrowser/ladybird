@@ -37,14 +37,12 @@ pub(crate) struct HighlightsFromPointOptions<'vm> {
 
 /// The dictionary HighlightHitResult of CSS/HighlightRegistry.idl.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct HighlightHitResult {
     pub(crate) highlight: Option<Ref<Highlight>>,
     pub(crate) ranges: Option<Vec<CppInterface>>,
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RegisteredHighlight {
     #[gc(untraced)]
     pub(crate) name: Utf16String,
@@ -56,7 +54,6 @@ pub(crate) struct RegisteredHighlight {
 
 // https://drafts.csswg.org/css-highlight-api-1/#highlightregistry
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct HighlightRegistry {
     document: CppCell,
     this: Cell<Option<Ref<HighlightRegistry>>>,

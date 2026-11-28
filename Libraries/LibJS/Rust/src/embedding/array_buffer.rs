@@ -14,11 +14,12 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use libgc_api::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
+
 use crate::embedding::abi_types::{
     JSRealm, cell_from_abi, completion_into_abi, completion_writing_result_to, object_into_abi,
     optional_object_into_abi, vm_from_abi,
 };
-use crate::gc::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
 use crate::gc::class::{Extends, GcCell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::layout::cell::Gc;

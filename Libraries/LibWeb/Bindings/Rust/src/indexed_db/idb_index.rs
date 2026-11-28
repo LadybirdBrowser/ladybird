@@ -32,7 +32,6 @@ use crate::indexed_db::internal::index::{Index, IndexRef};
 
 // https://w3c.github.io/IndexedDB/#index-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBIndex {
     // An index handle has an associated index and an associated object store handle.
     index: IndexRef,

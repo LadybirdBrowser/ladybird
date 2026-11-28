@@ -40,7 +40,6 @@ use crate::web_assembly::{Agent, compile_a_webassembly_module};
 
 /// The fields that a WebAssembly Module Record has besides those of a Cyclic Module Record.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct WebAssemblyModuleRecord {
     // [[Instance]]
     instance: Cell<Option<Ref<Instance>>>,

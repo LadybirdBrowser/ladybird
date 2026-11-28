@@ -5,7 +5,7 @@
  */
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::ast;
 use crate::layout::cell::Gc;

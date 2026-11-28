@@ -35,12 +35,12 @@ use core::ptr::NonNull;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::gc::gc_ref_cell::ref_cell_for_trace;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::dispatch_tables::DispatchTable;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};

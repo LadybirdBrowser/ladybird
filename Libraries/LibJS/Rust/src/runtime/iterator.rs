@@ -9,7 +9,7 @@
 use core::cell::Cell;
 use core::ops::Deref;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::gc::class::{GcCell, define_cell};

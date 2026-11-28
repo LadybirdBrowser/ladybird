@@ -18,7 +18,6 @@ use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, Perfor
 
 /// https://w3c.github.io/paint-timing/#sec-PerformancePaintTiming
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformancePaintTiming {
     entry: PerformanceEntry,
     #[gc(untraced)]

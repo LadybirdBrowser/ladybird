@@ -11,7 +11,6 @@ use libjs_rust::api::{ForeignCellSlot, Gc, GcWeak, Trace, Vm};
 
 /// A cell of LibWeb's C++ code, which this keeps alive.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppCell(ForeignCellSlot);
 
 impl Clone for CppCell {
@@ -113,7 +112,6 @@ impl CppCell {
 
 /// A cell of LibWeb's C++ code, which this does not keep alive.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WeakCppCell(GcWeak<c_void>);
 
 impl WeakCppCell {

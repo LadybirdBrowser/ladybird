@@ -11,8 +11,8 @@ use std::rc::Rc;
 use ak::Utf16FlyString;
 
 use crate::utf16::Utf16View;
+use libgc_api::Trace;
 use libjs_abi::ClassElementKind;
-use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable_data::{PendingClassBlueprint, PendingClassElement, PendingLiteralValueKind};
 use crate::gc::defer_gc::DeferGc;

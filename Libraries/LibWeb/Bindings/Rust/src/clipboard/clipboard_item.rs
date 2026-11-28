@@ -52,7 +52,6 @@ pub(crate) struct ClipboardItemOptions {
 
 /// The union (DOMString or Blob) of Clipboard/ClipboardItem.idl, whose members the bindings convert.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum DOMStringOrBlob {
     DOMString(Utf16String),
     Blob(AnyBlob),
@@ -60,7 +59,6 @@ pub(crate) enum DOMStringOrBlob {
 
 // https://w3c.github.io/clipboard-apis/#representation
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Representation {
     pub(crate) mime_type: Utf16String,
     pub(crate) is_custom: bool,
@@ -78,7 +76,6 @@ impl Representation {
 
 // https://w3c.github.io/clipboard-apis/#clipboard-item-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ClipboardItem {
     this: Cell<Option<Ref<ClipboardItem>>>,
 
@@ -111,7 +108,6 @@ pub(crate) struct ClipboardItem {
 impl Wrappable for ClipboardItem {}
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct GetTypeInParallel {
     item: Ref<ClipboardItem>,
     realm: Gc<Realm>,

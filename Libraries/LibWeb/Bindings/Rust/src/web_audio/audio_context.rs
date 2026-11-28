@@ -61,7 +61,6 @@ pub(crate) struct AudioTimestamp {
 
 // https://webaudio.github.io/web-audio-api/#AudioContext
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioContext {
     context: BaseAudioContext,
     base_latency: f64,

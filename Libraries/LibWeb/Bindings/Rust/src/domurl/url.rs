@@ -42,7 +42,6 @@ pub(crate) enum BlobOrMediaSource {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 #[expect(
     clippy::upper_case_acronyms,
     reason = "the bindings name the implementation after the interface"

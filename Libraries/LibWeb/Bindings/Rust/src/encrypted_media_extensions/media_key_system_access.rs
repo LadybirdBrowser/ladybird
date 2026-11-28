@@ -77,7 +77,6 @@ impl MediaKeySessionType {
 
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemaccess
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaKeySystemAccess {
     key_system: Utf16String,
 

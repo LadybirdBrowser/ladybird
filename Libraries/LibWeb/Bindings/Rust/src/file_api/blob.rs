@@ -46,7 +46,6 @@ pub(crate) struct BlobPropertyBag {
 
 /// An object of Blob or of File, which inherits from it.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyBlob {
     Blob(Ref<Blob>),
     File(Ref<File>),
@@ -78,7 +77,6 @@ impl AnyBlob {
 
 /// The union (BufferSource or Blob or USVString) of FileAPI/Blob.idl, whose members the bindings convert.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum BlobPart {
     BufferSource(BufferSource),
     Blob(AnyBlob),
@@ -143,7 +141,6 @@ impl ByteSequence {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Blob {
     // https://w3c.github.io/FileAPI/#dfn-byte-sequence
     // NB: The bytes move into immutable bytes or shared memory the first time C++ shares them, and stay in shared

@@ -73,7 +73,6 @@ pub(crate) enum PackagedData {
 
 // https://w3c.github.io/FileAPI/#dfn-filereader
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FileReader {
     event_target: CppEventTarget,
     realm: Gc<Realm>,
@@ -130,7 +129,6 @@ unsafe impl<C: Trace> Trace for QueuedSteps<C> {
 
 /// The state of a read operation, https://w3c.github.io/FileAPI/#readOperation, which its steps keep across chunks.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct ReadOperation {
     reader: Ref<ReadableStreamDefaultReader>,
     #[gc(untraced)]

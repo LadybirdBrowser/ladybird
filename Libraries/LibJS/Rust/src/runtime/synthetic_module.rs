@@ -7,11 +7,11 @@
 use core::ops::Deref;
 
 use ak::{ScopeGuard, Utf16FlyString};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ScriptOrModule;

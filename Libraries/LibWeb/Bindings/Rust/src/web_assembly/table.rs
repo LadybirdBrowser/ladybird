@@ -41,7 +41,6 @@ pub(crate) struct TableDescriptor {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Table {
     // [[Table]]
     address: EntityRef<TableInstance>,

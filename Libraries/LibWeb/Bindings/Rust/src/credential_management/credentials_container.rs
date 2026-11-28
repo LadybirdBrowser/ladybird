@@ -38,7 +38,6 @@ pub(crate) struct CredentialCreationOptions {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CredentialsContainer;
 
 impl Wrappable for CredentialsContainer {}

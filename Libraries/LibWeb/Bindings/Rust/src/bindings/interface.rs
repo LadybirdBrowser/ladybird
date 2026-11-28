@@ -96,7 +96,6 @@ pub(crate) trait Wrappable {
 /// object holds its wrapper weakly until script makes the wrapper observable, which the wrapper of an interface
 /// implemented in Rust has no hooks to tell.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Wrapped<T: Trace> {
     main_world_wrapper: Cell<Option<Gc<HostObject>>>,
     implementation: T,

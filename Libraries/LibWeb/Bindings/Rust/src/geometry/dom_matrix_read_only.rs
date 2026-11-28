@@ -49,7 +49,6 @@ pub(crate) enum DOMStringOrUnrestrictedDoubleSequence {
 
 /// An object of DOMMatrixReadOnly or of DOMMatrix, which inherits from it.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyDOMMatrixReadOnly {
     DOMMatrixReadOnly(Ref<DOMMatrixReadOnly>),
     DOMMatrix(Ref<DOMMatrix>),
@@ -67,7 +66,6 @@ impl Deref for AnyDOMMatrixReadOnly {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DOMMatrixReadOnly {
     #[gc(untraced)]
     matrix: Cell<Matrix4>,

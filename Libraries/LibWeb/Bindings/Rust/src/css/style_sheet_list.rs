@@ -21,7 +21,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StyleSheetList {
     /// The Web::CSS::StyleScope whose sheets the list represents, which belongs to the node.
     #[gc(untraced)]

@@ -44,7 +44,6 @@ pub(crate) struct ReadableStreamReadResult {
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStreamDefaultReader {
     generic: ReadableStreamGenericReader,
     // https://streams.spec.whatwg.org/#readablestreamdefaultreader-readrequests
@@ -200,7 +199,6 @@ impl ReadableStreamDefaultReader {
 /// The state of a read-loop, https://streams.spec.whatwg.org/#read-loop, whose read request reads the next chunk with
 /// the same state.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadLoop {
     realm: Gc<Realm>,
     reader: Ref<ReadableStreamDefaultReader>,

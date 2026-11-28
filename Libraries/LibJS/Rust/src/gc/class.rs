@@ -6,7 +6,8 @@
 
 use core::ffi::{c_char, c_void};
 
-use super::capi::GCVisitor;
+use libgc_api::cell::{destroy, trace, visit_edges};
+
 use super::class_id::ClassId;
 use super::visitor::{Trace, Visitor};
 use crate::layout::cell::{CellHeader, CellHeaderTail, CellKind, CellState};
@@ -17,19 +18,8 @@ unsafe extern "C" {
     fn __lsan_ignore_object(pointer: *const c_void);
 }
 
-/// Mirrors GCCellTypeInfo from Libraries/LibGC/CAPI.h, which LibGC dispatches every per-cell operation through.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct CellTypeInfo {
-    pub cell_size: u32,
-    pub alignment: u32,
-    pub kind: u8,
-    pub visit_edges: unsafe extern "C" fn(cell: *mut c_void, visitor: *mut GCVisitor),
-    pub finalize: Option<unsafe extern "C" fn(cell: *mut c_void)>,
-    pub destroy: Option<unsafe extern "C" fn(cell: *mut c_void)>,
-    pub external_memory_size: Option<unsafe extern "C" fn(cell: *const c_void) -> usize>,
-    pub class_name: Option<unsafe extern "C" fn(cell: *const c_void, length: *mut usize) -> *const c_char>,
-}
+/// The type info LibGC dispatches every operation on a cell through, which every class starts with.
+pub use libgc_api::capi::CellTypeInfo;
 
 /// The class of a cell, which the block the cell lives in holds (see `class_of`). It starts with the type info LibGC
 /// dispatches through.
@@ -257,19 +247,6 @@ impl Class {
     }
 }
 
-unsafe extern "C" fn visit_edges<T: Trace + 'static>(cell: *mut c_void, visitor: *mut GCVisitor) {
-    // SAFETY: LibGC passes a live cell of this class and a visitor that outlives the call.
-    unsafe { trace::<T>(cell, &mut Visitor::from_raw(visitor)) };
-}
-
-/// # Safety
-///
-/// `cell` must be a live cell of the class of `T`, which stays where it is while the visitor visits it.
-unsafe fn trace<T: Trace + 'static>(cell: *const c_void, visitor: &mut Visitor<'_>) {
-    // SAFETY: The caller vouches for the cell.
-    unsafe { &*cell.cast::<T>() }.trace(visitor);
-}
-
 /// Cells that need to act before they are destroyed. Finalizers run during a collection, while every cell that dies
 /// in it is still intact, and must not allocate.
 pub trait Finalize {
@@ -385,11 +362,6 @@ impl Class {
         }
         false
     }
-}
-
-unsafe extern "C" fn destroy<T>(cell: *mut c_void) {
-    // SAFETY: LibGC destroys each dead cell of this class exactly once.
-    unsafe { core::ptr::drop_in_place(cell.cast::<T>()) };
 }
 
 unsafe extern "C" fn class_name(cell: *const c_void, length: *mut usize) -> *const c_char {

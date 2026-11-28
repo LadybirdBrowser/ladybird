@@ -31,7 +31,6 @@ pub(crate) struct PerformanceMarkOptions {
 
 /// https://w3c.github.io/user-timing/#dom-performancemark
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceMark {
     entry: PerformanceEntry,
     /// https://w3c.github.io/user-timing/#dom-performancemark-detail

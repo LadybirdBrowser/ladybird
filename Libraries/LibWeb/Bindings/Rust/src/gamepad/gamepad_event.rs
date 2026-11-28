@@ -27,7 +27,6 @@ pub(crate) struct GamepadEventInit {
 
 // https://w3c.github.io/gamepad/#dom-gamepadevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GamepadEvent {
     event: CppEvent,
     gamepad: Option<Ref<Gamepad>>,

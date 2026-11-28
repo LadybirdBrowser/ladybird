@@ -44,7 +44,6 @@ struct Channel {
 
 // https://webaudio.github.io/web-audio-api/#AudioBuffer
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioBuffer {
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-number-of-channels-slot
     // The number of audio channels for this AudioBuffer, which is an unsigned long.

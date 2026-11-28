@@ -6,7 +6,7 @@
 
 use core::cell::Cell;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Finalize, GcCell, class_of, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;

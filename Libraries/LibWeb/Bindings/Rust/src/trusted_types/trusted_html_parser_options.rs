@@ -13,7 +13,6 @@ use crate::html::sanitizer_configuration::SanitizerConfiguration;
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trusted-html-parser-options
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TrustedHTMLParserOptions {
     realm: Gc<Realm>,
     // TrustedHTMLParserOptions objects have an associated boolean runScripts and an associated SanitizerConfig-or-null

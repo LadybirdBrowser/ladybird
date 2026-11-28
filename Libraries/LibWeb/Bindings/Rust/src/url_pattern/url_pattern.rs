@@ -140,7 +140,6 @@ fn type_error(error: ErrorInfo) -> Exception {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct URLPattern {
     /// The associated URL pattern, https://urlpattern.spec.whatwg.org/#urlpattern-associated-url-pattern
     #[gc(untraced)]

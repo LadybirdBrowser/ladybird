@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
 
 use crate::console_log_level::ConsoleLogLevel;
 use crate::gc::class::{GcCell, define_cell};
@@ -60,7 +59,7 @@ pub enum PrinterArguments<'vm> {
 
 // https://console.spec.whatwg.org
 #[repr(C)]
-#[derive(Trace)]
+#[derive(libgc_api::Trace)]
 pub struct Console {
     header: CellHeader,
     realm: Gc<Realm>,
@@ -1004,7 +1003,7 @@ pub struct ConsoleClientMethods {
 }
 
 #[repr(C)]
-#[derive(Trace)]
+#[derive(libgc_api::Trace)]
 pub struct ConsoleClient {
     header: CellHeader,
     #[gc(untraced)]

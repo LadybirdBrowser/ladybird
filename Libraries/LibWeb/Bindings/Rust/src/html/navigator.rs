@@ -41,7 +41,6 @@ fn window_of(navigator: &CppInterface) -> CppWindow {
 
 /// What the parallel steps of requestMediaKeySystemAccess() capture.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct RequestMediaKeySystemAccessCaptures {
     realm: Gc<Realm>,
     promise: WebIdlPromise,

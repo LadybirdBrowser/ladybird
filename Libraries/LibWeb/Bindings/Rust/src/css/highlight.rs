@@ -45,7 +45,6 @@ fn range_wrapper(cx: &CallContext, range: &CppCell) -> Value {
 
 // https://drafts.csswg.org/css-highlight-api-1/#highlight
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Highlight {
     /// The set entries of this setlike object, in insertion order.
     ranges: GcRefCell<Vec<CppCell>>,

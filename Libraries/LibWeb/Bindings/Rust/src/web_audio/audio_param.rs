@@ -29,7 +29,6 @@ pub(crate) enum FixedAutomationRate {
 
 // https://webaudio.github.io/web-audio-api/#AudioParam
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioParam {
     context: AnyBaseAudioContext,
 

@@ -22,7 +22,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ChannelSplitterNode {
     node: AudioNode,
     number_of_outputs: u32,

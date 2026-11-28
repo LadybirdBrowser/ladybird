@@ -76,7 +76,7 @@ use crate::runtime::string_prototype::StringPrototype;
 
 // JIT code compresses and decodes the compressed cell pointers of cells like the runtime does.
 const _: () =
-    assert!(libjs_jit::snapshot::COMPRESSED_POINTER_SHIFT as u32 == crate::layout::member::COMPRESSED_POINTER_SHIFT);
+    assert!(libjs_jit::snapshot::COMPRESSED_POINTER_SHIFT as u32 == libgc_api::member::COMPRESSED_POINTER_SHIFT);
 
 /// The addresses of the runtime functions JIT code calls, which every compile job's runtime info has.
 pub struct RuntimeFunctionAddresses {

@@ -35,7 +35,6 @@ type Init = USVStringSequenceSequenceOrUSVStringUSVStringRecordOrUSVString;
 pub(crate) type Tuple = (UsvString, UsvString);
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct URLSearchParams {
     // https://url.spec.whatwg.org/#concept-urlsearchparams-list
     #[gc(untraced)]

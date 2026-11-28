@@ -15,7 +15,6 @@ use crate::bindings::maplike::Maplike;
 
 // https://webaudio.github.io/web-audio-api/#AudioParamMap
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioParamMap {
     entries: GcRefCell<Vec<(Utf16String, Ref<AudioParam>)>>,
 }

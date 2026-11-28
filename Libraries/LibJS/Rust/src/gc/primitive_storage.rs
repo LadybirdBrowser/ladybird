@@ -12,7 +12,7 @@ use core::marker::PhantomData;
 use core::num::NonZeroU64;
 use std::sync::OnceLock;
 
-use super::capi::{
+use libgc_api::capi::{
     self, GC_PRIMITIVE_STORAGE_INVALID_OFFSET, GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle,
     GCPrimitiveStorageLayout,
 };

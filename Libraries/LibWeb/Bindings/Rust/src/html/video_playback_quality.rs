@@ -14,7 +14,6 @@ use crate::bindings::interface::{Wrappable, allocate, cell_into_abi};
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct VideoPlaybackQuality {
     creation_time: f64,
     dropped_video_frames: u32,

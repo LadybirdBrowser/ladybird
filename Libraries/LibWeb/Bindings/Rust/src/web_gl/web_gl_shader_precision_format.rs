@@ -12,7 +12,6 @@ use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLShaderPrecisionFormat {
     #[gc(untraced)]
     range_min: i32,

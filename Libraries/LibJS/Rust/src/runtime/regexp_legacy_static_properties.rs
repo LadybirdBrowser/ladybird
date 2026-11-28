@@ -6,7 +6,7 @@
 
 use core::cell::Cell;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;

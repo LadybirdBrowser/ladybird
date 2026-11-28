@@ -40,7 +40,6 @@ unsafe impl Trace for RuleObjects {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSRuleList {
     #[gc(untraced)]
     rules: Rc<NativeRuleList>,

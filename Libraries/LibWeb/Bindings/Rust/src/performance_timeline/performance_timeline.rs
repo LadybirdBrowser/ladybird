@@ -33,7 +33,6 @@ use crate::performance_timeline::performance_observer::PerformanceObserver;
 use crate::performance_timeline::performance_observer_entry_list::PerformanceObserverEntryList;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceTimeline {
     realm: Gc<Realm>,
 

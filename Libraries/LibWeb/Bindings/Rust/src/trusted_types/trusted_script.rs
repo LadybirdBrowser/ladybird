@@ -17,7 +17,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trusted-script
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TrustedScript {
     data: Utf16String,
 }

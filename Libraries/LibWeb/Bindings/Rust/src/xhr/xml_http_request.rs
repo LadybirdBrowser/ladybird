@@ -256,7 +256,6 @@ unsafe impl Trace for ResponseObject {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct CachedResponseObject {
     #[gc(untraced)]
     wrapper_world: WrapperWorld,
@@ -264,7 +263,6 @@ struct CachedResponseObject {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SyncSend {
     #[gc(untraced)]
     processed_response: Cell<bool>,
@@ -294,7 +292,6 @@ pub(crate) enum NullOrFailureOrBytes<'a> {
 
 // https://xhr.spec.whatwg.org/#xmlhttprequest
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct XMLHttpRequest {
     target: XMLHttpRequestEventTarget,
     realm: Gc<Realm>,

@@ -94,7 +94,6 @@ pub(crate) enum SanitizerConfigOrSanitizerPresets {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum SanitizerOrSanitizerConfigOrSanitizerPresets {
     Sanitizer(Ref<Sanitizer>),
     SanitizerConfig(#[gc(untraced)] SanitizerConfig),
@@ -109,7 +108,6 @@ pub(crate) struct SetHTMLUnsafeOptions {
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizer
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Sanitizer {
     // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#sanitizer-configuration
     #[gc(untraced)]

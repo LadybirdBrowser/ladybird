@@ -32,7 +32,6 @@ macro_rules! enums_of_extension_interfaces {
         }
 
         #[derive(Clone, Copy, Trace)]
-        #[gc(crate = libjs_rust)]
         pub(crate) enum ExtensionObject {
             $($interface(Ref<super::$module::$interface>),)+
         }
@@ -144,7 +143,6 @@ static AVAILABLE_WEBGL_EXTENSIONS: [Extension; 53] = [
 ];
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct EnabledExtension {
     #[gc(untraced)]
     name: &'static str,
@@ -302,7 +300,6 @@ macro_rules! modules_of_extension_interfaces_without_operations {
             use $crate::web_gl::state::{ContextRef, ContextState};
 
             #[derive(Trace)]
-            #[gc(crate = libjs_rust)]
             pub(crate) struct $interface {
                 context: ContextRef,
             }

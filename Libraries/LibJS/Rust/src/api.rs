@@ -9,12 +9,13 @@
 //! the runtime only through this module (Meta/Linters/check_libjs_rust_api.py), so the rest of the crate stays the
 //! runtime's own business.
 
+pub use libgc_api::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
+
 pub use crate::console_log_level::ConsoleLogLevel;
 pub use crate::embedding::abi_types::{completion_into_abi, object_from_abi, vm_from_abi};
 pub use crate::embedding::host::host_function::HostFunction;
 pub use crate::embedding::host::host_module::{HostModule, host_class_of as host_module_class_of};
 pub use crate::embedding::host::host_object::{HostObject, host_class_of, host_data_of, is_host_instance_of};
-pub use crate::gc::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
 pub use crate::gc::class::ExternalMemorySize;
 pub use crate::gc::defer_gc::DeferGc;
 pub use crate::gc::embedder_cell::{EmbedderCell, EmbedderClass, EmbedderValue};
@@ -25,7 +26,6 @@ pub use crate::gc::shared_memory::{
     AsSharedMemory, OwnedSharedMemory, borrowed_from_raw_descriptor, into_raw_descriptor, owned_from_raw_descriptor,
     raw_descriptor,
 };
-pub use crate::gc::visitor::{Trace, Visitor};
 pub use crate::gc::weak::GcWeak;
 pub use crate::interpreter::vm::{TypeErrorRealmScope, Vm};
 pub use crate::layout::cell::{CellHeader, CellKind, Gc};
@@ -101,5 +101,4 @@ pub use crate::runtime::value::{number_to_string, same_value};
 pub use crate::utf16::{
     Utf16Display, Utf16StringBuilder, Utf16View, to_well_formed, utf16_formatted, utf16_string_external_memory_size,
 };
-/// Derives Trace for a type of the embedder, which marks the type `#[gc(crate = libjs_rust)]`.
-pub use libjs_runtime_macros::Trace;
+pub use libgc_api::{Trace, Visitor};

@@ -55,7 +55,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PostedMessage {
     pub(crate) target_window: CppCell,
     pub(crate) serialize_with_transfer_result: TransferRecordRef,

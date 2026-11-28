@@ -59,7 +59,6 @@ pub(crate) enum KeyPath {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct TaskCounterState {
     remaining_tasks: Cell<usize>,
     after_all: Cell<Option<Function>>,
@@ -331,7 +330,6 @@ pub(crate) fn open_a_database_connection(
 
 /// The connections that an algorithm waits on, which it keeps alive while it waits.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct OpenConnections(Vec<Ref<IDBDatabase>>);
 
 // https://w3c.github.io/IndexedDB/#fire-a-version-change-event
@@ -2094,7 +2092,6 @@ pub(crate) fn convert_a_value_to_a_key_range(
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum RecordSource {
     ObjectStore(ObjectStoreRef),
     Index(IndexRef),

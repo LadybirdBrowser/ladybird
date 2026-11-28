@@ -7,7 +7,8 @@
 //! The sweep callback of a collection, which runs once the marks are final and before the cells that died are swept,
 //! and has what holds cells without keeping them alive forget the ones that died.
 
-use crate::gc::capi;
+use libgc_api::capi;
+
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, CellState, Gc};
 use crate::layout::value::Value;

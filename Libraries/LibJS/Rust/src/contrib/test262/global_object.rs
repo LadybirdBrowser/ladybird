@@ -8,7 +8,7 @@ use core::cell::Cell;
 use std::time::Duration;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 #[cfg(unix)]
 use crate::contrib::test262::agents::{self, AgentRole};

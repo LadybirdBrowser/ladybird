@@ -24,7 +24,6 @@ use crate::streams::transform_stream::TransformStream;
 use crate::streams::writable_stream::WritableStream;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TextDecoderStream {
     // https://encoding.spec.whatwg.org/#textdecoder-encoding
     #[gc(untraced)]
@@ -133,7 +132,6 @@ impl TextDecoderStream {
 
 /// The decoder of a TextDecoderStream, with its I/O queue, which the algorithms of the stream's transform run on.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct Decoder {
     #[gc(untraced)]
     decoder: RefCell<StreamingDecoder>,

@@ -73,7 +73,6 @@ impl StartAlgorithm {
 
 /// The pullAlgorithm of a readable stream's controller, https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-pullalgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum PullAlgorithm {
     /// An algorithm that returns a promise resolved with undefined.
     ReturnsResolvedUndefined,
@@ -147,7 +146,6 @@ impl PullAlgorithm {
 /// The cancelAlgorithm of a readable stream's controller or of a TransformStreamDefaultController,
 /// https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-cancelalgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CancelAlgorithm {
     /// An algorithm that returns a promise resolved with undefined.
     ReturnsResolvedUndefined,
@@ -220,7 +218,6 @@ impl CancelAlgorithm {
 
 /// The strategySizeAlgorithm of a controller, https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-strategysizealgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum SizeAlgorithm {
     /// An algorithm that returns 1.
     ReturnsOne,
@@ -242,7 +239,6 @@ impl SizeAlgorithm {
 
 /// The writeAlgorithm of a WritableStreamDefaultController, https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-writealgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum WriteAlgorithm {
     /// An algorithm that returns a promise resolved with undefined.
     ReturnsResolvedUndefined,
@@ -283,7 +279,6 @@ impl WriteAlgorithm {
 
 /// The closeAlgorithm of a WritableStreamDefaultController, https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-closealgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CloseAlgorithm {
     /// An algorithm that returns a promise resolved with undefined.
     ReturnsResolvedUndefined,
@@ -313,7 +308,6 @@ impl CloseAlgorithm {
 
 /// The abortAlgorithm of a WritableStreamDefaultController, https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-abortalgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AbortAlgorithm {
     /// An algorithm that returns a promise resolved with undefined.
     ReturnsResolvedUndefined,
@@ -343,7 +337,6 @@ impl AbortAlgorithm {
 
 /// The transformAlgorithm of a TransformStreamDefaultController, https://streams.spec.whatwg.org/#transformstreamdefaultcontroller-transformalgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum TransformAlgorithm {
     /// An algorithm that takes an argument chunk and returns the result of invoking `transform` with argument list
     /// « chunk, controller » and callback this value `transformer`.
@@ -396,7 +389,6 @@ impl TransformAlgorithm {
 
 /// The flushAlgorithm of a TransformStreamDefaultController, https://streams.spec.whatwg.org/#transformstreamdefaultcontroller-flushalgorithm
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum FlushAlgorithm {
     /// An algorithm that returns a promise resolved with undefined.
     ReturnsResolvedUndefined,

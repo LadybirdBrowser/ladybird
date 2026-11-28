@@ -238,7 +238,6 @@ fn data_clone_error(cx: &CallContext) -> Value {
 
 /// The state that the handlers and the algorithms of a cross-realm transform share.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 struct ReadableHandlerState {
     port: Ref<MessagePort>,
     controller: Ref<ReadableStreamDefaultController>,
@@ -345,7 +344,6 @@ pub(crate) fn set_up_cross_realm_transform_readable(
 
 /// The state that the handlers and the writeAlgorithm of SetUpCrossRealmTransformWritable share.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CrossRealmWritableState {
     port: Ref<MessagePort>,
     controller: Ref<WritableStreamDefaultController>,

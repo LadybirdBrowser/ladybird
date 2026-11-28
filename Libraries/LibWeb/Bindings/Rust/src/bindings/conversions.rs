@@ -34,7 +34,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
 #[derive(Clone, Eq, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct UsvString(Utf16String);
 
 impl UsvString {
@@ -148,7 +147,6 @@ impl From<UsvString> for Utf16String {
 
 /// https://webidl.spec.whatwg.org/#idl-ByteString
 #[derive(Clone, Eq, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ByteString(Vec<u8>);
 
 impl ByteString {
@@ -697,7 +695,6 @@ fn check_buffer_of_buffer_source(
 
 /// An IDL BufferSource value, https://webidl.spec.whatwg.org/#BufferSource
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum BufferSource {
     ArrayBuffer(Gc<ArrayBuffer>),
     DataView(Gc<DataView>),
@@ -1356,7 +1353,6 @@ pub(crate) enum DOMStringOrDOMStringSequence {
 /// An object of an interface that LibWeb implements in C++, as its wrapper. Only the C++ code knows the object
 /// behind the wrapper, so an implementation hands the wrapper to a service of LibWeb to have something done with it.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppInterface(Gc<Object>);
 
 impl CppInterface {

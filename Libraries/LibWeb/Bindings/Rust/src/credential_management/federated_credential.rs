@@ -37,7 +37,6 @@ pub(crate) struct FederatedCredentialInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FederatedCredential {
     credential: Credential,
     user_data: CredentialUserData,

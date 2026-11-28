@@ -1412,7 +1412,6 @@ pub(crate) fn built_in_safe_default_configuration() -> &'static SanitizerConfigu
 pub(crate) type SanitizerInput = sanitizer::SanitizerOrSanitizerConfigOrSanitizerPresets;
 
 #[derive(libjs_rust::api::Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum SanitizerOptions {
     Dictionary(Option<SanitizerInput>),
     Trusted(Ref<TrustedHTMLParserOptions>),

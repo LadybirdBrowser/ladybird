@@ -22,7 +22,6 @@ use crate::bindings::realm_data::{WrapperWorld, wrapper_world_of};
 /// The JS collection of an object in each wrapper world that asked for it, as the entries of a collection hold the
 /// wrappers of one world. Nothing keeps a collection alive here, so the next use creates it again if it is collected.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WorldEntries<T: 'static> {
     #[gc(untraced)]
     entries: RefCell<Vec<(WrapperWorld, GcWeak<T>)>>,

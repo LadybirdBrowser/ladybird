@@ -20,7 +20,6 @@ use crate::streams::readable_byte_stream_controller::{
 
 // https://streams.spec.whatwg.org/#readablestreambyobrequest
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStreamBYOBRequest {
     // https://streams.spec.whatwg.org/#readablestreambyobrequest-controller
     controller: Cell<Option<Ref<ReadableByteStreamController>>>,

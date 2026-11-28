@@ -23,7 +23,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 use crate::file_api::file::File;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DataTransferItem {
     data_transfer: Ref<DataTransfer>,
     index: Cell<Option<usize>>,

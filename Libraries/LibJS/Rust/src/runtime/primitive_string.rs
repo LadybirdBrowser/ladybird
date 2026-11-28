@@ -8,11 +8,11 @@ use core::cell::{Cell, UnsafeCell};
 use core::hash::BuildHasher;
 
 use ak::{Utf16FlyString, Utf16String, Utf16StringUnits};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::root::MarkedVec;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::{CHARACTERS_TO_ATOM_CACHE_SIZE, StringToAtomCacheEntry, Vm};
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::member::NullableMember;

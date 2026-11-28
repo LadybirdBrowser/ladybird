@@ -33,7 +33,6 @@ pub(crate) struct StorageEstimate {
 
 // https://storage.spec.whatwg.org/#storagemanager
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StorageManager {
     realm: Gc<Realm>,
 }

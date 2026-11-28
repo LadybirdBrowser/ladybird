@@ -37,7 +37,6 @@ fn set_map_entry(cx: &CallContext, map: Gc<Map>, name: &Utf16String, values: &[u
 
 // https://drafts.csswg.org/css-fonts-4/#cssfontfeaturevaluesmap
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSFontFeatureValuesMap {
     #[gc(untraced)]
     kind: FontFeatureValuesRuleKind,

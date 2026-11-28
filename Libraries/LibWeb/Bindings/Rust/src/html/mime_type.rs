@@ -17,7 +17,6 @@ use crate::html::plugin::Plugin;
 use crate::html::window::with_pdf_viewer_plugin_objects;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MimeType {
     window: CppWindow,
     // https://html.spec.whatwg.org/multipage/system-state.html#concept-mimetype-type

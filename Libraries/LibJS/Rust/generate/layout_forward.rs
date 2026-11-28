@@ -60,6 +60,22 @@ pub unsafe fn cell_identity_hash(cell: *const core::ffi::c_void) -> u32 {
     (cell.addr() >> 3) as u32
 }
 
+/// The compressed cell pointers of LibGC, which the tests take from libgc_api. The build script only lays out the members
+/// that hold them, and never encodes or decodes one.
+#[cfg(test)]
+pub use libgc_api::member as gc_member;
+#[cfg(not(test))]
+pub mod gc_member {
+    pub const COMPRESSED_POINTER_SHIFT: u32 = 3;
+    pub const COMPRESSED_POINTER_RANGE: u64 = 1 << (32 + COMPRESSED_POINTER_SHIFT);
+
+    pub fn decompress(_base: usize, _compressed: u32) -> usize {
+        unreachable!()
+    }
+
+    pub fn write_barrier(_slot: *const u32, _compressed: u32) {}
+}
+
 /// The build script never decodes compressed pointers. The crate's tests decode them against this base, which is
 /// aligned like LibGC aligns the real one, and where nothing is mapped.
 pub fn heap_region_base() -> usize {

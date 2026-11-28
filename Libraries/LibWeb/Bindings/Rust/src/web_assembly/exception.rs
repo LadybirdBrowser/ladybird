@@ -24,7 +24,6 @@ pub(crate) struct ExceptionOptions {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Exception {
     // [[Address]]
     address: CellReference,

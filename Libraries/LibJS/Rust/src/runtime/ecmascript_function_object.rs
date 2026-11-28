@@ -10,14 +10,14 @@ use core::ptr::NonNull;
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{Extends, GcCell, cast_ref, define_cell};
 use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -124,7 +124,7 @@ unsafe impl Trace for EcmascriptFunctionObject {
     fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
         self.base.trace(visitor);
         self.fields().environment.trace(visitor);
-        visitor.visit_nullable_member(&self.fields().shared_data);
+        visitor.visit_member(&self.fields().shared_data);
     }
 }
 

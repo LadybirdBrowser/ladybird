@@ -42,7 +42,6 @@ pub(crate) enum DOMStringOrPerformanceMeasureOptions {
 
 // https://w3c.github.io/hr-time/#sec-performance
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Performance {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

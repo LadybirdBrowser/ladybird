@@ -27,7 +27,6 @@ pub(crate) struct IDBVersionChangeEventInit {
 
 // https://w3c.github.io/IndexedDB/#events
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBVersionChangeEvent {
     event: CppEvent,
     old_version: u64,

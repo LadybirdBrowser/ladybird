@@ -34,7 +34,6 @@ pub(crate) enum IterationKind {
 /// A default iterator object, https://webidl.spec.whatwg.org/#dfn-default-iterator-object, which is the host data of
 /// a host object of the iterator class of its interface.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DefaultIterator<T: PairIterable> {
     target: T::Target,
     #[gc(untraced)]

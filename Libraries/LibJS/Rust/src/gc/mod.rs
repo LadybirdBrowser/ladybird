@@ -7,7 +7,6 @@
 //! The Rust side of LibGC: the cells the runtime defines are allocated from, marked by and swept by the C++ heap
 //! through the C interface in Libraries/LibGC/CAPI.h.
 
-pub mod capi;
 pub mod class;
 pub mod class_id;
 pub mod defer_gc;

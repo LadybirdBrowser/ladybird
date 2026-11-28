@@ -19,7 +19,6 @@ use crate::crypto::crypto_algorithms::{Bytes, EncapsulatedBitsData, Encapsulated
 use crate::crypto::crypto_key::CryptoKey;
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RsaOtherPrimesInfo {
     pub(crate) d: Option<Utf16String>,
     pub(crate) r: Option<Utf16String>,
@@ -27,7 +26,6 @@ pub(crate) struct RsaOtherPrimesInfo {
 }
 
 #[derive(Clone, Default, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct JsonWebKey {
     pub(crate) alg: Option<Utf16String>,
     pub(crate) crv: Option<Utf16String>,

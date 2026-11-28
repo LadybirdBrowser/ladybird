@@ -47,7 +47,6 @@ pub(crate) struct StructuredSerializeOptions<'vm> {
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MessagePort {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

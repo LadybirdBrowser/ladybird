@@ -32,7 +32,6 @@ pub(crate) enum KeyType {
 const KEY_TYPE_VALUES: [KeyType; 3] = [KeyType::Public, KeyType::Private, KeyType::Secret];
 
 #[derive(Clone, Copy, PartialEq, Eq, Trace)]
-#[gc(crate = libjs_rust)]
 #[repr(u8)]
 pub(crate) enum KeyUsage {
     Encrypt,
@@ -114,14 +113,12 @@ impl InternalAlgorithmData {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct CachedAlgorithmObject {
     wrapper: GcWeak<Object>,
     object: Gc<Object>,
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CryptoKey {
     #[gc(untraced)]
     r#type: Cell<Option<KeyType>>,

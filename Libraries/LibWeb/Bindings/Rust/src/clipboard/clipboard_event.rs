@@ -27,7 +27,6 @@ pub(crate) struct ClipboardEventInit {
 
 // https://w3c.github.io/clipboard-apis/#clipboardevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ClipboardEvent {
     event: CppEvent,
     clipboard_data: Option<Ref<DataTransfer>>,

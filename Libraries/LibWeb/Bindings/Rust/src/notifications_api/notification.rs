@@ -192,7 +192,6 @@ enum State {
 
 // https://notifications.spec.whatwg.org/#notifications
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Notification {
     event_target: CppEventTarget,
 
@@ -263,7 +262,6 @@ fn notification_permission_from(permission_state: PermissionState) -> Notificati
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct PermissionRequest {
     realm: Gc<Realm>,
     global: Gc<Object>,

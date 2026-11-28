@@ -41,7 +41,6 @@ const MAX_ALLOWED_SCALE: f64 = 5.0;
 
 // https://drafts.csswg.org/cssom-view/#visualviewport
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct VisualViewport {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

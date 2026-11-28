@@ -14,6 +14,7 @@
 
 use core::ptr::NonNull;
 
+use libgc_api::layout::CELL_IDENTITY_HASH_STATE_OFFSET;
 use libjs_jit::snapshot::{
     ArrayAllocationInfo, CellId, CellSlot, CellSlotHolds, ClosureTemplateSnapshot, EnvironmentTemplateSnapshot,
     FunctionAllocationInfo, LexicalEnvironmentTemplateSnapshot, List, ObjectAllocationInfo, ObjectSizeClass,
@@ -37,7 +38,6 @@ use crate::layout::primitive_string::PrimitiveString;
 use crate::layout::realm::Realm;
 use crate::layout::shape::Shape;
 use crate::layout::value::Value;
-use crate::layout_forward::IDENTITY_HASH_STATE_OFFSET;
 use crate::runtime::array::Array;
 use crate::runtime::completion::Must;
 use crate::runtime::declarative_environment::{DECLARATIVE_ENVIRONMENT_CELL_SIZES, inline_binding_size_class};
@@ -70,8 +70,8 @@ fn for_each_cell_word<T>(cell: Gc<T>, size: usize, mut word: impl FnMut(u64)) {
         // SAFETY: The cell is live and has `size` bytes, of which these `len` are some, and `bytes` has room for 8.
         unsafe { core::ptr::copy_nonoverlapping(cell.as_ptr().cast::<u8>().add(start), bytes.as_mut_ptr(), len) };
         // NB: A copy is a new cell, which has not been hashed, whatever the identity hash state of the sample is.
-        if (start..start + len).contains(&IDENTITY_HASH_STATE_OFFSET) {
-            bytes[IDENTITY_HASH_STATE_OFFSET - start] = 0;
+        if (start..start + len).contains(&CELL_IDENTITY_HASH_STATE_OFFSET) {
+            bytes[CELL_IDENTITY_HASH_STATE_OFFSET - start] = 0;
         }
         word(u64::from_ne_bytes(bytes));
     }

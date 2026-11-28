@@ -10,11 +10,11 @@ use core::mem::offset_of;
 use core::ptr::NonNull;
 use std::collections::HashMap;
 
-use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
+use libgc_api::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
+
 use super::class::{BLOCK_CLASS_OFFSET, BLOCK_CLASS_TAIL_TAG, BLOCK_SIZE, CellTypeInfo, Class, GcCell, MIN_CELL_SIZE};
 use super::class_id::{CLASS_COUNT, ClassId};
 use super::defer_gc::DeferGc;
-use super::weak::WEAK_IMPL_POINTER_OFFSET;
 use crate::build_configuration::{HEAP_REGION_OFFSET_MASK, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK};
 use crate::layout::cell::{CellHeader, Gc};
 
@@ -850,57 +850,27 @@ impl Drop for Heap {
     }
 }
 
+// NB: The cell header the runtime reads is that of libgc_api, which checks it.
+const _: () = assert!(
+    offset_of!(CellHeader, identity_hash_state) == libgc_api::layout::CELL_IDENTITY_HASH_STATE_OFFSET
+        && offset_of!(CellHeader, state) == libgc_api::layout::CELL_STATE_OFFSET
+        && offset_of!(CellHeader, kind) == libgc_api::layout::CELL_KIND_OFFSET
+);
+
 /// Checks the layouts this crate mirrors against the LibGC it is linked with, and returns LibGC's layout.
 fn check_layout() -> GCLayout {
-    let mut layout = GCLayout::default();
-    capi::gc_get_layout(&mut layout, size_of::<GCLayout>());
+    let layout = libgc_api::layout::check_layout();
     let expect = |what: &str, actual: u64, expected: u64| {
         assert!(
             actual == expected,
             "LibGC's {what} is {actual}, the Rust runtime expects {expected}"
         );
     };
-    expect(
-        "visitor marker offset",
-        layout.visitor_marker_offset.into(),
-        super::visitor::VISITOR_MARKER_OFFSET as u64,
-    );
-    expect(
-        "cell state offset",
-        layout.cell_state_offset.into(),
-        offset_of!(CellHeader, state) as u64,
-    );
-    expect(
-        "cell kind offset",
-        layout.cell_kind_offset.into(),
-        offset_of!(CellHeader, kind) as u64,
-    );
     expect("block size", layout.block_size.into(), BLOCK_SIZE as u64);
-    expect(
-        "identity hash state offset",
-        layout.identity_hash_state_offset.into(),
-        crate::layout_forward::IDENTITY_HASH_STATE_OFFSET as u64,
-    );
-    expect(
-        "identity hash state offset in the cell header",
-        layout.identity_hash_state_offset.into(),
-        offset_of!(CellHeader, identity_hash_state) as u64,
-    );
-    expect(
-        "identity hash bits",
-        u64::from(layout.identity_hash_hashed) | (u64::from(layout.identity_hash_moved) << 8),
-        u64::from(crate::layout_forward::IDENTITY_HASH_HASHED)
-            | (u64::from(crate::layout_forward::IDENTITY_HASH_MOVED) << 8),
-    );
     expect(
         "block foreign type offset",
         layout.block_foreign_type_offset.into(),
         BLOCK_CLASS_OFFSET as u64,
-    );
-    expect(
-        "cell type info size",
-        layout.cell_type_info_size.into(),
-        size_of::<CellTypeInfo>() as u64,
     );
     expect(
         "heap region offset mask",
@@ -911,11 +881,6 @@ fn check_layout() -> GCLayout {
         "primitive storage cage offset mask",
         layout.primitive_storage_cage_offset_mask,
         PRIMITIVE_STORAGE_CAGE_OFFSET_MASK,
-    );
-    expect(
-        "weak impl pointer offset",
-        layout.weak_impl_pointer_offset.into(),
-        WEAK_IMPL_POINTER_OFFSET as u64,
     );
     layout
 }

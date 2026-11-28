@@ -12,12 +12,12 @@ use core::ops::ControlFlow;
 use std::collections::{HashMap, HashSet};
 
 use ak::Zone;
+use libgc_api::Trace;
 use libjs_jit::artifact::{Artifact, FrameView, Layout, Patch, SiteView};
 use libjs_jit::bytecode::{EnvironmentCoordinate, decode_instruction};
 pub use libjs_jit::code::INLINED_CALL_SITE_BIT;
 use libjs_jit::code::{EmbeddedCell, ExitKind};
 use libjs_jit::relocation::{self, CellEncoding};
-use libjs_runtime_macros::Trace;
 
 use super::allocation::SampleSlots;
 use super::data_memory::DataMemory;
@@ -27,7 +27,7 @@ use crate::bytecode::executable::{Executable, PropertyLookupCache, PropertyLooku
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::sweep::Sweep;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;

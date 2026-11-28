@@ -27,7 +27,6 @@ use crate::streams::underlying_source::ReadableStreamController;
 /// What a ReadableStreamDefaultReader and a ReadableStreamBYOBReader both are,
 /// https://streams.spec.whatwg.org/#readablestreamgenericreader
 #[derive(Default, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStreamGenericReader {
     // https://streams.spec.whatwg.org/#readablestreamgenericreader-closedpromise
     closed_promise: Cell<Option<WebIdlPromise>>,

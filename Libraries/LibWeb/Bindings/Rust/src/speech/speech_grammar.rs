@@ -16,7 +16,6 @@ use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SpeechGrammar {
     #[gc(untraced)]
     src: RefCell<Utf16String>,

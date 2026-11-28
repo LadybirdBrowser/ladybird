@@ -49,22 +49,18 @@ unsafe extern "C" {
 
 /// A callback function value, https://webidl.spec.whatwg.org/#idl-callback-function
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CallbackFunction(CallbackType);
 
 /// A callback function value whose return type is a promise type.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PromiseCallbackFunction(CallbackType);
 
 /// A callback interface value, https://webidl.spec.whatwg.org/#idl-callback-interface
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CallbackInterface(CallbackType);
 
 /// The WebIDL::CallbackType of a callback function value or a callback interface value.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct CallbackType(ForeignCellSlot);
 
 impl Clone for CallbackType {

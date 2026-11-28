@@ -73,7 +73,7 @@ use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
 use crate::script::LexicalBinding;
 use crate::source_code::SourceCode;
 use crate::utf16::{Utf16Display, Utf16StringBuilder, Utf16View, to_utf16_fly_string};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 /// The Object a function object starts with.
 pub fn function_object_as_object(function: Gc<FunctionObject>) -> Gc<Object> {

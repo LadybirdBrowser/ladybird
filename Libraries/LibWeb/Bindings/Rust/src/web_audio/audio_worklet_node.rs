@@ -46,7 +46,6 @@ use crate::html::message_port::MessagePort;
 
 // https://webaudio.github.io/web-audio-api/#AudioWorkletNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioWorkletNode {
     node: AudioNode,
 
@@ -109,7 +108,6 @@ struct AudioParamDescriptor {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct ProcessorConstructionTask {
     node: Ref<AudioWorkletNode>,
     scope: CppCell,

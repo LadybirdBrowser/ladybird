@@ -52,7 +52,6 @@ pub(crate) enum IDBObjectStoreOrIDBIndex {
 
 /// The source handle of a cursor: the index handle or the object store handle that opened it.
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CursorSourceHandle {
     ObjectStore(Ref<IDBObjectStore>),
     Index(Ref<IDBIndex>),
@@ -70,7 +69,6 @@ impl From<CursorSourceHandle> for IDBRequestSource {
 // NB: The key and primaryKey getters return the same object instance every time they are inspected, until the
 //     cursor's key or effective key changes. These cache the converted values along with the keys they came from.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct CachedKeyValue {
     #[gc(untraced)]
     key: Option<Rc<Key>>,
@@ -79,7 +77,6 @@ struct CachedKeyValue {
 
 // https://w3c.github.io/IndexedDB/#cursor-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBCursor {
     // A cursor has a key and a value which represent the key and the value of the last iterated record.
     #[gc(untraced)]
@@ -830,7 +827,6 @@ impl IDBCursor {
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyIDBCursor {
     IDBCursor(Ref<IDBCursor>),
     IDBCursorWithValue(Ref<IDBCursorWithValue>),

@@ -26,7 +26,6 @@ pub(crate) struct MediaQueryListEventInit {
 
 // https://drafts.csswg.org/cssom-view/#mediaquerylistevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaQueryListEvent {
     event: CppEvent,
     #[gc(untraced)]

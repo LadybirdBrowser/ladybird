@@ -82,7 +82,6 @@ struct SecurityPolicyViolationEventAttributes {
 
 // https://w3c.github.io/webappsec-csp/#securitypolicyviolationevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SecurityPolicyViolationEvent {
     event: CppEvent,
     #[gc(untraced)]

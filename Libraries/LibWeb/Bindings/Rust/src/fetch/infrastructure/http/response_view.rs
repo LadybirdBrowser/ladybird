@@ -62,7 +62,6 @@ unsafe fn string_if_not_null(string: usize) -> Option<Utf16String> {
 
 /// https://fetch.spec.whatwg.org/#concept-response
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppResponseView(CppCell);
 
 impl CppResponseView {

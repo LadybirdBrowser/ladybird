@@ -30,7 +30,6 @@ pub(crate) struct BufferedChangeEventInit {
 
 // https://w3c.github.io/media-source/#bufferedchangeevent-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct BufferedChangeEvent {
     event: CppEvent,
 }

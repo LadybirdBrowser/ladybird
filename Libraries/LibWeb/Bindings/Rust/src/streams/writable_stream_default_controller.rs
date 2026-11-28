@@ -41,7 +41,6 @@ fn is_close_sentinel(value: Value) -> bool {
 
 // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WritableStreamDefaultController {
     // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-abortalgorithm
     abort_algorithm: GcRefCell<Option<AbortAlgorithm>>,

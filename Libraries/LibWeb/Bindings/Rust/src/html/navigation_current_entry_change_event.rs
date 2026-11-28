@@ -33,7 +33,6 @@ pub(crate) struct NavigationCurrentEntryChangeEventInit {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationcurrententrychangeevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct NavigationCurrentEntryChangeEvent {
     event: CppEvent,
     #[gc(untraced)]

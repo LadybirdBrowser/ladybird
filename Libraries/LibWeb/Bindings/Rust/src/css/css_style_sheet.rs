@@ -60,7 +60,6 @@ pub(crate) struct CSSStyleSheetInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleSheet {
     style_sheet: StyleSheet,
 }

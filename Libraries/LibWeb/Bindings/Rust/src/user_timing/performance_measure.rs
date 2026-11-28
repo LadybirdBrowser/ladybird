@@ -31,7 +31,6 @@ pub(crate) enum DOMStringOrDouble {
 
 /// https://w3c.github.io/user-timing/#performancemeasure
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceMeasure {
     entry: PerformanceEntry,
     /// https://w3c.github.io/user-timing/#dom-performancemeasure-detail

@@ -24,7 +24,6 @@ unsafe extern "C" {
 type BucketMap = Vec<(String, Gc<EmbedderCell<StorageBucket>>)>;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StorageShelf {
     environment: CppEnvironmentSettingsObject,
     bucket_map: BucketMap,

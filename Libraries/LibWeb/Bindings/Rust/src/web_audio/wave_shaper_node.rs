@@ -31,7 +31,6 @@ pub(crate) use libweb_rust::web_audio::rendering::node_message::OverSampleType;
 
 // https://webaudio.github.io/web-audio-api/#WaveShaperNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WaveShaperNode {
     node: AudioNode,
 

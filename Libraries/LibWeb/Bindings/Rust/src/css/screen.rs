@@ -47,7 +47,6 @@ const COLOR_DEPTH: u32 = 24;
 
 // https://drafts.csswg.org/cssom-view-1/#screen
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Screen {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

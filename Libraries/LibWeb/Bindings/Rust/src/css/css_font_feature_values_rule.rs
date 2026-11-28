@@ -30,7 +30,6 @@ fn is_ascii_whitespace(unit: u16) -> bool {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSFontFeatureValuesRule {
     rule: CSSRule,
     /// The CSSFontFeatureValuesMaps of the rule, by the kind of its feature values.

@@ -10,7 +10,7 @@
 use core::cell::Cell;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use super::json::{JsonParser, JsonValue};
 use super::test_js_functions::{

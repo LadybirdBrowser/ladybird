@@ -7,7 +7,7 @@
 use core::cell::Cell;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::contrib::test262::agent_object::AgentObject;
 use crate::contrib::test262::global_object::Test262GlobalObject;

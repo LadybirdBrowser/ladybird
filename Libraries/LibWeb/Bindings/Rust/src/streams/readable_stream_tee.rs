@@ -45,7 +45,6 @@ use crate::streams::underlying_source::ReadableStreamController;
 /// The variables of ReadableStreamDefaultTee that its algorithms and its read request share,
 /// https://streams.spec.whatwg.org/#abstract-opdef-readablestreamdefaulttee
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DefaultTeeState {
     stream: Ref<ReadableStream>,
     reader: Ref<ReadableStreamDefaultReader>,
@@ -280,7 +279,6 @@ impl DefaultTeeState {
 /// The variables of ReadableByteStreamTee that its algorithms and its read requests share,
 /// https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamtee
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ByteTeeState {
     stream: Ref<ReadableStream>,
     reader: Cell<ReadableStreamReader>,
@@ -679,7 +677,6 @@ impl ByteTeeState {
 
 /// The read-into request of ReadableByteStreamTee's pullWithBYOBReader.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ByteTeeBYOBReadRequest {
     state: Gc<EmbedderCell<ByteTeeState>>,
     byob_branch: Ref<ReadableStream>,

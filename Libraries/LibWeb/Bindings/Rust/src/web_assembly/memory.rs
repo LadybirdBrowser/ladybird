@@ -41,7 +41,6 @@ pub(crate) struct MemoryDescriptor {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Memory {
     // [[Memory]]
     address: EntityRef<MemoryInstance>,

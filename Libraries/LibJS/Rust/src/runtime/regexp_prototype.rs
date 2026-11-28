@@ -10,8 +10,8 @@ use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
+use libgc_api::Trace;
 use libjs_abi::Builtin;
-use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite as CacheSite;
 use crate::bytecode::property_access::get_own_property_without_side_effects;
