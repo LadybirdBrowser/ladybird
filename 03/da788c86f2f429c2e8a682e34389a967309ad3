@@ -1,0 +1,19 @@
+Ladybird now treats a symbol like punctuation in word movement, and
+crosses a run of punctuation and symbols in one step. Blink does the
+same: Its IsWordBoundary() in position_units_word.cc takes any character
+that unicode::IsPunct() or unicode::IsSymbol() accepts. Gecko nearly
+does: IsPunctuationForWordSelect() in nsUnicharUtils.cpp counts the Sc,
+Sm, and So categories as punctuation, and leaves out only Sk. WebKit
+stops at each symbol, and fails move-by-word-with-symbol.html.
+
+Run in Chrome 158, Firefox 151, and WebKit 26.5, in a contenteditable, a
+word step forward from the space before “👍👍👍” lands after the last emoji
+in Chrome (as in Ladybird now), and after the first one in Firefox and
+WebKit. Forward from the space before “,.;:+~”, Chrome stops after the
+run (as Ladybird now does), Firefox crosses the space and the next word
+too, and WebKit stops after “,.;:+”. In a textarea, Option+Right from
+the start of “>>>>>>> word” lands at the end in Firefox and WebKit (as
+in Ladybird, whose text controls also skip the separator after a run),
+and after the run in Chrome. And Option+Backspace after “ab $$$$”
+deletes all of the text in Firefox (as in Ladybird now), just the “$$$$”
+in Chrome, and a single “$” in WebKit.
