@@ -41,6 +41,18 @@ unsafe extern "C" {
     ) -> u8;
 }
 
+/// The box every glyph of a face fits in, as its `head` table records it: in font units from a glyph's origin, with y
+/// pointing up.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct BoundingBoxInFontUnits {
+    pub x_min: i16,
+    pub y_min: i16,
+    pub x_max: i16,
+    pub y_max: i16,
+    pub units_per_em: u16,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FfiFontSnapshot {
@@ -53,6 +65,10 @@ pub struct FfiFontSnapshot {
     pub zero_advance: f32,
     pub pixel_size: f32,
     pub point_size: f32,
+    pub has_bounding_box_of_all_glyphs: bool,
+    pub bounding_box_of_all_glyphs: BoundingBoxInFontUnits,
+    pub synthetic_slant: f32,
+    pub has_synthetic_bold: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -68,6 +84,12 @@ pub struct FontFacts {
     pub zero_advance: f32,
     pub pixel_size: f32,
     pub point_size: f32,
+    /// None where the face records no box or an empty one, as bitmap-only faces do.
+    pub bounding_box_of_all_glyphs: Option<BoundingBoxInFontUnits>,
+    /// How far a synthetic oblique moves each point of a glyph along the line, per unit of its height above the
+    /// baseline. Zero for a font that is not slanted synthetically.
+    pub synthetic_slant: f32,
+    pub has_synthetic_bold: bool,
 }
 
 // NB: Layout threads read every entry while they count references to it. The alignment puts the reference counts in
@@ -153,6 +175,11 @@ impl FontHandle {
                 zero_advance: snapshot.zero_advance,
                 pixel_size: snapshot.pixel_size,
                 point_size: snapshot.point_size,
+                bounding_box_of_all_glyphs: snapshot
+                    .has_bounding_box_of_all_glyphs
+                    .then_some(snapshot.bounding_box_of_all_glyphs),
+                synthetic_slant: snapshot.synthetic_slant,
+                has_synthetic_bold: snapshot.has_synthetic_bold,
             },
             character_advances: std::sync::OnceLock::new(),
             is_emoji_font: LazyVerdict::default(),
