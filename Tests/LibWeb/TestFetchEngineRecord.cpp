@@ -11,6 +11,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Engine/FetchByteChannel.h>
 #include <LibWeb/Fetch/Engine/FetchEngineRecord.h>
+#include <LibWeb/Fetch/Engine/NetworkLoader.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
 #include <LibWeb/Fetch/Engine/WholeBodyRead.h>
 #include <LibWeb/Fetch/Engine/WholeBodyTransport.h>
@@ -113,6 +114,23 @@ public:
 struct ConnectedClient {
     NonnullRefPtr<Requests::RequestClient> client;
     IPC::TransportHandle request_server;
+};
+
+// Records its destruction, and loads nothing.
+class DestructionRecordingNetworkLoader final : public NetworkLoader {
+public:
+    explicit DestructionRecordingNetworkLoader(bool& destroyed)
+        : m_destroyed(destroyed)
+    {
+    }
+
+    virtual ~DestructionRecordingNetworkLoader() override { m_destroyed = true; }
+
+    virtual bool can_load() const override { return false; }
+    virtual RefPtr<NetworkTransportHandle> load(NetworkLoadRequest&, OnHeadersReceived, OnDataReceived, OnCachedBodyAvailable, OnComplete, Requests::RequestClient::TransferLease) override { VERIFY_NOT_REACHED(); }
+
+private:
+    bool& m_destroyed;
 };
 
 struct TeardownReasons : RefCounted<TeardownReasons> {
@@ -553,6 +571,22 @@ TEST_CASE(a_fetch_whose_loads_have_ended_ends_at_its_handover_after_the_delivery
 
     record->main_fetch_hands_over(delivery());
     EXPECT_EQ(received->events, (Vector<StringView> { "response delivery"sv, "end of fetch"sv }));
+}
+
+TEST_CASE(a_fetch_lets_its_network_loader_go_when_it_ends)
+{
+    FetchEngineRecords records { make<FetchEngineRecords::Agent>() };
+    auto record = start_fetch(records, 1);
+    bool loader_destroyed = false;
+    record->set_network_loader(adopt_ref(*new DestructionRecordingNetworkLoader(loader_destroyed)));
+    auto load = record->start_load();
+
+    record->main_fetch_hands_over(delivery());
+    EXPECT(!loader_destroyed);
+
+    load->end();
+    EXPECT(record->has_ended());
+    EXPECT(loader_destroyed);
 }
 
 TEST_CASE(main_fetch_has_ended_once_its_delivery_reaches_the_agent)

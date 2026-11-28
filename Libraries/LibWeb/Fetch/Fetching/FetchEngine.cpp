@@ -51,6 +51,7 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
             auto record = m_records.start(start_fetch.input.fetch_id, move(start_fetch.input.event_sink), m_network_activity_observers);
             if (!record)
                 return;
+            record->set_network_loader(move(start_fetch.input.network_loader));
             run_main_fetch_parallel_steps(move(start_fetch.input.main_fetch), record.release_nonnull());
         },
         [this](Engine::Command::Abort const& abort) { m_records.stop(abort.fetch_id); },

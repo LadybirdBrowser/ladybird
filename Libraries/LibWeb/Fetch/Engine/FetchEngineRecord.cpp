@@ -225,6 +225,19 @@ void FetchEngineRecord::main_fetch_cannot_hand_over()
     end_main_fetch();
 }
 
+void FetchEngineRecord::set_network_loader(NonnullRefPtr<NetworkLoader> network_loader)
+{
+    ASSERT(is_on_owner_thread());
+    m_network_loader = move(network_loader);
+}
+
+NetworkLoader& FetchEngineRecord::network_loader()
+{
+    ASSERT(is_on_owner_thread());
+    VERIFY(m_network_loader);
+    return *m_network_loader;
+}
+
 KnownHSTSHostProvider& FetchEngineRecord::known_hsts_host_provider()
 {
     ASSERT(is_on_owner_thread());
@@ -305,6 +318,7 @@ void FetchEngineRecord::end_fetch_unless_anything_is_left()
     if (m_ended || !m_main_fetch.has<MainFetchEnded>() || m_live_load_count > 0 || m_redirect_continuation.has_value())
         return;
     m_ended = true;
+    m_network_loader = nullptr;
     m_event_sink->handle_event(Event::FetchEnded {});
 }
 

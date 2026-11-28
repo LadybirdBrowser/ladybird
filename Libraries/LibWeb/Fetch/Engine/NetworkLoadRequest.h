@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Time.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibGC/HoldsNoCellEdges.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
@@ -17,18 +18,17 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/Page/Page.h>
+#include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 
-namespace Web {
+namespace Web::Fetch::Engine {
 
-// NB: A load request keeps its page in a GC::Root, and holds no other cell.
-class WEB_API LoadRequest {
+// What the network step asks a network loader to load.
+class WEB_API NetworkLoadRequest {
 public:
     GC_HOLDS_NO_CELL_EDGES;
 
-    explicit LoadRequest(NonnullRefPtr<HTTP::HeaderList> headers)
+    explicit NetworkLoadRequest(NonnullRefPtr<HTTP::HeaderList> headers)
         : m_headers(move(headers))
     {
     }
@@ -81,9 +81,6 @@ public:
     void start_timer() { m_load_timer.start(); }
     AK::Duration load_time() const { return m_load_timer.elapsed_time(); }
 
-    GC::Ptr<Page> page() const { return m_page.ptr(); }
-    void set_page(Page& page) { m_page = page; }
-
     Optional<PageId> originating_page_id() const { return m_originating_page_id; }
     void set_originating_page_id(Optional<PageId> page_id) { m_originating_page_id = page_id; }
 
@@ -95,7 +92,6 @@ private:
     NonnullRefPtr<HTTP::HeaderList> m_headers;
     ByteBuffer m_body;
     Core::ElapsedTimer m_load_timer;
-    GC::Root<Page> m_page;
     Optional<PageId> m_originating_page_id;
     HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };

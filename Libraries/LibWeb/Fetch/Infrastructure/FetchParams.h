@@ -27,6 +27,7 @@ namespace Web::Fetch::Engine {
 
 class EngineEventSink;
 class FetchEngineRecord;
+class NetworkLoader;
 struct StartFetchInput;
 
 }
@@ -74,7 +75,7 @@ public:
     [[nodiscard]] Optional<FileAPI::SerializedBlobURLEntry> const& blob_url_entry() const { return m_blob_url_entry; }
     void set_blob_url_entry(Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry) { m_blob_url_entry = move(blob_url_entry); }
 
-    [[nodiscard]] Engine::StartFetchInput start_fetch_input(Engine::FetchId, RefPtr<Response>, NonnullOwnPtr<Engine::EngineEventSink>) const;
+    [[nodiscard]] Engine::StartFetchInput start_fetch_input(Engine::FetchId, RefPtr<Response>, NonnullOwnPtr<Engine::EngineEventSink>, NonnullRefPtr<Engine::NetworkLoader>) const;
 
     // Set by the fetch engine when it runs main fetch's in-parallel steps, and shared with copies made after that. A
     // CORS preflight's fetch params share the record of the fetch the preflight is for.

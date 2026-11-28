@@ -72,7 +72,6 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Clocks.h>
 #include <LibWeb/Infra/SerializedURL.h>
-#include <LibWeb/Loader/LoadRequest.h>
 #include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MixedContent/AbstractOperations.h>
@@ -963,7 +962,7 @@ static RefPtr<PendingResponse> continue_main_fetch(Infrastructure::FetchParams c
     auto& fetch_executor = *HTML::surrounding_agent().fetch_executor;
     controller->set_started_fetch(fetch_id, fetch_executor);
     controller->set_observed_request(observed_request(request, fetch_params.timing_info()));
-    auto start_fetch_input = fetch_params.start_fetch_input(fetch_id, response, make<FetchEventSink>(*controller));
+    auto start_fetch_input = fetch_params.start_fetch_input(fetch_id, response, make<FetchEventSink>(*controller), PageNetworkLoader::create(controller->page()));
     fetch_executor.post(Engine::Command::StartFetch { move(start_fetch_input) });
 
     // NB: A fetch stopped, aborted or terminated before it started is stopped once it starts.
@@ -3129,7 +3128,7 @@ GC::Ptr<Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, I
     return create_body_view(realm, response);
 }
 
-static Engine::Event::TransportActivity::RequestStarted network_request_started(LoadRequest const& load_request, Infrastructure::Request const& request)
+static Engine::Event::TransportActivity::RequestStarted network_request_started(Engine::NetworkLoadRequest const& load_request, Infrastructure::Request const& request)
 {
     Core::ImmutableBytes body;
     if (auto const* fetch_body = request.body().get_pointer<Infrastructure::FetchBody>(); fetch_body && fetch_body->source().has_value())
@@ -3179,9 +3178,8 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
         load_request_headers->set({ HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv });
     }
 
-    LoadRequest load_request { move(load_request_headers) };
+    Engine::NetworkLoadRequest load_request { move(load_request_headers) };
     load_request.set_url(request->current_url());
-    load_request.set_page(fetch_controller_of(fetch_params)->page());
     load_request.set_originating_page_id(fetch_params.originating_page_id());
     load_request.set_method(request->method());
     load_request.set_cache_mode(request->cache_mode());
@@ -3213,7 +3211,8 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
         log_load_request(load_request);
     }
 
-    if (!ResourceLoader::is_initialized()) {
+    auto& network_loader = engine_record->network_loader();
+    if (!network_loader.can_load()) {
         pending_response->resolve(Infrastructure::Response::network_error("ResourceLoader is not initialized"_string));
         return pending_response;
     }
@@ -3368,7 +3367,7 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
         }
     };
 
-    auto on_complete = [control_block = NonnullRefPtr { fetch_params.control_block() }, engine_record = NonnullRefPtr { *engine_record }, body_pump, complete_load, whole_body_transport, load](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<ResourceLoader::NetworkRequestEnd> const& network_request_end) {
+    auto on_complete = [control_block = NonnullRefPtr { fetch_params.control_block() }, engine_record = NonnullRefPtr { *engine_record }, body_pump, complete_load, whole_body_transport, load](bool success, Requests::RequestTimingInfo const& timing_info, Optional<StringView> error_message, Optional<Engine::NetworkLoader::NetworkRequestEnd> const& network_request_end) {
         if (network_request_end.has_value()) {
             if (load->has_ended())
                 return;
@@ -3410,7 +3409,7 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
     auto transfer_lease = fetch_params.has_response_body_transfer_lease()
         ? Requests::RequestClient::TransferLease::Yes
         : Requests::RequestClient::TransferLease::No;
-    auto network_transport = ResourceLoader::the().load(load_request, move(on_headers_received), move(on_data_received), move(on_cached_body_available), move(on_complete), transfer_lease);
+    auto network_transport = network_loader.load(load_request, move(on_headers_received), move(on_data_received), move(on_cached_body_available), move(on_complete), transfer_lease);
     if (network_transport) {
         engine_record->report_network_activity(network_transport->request_id(), network_request_started(load_request, *request));
         body_pump->delivery_gate()->attach_transport(*network_transport);

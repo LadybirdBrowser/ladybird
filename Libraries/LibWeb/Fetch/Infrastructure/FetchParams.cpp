@@ -51,9 +51,9 @@ NonnullRefPtr<FetchParams> FetchParams::copy(FetchParams const& params)
 
 FetchParams::~FetchParams() = default;
 
-Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id, RefPtr<Response> response, NonnullOwnPtr<Engine::EngineEventSink> event_sink) const
+Engine::StartFetchInput FetchParams::start_fetch_input(Engine::FetchId fetch_id, RefPtr<Response> response, NonnullOwnPtr<Engine::EngineEventSink> event_sink, NonnullRefPtr<Engine::NetworkLoader> network_loader) const
 {
-    return Engine::StartFetchInput { {}, fetch_id, Engine::MainFetchInput { *this, move(response) }, move(event_sink) };
+    return Engine::StartFetchInput { {}, fetch_id, Engine::MainFetchInput { *this, move(response) }, move(event_sink), move(network_loader) };
 }
 
 void FetchParams::set_engine_record(NonnullRefPtr<Engine::FetchEngineRecord> engine_record) const
