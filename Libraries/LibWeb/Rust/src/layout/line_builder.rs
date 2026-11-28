@@ -918,10 +918,23 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     /// that no fragment on the line belongs to. `leading_edges` is the size of the start edges that `node` has yet to
     /// add to the line.
     pub(crate) fn add_struts_of_inline_boxes_around(&mut self, node: Node, leading_edges: CssPixels) {
+        self.add_struts_of_inline_boxes_around_where(node, leading_edges, |_| true);
+    }
+
+    /// Puts the inline boxes that `node` is inside and that `includes` picks on the current line, as
+    /// add_struts_of_inline_boxes_around() does.
+    pub(crate) fn add_struts_of_inline_boxes_around_where(
+        &mut self,
+        node: Node,
+        leading_edges: CssPixels,
+        includes: impl Fn(Node) -> bool,
+    ) {
         let line_index = self.ensure_last_line_index();
         let mut box_ = self.context().nearest_fragmented_inline_ancestor(node);
         while !box_.is_invalid() {
-            self.line_mut(line_index).add_inline_box_strut(box_, leading_edges);
+            if includes(box_) {
+                self.line_mut(line_index).add_inline_box_strut(box_, leading_edges);
+            }
             box_ = self.context().nearest_fragmented_inline_ancestor(box_);
         }
     }
