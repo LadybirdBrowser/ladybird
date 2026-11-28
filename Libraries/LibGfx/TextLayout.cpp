@@ -836,6 +836,29 @@ static_assert(offsetof(Gfx::FFI::HbFeature, value) == offsetof(hb_feature_t, val
 static_assert(offsetof(Gfx::FFI::HbFeature, start) == offsetof(hb_feature_t, start));
 static_assert(offsetof(Gfx::FFI::HbFeature, end) == offsetof(hb_feature_t, end));
 
+static_assert(sizeof(Gfx::FFI::HbGlyphExtents) == sizeof(hb_glyph_extents_t));
+static_assert(alignof(Gfx::FFI::HbGlyphExtents) == alignof(hb_glyph_extents_t));
+static_assert(IsSame<decltype(Gfx::FFI::HbGlyphExtents::x_bearing), decltype(hb_glyph_extents_t::x_bearing)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbGlyphExtents::y_bearing), decltype(hb_glyph_extents_t::y_bearing)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbGlyphExtents::width), decltype(hb_glyph_extents_t::width)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbGlyphExtents::height), decltype(hb_glyph_extents_t::height)>);
+static_assert(offsetof(Gfx::FFI::HbGlyphExtents, x_bearing) == offsetof(hb_glyph_extents_t, x_bearing));
+static_assert(offsetof(Gfx::FFI::HbGlyphExtents, y_bearing) == offsetof(hb_glyph_extents_t, y_bearing));
+static_assert(offsetof(Gfx::FFI::HbGlyphExtents, width) == offsetof(hb_glyph_extents_t, width));
+static_assert(offsetof(Gfx::FFI::HbGlyphExtents, height) == offsetof(hb_glyph_extents_t, height));
+
+static_assert(sizeof(Gfx::FFI::HbDrawState) == sizeof(hb_draw_state_t));
+static_assert(alignof(Gfx::FFI::HbDrawState) == alignof(hb_draw_state_t));
+static_assert(IsSame<decltype(Gfx::FFI::HbDrawState::path_open), decltype(hb_draw_state_t::path_open)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbDrawState::current_x), decltype(hb_draw_state_t::current_x)>);
+static_assert(IsSame<decltype(Gfx::FFI::HbDrawState::current_y), decltype(hb_draw_state_t::current_y)>);
+static_assert(offsetof(Gfx::FFI::HbDrawState, path_open) == offsetof(hb_draw_state_t, path_open));
+static_assert(offsetof(Gfx::FFI::HbDrawState, path_start_x) == offsetof(hb_draw_state_t, path_start_x));
+static_assert(offsetof(Gfx::FFI::HbDrawState, path_start_y) == offsetof(hb_draw_state_t, path_start_y));
+static_assert(offsetof(Gfx::FFI::HbDrawState, current_x) == offsetof(hb_draw_state_t, current_x));
+static_assert(offsetof(Gfx::FFI::HbDrawState, current_y) == offsetof(hb_draw_state_t, current_y));
+static_assert(offsetof(Gfx::FFI::HbDrawState, reserved) == offsetof(hb_draw_state_t, reserved1));
+
 // The enumerations are as wide as the u32 that the crate passes and returns them as.
 static_assert(sizeof(hb_direction_t) == sizeof(u32));
 static_assert(sizeof(hb_script_t) == sizeof(u32));

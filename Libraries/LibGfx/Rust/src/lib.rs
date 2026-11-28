@@ -20,6 +20,7 @@ pub mod filter;
 pub mod font;
 pub mod font_catalog;
 pub mod geometry;
+mod glyph_ink;
 mod harfbuzz;
 pub mod image_frame;
 pub mod ipc;

@@ -10,7 +10,7 @@
 //! CMake found for LibGfx, so that there is one HarfBuzz in a process. LibGfx/TextLayout.cpp checks the layouts and
 //! values here against the HarfBuzz headers.
 
-use std::ffi::{c_int, c_uint};
+use std::ffi::{c_int, c_uint, c_void};
 
 /// `hb_buffer_t`
 #[repr(C)]
@@ -21,6 +21,12 @@ pub struct HbBuffer {
 /// `hb_font_t`
 #[repr(C)]
 pub struct HbFont {
+    _private: [u8; 0],
+}
+
+/// `hb_draw_funcs_t`
+#[repr(C)]
+pub struct HbDrawFuncs {
     _private: [u8; 0],
 }
 
@@ -61,6 +67,67 @@ pub struct HbFeature {
     pub start: c_uint,
     pub end: c_uint,
 }
+
+/// `hb_glyph_extents_t`, in font units with y pointing up.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct HbGlyphExtents {
+    pub x_bearing: i32,
+    pub y_bearing: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+/// `hb_draw_state_t`
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct HbDrawState {
+    pub path_open: c_int,
+    pub path_start_x: f32,
+    pub path_start_y: f32,
+    pub current_x: f32,
+    pub current_y: f32,
+    pub reserved: [u32; 7],
+}
+
+/// `hb_draw_line_to_func_t`
+pub type HbDrawLineToFunc = unsafe extern "C" fn(
+    draw_funcs: *mut HbDrawFuncs,
+    draw_data: *mut c_void,
+    state: *mut HbDrawState,
+    to_x: f32,
+    to_y: f32,
+    user_data: *mut c_void,
+);
+
+/// `hb_draw_quadratic_to_func_t`
+pub type HbDrawQuadraticToFunc = unsafe extern "C" fn(
+    draw_funcs: *mut HbDrawFuncs,
+    draw_data: *mut c_void,
+    state: *mut HbDrawState,
+    control_x: f32,
+    control_y: f32,
+    to_x: f32,
+    to_y: f32,
+    user_data: *mut c_void,
+);
+
+/// `hb_draw_cubic_to_func_t`
+pub type HbDrawCubicToFunc = unsafe extern "C" fn(
+    draw_funcs: *mut HbDrawFuncs,
+    draw_data: *mut c_void,
+    state: *mut HbDrawState,
+    control1_x: f32,
+    control1_y: f32,
+    control2_x: f32,
+    control2_y: f32,
+    to_x: f32,
+    to_y: f32,
+    user_data: *mut c_void,
+);
+
+/// `hb_destroy_func_t`
+pub type HbDestroyFunc = unsafe extern "C" fn(user_data: *mut c_void);
 
 // NB: The enumerations below are C enums, which are as wide as an int. They are passed and returned as u32.
 
@@ -157,6 +224,31 @@ mod ffi {
         pub fn hb_buffer_get_glyph_positions(buffer: *mut HbBuffer, length: *mut c_uint) -> *mut HbGlyphPosition;
 
         pub fn hb_shape(font: *mut HbFont, buffer: *mut HbBuffer, features: *const HbFeature, num_features: c_uint);
+
+        pub fn hb_font_get_scale(font: *mut HbFont, x_scale: *mut c_int, y_scale: *mut c_int);
+        pub fn hb_font_get_glyph_extents(font: *mut HbFont, glyph: u32, extents: *mut HbGlyphExtents) -> c_int;
+        pub fn hb_font_draw_glyph(font: *mut HbFont, glyph: u32, draw_funcs: *mut HbDrawFuncs, draw_data: *mut c_void);
+
+        pub fn hb_draw_funcs_create() -> *mut HbDrawFuncs;
+        pub fn hb_draw_funcs_set_line_to_func(
+            draw_funcs: *mut HbDrawFuncs,
+            func: HbDrawLineToFunc,
+            user_data: *mut c_void,
+            destroy: Option<HbDestroyFunc>,
+        );
+        pub fn hb_draw_funcs_set_quadratic_to_func(
+            draw_funcs: *mut HbDrawFuncs,
+            func: HbDrawQuadraticToFunc,
+            user_data: *mut c_void,
+            destroy: Option<HbDestroyFunc>,
+        );
+        pub fn hb_draw_funcs_set_cubic_to_func(
+            draw_funcs: *mut HbDrawFuncs,
+            func: HbDrawCubicToFunc,
+            user_data: *mut c_void,
+            destroy: Option<HbDestroyFunc>,
+        );
+        pub fn hb_draw_funcs_make_immutable(draw_funcs: *mut HbDrawFuncs);
 
         pub fn hb_unicode_funcs_get_default() -> *mut HbUnicodeFuncs;
         pub fn hb_unicode_script(unicode_funcs: *mut HbUnicodeFuncs, code_point: u32) -> u32;
