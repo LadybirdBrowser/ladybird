@@ -2863,6 +2863,14 @@ impl InlineLevelIterator {
         edges + content
     }
 
+    /// The node of the next item that's line content, past any out-of-flow items and inline box edges.
+    pub(crate) fn next_line_content_node(&self) -> Option<Node> {
+        self.items()
+            .iter()
+            .find(|item| !sits_between_line_content(item))
+            .map(|item| item.node)
+    }
+
     /// Whether the next text or atomic inline is part of the same unbreakable run as the item before it.
     pub(crate) fn next_line_content_continues_run(
         &self,
