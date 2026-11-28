@@ -18,6 +18,7 @@ pub mod node_ref;
 pub mod pre_insert;
 pub mod qualified_name;
 pub mod remove;
+pub mod replace;
 mod steps;
 pub mod strings;
 #[cfg(test)]

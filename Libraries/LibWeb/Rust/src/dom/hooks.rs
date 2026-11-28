@@ -39,6 +39,40 @@ pub enum AffectsElements {
     Yes,
 }
 
+/// What inserts nodes, which decides the steps of inserting that the C++ side leaves out. Each kind has callbacks of its
+/// own, see InsertionHooks, which the Rust side picks through an Inserter when it is compiled.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InsertionKind {
+    /// The DOM's algorithms, which run every step.
+    Dom,
+    /// The HTML or XML parser, which inserts one node it has just created into a tree the style engine does not track.
+    /// Script can hold such a tree, so observers, live ranges, collection caches and the post-connection steps are
+    /// served, but the editing history, deferred style change events, the style engine's records, custom element
+    /// reactions, layout tree marks and list numbering have nothing to do until the tree is tracked. The tree mutation
+    /// record is queued only for an observer of tree mutations, DevTools or an assistive technology.
+    Parser,
+}
+
+/// The kind of insertion code is compiled for, which picks the callbacks it calls.
+pub(crate) trait Inserter {
+    const KIND: InsertionKind;
+}
+
+/// See InsertionKind::Dom.
+pub(crate) enum DomInserter {}
+
+impl Inserter for DomInserter {
+    const KIND: InsertionKind = InsertionKind::Dom;
+}
+
+/// See InsertionKind::Parser.
+pub(crate) enum ParserInserter {}
+
+impl Inserter for ParserInserter {
+    const KIND: InsertionKind = InsertionKind::Parser;
+}
+
 /// What the C++ side of inserting nodes answers once the steps before the nodes are inserted have run.
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -63,14 +97,28 @@ pub struct RemovalFacts {
     pub is_assigned: bool,
 }
 
-/// The callbacks, as DOM/Node.cpp registers them. Each takes the nodes it acts on as GC::Ref<DOM::Node>s, or
-/// GC::Ptr<DOM::Node>s where they may be null.
+/// What the C++ side of removing all children of a parent keeps across the removals, whose steps that concern only the
+/// parent run once for all of them.
 #[repr(C)]
-pub struct DomHooks {
+#[derive(Clone, Copy, Debug)]
+pub struct ChildrenRemoval {
+    /// Whether the removals affect the element children of the parent, which is worked out only when
+    /// `track_affected_elements` says a collection cache could care.
+    pub affects_elements: AffectsElements,
+    pub track_affected_elements: bool,
+    /// Whether some child holds the focused or hovered node, whose state its old ancestors lose.
+    pub a_child_holds_a_propagating_state_source: bool,
+    /// Whether a removed child has scheduled the renumbering of its list owner's list, which every child shares.
+    pub list_owner_renumber_scheduled: bool,
+}
+
+/// The callbacks of one kind of insertion, see InsertionKind.
+#[repr(C)]
+pub struct InsertionHooks {
     /// See [`begin_insertion`].
     pub begin_insertion: unsafe extern "C" fn(
         parent: RawNodeRef,
-        node: RawNodeRef,
+        node: RawNullableNodeRef,
         nodes: ak::Span<'_, NodeRef>,
         child: RawNullableNodeRef,
     ) -> InsertionStart,
@@ -96,8 +144,26 @@ pub struct DomHooks {
     /// See [`finish_insertion`].
     pub finish_insertion:
         unsafe extern "C" fn(parent: RawNodeRef, nodes: ak::Span<'_, NodeRef>, run_post_connection_steps: bool),
+}
+
+/// The callbacks, as DOM/Node.cpp registers them. Each takes the nodes it acts on as DOM::Node pointers, null only
+/// where a RawNullableNodeRef may be.
+#[repr(C)]
+pub struct DomHooks {
+    /// The callbacks of InsertionKind::Dom.
+    pub insertion: InsertionHooks,
+    /// The callbacks of InsertionKind::Parser.
+    pub parser_insertion: InsertionHooks,
+    /// See [`begin_removing_all_children`].
+    pub begin_removing_all_children: unsafe extern "C" fn(parent: RawNodeRef) -> ChildrenRemoval,
+    /// See [`end_removing_all_children`].
+    pub end_removing_all_children: unsafe extern "C" fn(parent: RawNodeRef, children_removal: ChildrenRemoval),
     /// See [`prepare_removal`].
-    pub prepare_removal: unsafe extern "C" fn(node: RawNodeRef, parent: RawNodeRef) -> RemovalFacts,
+    pub prepare_removal: unsafe extern "C" fn(
+        node: RawNodeRef,
+        parent: RawNodeRef,
+        children_removal: Option<&mut ChildrenRemoval>,
+    ) -> RemovalFacts,
     /// See [`assign_slottables_after_removal`].
     pub assign_slottables_after_removal:
         unsafe extern "C" fn(node: RawNodeRef, parent: RawNodeRef, parent_root: RawNodeRef, facts: RemovalFacts),
@@ -108,6 +174,7 @@ pub struct DomHooks {
         old_previous_sibling: RawNullableNodeRef,
         old_next_sibling: RawNullableNodeRef,
         suppress_observers: bool,
+        is_one_of_all_children: bool,
     ),
     /// See [`run_removing_steps`].
     pub run_removing_steps: unsafe extern "C" fn(
@@ -117,6 +184,16 @@ pub struct DomHooks {
         parent_root: RawNodeRef,
         was_tracked_by_style_engine: bool,
         is_parent_connected: bool,
+    ),
+    /// See [`adopt_into_document_of`].
+    pub adopt_into_document_of: unsafe extern "C" fn(node: RawNodeRef, parent: RawNodeRef),
+    /// See [`queue_tree_mutation_record`].
+    pub queue_tree_mutation_record: unsafe extern "C" fn(
+        target: RawNodeRef,
+        added_nodes: ak::Span<'_, NodeRef>,
+        removed_nodes: ak::Span<'_, NodeRef>,
+        previous_sibling: RawNullableNodeRef,
+        next_sibling: RawNullableNodeRef,
     ),
 }
 
@@ -131,6 +208,14 @@ unsafe impl Sync for RegisteredHooks {}
 static HOOKS: RegisteredHooks = RegisteredHooks(UnsafeCell::new(None));
 
 #[inline(always)]
+fn insertion_hooks<I: Inserter>(main_thread: &mut MainThread<'_>) -> &'static InsertionHooks {
+    let hooks = hooks(main_thread);
+    match I::KIND {
+        InsertionKind::Dom => &hooks.insertion,
+        InsertionKind::Parser => &hooks.parser_insertion,
+    }
+}
+
 fn hooks(_main_thread: &mut MainThread<'_>) -> &'static DomHooks {
     // SAFETY: Nothing writes the table after the first node exists, see RegisteredHooks.
     unsafe { *HOOKS.0.get() }.expect("the DOM hooks are registered before any node exists")
@@ -147,23 +232,28 @@ pub unsafe extern "C" fn rust_dom_register_hooks(hooks: &'static DomHooks) {
     unsafe { *HOOKS.0.get() = Some(hooks) };
 }
 
-/// Steps 4 and 5 of inserting `node`, whose nodes are `nodes`, into `parent` before `child`: if `node` is a
-/// DocumentFragment, removes its children with suppressObservers set to true and queues a tree mutation record for it
-/// with « », `nodes`, null and null, and if `child` is non-null, increases the offsets of the live ranges in `parent`
-/// past `child`'s index by the count of `nodes`. Before them, consumes the deferred style change events of the
-/// documents. Answers whether the insertion affects the element children of `parent`, and the tree version after the
-/// steps.
+/// Step 4.2 and step 5 of inserting `node`, whose nodes are `nodes`, into `parent` before `child`, after step 4.1 has
+/// emptied a DocumentFragment: if `node` is a DocumentFragment, queues a tree mutation record for it with « », `nodes`,
+/// null and null, and if `child` is non-null, increases the offsets of the live ranges in `parent` past `child`'s index
+/// by the count of `nodes`. Before them, tells the editing history of the mutation and consumes the deferred style
+/// change events of the documents. Answers whether the insertion affects the element children of `parent`, and the
+/// tree version after the steps.
+///
+/// `node` is null for nodes that are inserted as the children of a DocumentFragment no one can observe, which is not
+/// made. `I` picks the callbacks, which leave out what its InsertionKind says, as do the ones below.
 ///
 /// Can run script, allocate and change the tree.
-pub(crate) fn begin_insertion(
+pub(crate) fn begin_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
-    node: NodeRef,
+    node: Option<NodeRef>,
     nodes: &[NodeRef],
     child: Option<NodeRef>,
 ) -> InsertionStart {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
-    unsafe { (hooks(main_thread).begin_insertion)(parent, node, ak::Span::new(nodes), child.into()) }
+    unsafe {
+        (insertion_hooks::<I>(main_thread).begin_insertion)(parent, node.into(), ak::Span::new(nodes), child.into())
+    }
 }
 
 /// Steps 7.1 to 7.6 of inserting nodes for `node`: adopts it into `parent`'s node document, inserts it into `parent`'s
@@ -174,7 +264,7 @@ pub(crate) fn begin_insertion(
 /// NB: Node::append_child_impl() leaves out a node that is not allowed as a child of `parent`.
 ///
 /// Can run script, allocate and change the tree.
-pub(crate) fn insert_node_into_children(
+pub(crate) fn insert_node_into_children<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
     node: NodeRef,
@@ -183,7 +273,12 @@ pub(crate) fn insert_node_into_children(
 ) {
     // SAFETY: The callback is called on the main thread with live nodes.
     unsafe {
-        (hooks(main_thread).insert_node_into_children)(parent, node, child.into(), any_node_has_post_connection_steps);
+        (insertion_hooks::<I>(main_thread).insert_node_into_children)(
+            parent,
+            node,
+            child.into(),
+            any_node_has_post_connection_steps,
+        );
     }
 }
 
@@ -191,9 +286,9 @@ pub(crate) fn insert_node_into_children(
 /// Answers whether `node` has post-connection steps.
 ///
 /// Can run script, allocate and change the tree.
-pub(crate) fn run_insertion_steps(main_thread: &mut MainThread<'_>, node: NodeRef) -> bool {
+pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>, node: NodeRef) -> bool {
     // SAFETY: The callback is called on the main thread with a live node.
-    unsafe { (hooks(main_thread).run_insertion_steps)(node) }
+    unsafe { (insertion_hooks::<I>(main_thread).run_insertion_steps)(node) }
 }
 
 /// Steps 8 and 9 of inserting `node`, whose nodes are `nodes`, into `parent` before `child`: queues the tree mutation
@@ -203,7 +298,7 @@ pub(crate) fn run_insertion_steps(main_thread: &mut MainThread<'_>, node: NodeRe
 ///
 /// Can run script, allocate and change the tree.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn end_insertion(
+pub(crate) fn end_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
     node: NodeRef,
@@ -215,7 +310,7 @@ pub(crate) fn end_insertion(
 ) -> u64 {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe {
-        (hooks(main_thread).end_insertion)(
+        (insertion_hooks::<I>(main_thread).end_insertion)(
             parent,
             node,
             ak::Span::new(nodes),
@@ -232,14 +327,41 @@ pub(crate) fn end_insertion(
 /// schedules the list item renumbering the insertion causes, and moves the tree version of `parent`.
 ///
 /// Can run script, allocate and change the tree.
-pub(crate) fn finish_insertion(
+pub(crate) fn finish_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
     nodes: &[NodeRef],
     run_post_connection_steps: bool,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
-    unsafe { (hooks(main_thread).finish_insertion)(parent, ak::Span::new(nodes), run_post_connection_steps) }
+    unsafe {
+        (insertion_hooks::<I>(main_thread).finish_insertion)(parent, ak::Span::new(nodes), run_post_connection_steps);
+    }
+}
+
+/// The steps of removing all children of `parent` that concern only `parent`, and so run once before the first child
+/// is removed: tells the editing history of the mutation, consumes the deferred style change events of the document,
+/// and runs the live range pre-remove steps for every child at once, which leaves each boundary point that was in a
+/// child or on `parent` at (`parent`, 0). Answers what the removals keep across them.
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn begin_removing_all_children(main_thread: &mut MainThread<'_>, parent: NodeRef) -> ChildrenRemoval {
+    // SAFETY: The callback is called on the main thread with a live node.
+    unsafe { (hooks(main_thread).begin_removing_all_children)(parent) }
+}
+
+/// The steps of removing all children of `parent` that concern only `parent`, and so run once after the last child is
+/// removed: runs the children changed steps for `parent`, and invalidates the collection caches and the tree version
+/// of `parent`.
+///
+/// Can run script, allocate and change the tree.
+pub(crate) fn end_removing_all_children(
+    main_thread: &mut MainThread<'_>,
+    parent: NodeRef,
+    children_removal: ChildrenRemoval,
+) {
+    // SAFETY: The callback is called on the main thread with a live node.
+    unsafe { (hooks(main_thread).end_removing_all_children)(parent, children_removal) }
 }
 
 /// The steps of removing `node` from `parent` that come before the node leaves its parent's children: tells the
@@ -248,10 +370,19 @@ pub(crate) fn finish_insertion(
 /// tree the subtree leaves, records the removal for layout and the style engine, and takes the node out of the C++
 /// state that follows the children of `parent`: the animation counts, the child index generation and the child indices.
 ///
+/// For one of all the children of `parent`, which `children_removal` tracks, the steps that
+/// begin_removing_all_children() ran for every child are left out, and the facts every child shares are read from and
+/// kept in `children_removal`.
+///
 /// Allocates. Runs no script, and leaves the tree as it is.
-pub(crate) fn prepare_removal(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRef) -> RemovalFacts {
+pub(crate) fn prepare_removal(
+    main_thread: &mut MainThread<'_>,
+    node: NodeRef,
+    parent: NodeRef,
+    children_removal: Option<&mut ChildrenRemoval>,
+) -> RemovalFacts {
     // SAFETY: The callback is called on the main thread with live nodes.
-    unsafe { (hooks(main_thread).prepare_removal)(node, parent) }
+    unsafe { (hooks(main_thread).prepare_removal)(node, parent, children_removal) }
 }
 
 /// The steps of removing `node` from `parent`, whose root is `parent_root`, that assign the slottables a removal
@@ -275,6 +406,9 @@ pub(crate) fn assign_slottables_after_removal(
 /// record unless `suppress_observers`, runs the children changed steps for `parent`, and invalidates the collection
 /// caches and tree versions the removal changed.
 ///
+/// For one of all the children of `parent`, `is_one_of_all_children` leaves out the steps for `parent`, which
+/// end_removing_all_children() runs once.
+///
 /// Can run script, allocate and change the tree.
 pub(crate) fn finish_removal(
     main_thread: &mut MainThread<'_>,
@@ -283,6 +417,7 @@ pub(crate) fn finish_removal(
     old_previous_sibling: Option<NodeRef>,
     old_next_sibling: Option<NodeRef>,
     suppress_observers: bool,
+    is_one_of_all_children: bool,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes.
     unsafe {
@@ -292,6 +427,7 @@ pub(crate) fn finish_removal(
             old_previous_sibling.into(),
             old_next_sibling.into(),
             suppress_observers,
+            is_one_of_all_children,
         );
     }
 }
@@ -323,6 +459,40 @@ pub(crate) fn run_removing_steps(
             parent_root,
             was_tracked_by_style_engine,
             is_parent_connected,
+        );
+    }
+}
+
+/// Adopts `node` into `parent`'s node document.
+/// https://dom.spec.whatwg.org/#concept-node-adopt
+///
+/// Can run script, allocate and change the tree.
+pub(crate) fn adopt_into_document_of(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRef) {
+    // SAFETY: The callback is called on the main thread with live nodes.
+    unsafe { (hooks(main_thread).adopt_into_document_of)(node, parent) }
+}
+
+/// Queues a tree mutation record for `target` with `added_nodes`, `removed_nodes`, `previous_sibling` and
+/// `next_sibling`, one of whose lists is not empty.
+/// https://dom.spec.whatwg.org/#queue-a-tree-mutation-record
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+pub(crate) fn queue_tree_mutation_record(
+    main_thread: &mut MainThread<'_>,
+    target: NodeRef,
+    added_nodes: &[NodeRef],
+    removed_nodes: &[NodeRef],
+    previous_sibling: Option<NodeRef>,
+    next_sibling: Option<NodeRef>,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
+    unsafe {
+        (hooks(main_thread).queue_tree_mutation_record)(
+            target,
+            ak::Span::new(added_nodes),
+            ak::Span::new(removed_nodes),
+            previous_sibling.into(),
+            next_sibling.into(),
         );
     }
 }
