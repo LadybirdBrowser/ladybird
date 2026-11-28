@@ -254,17 +254,23 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
     QAccessible::installActivationObserver(this);
 #endif
 
-    on_accessibility_tree_received = [this](u64 sequence, auto nodes) {
+    on_accessibility_tree_received = [this](u64 sequence, auto const& tree) {
+        auto nodes = tree.decode();
+        if (nodes.is_error()) {
+            dbgln("Unable to decode the accessibility tree: {}", nodes.error());
+            return;
+        }
         m_accessibility_whole_tree_pending = false;
-        m_accessibility_manager->update_tree(AK::move(nodes), sequence);
+        m_accessibility_manager->update_tree(nodes.release_value(), sequence);
         did_update_accessibility_tree({});
     };
 
-    on_accessibility_tree_changed = [this](u64 base_sequence, u64 sequence, auto delta) {
+    on_accessibility_tree_changed = [this](u64 base_sequence, u64 sequence, auto const& encoded_delta) {
         // Once the whole tree has been asked for, every change before it arrives is to a tree this view doesn't hold.
         if (m_accessibility_whole_tree_pending)
             return;
-        auto removed_ids = m_accessibility_manager->apply_delta(delta, base_sequence, sequence);
+        auto delta = encoded_delta.decode();
+        auto removed_ids = delta.is_error() ? Optional<Vector<i64>> {} : m_accessibility_manager->apply_delta(delta.value(), base_sequence, sequence);
         if (!removed_ids.has_value()) {
             // A change to a tree this view doesn't hold (one it dropped while it didn't display the tab, e.g.), or one
             // that doesn't fit the tree it holds: Start over from the whole tree.

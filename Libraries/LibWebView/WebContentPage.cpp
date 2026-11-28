@@ -1206,15 +1206,15 @@ void WebContentPage::did_inspect_accessibility_tree(String accessibility_tree)
     }
 }
 
-void WebContentPage::did_get_accessibility_tree(u64 sequence, Vector<AccessibilityNodeData> nodes)
+void WebContentPage::did_get_accessibility_tree(u64 sequence, EncodedAccessibilityTree tree)
 {
     if (displays_tab()) {
         if (view().on_accessibility_tree_received)
-            view().on_accessibility_tree_received(sequence, move(nodes));
+            view().on_accessibility_tree_received(sequence, move(tree));
     }
 }
 
-void WebContentPage::did_change_accessibility_tree(u64 base_sequence, u64 sequence, AccessibilityTreeDelta delta)
+void WebContentPage::did_change_accessibility_tree(u64 base_sequence, u64 sequence, EncodedAccessibilityTreeDelta delta)
 {
     if (displays_tab()) {
         if (view().on_accessibility_tree_changed)

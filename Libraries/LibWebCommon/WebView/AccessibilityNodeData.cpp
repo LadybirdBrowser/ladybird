@@ -4,8 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/MemoryStream.h>
+#include <AK/Queue.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibIPC/File.h>
+#include <LibIPC/Message.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 
 namespace WebView {
@@ -98,6 +102,50 @@ Gfx::IntPoint AccessibilityTextGeometry::character_offset(size_t index) const
     return { x, line < line_count ? line_tops()[line] : 0 };
 }
 
+template<typename T>
+static ErrorOr<Core::AnonymousBuffer> encode_into_shared_memory(T const& value)
+{
+    IPC::MessageBuffer message;
+    IPC::Encoder encoder { message };
+    TRY(encoder.encode(value));
+    auto const& bytes = message.data();
+    auto buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size()));
+    __builtin_memcpy(buffer.data<u8>(), bytes.data(), bytes.size());
+    return buffer;
+}
+
+template<typename T>
+static ErrorOr<T> decode_from_shared_memory(Core::AnonymousBuffer const& buffer)
+{
+    if (!buffer.is_valid())
+        return Error::from_string_literal("Encoded accessibility data has no buffer");
+    TRY(buffer.validate_backing_size());
+    FixedMemoryStream stream { ReadonlyBytes { buffer.data<u8>(), buffer.size() } };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    return decoder.decode<T>();
+}
+
+ErrorOr<EncodedAccessibilityTree> EncodedAccessibilityTree::encode(Vector<AccessibilityNodeData> const& nodes)
+{
+    return EncodedAccessibilityTree { TRY(encode_into_shared_memory(nodes)) };
+}
+
+ErrorOr<Vector<AccessibilityNodeData>> EncodedAccessibilityTree::decode() const
+{
+    return decode_from_shared_memory<Vector<AccessibilityNodeData>>(buffer);
+}
+
+ErrorOr<EncodedAccessibilityTreeDelta> EncodedAccessibilityTreeDelta::encode(AccessibilityTreeDelta const& delta)
+{
+    return EncodedAccessibilityTreeDelta { TRY(encode_into_shared_memory(delta)) };
+}
+
+ErrorOr<AccessibilityTreeDelta> EncodedAccessibilityTreeDelta::decode() const
+{
+    return decode_from_shared_memory<AccessibilityTreeDelta>(buffer);
+}
+
 }
 
 template<typename T>
@@ -185,4 +233,28 @@ ErrorOr<WebView::AccessibilityNodeData> IPC::decode(Decoder& decoder)
     node.text_style = TRY(decode_shared<WebView::AccessibilityTextStyle>(decoder));
     node.text_geometry = TRY(decode_shared<WebView::AccessibilityTextGeometry>(decoder));
     return node;
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, WebView::EncodedAccessibilityTree const& encoded)
+{
+    return encoder.encode(encoded.buffer);
+}
+
+template<>
+ErrorOr<WebView::EncodedAccessibilityTree> IPC::decode(Decoder& decoder)
+{
+    return WebView::EncodedAccessibilityTree { TRY(decoder.decode<Core::AnonymousBuffer>()) };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, WebView::EncodedAccessibilityTreeDelta const& encoded)
+{
+    return encoder.encode(encoded.buffer);
+}
+
+template<>
+ErrorOr<WebView::EncodedAccessibilityTreeDelta> IPC::decode(Decoder& decoder)
+{
+    return WebView::EncodedAccessibilityTreeDelta { TRY(decoder.decode<Core::AnonymousBuffer>()) };
 }

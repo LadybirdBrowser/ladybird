@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
@@ -259,6 +260,24 @@ struct WEBCOMMON_API AccessibilityTreeDelta {
     Vector<i64> removed_ids;
 };
 
+// A whole accessibility tree or a change to one, encoded into shared memory by WebContent and decoded only by the UI that
+// consumes it. The hub between them passes it along as it is.
+// OPTIMIZATION: A whole tree can have hundreds of thousands of nodes, which the hub would otherwise build, encode again,
+//               and free, keeping the memory that took.
+struct WEBCOMMON_API EncodedAccessibilityTree {
+    static ErrorOr<EncodedAccessibilityTree> encode(Vector<AccessibilityNodeData> const&);
+    ErrorOr<Vector<AccessibilityNodeData>> decode() const;
+
+    Core::AnonymousBuffer buffer;
+};
+
+struct WEBCOMMON_API EncodedAccessibilityTreeDelta {
+    static ErrorOr<EncodedAccessibilityTreeDelta> encode(AccessibilityTreeDelta const&);
+    ErrorOr<AccessibilityTreeDelta> decode() const;
+
+    Core::AnonymousBuffer buffer;
+};
+
 }
 
 namespace IPC {
@@ -268,6 +287,18 @@ WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::AccessibilityNodeData cons
 
 template<>
 WEBCOMMON_API ErrorOr<WebView::AccessibilityNodeData> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::EncodedAccessibilityTree const&);
+
+template<>
+WEBCOMMON_API ErrorOr<WebView::EncodedAccessibilityTree> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::EncodedAccessibilityTreeDelta const&);
+
+template<>
+WEBCOMMON_API ErrorOr<WebView::EncodedAccessibilityTreeDelta> decode(Decoder&);
 
 }
 
