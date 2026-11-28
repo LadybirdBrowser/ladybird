@@ -65,7 +65,7 @@ Utf16String Attr::value() const
     if (auto* element = owner_element()) {
         auto index = element->find_attribute_index_ns(namespace_uri(), local_name());
         VERIFY(index.has_value());
-        return element->m_attributes->at(*index).value;
+        return element->m_element_core.attributes->at(*index).value;
     }
     return m_value;
 }

@@ -1,0 +1,7 @@
+querySelectorAll [style]: a c c1 d
+querySelectorAll red: a d
+querySelectorAll :has(): c
+querySelectorAll sibling: d
+querySelector: c
+matches: true
+closest: c

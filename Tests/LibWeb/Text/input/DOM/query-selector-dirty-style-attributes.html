@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="container">
+    <div id="a"><span id="a1"></span></div>
+    <div id="b"><span id="b1"></span></div>
+    <div id="c"><span id="c1"></span></div>
+    <div id="d"><span id="d1"></span></div>
+</div>
+<script>
+    test(() => {
+        const ids = elements => Array.from(elements, element => element.id).join(" ") || "(none)";
+        const dirty = () => {
+            for (const element of container.querySelectorAll("*"))
+                element.removeAttribute("style");
+            a.style.color = "red";
+            c.style.color = "blue";
+            c1.style.color = "green";
+            d.style.color = "red";
+        };
+
+        dirty();
+        println(`querySelectorAll [style]: ${ids(container.querySelectorAll("[style]"))}`);
+        dirty();
+        println(`querySelectorAll red: ${ids(container.querySelectorAll('[style="color: red;"]'))}`);
+        dirty();
+        println(`querySelectorAll :has(): ${ids(container.querySelectorAll('div:has(> [style*="green"])'))}`);
+        dirty();
+        println(`querySelectorAll sibling: ${ids(container.querySelectorAll("[style] + [style]"))}`);
+        dirty();
+        println(`querySelector: ${container.querySelector('[style*="blue"]').id}`);
+        dirty();
+        println(`matches: ${d.matches('#container > [style*="red"]:not(:has([style]))')}`);
+        dirty();
+        println(`closest: ${c1.closest('[style*="blue"]').id}`);
+    });
+</script>

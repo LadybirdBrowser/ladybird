@@ -189,6 +189,15 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 static_assert(sizeof(Element) == 296);
 #endif
 
+// NB: The Rust definition of the core asserts the same layout.
+static_assert(sizeof(RustFFI::ElementCore) == 64 && alignof(RustFFI::ElementCore) == 8);
+static_assert(offsetof(RustFFI::ElementCore, qualified_name) == 0);
+static_assert(offsetof(RustFFI::ElementCore, id) == 8);
+static_assert(offsetof(RustFFI::ElementCore, classes) == 16);
+static_assert(offsetof(RustFFI::ElementCore, attributes) == 40);
+static_assert(offsetof(RustFFI::ElementCore, subtree_name_filter) == 48);
+static_assert(offsetof(RustFFI::ElementCore, style_attribute_is_dirty) == 56);
+
 Element::RareData::~RareData() = default;
 
 void Element::RareData::visit_edges(Cell::Visitor& visitor)
@@ -333,57 +342,19 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
     }
 }
 
-NonnullOwnPtr<Element::AttributeList> Element::AttributeList::create(size_t capacity)
-{
-    VERIFY(capacity > 0 && capacity <= NumericLimits<u32>::max());
-    auto allocation_size = Checked<size_t>(capacity);
-    allocation_size *= sizeof(Attribute);
-    allocation_size += sizeof(AttributeList);
-    auto* memory = AttributeList::operator new(allocation_size.value());
-    return adopt_own(*new (memory) AttributeList(static_cast<u32>(capacity)));
-}
-
-Element::AttributeList::~AttributeList()
-{
-    for (auto& attribute : span())
-        attribute.~Attribute();
-}
-
-NonnullOwnPtr<Element::AttributeList> Element::AttributeList::ensure_room_for_one_more(NonnullOwnPtr<AttributeList> list)
-{
-    if (list->m_size < list->m_capacity)
-        return list;
-    return list->moved_into_new_list(max(static_cast<size_t>(list->m_capacity) * 2, static_cast<size_t>(4)));
-}
-
-NonnullOwnPtr<Element::AttributeList> Element::AttributeList::moved_into_new_list(size_t capacity)
-{
-    VERIFY(capacity >= m_size);
-    auto new_list = create(capacity);
-    for (auto& attribute : span())
-        new (&new_list->attributes()[new_list->m_size++]) Attribute(move(attribute));
-    return new_list;
-}
-
-void Element::AttributeList::unchecked_append(QualifiedName name, Utf16String value)
-{
-    VERIFY(m_size < m_capacity);
-    new (&attributes()[m_size++]) Attribute(move(name), move(value));
-}
-
-void Element::AttributeList::remove(size_t index)
-{
-    VERIFY(index < m_size);
-    auto* attributes = this->attributes();
-    for (size_t i = index; i + 1 < m_size; ++i)
-        attributes[i] = move(attributes[i + 1]);
-    attributes[--m_size].~Attribute();
-}
-
 Element::Element(Document& document, DOM::QualifiedName qualified_name)
     : ParentNode(document, NodeType::ELEMENT_NODE)
-    , m_qualified_name(move(qualified_name))
+    , m_element_core {
+        .qualified_name = move(qualified_name),
+        .id = {},
+        .classes = {},
+        .attributes = {},
+        .subtree_name_filter = 0,
+        .style_attribute_is_dirty = false,
+    }
 {
+    // NB: libweb_rust finds the core of an element at this offset into the element's cell, which starts with its node.
+    static_assert(offsetof(Element, m_element_core) == RustFFI::ELEMENT_CORE_OFFSET);
 }
 
 Element::~Element() = default;
@@ -398,39 +369,39 @@ void Element::finalize()
 void Element::append_to_attribute_list(QualifiedName name, Utf16String value)
 {
     add_to_subtree_name_filter(name_filter_bit(name.local_name()));
-    if (!m_attributes)
-        m_attributes = AttributeList::create(1);
+    if (!m_element_core.attributes)
+        m_element_core.attributes = AttributeList::create(1);
     else
-        m_attributes = AttributeList::ensure_room_for_one_more(m_attributes.release_nonnull());
-    m_attributes->unchecked_append(move(name), move(value));
+        m_element_core.attributes = AttributeList::ensure_room_for_one_more(m_element_core.attributes.release_nonnull());
+    m_element_core.attributes->unchecked_append(move(name), move(value));
 }
 
 void Element::add_to_subtree_name_filter(u64 bits)
 {
     // An element's filter holds those of its children, so the walk up ends at the first that has the bits.
-    for (auto* element = this; element && (element->m_subtree_name_filter & bits) != bits; element = element->parent_element().ptr())
-        element->m_subtree_name_filter |= bits;
+    for (auto* element = this; element && (element->m_element_core.subtree_name_filter & bits) != bits; element = element->parent_element().ptr())
+        element->m_element_core.subtree_name_filter |= bits;
 }
 
 void Element::ensure_attribute_capacity(size_t capacity)
 {
     if (capacity == 0)
         return;
-    if (!m_attributes)
-        m_attributes = AttributeList::create(capacity);
-    else if (m_attributes->capacity() < capacity)
-        m_attributes = m_attributes->moved_into_new_list(capacity);
+    if (!m_element_core.attributes)
+        m_element_core.attributes = AttributeList::create(capacity);
+    else if (m_element_core.attributes->capacity() < capacity)
+        m_element_core.attributes = m_element_core.attributes->moved_into_new_list(capacity);
 }
 
 void Element::synchronize_attribute(Utf16FlyString const& qualified_name) const
 {
-    if (m_style_attribute_is_dirty && qualified_name == HTML::AttributeNames::style)
+    if (m_element_core.style_attribute_is_dirty && qualified_name == HTML::AttributeNames::style)
         synchronize_style_attribute();
 }
 
 void Element::synchronize_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name) const
 {
-    if (m_style_attribute_is_dirty && !namespace_.has_value() && local_name == HTML::AttributeNames::style)
+    if (m_element_core.style_attribute_is_dirty && !namespace_.has_value() && local_name == HTML::AttributeNames::style)
         synchronize_style_attribute();
 }
 
@@ -450,11 +421,11 @@ Optional<size_t> Element::find_attribute_index(Utf16FlyString const& qualified_n
 
     synchronize_attribute(*effective_name);
 
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return {};
 
-    for (size_t index = 0; index < m_attributes->size(); ++index) {
-        if (m_attributes->at(index).name.as_string() == *effective_name)
+    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
+        if (m_element_core.attributes->at(index).name.as_string() == *effective_name)
             return index;
     }
     return {};
@@ -468,11 +439,11 @@ Optional<size_t> Element::find_attribute_index_ns(Optional<Utf16FlyString> const
 
     synchronize_attribute_ns(normalized_namespace, local_name);
 
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return {};
 
-    for (size_t index = 0; index < m_attributes->size(); ++index) {
-        auto const& attribute = m_attributes->at(index);
+    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
+        auto const& attribute = m_element_core.attributes->at(index);
         if (attribute.name.namespace_() == normalized_namespace && attribute.name.local_name() == local_name)
             return index;
     }
@@ -493,11 +464,11 @@ size_t Element::external_memory_size() const
     auto size = Base::external_memory_size();
     if (m_inline_declarations)
         size = JS::saturating_add_external_memory_size(size, CSS::Parser::ValueParserFFI::rust_declaration_block_external_memory_size(m_inline_declarations));
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return size;
 
-    size = JS::saturating_add_external_memory_size(size, sizeof(AttributeList) + m_attributes->capacity() * sizeof(Attribute));
-    for (auto const& attribute : m_attributes->span())
+    size = JS::saturating_add_external_memory_size(size, sizeof(AttributeList) + m_element_core.attributes->capacity() * sizeof(Attribute));
+    for (auto const& attribute : m_element_core.attributes->span())
         size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(attribute.value));
     return size;
 }
@@ -506,7 +477,7 @@ size_t Element::external_memory_size() const
 Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 {
     auto index = find_attribute_index(name);
-    return index.has_value() ? Optional<Utf16String> { m_attributes->at(*index).value } : Optional<Utf16String> {};
+    return index.has_value() ? Optional<Utf16String> { m_element_core.attributes->at(*index).value } : Optional<Utf16String> {};
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributens
@@ -520,7 +491,7 @@ Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& 
         return {};
 
     // 3. Return attr’s value.
-    return m_attributes->at(*index).value;
+    return m_element_core.attributes->at(*index).value;
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-value
@@ -534,7 +505,7 @@ Utf16String Element::get_attribute_value(Utf16FlyString const& local_name, Optio
         return {};
 
     // 3. Return attr’s value.
-    return m_attributes->at(*index).value;
+    return m_element_core.attributes->at(*index).value;
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target
@@ -915,7 +886,7 @@ void Element::set_attribute(FlyString qualified_name, Utf16String const& verifie
 
     // If attribute is non-null, then change attribute to verifiedValue and return.
     if (index.has_value()) {
-        auto& attribute = m_attributes->at(*index);
+        auto& attribute = m_element_core.attributes->at(*index);
         auto old_value = move(attribute.value);
         attribute.value = verified_value;
         auto name = attribute.name;
@@ -1080,7 +1051,7 @@ void Element::append_attribute(QualifiedName name, Utf16String value)
 {
     auto old_value = Optional<Utf16String> {};
     append_to_attribute_list(move(name), move(value));
-    auto& attribute = m_attributes->last();
+    auto& attribute = m_element_core.attributes->last();
     auto attribute_name = attribute.name;
     auto new_value = attribute.value;
     handle_attribute_changes(move(attribute_name), move(old_value), move(new_value));
@@ -1090,7 +1061,7 @@ void Element::change_attribute_value(GC::Ref<Attr> attribute_node, Utf16String v
 {
     auto index = find_attribute_index_ns(attribute_node->namespace_uri(), attribute_node->local_name());
     VERIFY(index.has_value());
-    auto& attribute = m_attributes->at(*index);
+    auto& attribute = m_element_core.attributes->at(*index);
     auto old_value = move(attribute.value);
     attribute.value = move(value);
     auto name = attribute.name;
@@ -1140,7 +1111,7 @@ void Element::set_attribute_value(Utf16FlyString const& local_name, Utf16String 
     }
 
     // 3. Change attribute to value.
-    auto& attribute = m_attributes->at(*index);
+    auto& attribute = m_element_core.attributes->at(*index);
     auto old_value = move(attribute.value);
     attribute.value = move(value);
     auto name = attribute.name;
@@ -1187,11 +1158,11 @@ void Element::remove_attribute_ns(Optional<Utf16FlyString> const& namespace_, Ut
 
 void Element::remove_attribute_at(size_t index)
 {
-    auto name = m_attributes->at(index).name;
-    auto old_value = m_attributes->at(index).value;
+    auto name = m_element_core.attributes->at(index).name;
+    auto old_value = m_element_core.attributes->at(index).value;
     if (auto* rare_data = element_rare_data(); rare_data && rare_data->attribute_map)
         rare_data->attribute_map->detach_attribute_node(name, old_value);
-    m_attributes->remove(index);
+    m_element_core.attributes->remove(index);
     handle_attribute_changes(name, old_value, {});
 }
 
@@ -1262,10 +1233,10 @@ Vector<Utf16FlyString> Element::get_attribute_names() const
 {
     // The getAttributeNames() method steps are to return the qualified names of the attributes in this’s attribute list, in order; otherwise a new list.
     synchronize_all_attributes();
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return {};
     Vector<Utf16FlyString> names;
-    for (auto const& attribute : m_attributes->span())
+    for (auto const& attribute : m_element_core.attributes->span())
         names.append(attribute.name.as_string());
     return names;
 }
@@ -2588,10 +2559,10 @@ void Element::did_update_inline_style()
     VERIFY(can_defer_inline_style_attribute_update());
     VERIFY(m_inline_style);
 
-    bool had_style_attribute = m_style_attribute_is_dirty;
+    bool had_style_attribute = m_element_core.style_attribute_is_dirty;
     Optional<Utf16String> old_value;
-    if (m_attributes) {
-        for (auto const& attribute : m_attributes->span()) {
+    if (m_element_core.attributes) {
+        for (auto const& attribute : m_element_core.attributes->span()) {
             if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
                 had_style_attribute = true;
                 old_value = attribute.value;
@@ -2603,9 +2574,9 @@ void Element::did_update_inline_style()
     if (auto history = document().editing_history_if_exists())
         history->notify_dom_mutation();
 
-    if (!m_style_attribute_is_dirty)
+    if (!m_element_core.style_attribute_is_dirty)
         document().mark_style_attribute_dirty(*this);
-    m_style_attribute_is_dirty = true;
+    m_element_core.style_attribute_is_dirty = true;
     // The style attribute is appended when it is next synchronized, but a selector query may skip this subtree before.
     add_to_subtree_name_filter(name_filter_bit(HTML::AttributeNames::style));
     queue_mutation_record(MutationType::attributes, HTML::AttributeNames::style, {}, old_value, {}, {}, nullptr, nullptr);
@@ -2624,17 +2595,17 @@ void Element::bump_dom_tree_version_for_attribute_change()
 
 void Element::synchronize_style_attribute() const
 {
-    if (!m_style_attribute_is_dirty)
+    if (!m_element_core.style_attribute_is_dirty)
         return;
 
     auto& element = const_cast<Element&>(*this);
-    element.m_style_attribute_is_dirty = false;
+    element.m_element_core.style_attribute_is_dirty = false;
 
     Optional<Utf16String> old_value;
     Optional<size_t> style_attribute_index;
-    if (element.m_attributes) {
-        for (size_t index = 0; index < element.m_attributes->size(); ++index) {
-            auto const& attribute = element.m_attributes->at(index);
+    if (element.m_element_core.attributes) {
+        for (size_t index = 0; index < element.m_element_core.attributes->size(); ++index) {
+            auto const& attribute = element.m_element_core.attributes->at(index);
             if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
                 old_value = attribute.value;
                 style_attribute_index = index;
@@ -2645,7 +2616,7 @@ void Element::synchronize_style_attribute() const
 
     auto new_value = element.m_inline_style->serialized();
     if (style_attribute_index.has_value()) {
-        element.m_attributes->at(*style_attribute_index).value = new_value;
+        element.m_element_core.attributes->at(*style_attribute_index).value = new_value;
     } else {
         element.append_to_attribute_list(QualifiedName { HTML::AttributeNames::style, {}, {} }, new_value);
     }
@@ -2893,7 +2864,7 @@ void Element::inserted()
     }
 
     if (is_connected()) {
-        if (m_style_attribute_is_dirty)
+        if (m_element_core.style_attribute_is_dirty)
             document().mark_style_attribute_dirty(*this);
         // The MathML and SVG user-agent sheets decide only for elements in their own namespaces, so
         // the first such element to connect is what brings them into the document's user-agent
@@ -2903,11 +2874,11 @@ void Element::inserted()
             document().set_needs_mathml_and_svg_user_agent_style_sheets();
         if (has_auto_directionality())
             document().set_has_element_with_auto_directionality();
-        if (m_id.has_value())
+        if (m_element_core.id.has_value())
             document().element_with_id_was_added({}, *this);
         if (m_has_name)
             document().element_with_name_was_added({}, *this);
-        if (m_id.has_value() || !m_classes.is_empty())
+        if (m_element_core.id.has_value() || !m_element_core.classes.is_empty())
             invalidate_content_blocker_style_if_needed(*this);
     }
 
@@ -2927,11 +2898,11 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     if (old_root.is_connected() && document().is_render_blocking_element(*this))
         unblock_rendering();
 
-    if (m_id.has_value() && is<ShadowRoot>(old_root))
-        static_cast<ShadowRoot&>(old_root).element_by_id().remove(*m_id, *this);
+    if (m_element_core.id.has_value() && is<ShadowRoot>(old_root))
+        static_cast<ShadowRoot&>(old_root).element_by_id().remove(*m_element_core.id, *this);
 
     if (old_root.is_connected()) {
-        if (m_id.has_value())
+        if (m_element_core.id.has_value())
             document().element_with_id_was_removed({}, *this);
         if (m_has_name)
             document().element_with_name_was_removed({}, *this);
@@ -5079,7 +5050,7 @@ void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinitio
 
 void Element::set_prefix(Optional<Utf16FlyString> value)
 {
-    m_qualified_name.set_prefix(move(value));
+    m_element_core.qualified_name.set_prefix(move(value));
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace-prefix
@@ -5117,21 +5088,21 @@ void Element::move_attribute_nodes_to_document(Badge<Document>, Document& docume
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
     synchronize_all_attributes();
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return;
     auto attribute_map = attributes();
-    for (size_t i = 0; i < m_attributes->size(); ++i)
+    for (size_t i = 0; i < m_element_core.attributes->size(); ++i)
         callback(*attribute_map->item(i));
 }
 
 void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> callback) const
 {
     synchronize_all_attributes();
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return;
-    for (size_t index = 0; index < m_attributes->size(); ++index) {
-        auto name = m_attributes->at(index).name.as_string();
-        auto value = m_attributes->at(index).value;
+    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
+        auto name = m_element_core.attributes->at(index).name.as_string();
+        auto value = m_element_core.attributes->at(index).value;
         callback(move(name), move(value));
     }
 }
@@ -5139,11 +5110,11 @@ void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> cal
 void Element::for_each_attribute(Function<void(QualifiedName, Utf16String)> callback) const
 {
     synchronize_all_attributes();
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return;
-    for (size_t index = 0; index < m_attributes->size(); ++index) {
-        auto name = m_attributes->at(index).name;
-        auto value = m_attributes->at(index).value;
+    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
+        auto name = m_element_core.attributes->at(index).name;
+        auto value = m_element_core.attributes->at(index).value;
         callback(move(name), move(value));
     }
 }
@@ -5183,21 +5154,21 @@ Layout::NodeWithStyle const* Element::unsafe_layout_node(Layout::BegunRead const
 bool Element::has_attributes() const
 {
     synchronize_all_attributes();
-    return m_attributes && !m_attributes->is_empty();
+    return m_element_core.attributes && !m_element_core.attributes->is_empty();
 }
 
 size_t Element::attribute_list_size() const
 {
     synchronize_all_attributes();
-    return m_attributes ? m_attributes->size() : 0;
+    return m_element_core.attributes ? m_element_core.attributes->size() : 0;
 }
 
 ReadonlySpan<Element::Attribute> Element::attribute_list() const
 {
     synchronize_all_attributes();
-    if (!m_attributes)
+    if (!m_element_core.attributes)
         return {};
-    return m_attributes->span();
+    return m_element_core.attributes->span();
 }
 
 CSS::ComputedStyleRecordView Element::computed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
@@ -6356,18 +6327,18 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     if (local_name == HTML::AttributeNames::id) {
         // StyleEngine keys local features by interned atom, so capture the old side before the
         // element's own copy is replaced.
-        auto old_id = m_id;
+        auto old_id = m_element_core.id;
 
         if (value_or_empty.is_empty())
-            m_id = {};
+            m_element_core.id = {};
         else
-            m_id = Utf16FlyString::from_utf16(value_or_empty);
+            m_element_core.id = Utf16FlyString::from_utf16(value_or_empty);
 
         // Setting the id an element already has moves nothing that is keyed by it.
-        if (m_id != old_id) {
+        if (m_element_core.id != old_id) {
             if (is_connected())
                 document().element_id_changed({}, *this, old_id);
-            CSS::record_element_id_changed(*this, m_id);
+            CSS::record_element_id_changed(*this, m_element_core.id);
         }
     } else if (local_name == HTML::AttributeNames::name) {
         m_has_name = !value_or_empty.is_empty();
@@ -6382,17 +6353,17 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     } else if (local_name == HTML::AttributeNames::class_) {
         // Elements without a StyleEngine identity have no feature state to update. Avoid moving
         // their class list out just for record_element_class_list_changed() to reject the update.
-        Optional<Vector<Utf16FlyString, 1>> old_style_engine_classes;
+        Optional<ClassNames> old_style_engine_classes;
         if (style_node_id().value() != 0)
-            old_style_engine_classes = move(m_classes);
+            old_style_engine_classes = move(m_element_core.classes);
 
         if (value_or_empty.is_empty()) {
-            m_classes.clear();
+            m_element_core.classes.clear();
         } else {
-            m_classes.clear();
+            m_element_core.classes.clear();
             for_each_ascii_whitespace_separated_token(value_or_empty, [&](auto new_class) {
-                m_classes.append(Utf16FlyString::from_utf16(new_class));
-                add_to_subtree_name_filter(name_filter_bit(m_classes.last()));
+                m_element_core.classes.append(Utf16FlyString::from_utf16(new_class));
+                add_to_subtree_name_filter(name_filter_bit(m_element_core.classes.last()));
                 return IterationDecision::Continue;
             });
         }
@@ -6400,7 +6371,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             rare_data->class_list->associated_attribute_changed(value);
 
         if (old_style_engine_classes.has_value())
-            CSS::record_element_class_list_changed(*this, *old_style_engine_classes, m_classes);
+            CSS::record_element_class_list_changed(*this, old_style_engine_classes->span(), m_element_core.classes.span());
         else if (is_connected())
             CSS::record_waiting_element_classes_changed(*this);
     } else if (local_name == HTML::AttributeNames::style) {
@@ -6908,7 +6879,7 @@ Utf16FlyString const& Element::html_uppercased_qualified_name() const
     // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
     if (namespace_uri() != Namespace::HTML || document().document_type() != Document::Type::HTML)
         return qualified_name();
-    return m_qualified_name.ascii_uppercased_as_string();
+    return m_element_core.qualified_name.ascii_uppercased_as_string();
 }
 
 void Element::play_or_cancel_animations_after_display_property_change()

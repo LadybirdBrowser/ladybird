@@ -1137,7 +1137,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
     ) -> Answer<S> {
         let atoms = crate::css::style::process_atoms();
         let row = self.subject.row(node)?;
-        self.subject.read_attributes(row);
+        self.subject.read_attributes(row)?;
         let features = self.subject.features(row);
         let html_element = !context.html_namespace.is_none() && features.namespace_is(context.html_namespace);
         let written = attribute.qualified_name.name;

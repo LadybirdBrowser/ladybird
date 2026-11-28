@@ -11,6 +11,16 @@
 
 namespace Web::DOM {
 
+// NB: libweb_rust reads the parts of a name in place (see Rust/src/dom/qualified_name.rs), which mirrors this layout.
+static_assert(sizeof(QualifiedName) == sizeof(void*));
+static_assert(sizeof(QualifiedName::Impl) == 56 && alignof(QualifiedName::Impl) == 8);
+static_assert(offsetof(QualifiedName::Impl, local_name) == 8);
+static_assert(offsetof(QualifiedName::Impl, lowercased_local_name) == 16);
+static_assert(offsetof(QualifiedName::Impl, prefix) == 24);
+static_assert(offsetof(QualifiedName::Impl, namespace_) == 32);
+static_assert(offsetof(QualifiedName::Impl, as_string) == 40);
+static_assert(offsetof(QualifiedName::Impl, ascii_uppercased_as_string) == 48);
+
 static unsigned hash_impl(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_)
 {
     unsigned hash = ptr_hash(local_name.raw_identity());
