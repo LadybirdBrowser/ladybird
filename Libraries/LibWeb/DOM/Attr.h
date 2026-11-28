@@ -17,16 +17,13 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#attr
+// NB: libweb_rust defines, allocates and destroys every Attr, see Rust/src/dom/node_objects.rs.
 class WEB_API Attr final : public Node {
     WEB_WRAPPABLE(Attr, Node);
-    GC_DECLARE_ALLOCATOR(Attr);
 
 public:
-    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName, Utf16String value = {}, GC::Ptr<Element> = nullptr);
+    [[nodiscard]] static GC::Ref<Attr> create(Document&, QualifiedName const&, Utf16String value = {}, GC::Ptr<Element> = nullptr);
     [[nodiscard]] static GC::Ref<Attr> create(Document&, Utf16FlyString local_name, Utf16String value = {}, GC::Ptr<Element> = nullptr);
-    GC::Ref<Attr> clone(Document&) const;
-
-    virtual ~Attr() override = default;
 
     virtual Utf16FlyString node_name() const override { return m_attr_core.qualified_name.as_string(); }
 
@@ -50,7 +47,10 @@ public:
     constexpr bool specified() const { return true; }
 
 private:
-    Attr(Document&, QualifiedName, Utf16String value, GC::Ptr<Element>);
+    friend struct RustNodeObjectHooks;
+
+    explicit Attr(VtableProbe);
+    virtual ~Attr() override = default;
 
     // The state of the Attr node, whose layout libweb_rust defines (see Rust/src/dom/attr.rs), which reads and writes it
     // in place: it detaches an Attr node from its element, and attaches it to one.

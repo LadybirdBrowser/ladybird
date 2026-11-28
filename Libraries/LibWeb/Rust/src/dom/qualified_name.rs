@@ -347,6 +347,24 @@ pub unsafe extern "C" fn rust_dom_qualified_name_free(parts: NonNull<QualifiedNa
 pub struct QualifiedNameField(UnsafeCell<NonNull<QualifiedNameImpl>>);
 
 impl QualifiedNameField {
+    /// A field that names `parts`, whose reference passes to it.
+    #[inline(always)]
+    pub(super) fn from_owned(parts: NonNull<QualifiedNameImpl>) -> Self {
+        Self(UnsafeCell::new(parts))
+    }
+
+    /// The parts the field names, whose reference passes to the caller, as the object that holds the field is
+    /// destroyed.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may read the field after this.
+    #[inline(always)]
+    pub(super) unsafe fn take(&self) -> NonNull<QualifiedNameImpl> {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { *self.0.get() }
+    }
+
     #[inline(always)]
     pub fn parts(&self) -> &QualifiedNameImpl {
         // SAFETY: C++ does not write the field while Rust borrows it, and the parts it names live as long as it does.

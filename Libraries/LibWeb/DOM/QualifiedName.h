@@ -15,6 +15,8 @@
 
 namespace Web::DOM {
 
+struct VtableProbe;
+
 class WEB_API QualifiedName {
 public:
     QualifiedName(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, Optional<Utf16FlyString> const& namespace_);
@@ -82,6 +84,10 @@ public:
     }
 
     Impl const* identity() const { return m_impl; }
+
+    // A name with no parts, which only the probes of the classes of nodes whose objects libweb_rust defines hold (see
+    // VtableProbe in DOM/Node.h), and which they never read.
+    explicit QualifiedName(VtableProbe const&) { }
 
     void set_prefix(Optional<Utf16FlyString> value);
 

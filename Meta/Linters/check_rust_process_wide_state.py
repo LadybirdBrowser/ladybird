@@ -158,6 +158,7 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:CDATA_SECTION_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every CDATASection node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:COMMENT_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every Comment node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:PROCESSING_INSTRUCTION_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every ProcessingInstruction node with",
+    f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:ATTR_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every Attr node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:DOCUMENT_TYPE_TYPE_INFO": "the immutable type info LibGC allocates and dispatches every DocumentType node with",
     f"{RENDER_STATE_CRATE}/src/dom/node_objects.rs:NODE_OBJECTS": "the C++ callbacks and vtable pointers of the nodes whose objects Rust defines, and their allocators, which C++ registers before any node exists and never changes after; only the main thread, which makes, traces and destroys every node, reads them",
     f"{RENDER_STATE_CRATE}/src/dom/qualified_name.rs:NAMES": "the interned qualified names, which only the main thread, which owns the DOM, makes, reads and frees, as its token proves; the unit tests keep a table per thread",

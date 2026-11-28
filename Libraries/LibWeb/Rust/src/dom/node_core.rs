@@ -218,6 +218,12 @@ impl DocumentTypeCore {
 pub struct ElementMember(Cell<u32>);
 
 impl ElementMember {
+    /// A field that holds `element`, or null, as GC::Member's constructor makes it, which takes no write barrier.
+    #[inline(always)]
+    pub(super) fn new(element: Option<NodePointer>) -> Self {
+        Self(Cell::new(element.map_or(0, NodePointer::compressed)))
+    }
+
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)

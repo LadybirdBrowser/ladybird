@@ -63,24 +63,10 @@ size_t NamedNodeMap::length() const
     return associated_element().attribute_list_size();
 }
 
-GC::Ptr<Attr> NamedNodeMap::find_attribute_node(QualifiedName const& name) const
-{
-    for (auto const& node : attribute_nodes()) {
-        auto& attribute = as<Attr>(*node);
-        if (attribute.namespace_uri() == name.namespace_() && attribute.local_name() == name.local_name())
-            return attribute;
-    }
-    return nullptr;
-}
-
 GC::Ref<Attr> NamedNodeMap::ensure_attribute_node(QualifiedName const& name) const
 {
-    if (auto attribute = find_attribute_node(name))
-        return *attribute;
-    auto& element = const_cast<Element&>(associated_element());
-    auto attribute = Attr::create(element.document(), name, {}, element);
-    RustFFI::rust_dom_named_node_map_append_attribute_node(&m_core, attribute.ptr());
-    return attribute;
+    // NB: libweb_rust finds the node, or makes it, see Rust/src/dom/attr.rs.
+    return static_cast<Attr&>(*RustFFI::rust_dom_named_node_map_ensure_attribute_node(&m_core, &associated_element(), name.identity()));
 }
 
 // https://dom.spec.whatwg.org/#ref-for-dfn-supported-property-names%E2%91%A0

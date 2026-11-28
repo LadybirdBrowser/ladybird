@@ -1226,11 +1226,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
                 document_copy->set_custom_element_registry(registry);
 
             copy = move(document_copy);
-        } else if (is_attribute()) {
-            // -> Attr
-            // Set copy’s namespace, namespace prefix, local name, and value to those of node.
-            auto& attr = as<Attr>(*this);
-            copy = attr.clone(document);
         }
         // -> Otherwise
         //    Do nothing.

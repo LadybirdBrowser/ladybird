@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/DocumentType.h>
@@ -56,7 +57,7 @@ struct RustNodeObjectHooks {
     // NB: libweb_rust makes the copies of these nodes when it clones them, and runs no cloning steps for them.
     template<typename T>
     static constexpr bool has_no_cloning_steps = IsSame<decltype(&T::cloned), WebIDL::ExceptionOr<void> (Node::*)(Node&, bool) const>;
-    static_assert(has_no_cloning_steps<Text> && has_no_cloning_steps<CDATASection> && has_no_cloning_steps<Comment> && has_no_cloning_steps<ProcessingInstruction> && has_no_cloning_steps<DocumentType>);
+    static_assert(has_no_cloning_steps<Text> && has_no_cloning_steps<CDATASection> && has_no_cloning_steps<Comment> && has_no_cloning_steps<ProcessingInstruction> && has_no_cloning_steps<DocumentType> && has_no_cloning_steps<Attr>);
 
     // NB: A Text node's SlottableMixin base holds only its vtable pointer, which TextPrefix keeps in an opaque slot, and
     //     which Node::~Node() leaves as it is.
@@ -82,6 +83,7 @@ struct RustNodeObjectHooks {
             .comment_vtable = vtable_pointer_at(&probe<Comment>()),
             .processing_instruction_vtable = vtable_pointer_at(&probe<ProcessingInstruction>()),
             .document_type_vtable = vtable_pointer_at(&probe<DocumentType>()),
+            .attr_vtable = vtable_pointer_at(&probe<Attr>()),
             .visit_slot_edges = visit_slot_edges,
             .finalize = finalize,
             .external_memory_size = external_memory_size,

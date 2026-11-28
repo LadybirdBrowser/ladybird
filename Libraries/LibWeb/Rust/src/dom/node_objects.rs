@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The classes of nodes whose objects Rust defines whole: Text, CDATASection, Comment, ProcessingInstruction and
-//! DocumentType. Rust lays
+//! The classes of nodes whose objects Rust defines whole: Text, CDATASection, Comment, ProcessingInstruction,
+//! DocumentType and Attr. Rust lays
 //! out each object as a struct of its own, allocates it from LibGC's heap with a type info of its own, traces it,
 //! finalizes it and destroys it. C++ keeps the class as a shell over the object, through which C++ code and the
 //! bindings reach the node as before. The shell has no member of its own beyond the core Rust lays out at its end, and
@@ -29,6 +29,9 @@ use libgc_api::capi::{self, CellTypeInfo, GCVisitor};
 use libgc_api::cell::{self, Allocator, RustCell};
 use libgc_api::{Trace, Visitor};
 
+use super::attr::AttrCore;
+use super::attr::attr_value;
+use super::attributes;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node_class::NodeClassId;
@@ -38,10 +41,12 @@ use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_core::ProcessingInstructionCore;
 use super::node_ref::NodeRef;
+use super::prefix::AttrPrefix;
 use super::prefix::CharacterDataPrefix;
 use super::prefix::CxxWords;
 use super::prefix::NodePrefix;
 use super::prefix::TextPrefix;
+use super::qualified_name::QualifiedNameImpl;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -59,6 +64,7 @@ pub struct NodeObjectHooks {
     pub comment_vtable: *const c_void,
     pub processing_instruction_vtable: *const c_void,
     pub document_type_vtable: *const c_void,
+    pub attr_vtable: *const c_void,
     /// Visits the cells the members in the opaque slots of `node` hold. Runs on the main thread, while the collector
     /// marks or gathers a graph of the heap.
     pub visit_slot_edges: unsafe extern "C" fn(node: &NodeCell, visitor: *mut GCVisitor),
@@ -81,6 +87,7 @@ struct NodeObjects {
     comment: Allocator,
     processing_instruction: Allocator,
     document_type: Allocator,
+    attr: Allocator,
 }
 
 impl NodeObjects {
@@ -147,6 +154,7 @@ pub unsafe extern "C" fn rust_dom_register_node_objects(hooks: &'static NodeObje
             comment: allocator_of::<CommentObject>(),
             processing_instruction: allocator_of::<ProcessingInstructionObject>(),
             document_type: allocator_of::<DocumentTypeObject>(),
+            attr: allocator_of::<AttrObject>(),
         });
     }
 }
@@ -396,6 +404,32 @@ impl Drop for DocumentTypeObject {
     }
 }
 
+/// A whole DOM::Attr.
+/// https://dom.spec.whatwg.org/#interface-attr
+#[repr(C)]
+pub struct AttrObject {
+    attr: AttrPrefix,
+}
+
+node_object!(AttrObject, "Attr", attr);
+
+static ATTR_TYPE_INFO: CellTypeInfo = type_info_of::<AttrObject>();
+
+// SAFETY: The object starts with its NodePrefix, and Attr.cpp asserts its size and alignment.
+unsafe impl NodeObject for AttrObject {
+    const TYPE_INFO: &'static CellTypeInfo = &ATTR_TYPE_INFO;
+}
+
+impl Drop for AttrObject {
+    fn drop(&mut self) {
+        // SAFETY: LibGC destroys the object once, on the main thread, and nothing reads it after this.
+        unsafe {
+            destroy_slots(self);
+            self.attr.core.release(&mut main_thread());
+        }
+    }
+}
+
 /// The copy of `node` that "clone a single node" makes given `document`, where `node` is of a class whose objects Rust
 /// defines, or none for a node of any other class. The node is no element, and its class runs no cloning steps, which
 /// NodeObjects.cpp asserts, so the copy is also what steps 2 and 3 of "clone a node" make of it.
@@ -444,6 +478,14 @@ pub(super) fn clone_single_node(main_thread: &mut MainThread<'_>, document: Node
                 .to_fly_string();
             let data = node.read(main_thread).data().to_utf16_string();
             create_processing_instruction(main_thread, document, data, target)
+        }
+        // -> Attr
+        NodeClassId::Attr => {
+            // Set copy's namespace, namespace prefix, local name, and value to those of node.
+            let core = node.attr_core().expect("the node is an Attr node");
+            let name = attributes::hold_qualified_name(core.qualified_name().parts());
+            let value = attr_value(main_thread, core);
+            create_attr(main_thread, document, name, value, None)
         }
         _ => return None,
     };
@@ -583,6 +625,32 @@ pub(super) fn create_document_type(
     })
 }
 
+/// A new Attr node with the node document `document`, named `name`, with the value `value` and the element
+/// `owner_element`, whose references pass to it.
+pub(super) fn create_attr(
+    main_thread: &mut MainThread<'_>,
+    document: NodeRef,
+    name: NonNull<QualifiedNameImpl>,
+    value: ak::Utf16String,
+    owner_element: Option<NodePointer>,
+) -> NodeRef {
+    let objects = node_objects();
+    let words = objects.words(objects.hooks.attr_vtable);
+    let document_pointer = document.pointer();
+    allocate(main_thread, document, &objects.attr, |node| AttrObject {
+        attr: AttrPrefix {
+            node: NodePrefix::new(
+                words,
+                NodeClassId::Attr,
+                NodeType::ATTRIBUTE_NODE,
+                node,
+                document_pointer,
+            ),
+            core: AttrCore::new(name, value, owner_element),
+        },
+    })
+}
+
 /// A new Text node with the node document `document` and the data `data`, whose reference passes to it, for
 /// DOM::Text::create().
 ///
@@ -697,6 +765,36 @@ pub unsafe extern "C" fn rust_dom_create_document_type(document: &NodeCell) -> N
     NonNull::from(node.cell())
 }
 
+/// A new Attr node with the node document `document`, named `name`, with the value `value`, whose reference passes to
+/// it, and the element `owner_element`, or none, for DOM::Attr::create().
+///
+/// # Safety
+///
+/// `document` must be a live document, `name` live parts of a qualified name, `value` the raw word of an
+/// AK::Utf16String whose reference the caller hands over, `owner_element` a live element or null, and the call must be
+/// made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_create_attr(
+    document: &NodeCell,
+    name: &QualifiedNameImpl,
+    value: usize,
+    owner_element: Option<&NodeCell>,
+) -> NonNull<NodeCell> {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: Guaranteed by the caller.
+    let (document, value) = unsafe {
+        (
+            NodeRef::from_cell(document, &main_thread),
+            ak::Utf16String::from_raw_owned(value),
+        )
+    };
+    let owner_element = owner_element.map(compress);
+    let name = attributes::hold_qualified_name(name);
+    let node = create_attr(&mut main_thread, document, name, value, owner_element);
+    NonNull::from(node.cell())
+}
+
 // NB: The C++ classes assert that they have the sizes and alignments of these.
 const _: () = assert!(size_of::<TextObject>() == 128 && align_of::<TextObject>() == 8);
 const _: () = assert!(size_of::<CDATASectionObject>() == 128 && align_of::<CDATASectionObject>() == 8);
@@ -704,3 +802,4 @@ const _: () = assert!(size_of::<CommentObject>() == 104 && align_of::<CommentObj
 const _: () =
     assert!(size_of::<ProcessingInstructionObject>() == 112 && align_of::<ProcessingInstructionObject>() == 8);
 const _: () = assert!(size_of::<DocumentTypeObject>() == 120 && align_of::<DocumentTypeObject>() == 8);
+const _: () = assert!(size_of::<AttrObject>() == 120 && align_of::<AttrObject>() == 8);

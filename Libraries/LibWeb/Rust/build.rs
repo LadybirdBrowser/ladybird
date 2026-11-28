@@ -2855,6 +2855,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "CommentObject".to_string(),
         "ProcessingInstructionObject".to_string(),
         "DocumentTypeObject".to_string(),
+        "AttrObject".to_string(),
         "NodeObjectHooks".to_string(),
         "EventListenerList".to_string(),
         "EventCore".to_string(),
