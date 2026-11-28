@@ -31,19 +31,11 @@ public:
 private:
     HTMLTableRowElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_table_row_element() const override { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     GC::Ptr<DOM::HTMLCollection> mutable m_cells;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLTableRowElement>() const { return is_html_table_row_element(); }
 
 }

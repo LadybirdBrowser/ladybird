@@ -68,7 +68,4 @@ private:
     CSS::StyleNodeID m_style_node_id;
 };
 
-template<>
-inline bool Node::fast_is<Text>() const { return is_text(); }
-
 }

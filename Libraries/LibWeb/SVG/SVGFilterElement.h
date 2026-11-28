@@ -25,8 +25,6 @@ class SVGFilterElement final
 public:
     virtual ~SVGFilterElement() override = default;
 
-    virtual bool is_svg_filter_element() const final { return true; }
-
     // Hands every supported child primitive to the Rust primitive list behind `sink` as attribute
     // facts, with the frame an feImage draws for the list to retain.
     void push_primitives(void* sink, Gfx::IntSize dest_size);
@@ -50,12 +48,5 @@ private:
     SVGFilterElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGFilterElement>() const { return is_svg_filter_element(); }
 
 }

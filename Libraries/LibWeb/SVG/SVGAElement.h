@@ -35,8 +35,6 @@ private:
     SVGAElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual bool is_svg_a_element() const override { return true; }
-
     // ^DOM::Element
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
@@ -55,12 +53,5 @@ private:
 
     GC::Ptr<SVGAnimatedString> m_target;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGAElement>() const { return is_svg_a_element(); }
 
 }

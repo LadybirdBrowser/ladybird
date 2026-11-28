@@ -93,8 +93,6 @@ private:
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual bool is_html_canvas_element() const override { return true; }
-
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
@@ -115,12 +113,5 @@ private:
     Optional<Compositing::CanvasId> m_placeholder_canvas_id;
     bool m_placeholder_frame_is_origin_clean { true };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLCanvasElement>() const { return is_html_canvas_element(); }
 
 }

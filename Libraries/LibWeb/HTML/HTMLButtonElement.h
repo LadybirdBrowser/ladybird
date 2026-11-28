@@ -90,8 +90,6 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    virtual bool is_html_button_element() const override { return true; }
-
     HTMLButtonElement(DOM::Document&, DOM::QualifiedName);
 
     // ^DOM::Element
@@ -102,12 +100,5 @@ private:
     TypeAttributeState m_type_state { TypeAttributeState::Auto };
     GC::Ptr<DOM::Element> m_command_for_element;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLButtonElement>() const { return is_html_button_element(); }
 
 }

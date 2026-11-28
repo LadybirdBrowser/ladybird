@@ -147,7 +147,6 @@ private:
     ShadowRoot(Document&, Element& host, ShadowRootMode);
 
     // ^Node
-    virtual bool is_shadow_root() const final { return true; }
     virtual void adopted_from(Document&) override;
 
     void calculate_part_element_map();
@@ -204,9 +203,6 @@ public:
     using DocumentSlotAssignmentList = IntrusiveList<&ShadowRoot::m_slot_assignment_list_node>;
     using DocumentCounterStyleSettleList = IntrusiveList<&ShadowRoot::m_counter_style_settle_list_node>;
 };
-
-template<>
-inline bool Node::fast_is<ShadowRoot>() const { return node_type() == to_underlying(NodeType::DOCUMENT_FRAGMENT_NODE) && is_shadow_root(); }
 
 // https://dom.spec.whatwg.org/#concept-shadow-including-tree-order
 // In shadow-including tree order is shadow-including preorder, depth-first traversal of a node tree.

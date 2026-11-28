@@ -236,8 +236,6 @@ private:
     virtual FormAssociatedElement::RareData const* form_associated_rare_data() const override;
     virtual FormAssociatedElement::RareData& ensure_form_associated_rare_data() override;
 
-    virtual bool is_html_element() const final { return true; }
-
     // ^FormAssociatedElement
     virtual HTMLElement& form_associated_element_to_html_element() override { return *this; }
 
@@ -274,12 +272,5 @@ private:
     // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
     bool m_popover_showing_or_hiding { false };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLElement>() const { return is_html_element(); }
 
 }

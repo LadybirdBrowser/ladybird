@@ -1153,9 +1153,6 @@ private:
     mutable Optional<Utf16String> m_lang_value;
 };
 
-template<>
-inline bool Node::fast_is<Element>() const { return is_element(); }
-
 inline GC::Ptr<Element> Node::parent_element()
 {
     return as_if<Element>(this->parent());

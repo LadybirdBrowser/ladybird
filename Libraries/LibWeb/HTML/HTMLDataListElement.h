@@ -30,8 +30,6 @@ private:
     HTMLDataListElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual bool is_html_data_list_element() const override { return true; }
-
     virtual void inserted() override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
@@ -41,12 +39,5 @@ private:
     GC::Ptr<DOM::HTMLCollection> m_options;
     bool m_input_notification_queued { false };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLDataListElement>() const { return is_html_data_list_element(); }
 
 }

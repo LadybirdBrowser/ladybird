@@ -38,8 +38,6 @@ public:
     WebIDL::Long value();
     void set_value(WebIDL::Long value);
 
-    virtual bool is_html_li_element() const override { return true; }
-
 private:
     HTMLLIElement(DOM::Document&, DOM::QualifiedName);
     virtual void attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
@@ -47,12 +45,5 @@ private:
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<Web::HTML::HTMLLIElement>() const { return is_html_li_element(); }
 
 }

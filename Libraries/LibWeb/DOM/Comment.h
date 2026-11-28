@@ -27,7 +27,4 @@ private:
     Comment(Document&, Utf16String);
 };
 
-template<>
-inline bool Node::fast_is<Comment>() const { return is_comment(); }
-
 }

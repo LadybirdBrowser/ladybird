@@ -41,16 +41,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, SVGLengthValue::number(0));
 
 private:
-    virtual bool is_svg_rect_element() const final { return true; }
-
     SVGRectElement(DOM::Document&, DOM::QualifiedName);
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGRectElement>() const { return is_svg_rect_element(); }
 
 }

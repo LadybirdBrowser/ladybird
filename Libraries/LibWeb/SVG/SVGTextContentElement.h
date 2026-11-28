@@ -56,16 +56,7 @@ protected:
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
 private:
-    virtual bool is_svg_text_content_element() const final { return true; }
-
     Vector<Layout::RustFFI::FfiSvgTextCharacterCell> character_cells();
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGTextContentElement>() const { return is_svg_text_content_element(); }
 
 }

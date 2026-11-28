@@ -82,8 +82,6 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    virtual bool is_svg_pattern_element() const final { return true; }
-
     void update_document_pattern_list_membership();
 
     IntrusiveListNode<SVGPatternElement> m_list_node;
@@ -111,12 +109,5 @@ private:
 public:
     using DocumentPatternElementList = IntrusiveList<&SVGPatternElement::m_list_node>;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGPatternElement>() const { return is_svg_pattern_element(); }
 
 }

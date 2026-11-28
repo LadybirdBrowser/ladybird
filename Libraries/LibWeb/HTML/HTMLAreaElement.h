@@ -34,7 +34,6 @@ public:
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_area_element() const override { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual Optional<URL::Origin> extract_an_origin() const final { return hyperlink_element_utils_extract_an_origin(); }
@@ -64,12 +63,5 @@ private:
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLAreaElement>() const { return is_html_area_element(); }
 
 }

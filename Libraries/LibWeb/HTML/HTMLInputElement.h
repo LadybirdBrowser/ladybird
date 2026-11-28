@@ -337,9 +337,6 @@ private:
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     virtual EventResult handle_return_key(Utf16FlyString const& ui_input_type) override;
 
-    // ^DOM::Node
-    virtual bool is_html_input_element() const final { return true; }
-
     // ^DOM::EventTarget
     virtual void did_lose_focus() override;
     virtual void did_receive_focus() override;
@@ -531,12 +528,5 @@ private:
     bool is_number_mismatching_step(double number) const;
     bool is_in_same_radio_button_group_as(HTML::HTMLInputElement const&) const;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLInputElement>() const { return is_html_input_element(); }
 
 }

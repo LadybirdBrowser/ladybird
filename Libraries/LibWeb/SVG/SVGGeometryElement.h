@@ -17,8 +17,6 @@ class SVGGeometryElement : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGGeometryElement, SVGGraphicsElement);
 
 public:
-    virtual bool is_svg_geometry_element() const final { return true; }
-
     virtual CSS::ElementBoxKind box_kind() const override;
 
     // https://svgwg.org/svg2-draft/paths.html#TermEquivalentPath
@@ -44,12 +42,5 @@ private:
 
     GC::Ptr<SVGAnimatedNumber> m_path_length;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGGeometryElement>() const { return is_svg_geometry_element(); }
 
 }

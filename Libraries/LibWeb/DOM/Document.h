@@ -2695,9 +2695,6 @@ private:
     GC::Ptr<HTML::DOMStringList> m_ancestor_origins_list;
 };
 
-template<>
-inline bool Node::fast_is<Document>() const { return is_document(); }
-
 bool is_a_registrable_domain_suffix_of_or_is_equal_to(Utf16View host_suffix_string, URL::Host const& original_host);
 bool is_a_registrable_domain_suffix_of_or_is_equal_to(URL::Host const& host_suffix, URL::Host const& original_host);
 

@@ -30,7 +30,6 @@ public:
 private:
     HTMLEmbedElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_embed_element() const override { return true; }
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
@@ -59,12 +58,5 @@ private:
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLEmbedElement>() const { return is_html_embed_element(); }
 
 }

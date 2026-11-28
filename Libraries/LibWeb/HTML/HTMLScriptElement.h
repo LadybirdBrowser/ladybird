@@ -63,7 +63,6 @@ private:
 
     GC::Ptr<DOM::DOMTokenList> m_blocking;
 
-    virtual bool is_html_script_element() const override { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
@@ -88,12 +87,5 @@ private:
     // https://html.spec.whatwg.org/multipage/scripting.html#attr-script-referrerpolicy
     ReferrerPolicy::ReferrerPolicy m_referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLScriptElement>() const { return is_html_script_element(); }
 
 }

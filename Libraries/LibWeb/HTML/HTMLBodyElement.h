@@ -32,7 +32,6 @@ private:
     HTMLBodyElement(DOM::Document&, DOM::QualifiedName);
 
     // ^DOM::Node
-    virtual bool is_html_body_element() const override { return true; }
 
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(Utf16FlyString const& event_name) override;
@@ -42,12 +41,5 @@ private:
 
     RefPtr<CSS::ImageStyleValue const> m_background_style_value;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLBodyElement>() const { return is_html_body_element(); }
 
 }

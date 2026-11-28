@@ -30,8 +30,6 @@ public:
 private:
     HTMLFrameSetElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_frameset_element() const override { return true; }
-
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 
@@ -44,12 +42,5 @@ private:
     // ^HTML::WindowEventHandlers
     virtual GC::Ptr<EventTarget> window_event_handlers_to_event_target() override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLFrameSetElement>() const { return is_html_frameset_element(); }
 
 }

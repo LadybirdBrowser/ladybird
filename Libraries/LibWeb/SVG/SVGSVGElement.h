@@ -31,9 +31,6 @@ class SVGSVGElement final : public SVGGraphicsElement
 public:
     virtual CSS::ElementBoxKind box_kind() const override;
 
-    virtual bool requires_svg_container() const override { return false; }
-    virtual bool is_svg_container() const override { return true; }
-
     virtual Optional<ViewBox> active_view_box() const override;
     virtual SVGFitToViewBox const* fit_to_view_box() const override { return this; }
 
@@ -116,8 +113,6 @@ private:
     virtual void adopted_from(DOM::Document&) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
-    virtual bool is_svg_svg_element() const override { return true; }
-
     GC::Ptr<SVGViewElement> active_view_element() const { return m_active_view_element; }
 
     // The view box of the active SVG view, given by a view element or a view specification.
@@ -141,12 +136,5 @@ private:
 
     GC::Ptr<SMILTimeContainer> m_time_container;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGSVGElement>() const { return is_svg_svg_element(); }
 
 }

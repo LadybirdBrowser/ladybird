@@ -47,7 +47,4 @@ private:
 
 bool is_valid_doctype_name(Utf16View const&);
 
-template<>
-inline bool Node::fast_is<DocumentType>() const { return is_document_type(); }
-
 }

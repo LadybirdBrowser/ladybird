@@ -58,9 +58,6 @@ private:
     u64 m_character_data_version { 0 };
 };
 
-template<>
-inline bool Node::fast_is<ParentNode>() const { return is_parent_node(); }
-
 template<typename U>
 inline U* Node::first_flat_tree_ancestor_of_type()
 {

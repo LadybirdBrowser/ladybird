@@ -32,19 +32,10 @@ public:
 private:
     HTMLTemplateElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_template_element() const final { return true; }
-
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<DOM::DocumentFragment> m_content;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLTemplateElement>() const { return is_html_template_element(); }
 
 }

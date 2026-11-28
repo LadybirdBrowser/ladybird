@@ -30,8 +30,6 @@ class WEB_API HTMLSelectElement final
 public:
     virtual ~HTMLSelectElement() override;
 
-    virtual bool is_html_select_element() const final { return true; }
-
     WebIDL::UnsignedLong size() const;
     void set_size(WebIDL::UnsignedLong);
 
@@ -203,12 +201,5 @@ private:
 
 GC::Ptr<HTMLSelectElement> get_nearest_ancestor_select(DOM::Element&);
 GC::Ptr<HTMLSelectElement const> get_nearest_ancestor_select(DOM::Element const&);
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLSelectElement>() const { return is_html_select_element(); }
 
 }
