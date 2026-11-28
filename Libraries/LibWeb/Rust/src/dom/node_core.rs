@@ -327,6 +327,15 @@ impl DocumentFragmentCore {
         }
     }
 
+    /// The core of a new shadow root, whose host is `host`, and whose tree scope C++ numbers as it needs one.
+    #[inline(always)]
+    pub(super) fn with_host(host: NodePointer) -> Self {
+        Self {
+            host: ElementMember(Cell::new(host.compressed())),
+            style_engine_tree_scope: TreeScopeField(Cell::new(0)),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-documentfragment-host
     #[inline(always)]
     pub fn host(&self) -> Option<NodePointer> {
@@ -863,6 +872,13 @@ impl NodeCore {
             cpp_flags: CppNodeFlags(Cell::new(0)),
             child_index_generation: Cell::new(1),
         }
+    }
+
+    /// Sets the NODE_* flags `flags` of a new node, as the constructors of the classes of nodes that start out with them
+    /// set them: a closed shadow root says so, and a document is connected.
+    #[inline(always)]
+    pub(super) fn set_initial_flags(&self, flags: u8) {
+        self.flags.set(self.flags.get() | flags);
     }
 }
 

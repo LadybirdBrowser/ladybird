@@ -23,6 +23,7 @@
 
 use core::cell::UnsafeCell;
 use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use core::ptr::NonNull;
 
 use libgc_api::capi::{self, CellTypeInfo, GCVisitor};
@@ -34,10 +35,13 @@ use super::attr::attr_value;
 use super::attributes;
 use super::node::NodeCell;
 use super::node::compress;
+use super::node_class::NODE_OBJECT_HAS_PAYLOAD;
+use super::node_class::NODE_OBJECT_PAYLOAD_HAS_EDGES;
 use super::node_class::NodeClassId;
 use super::node_core::CharacterDataCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::DocumentTypeCore;
+use super::node_core::NODE_IS_CLOSED_SHADOW_ROOT;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_core::ProcessingInstructionCore;
@@ -48,8 +52,10 @@ use super::prefix::CxxWords;
 use super::prefix::DocumentFragmentPrefix;
 use super::prefix::NodePrefix;
 use super::prefix::ParentNodePrefix;
+use super::prefix::ShadowRootPrefix;
 use super::prefix::TextPrefix;
 use super::qualified_name::QualifiedNameImpl;
+use super::slots::ShadowRootCore;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -80,6 +86,13 @@ pub struct NodeObjectHooks {
     /// Destroys the members in the opaque slots of `node`, which the collector found dead and finalized, and whose
     /// cell it is about to free.
     pub destroy_slots: unsafe extern "C" fn(node: &NodeCell),
+    /// Visits the cells that `node`, a node of a class with a payload with cells, holds through the visit_edges() of
+    /// its class, which visits those of the opaque slots as well. Runs on the main thread, while the collector marks or
+    /// gathers a graph of the heap.
+    pub visit_edges: unsafe extern "C" fn(node: &NodeCell, visitor: *mut GCVisitor),
+    /// Runs the destructor of the class of `node`, a node of a class with a payload, which the collector found dead and
+    /// finalized, once Rust has released what the cores of its prefix hold.
+    pub destroy: unsafe extern "C" fn(node: &NodeCell),
 }
 
 /// The hooks C++ registers, and an allocator for each class, which live for the rest of the process.
@@ -93,6 +106,7 @@ struct NodeObjects {
     document_type: Allocator,
     attr: Allocator,
     document_fragment: Allocator,
+    shadow_root: Allocator,
 }
 
 impl NodeObjects {
@@ -161,7 +175,137 @@ pub unsafe extern "C" fn rust_dom_register_node_objects(hooks: &'static NodeObje
             document_type: allocator_of::<DocumentTypeObject>(),
             attr: allocator_of::<AttrObject>(),
             document_fragment: allocator_of::<DocumentFragmentObject>(),
+            shadow_root: payload_allocator_of::<ShadowRootObject>(0),
         });
+    }
+}
+
+/// The classes of nodes whose objects Rust lays out as the prefix of the class followed by a payload, which C++
+/// constructs over the prefix Rust made (see DOM::RustMadePrefix), destroys, and visits, finalizes and measures through
+/// the functions of the class: shadow roots. Each has a type info of its own, with the cell size C++ gives the class.
+const PAYLOAD_CLASSES: [(NodeClassId, &str); 1] = [(NodeClassId::ShadowRoot, "ShadowRoot")];
+
+/// The type info of each class of PAYLOAD_CLASSES, by its index there, which rust_dom_register_node_objects() writes
+/// before any node exists, and which never changes after that.
+#[repr(transparent)]
+struct PayloadTypeInfos(UnsafeCell<[MaybeUninit<CellTypeInfo>; PAYLOAD_CLASSES.len()]>);
+
+// SAFETY: The type infos are written once, before any node exists, and only read after that.
+unsafe impl Sync for PayloadTypeInfos {}
+
+static PAYLOAD_TYPE_INFOS: PayloadTypeInfos = PayloadTypeInfos(UnsafeCell::new(
+    [const { MaybeUninit::uninit() }; PAYLOAD_CLASSES.len()],
+));
+
+/// An allocator of the nodes of the class at `index` in PAYLOAD_CLASSES, whose objects start with `T`, which LibGC
+/// traces on the main thread only, as the payload of every such class holds cells that only C++ visits.
+///
+/// # Safety
+///
+/// Only rust_dom_register_node_objects() may call it, once for each class.
+unsafe fn payload_allocator_of<T: PayloadObject>(index: usize) -> Allocator {
+    let (class_id, name) = PAYLOAD_CLASSES[index];
+    let facts = class_id.facts();
+    assert!(
+        facts.flags & NODE_OBJECT_HAS_PAYLOAD != 0
+            && facts.cell_size as usize >= size_of::<T>()
+            && facts.cell_size.is_multiple_of(align_of::<T>() as u32),
+        "a node of class {name} is its prefix and a payload"
+    );
+    let type_info = CellTypeInfo {
+        cell_size: facts.cell_size,
+        external_memory_size: Some(external_memory_size),
+        ..cell::type_info_of::<T>(Some(finalize))
+    };
+    // SAFETY: Guaranteed by the caller; nothing reads the type info before this writes it, and it lives for the rest of
+    //         the process, at an address unique to the class.
+    unsafe {
+        let type_info: &'static CellTypeInfo = (*PAYLOAD_TYPE_INFOS.0.get())[index].write(type_info);
+        let allocator = Allocator::new(type_info, name, core::ptr::from_ref(type_info).cast());
+        capi::gc_allocator_set_traced_on_owner_thread_only(allocator.as_raw());
+        allocator
+    }
+}
+
+/// The object of a class of PAYLOAD_CLASSES, which is the prefix of the class: the payload that follows it in the cell
+/// is C++'s.
+///
+/// # Safety
+///
+/// The type must be #[repr(C)], and start with the prefix of the class, which the C++ class asserts it starts with.
+unsafe trait PayloadObject: RustCell {
+    #[inline(always)]
+    fn node(&self) -> &NodeCell {
+        // SAFETY: The object starts with its NodePrefix, so it is a node.
+        unsafe { &*core::ptr::from_ref(self).cast::<NodeCell>() }
+    }
+}
+
+/// Has C++ visit the cells the payload of `node`, a node of a class of PAYLOAD_CLASSES, holds, and those in the opaque
+/// slots of its prefixes, through the visit_edges() of its class where its payload holds cells, which T's Trace calls
+/// after tracing its fields.
+#[inline(always)]
+fn visit_payload_edges(node: &NodeCell, visitor: &mut Visitor<'_>) {
+    let Some(raw) = visitor.as_raw() else {
+        return;
+    };
+    let hooks = node_objects().hooks;
+    // SAFETY: LibGC traces live nodes on the main thread, with a visitor that outlives the call.
+    unsafe {
+        if NodeClassId::of_cell(node).facts().flags & NODE_OBJECT_PAYLOAD_HAS_EDGES != 0 {
+            (hooks.visit_edges)(node, raw.as_ptr());
+        } else {
+            (hooks.visit_slot_edges)(node, raw.as_ptr());
+        }
+    }
+}
+
+/// Runs the destructor of the class of `object`, a node of a class of PAYLOAD_CLASSES, which destroys its payload and
+/// the members in its opaque slots, as its Drop does once it has released what its cores hold.
+///
+/// # Safety
+///
+/// LibGC must be destroying the object, which nothing reads after this.
+#[inline(always)]
+unsafe fn destroy_payload<T: PayloadObject>(object: &T) {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { (node_objects().hooks.destroy)(object.node()) }
+}
+
+/// A DOM::ShadowRoot: the prefix of the class, which Rust makes, traces and releases, followed by the payload of the
+/// class.
+/// https://dom.spec.whatwg.org/#interface-shadowroot
+#[repr(C)]
+pub struct ShadowRootObject {
+    shadow_root: ShadowRootPrefix,
+}
+
+// SAFETY: Traces every field, and has C++ visit the members of the payload and of the opaque slots.
+unsafe impl Trace for ShadowRootObject {
+    #[inline(always)]
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        self.shadow_root.trace(visitor);
+        visit_payload_edges(self.node(), visitor);
+    }
+}
+
+// SAFETY: The object is #[repr(C)], starts with the header of its cell, which its WrappablePrefix lays out, and is the
+//         size and alignment of the prefix of DOM::ShadowRoot, which fits a cell.
+unsafe impl RustCell for ShadowRootObject {
+    const NAME: &'static str = "ShadowRoot";
+}
+
+// SAFETY: The object is the prefix of DOM::ShadowRoot, which ShadowRoot.cpp asserts the class starts with.
+unsafe impl PayloadObject for ShadowRootObject {}
+
+impl Drop for ShadowRootObject {
+    fn drop(&mut self) {
+        // SAFETY: LibGC destroys the object once, on the main thread, and nothing reads it after this. The destructor
+        //         of DOM::ShadowRoot takes the core as release() leaves it.
+        unsafe {
+            self.shadow_root.core.release(&mut main_thread());
+            destroy_payload(self);
+        }
     }
 }
 
@@ -702,6 +846,42 @@ pub(super) fn create_document_fragment(main_thread: &mut MainThread<'_>, documen
     })
 }
 
+/// The prefix of a new shadow root with the node document `document` and the host `host`, which is closed if `closed`,
+/// over which C++ then constructs the payload of DOM::ShadowRoot, as DOM::ShadowRoot::create() does.
+pub(super) fn create_shadow_root(
+    main_thread: &mut MainThread<'_>,
+    document: NodeRef,
+    host: NodeRef,
+    closed: bool,
+) -> NodeRef {
+    let objects = node_objects();
+    // NB: The constructor of DOM::ShadowRoot writes the vtable pointer.
+    let words = objects.words(core::ptr::null());
+    let document_pointer = document.pointer();
+    let host_pointer = host.pointer();
+    allocate(main_thread, document, &objects.shadow_root, |node| {
+        let node_prefix = NodePrefix::new(
+            words,
+            NodeClassId::ShadowRoot,
+            NodeType::DOCUMENT_FRAGMENT_NODE,
+            node,
+            document_pointer,
+        );
+        if closed {
+            node_prefix.core.set_initial_flags(NODE_IS_CLOSED_SHADOW_ROOT);
+        }
+        ShadowRootObject {
+            shadow_root: ShadowRootPrefix {
+                document_fragment: DocumentFragmentPrefix {
+                    parent_node: ParentNodePrefix::new(node_prefix),
+                    core: DocumentFragmentCore::with_host(host_pointer),
+                },
+                core: ShadowRootCore::new(),
+            },
+        }
+    })
+}
+
 /// A new Text node with the node document `document` and the data `data`, whose reference passes to it, for
 /// DOM::Text::create().
 ///
@@ -861,6 +1041,31 @@ pub unsafe extern "C" fn rust_dom_create_document_fragment(document: &NodeCell) 
     NonNull::from(node.cell())
 }
 
+/// The prefix of a new shadow root with the node document `document` and the host `host`, which is closed if `closed`,
+/// for DOM::ShadowRoot::create(), which then constructs the payload of DOM::ShadowRoot over it.
+///
+/// # Safety
+///
+/// `document` must be a live document, `host` a live element, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_create_shadow_root(
+    document: &NodeCell,
+    host: &NodeCell,
+    closed: bool,
+) -> NonNull<NodeCell> {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: Guaranteed by the caller.
+    let (document, host) = unsafe {
+        (
+            NodeRef::from_cell(document, &main_thread),
+            NodeRef::from_cell(host, &main_thread),
+        )
+    };
+    let node = create_shadow_root(&mut main_thread, document, host, closed);
+    NonNull::from(node.cell())
+}
+
 // NB: The C++ classes assert that they have the sizes and alignments of these.
 const _: () = assert!(size_of::<TextObject>() == 128 && align_of::<TextObject>() == 8);
 const _: () = assert!(size_of::<CDATASectionObject>() == 128 && align_of::<CDATASectionObject>() == 8);
@@ -870,3 +1075,4 @@ const _: () =
 const _: () = assert!(size_of::<DocumentTypeObject>() == 120 && align_of::<DocumentTypeObject>() == 8);
 const _: () = assert!(size_of::<AttrObject>() == 120 && align_of::<AttrObject>() == 8);
 const _: () = assert!(size_of::<DocumentFragmentObject>() == 120 && align_of::<DocumentFragmentObject>() == 8);
+const _: () = assert!(size_of::<ShadowRootObject>() == 168 && align_of::<ShadowRootObject>() == 8);

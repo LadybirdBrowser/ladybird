@@ -879,19 +879,20 @@ struct CellConstructionHook<T> {
         return flags;
     }
 
-    // Whether the constructor that makes an element of T over the prefix libweb_rust made is one C++ can call here.
+    // Whether the constructor that makes a node of T over the prefix libweb_rust made is one C++ can call here.
     static constexpr bool constructs_over_rust_made_prefix = requires(void* storage) { ::new (storage) T(Web::DOM::RustMadePrefix {}); };
 
-    // Constructs the payload of `node`, a new element of T whose prefix libweb_rust made (see Web::DOM::RustMadePrefix),
-    // as Heap::allocate() constructs a cell: with collections deferred until the constructor is done, so that none
-    // traces a payload half made.
-    static T& construct_payload(Web::DOM::Node& node)
+    // Constructs the payload of `node`, a new node of T whose prefix libweb_rust made (see Web::DOM::RustMadePrefix),
+    // with the constructor that takes the prefix and `args`, as Heap::allocate() constructs a cell: with collections
+    // deferred until the constructor is done, so that none traces a payload half made.
+    template<typename... Args>
+    static T& construct_payload(Web::DOM::Node& node, Args&&... args)
     {
-        static_assert(T::cell_kind_for_class == CellKind::Other, "libweb_rust makes an element a cell of GC::CellKind::Other");
+        static_assert(T::cell_kind_for_class == CellKind::Other, "libweb_rust makes a node a cell of GC::CellKind::Other");
         DeferGC defer_gc { node.heap() };
-        auto& element = *::new (static_cast<void*>(&node)) T(Web::DOM::RustMadePrefix {});
-        did_construct(element);
-        return element;
+        auto& object = *::new (static_cast<void*>(&node)) T(Web::DOM::RustMadePrefix {}, forward<Args>(args)...);
+        did_construct(object);
+        return object;
     }
 
     static void did_construct(T& node)

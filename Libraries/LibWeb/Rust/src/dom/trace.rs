@@ -23,10 +23,7 @@ use super::collection::CollectionCore;
 use super::event::EventCore;
 use super::node::heap_region_base;
 use super::node_class::NodeClassId;
-use super::prefix::{
-    AttrPrefix, CharacterDataPrefix, DocumentFragmentPrefix, DocumentPrefix, EventTargetPrefix, NodePrefix,
-    ShadowRootPrefix, TextPrefix,
-};
+use super::prefix::{AttrPrefix, CharacterDataPrefix, DocumentPrefix, EventTargetPrefix, NodePrefix, TextPrefix};
 use super::range::RangeCore;
 use super::traversal::{NodeIteratorCore, TreeWalkerCore};
 
@@ -100,19 +97,15 @@ pub unsafe extern "C" fn rust_dom_trace_event_target(cell: *const c_void, visito
     unsafe {
         if class_id == NodeClassId::NotANode {
             trace_as::<EventTargetPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::Element) {
-            // NB: Every element is an object Rust defines, whose trace traces its prefixes before it calls into the
-            //     C++ visit_edges() that calls this, see element_objects.rs.
+        } else if class_id.is_a(NodeClassId::Element) || class_id.is_a(NodeClassId::DocumentFragment) {
+            // NB: Every element and DocumentFragment is an object Rust defines, whose trace traces its prefixes before
+            //     it calls into the C++ visit_edges() that calls this, see element_objects.rs and node_objects.rs.
         } else if class_id.is_a(NodeClassId::Text) {
             trace_as::<TextPrefix>(cell, &mut visitor);
         } else if class_id.is_a(NodeClassId::CharacterData) {
             trace_as::<CharacterDataPrefix>(cell, &mut visitor);
         } else if class_id.is_a(NodeClassId::Document) {
             trace_as::<DocumentPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::ShadowRoot) {
-            trace_as::<ShadowRootPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::DocumentFragment) {
-            trace_as::<DocumentFragmentPrefix>(cell, &mut visitor);
         } else if class_id.is_a(NodeClassId::Attr) {
             trace_as::<AttrPrefix>(cell, &mut visitor);
         } else {
@@ -214,7 +207,7 @@ mod tests {
     use super::*;
     use crate::dom::node::Node;
     use crate::dom::node_core::NodeType;
-    use crate::dom::prefix::ElementPrefix;
+    use crate::dom::prefix::{ElementPrefix, ShadowRootPrefix};
     use crate::dom::test_tree::{append_child, node, set_assigned_slot, shadow_root};
     use crate::stage::MainThread;
 
@@ -227,6 +220,8 @@ mod tests {
         unsafe {
             if node.is_element() {
                 trace_as::<ElementPrefix>(cell, &mut Visitor::from_raw(visitor));
+            } else if node.class_id() == NodeClassId::ShadowRoot {
+                trace_as::<ShadowRootPrefix>(cell, &mut Visitor::from_raw(visitor));
             } else {
                 rust_dom_trace_event_target(cell, visitor);
             }

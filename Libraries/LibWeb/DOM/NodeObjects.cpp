@@ -35,6 +35,18 @@ struct RustNodeObjectHooks {
         const_cast<Node&>(*node).Node::~Node();
     }
 
+    static void visit_edges(Node const* node, GCVisitor* visitor)
+    {
+        const_cast<Node&>(*node).visit_edges(*reinterpret_cast<GC::Cell::Visitor*>(visitor));
+    }
+
+    // NB: libweb_rust releases what the cores of the node's prefixes hold first, and leaves each of them as the
+    //     destructors of their classes take it to be.
+    static void destroy(Node const* node)
+    {
+        const_cast<Node&>(*node).~Node();
+    }
+
     // A probe of the class T, which holds nothing that needs destroying, and so is never destroyed.
     template<typename T>
     static T const& probe()
@@ -86,6 +98,8 @@ struct RustNodeObjectHooks {
             .finalize = finalize,
             .external_memory_size = external_memory_size,
             .destroy_slots = destroy_slots,
+            .visit_edges = visit_edges,
+            .destroy = destroy,
         };
     }
 };

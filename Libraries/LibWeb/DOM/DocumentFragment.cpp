@@ -12,8 +12,8 @@ namespace Web::DOM {
 
 static_assert(is_shell_of_rust_object<DocumentFragment, RustFFI::DocumentFragmentObject>);
 
-DocumentFragment::DocumentFragment(Document& document)
-    : ParentNode(document, NodeType::DOCUMENT_FRAGMENT_NODE)
+DocumentFragment::DocumentFragment(VtableProbe probe)
+    : ParentNode(probe)
     , m_document_fragment_core { .host = {}, .style_engine_tree_scope = {} }
 {
     // NB: libweb_rust reads a fragment as the DocumentFragmentPrefix it starts with.
@@ -25,9 +25,9 @@ DocumentFragment::DocumentFragment(Document& document)
     static_assert(offsetof(DocumentFragment, m_document_fragment_core) >= sizeof(ParentNode));
 }
 
-DocumentFragment::DocumentFragment(VtableProbe probe)
-    : ParentNode(probe)
-    , m_document_fragment_core { .host = {}, .style_engine_tree_scope = {} }
+// NB: Leaves the core of the fragment as libweb_rust made it.
+DocumentFragment::DocumentFragment(RustMadePrefix prefix)
+    : ParentNode(prefix)
 {
 }
 

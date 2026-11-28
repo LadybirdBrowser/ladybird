@@ -32,36 +32,29 @@
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(ShadowRoot);
-
 GC::Ref<ShadowRoot> ShadowRoot::create(Document& document, Element& host, ShadowRootMode mode)
 {
-    return GC::Heap::the().allocate<ShadowRoot>(document, host, mode);
+    auto& shadow_root = *RustFFI::rust_dom_create_shadow_root(&document, &host, mode == ShadowRootMode::Closed);
+    return GC::CellConstructionHook<ShadowRoot>::construct_payload(shadow_root);
 }
 
-ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
-    : DocumentFragment(document)
-    , m_mode(mode)
+// NB: libweb_rust made the prefix of the shadow root, with its node document, its host and whether it is closed.
+ShadowRoot::ShadowRoot(RustMadePrefix prefix)
+    : DocumentFragment(prefix)
     , m_style_scope(*this)
 {
     // NB: libweb_rust reads a shadow root as the ShadowRootPrefix it starts with.
     static_assert(offsetof(ShadowRoot, m_shadow_root_core) == offsetof(RustFFI::ShadowRootPrefix, core));
-    static_assert(offsetof(ShadowRoot, m_mode) == sizeof(RustFFI::ShadowRootPrefix));
+    static_assert(offsetof(ShadowRoot, m_delegates_focus) == sizeof(RustFFI::ShadowRootPrefix));
 
     // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
     //     its tail padding, where only the Itanium ABI could.
     static_assert(offsetof(ShadowRoot, m_shadow_root_core) >= sizeof(DocumentFragment));
-    if (mode == ShadowRootMode::Closed)
-        m_core.flags |= RustFFI::NODE_IS_CLOSED_SHADOW_ROOT;
-    document.register_shadow_root({}, *this);
-    set_host(&host);
+    static_assert(alignof(ShadowRoot) == alignof(RustFFI::ShadowRootObject));
+    document().register_shadow_root({}, *this);
 }
 
-ShadowRoot::~ShadowRoot()
-{
-    RustFFI::rust_dom_shadow_root_core_destroy(&m_shadow_root_core);
-    RustFFI::rust_dom_id_map_destroy(&m_shadow_root_core.ids);
-}
+ShadowRoot::~ShadowRoot() = default;
 
 void ShadowRoot::finalize()
 {
