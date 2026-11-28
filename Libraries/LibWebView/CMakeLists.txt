@@ -4,6 +4,7 @@ set(SOURCES
     ApplyHistoryStep.cpp
     AudioServerActivity.cpp
     AudioServerControlClient.cpp
+    Authenticator.cpp
     Autocomplete.cpp
     AutocompleteMuxer.cpp
     AutocompleteRanker.cpp
@@ -197,6 +198,9 @@ if ((LINUX OR BSD) AND BUILD_SHARED_LIBS)
     target_link_options(LibWebView PRIVATE LINKER:--exclude-libs=liblibwebview_rust.a)
 endif()
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebview_rust)
+
+get_target_property(_libwebview_rust_lib libwebview_rust IMPORTED_LOCATION)
+set_property(SOURCE Authenticator.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libwebview_rust_lib})
 
 if (LINUX)
     # The connect broker asks the audio library where the daemon is before connecting a helper to it.
