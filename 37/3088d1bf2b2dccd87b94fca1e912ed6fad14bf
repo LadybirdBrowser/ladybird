@@ -1,0 +1,5 @@
+Ladybird leaves generated content out of find-in-page text, and reads
+the text on either side of an inline ::before or ::after as one run,
+while a block-level one breaks it. Chrome 158 and Firefox 151 do the
+same on the test page, run with window.find(); WebKit 26.5 also matches
+across a block-level ::after.
