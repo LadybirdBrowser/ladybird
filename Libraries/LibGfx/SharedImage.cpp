@@ -145,9 +145,9 @@ ErrorOr<Gfx::SharedImage> decode(Decoder& decoder)
         return Gfx::SharedImage { TRY(decoder.decode<Gfx::LinuxDmaBufHandle>()) };
     case SharedImageBackingType::WindowsD3DTexture:
         return Gfx::SharedImage { TRY(decoder.decode<Gfx::WindowsD3DHandle>()) };
-    default:
-        VERIFY_NOT_REACHED();
     }
+
+    return Error::from_string_literal("IPC decode: Invalid shared image backing type");
 #endif
 }
 

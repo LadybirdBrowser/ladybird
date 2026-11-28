@@ -118,3 +118,5 @@ template<>
 ErrorOr<HTTP::Cookie::VersionedCookie> decode(Decoder&);
 
 }
+
+#include <LibHTTP/Cookie/CookieCodecs.h>
