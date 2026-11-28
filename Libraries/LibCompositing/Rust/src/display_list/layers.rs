@@ -125,7 +125,10 @@ impl std::fmt::Display for WhyListIsOneLayer {
         formatter.write_str(match self {
             WhyListIsOneLayer::EmptyViewport => "empty viewport",
             WhyListIsOneLayer::EmptyDisplayList => "empty display list",
-            WhyListIsOneLayer::SortingContext3D => "3D sorting context holding an effect that reads or is composited",
+            WhyListIsOneLayer::SortingContext3D => {
+                "3D sorting context holding an effect that is composited, filters what is below it or blends with \
+                 the root group"
+            }
             WhyListIsOneLayer::RootIsolationEffectIsNotPlainGroup => "root isolation effect is not a plain group",
             WhyListIsOneLayer::RecordsBlendWithWhatOtherLayersHoldBelowThem => {
                 "records blend with what other layers hold below them"

@@ -1,0 +1,23 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[1,0,0,1,0,0] origin=(0,0) synthetic_plane establishes_sorting_context (BlockContainer<DIV>#scene)
+          [s3] perspective=[1,0,-0.316,0,0,1,-0.462,0,0,0,1,0,0,0,-0.002,1] flattens_inherited_transform=false (BlockContainer<DIV>#scene)
+            [s4] transform3d=[0.9396926,0,0.34202012,0,0,1,0,0,-0.34202012,0,0.9396926,0,0,0,0,1] origin=(58,181) sorting_context_root=s2 flattens_inherited_transform=false bounds=[8,131 100x100] (BlockContainer<DIV>#card)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s3] effects=[isolation] (BlockContainer<DIV>#card)
+        [e2 in s4] effects=[blend_mode=ColorDodge] (BlockContainer<DIV>#shine)
+
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] base space=viewport
+  [L1] canvas #0 space=viewport region=[5,5 206x126] can be shown by the window server: clip=[0,0 800x600]
+  [L2] painted space=viewport above L1
+  e2 is not composited: it reads only its own layer
+
+DisplayList:
+L1 DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L2 FillRect@s4/e1 rect=[8,131 100x100] color=rgb(255, 165, 0) owner=BlockContainer<DIV>#card phase=background
+L2 FillRect@s4/e2 rect=[8,131 100x100] color=rgb(0, 128, 128) owner=BlockContainer<DIV>#shine phase=background
+
