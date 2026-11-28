@@ -8,11 +8,15 @@
 //! https://dom.spec.whatwg.org/#concept-node-insert
 
 use super::hooks;
+use super::hooks::DomInserter;
+use super::hooks::Inserter;
 use super::hooks::InsertionStart;
+use super::hooks::ParserInserter;
 use super::node::NodeCell;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNullableNodeRef;
+use super::remove::remove_all_children;
 use super::steps::insertion_steps_do_nothing;
 use super::tree::for_each_shadow_including_inclusive_descendant;
 use crate::stage::MainThread;
@@ -22,7 +26,7 @@ crate::stage::main_thread_ffi_entries!(without_host);
 /// https://dom.spec.whatwg.org/#concept-node-insert
 ///
 /// `nodes` are the nodes of step 1, which the caller collects into a span it roots in a frame below this one.
-fn insert(
+pub(crate) fn insert(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
     nodes: &[NodeRef],
@@ -46,6 +50,9 @@ fn insert(
 
     // 4. If node is a DocumentFragment node:
     //    1. Remove its children with suppressObservers set to true.
+    if node.node_type() == NodeType::DOCUMENT_FRAGMENT_NODE {
+        remove_all_children(main_thread, node, true);
+    }
     //    2. Queue a tree mutation record for node with « », nodes, null, and null.
     //       NOTE: This step intentionally does not pay attention to suppressObservers.
     // 5. If child is non-null:
@@ -53,16 +60,51 @@ fn insert(
     //       start offset by count.
     //    2. For each live range whose end node is parent and end offset is greater than child’s index: increase its end
     //       offset by count.
-    // NB: The callback also consumes the deferred style change events of the documents, and answers whether the
-    //     insertion affects the element children of parent, and which tree version the steps below start from.
-    let start = hooks::begin_insertion(main_thread, parent, node, nodes, child);
+    // NB: The callback also tells the editing history of the mutation and consumes the deferred style change events of
+    //     the documents, and answers whether the insertion affects the element children of parent, and which tree
+    //     version the steps below start from.
+    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes, child);
 
-    insert_nodes(main_thread, parent, node, nodes, child, suppress_observers, start);
+    insert_nodes::<DomInserter>(main_thread, parent, node, nodes, child, suppress_observers, start);
+}
+
+/// Inserts `node`, which the HTML or XML parser has just created, into `parent` before `child`, where the style engine
+/// does not track `parent`'s tree. The callbacks leave out what InsertionKind::Parser says.
+/// https://dom.spec.whatwg.org/#concept-node-insert
+fn parser_insert(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRef, child: Option<NodeRef>) {
+    // 1. Let nodes be node’s children, if node is a DocumentFragment node; otherwise « node ».
+    // NB: The parser inserts no DocumentFragment.
+    debug_assert!(node.node_type() != NodeType::DOCUMENT_FRAGMENT_NODE);
+    let nodes = [node];
+
+    // 2. Let count be nodes’s size.
+    // 3. If count is 0, then return.
+    // 4. If node is a DocumentFragment node: ...
+    // 5. If child is non-null: ...
+    let start = hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes, child);
+
+    insert_nodes::<ParserInserter>(main_thread, parent, node, &nodes, child, false, start);
+}
+
+/// Inserts `nodes`, which have no parent and are no DocumentFragment, into `parent` before null with suppressObservers
+/// set to true, as inserting a DocumentFragment that holds them would, without making one no one can observe.
+/// https://dom.spec.whatwg.org/#concept-node-insert
+pub(crate) fn insert_as_children_of_unobservable_fragment(
+    main_thread: &mut MainThread<'_>,
+    nodes: &[NodeRef],
+    parent: NodeRef,
+) {
+    if nodes.is_empty() {
+        return;
+    }
+    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes, None);
+    // NB: The children changed steps are told that parent itself was inserted, for want of the fragment.
+    insert_nodes::<DomInserter>(main_thread, parent, parent, nodes, None, true, start);
 }
 
 /// Steps 6 and on of inserting `node`, whose nodes are `nodes`, into `parent` before `child`, which `start` begins.
 /// https://dom.spec.whatwg.org/#concept-node-insert
-fn insert_nodes(
+fn insert_nodes<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
     node: NodeRef,
@@ -99,7 +141,7 @@ fn insert_nodes(
         // NB: The callback also records the arrival of the subtree for the style engine, and then calls
         //     rust_dom_run_insertion_steps() for the walk below, inside a C++ scope that serves the insertion steps of
         //     the subtree.
-        hooks::insert_node_into_children(
+        hooks::insert_node_into_children::<I>(
             main_thread,
             parent,
             node,
@@ -114,7 +156,7 @@ fn insert_nodes(
     // NB: The callback also invalidates the collection caches, and marks the layout tree for the inserted nodes before
     //     the post-connection steps, which can run script that reads layout geometry. It answers which tree version
     //     the steps below start from.
-    let tree_version = hooks::end_insertion(
+    let tree_version = hooks::end_insertion::<I>(
         main_thread,
         parent,
         node,
@@ -139,13 +181,13 @@ fn insert_nodes(
         && nodes.iter().any(|node| node.is_connected());
 
     // NB: The callback also schedules the list item renumbering the insertion causes, and moves the tree version.
-    hooks::finish_insertion(main_thread, parent, nodes, run_post_connection_steps);
+    hooks::finish_insertion::<I>(main_thread, parent, nodes, run_post_connection_steps);
 }
 
 /// Step 7.7 of inserting nodes: the walk over the shadow-including inclusive descendants of `node`, which has just
 /// joined its parent's children.
 /// https://dom.spec.whatwg.org/#concept-node-insert
-fn run_insertion_steps_for_subtree(
+fn run_insertion_steps_for_subtree<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
     any_node_has_post_connection_steps: &mut bool,
@@ -169,7 +211,7 @@ fn run_insertion_steps_for_subtree(
         if insertion_steps_do_nothing(inclusive_descendant) {
             return;
         }
-        if hooks::run_insertion_steps(main_thread, inclusive_descendant) {
+        if hooks::run_insertion_steps::<I>(main_thread, inclusive_descendant) {
             *any_node_has_post_connection_steps = true;
         }
     });
@@ -204,28 +246,26 @@ pub unsafe extern "C" fn rust_dom_insert(
     );
 }
 
-/// Inserts `nodes`, the nodes that replace all of `parent`'s children, which it has none of anymore, into `parent`
-/// before null with suppressObservers set to true, for DOM::Node, which has run the steps `start` answers for.
+/// Inserts `node`, which the HTML or XML parser has just created, into `parent` before `child`, for DOM::Node, where
+/// the style engine does not track `parent`'s tree.
 ///
 /// # Safety
 ///
-/// The nodes must be live and rooted for the call, and the call must be made on the main thread.
+/// The nodes must be live, `node` must be no DocumentFragment, `child` must be a child of `parent`, and the call must
+/// be made on the main thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_insert_nodes_replacing_all(
-    parent: &NodeCell,
-    nodes: ak::Span<'_, NodeRef>,
-    start: InsertionStart,
-) {
+pub unsafe extern "C" fn rust_dom_parser_insert(parent: &NodeCell, node: &NodeCell, child: RawNullableNodeRef) {
     // SAFETY: Guaranteed by the caller.
     let mut main_thread = unsafe { main_thread() };
-    // SAFETY: The node is live.
-    let parent = unsafe { NodeRef::from_cell(parent, &main_thread) };
-    insert_nodes(&mut main_thread, parent, parent, nodes.as_slice(), None, true, start);
+    // SAFETY: The nodes are live.
+    let reference = |cell| unsafe { NodeRef::from_cell(cell, &main_thread) };
+    let (parent, node) = (reference(parent), reference(node));
+    parser_insert(&mut main_thread, node, parent, child.into());
 }
 
 /// Runs step 7.7 of inserting nodes for `node`, which has just joined its parent's children, setting
 /// `any_node_has_post_connection_steps` if a node it ran the insertion steps for has post-connection steps, for the
-/// callback that serves step 7 for a node.
+/// callback of InsertionKind::Dom that serves step 7 for a node.
 ///
 /// # Safety
 ///
@@ -236,5 +276,22 @@ pub unsafe extern "C" fn rust_dom_run_insertion_steps(node: &NodeCell, any_node_
     let mut main_thread = unsafe { main_thread() };
     // SAFETY: The node is live.
     let node = unsafe { NodeRef::from_cell(node, &main_thread) };
-    run_insertion_steps_for_subtree(&mut main_thread, node, any_node_has_post_connection_steps);
+    run_insertion_steps_for_subtree::<DomInserter>(&mut main_thread, node, any_node_has_post_connection_steps);
+}
+
+/// rust_dom_run_insertion_steps() for the callback of InsertionKind::Parser.
+///
+/// # Safety
+///
+/// The node must be live, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_run_parser_insertion_steps(
+    node: &NodeCell,
+    any_node_has_post_connection_steps: &mut bool,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The node is live.
+    let node = unsafe { NodeRef::from_cell(node, &main_thread) };
+    run_insertion_steps_for_subtree::<ParserInserter>(&mut main_thread, node, any_node_has_post_connection_steps);
 }

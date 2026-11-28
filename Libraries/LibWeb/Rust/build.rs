@@ -2788,6 +2788,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "DocumentFragmentCore".to_string(),
         "DocumentCore".to_string(),
         "ElementCore".to_string(),
+        "InsertionKind".to_string(),
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
@@ -2831,6 +2832,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/node_ref.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
             manifest_dir.join("src/dom/remove.rs"),
+            manifest_dir.join("src/dom/replace.rs"),
         ],
         &out_dir,
         Path::new("DOM/RustFFI.h"),

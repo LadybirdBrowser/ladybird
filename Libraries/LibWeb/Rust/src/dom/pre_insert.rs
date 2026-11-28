@@ -4,12 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The validity checks that inserting a node into a parent makes first.
+//! Pre-inserting a node into a parent, and the validity checks that inserting a node makes first.
+//! https://dom.spec.whatwg.org/#concept-node-pre-insert
 //! https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
 
+use super::insert::insert;
 use super::node::Node;
 use super::node::NodeCell;
 use super::node_core::NodeType;
+use super::node_ref::NodeRef;
+use super::node_ref::RawNullableNodeRef;
+use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
@@ -169,6 +174,62 @@ pub fn ensure_pre_insert_validity<'a>(
     Valid
 }
 
+/// Ensures the pre-insert validity of nodes that code which changes the DOM holds.
+/// https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
+pub(crate) fn ensure_pre_insert_validity_of(
+    main_thread: &MainThread<'_>,
+    node: NodeRef,
+    parent: NodeRef,
+    child: Option<NodeRef>,
+    children_to_exclude: ChildrenToExclude,
+) -> PreInsertValidity {
+    let child = child.as_ref();
+    // SAFETY: The nodes are live, and the shared borrow of the main thread token keeps anything from changing the DOM
+    //         while the checks read it.
+    unsafe {
+        ensure_pre_insert_validity(
+            Node::from_cell(node.cell(), main_thread),
+            Node::from_cell(parent.cell(), main_thread),
+            child.map(|child| Node::from_cell(child.cell(), main_thread)),
+            children_to_exclude,
+        )
+    }
+}
+
+/// https://dom.spec.whatwg.org/#concept-node-pre-insert
+///
+/// `nodes` are the nodes of step 1 of inserting, which the caller collects into a span it roots in a frame below this
+/// one. Answers which DOMException to throw where step 1 throws one.
+fn pre_insert(
+    main_thread: &mut MainThread<'_>,
+    node: NodeRef,
+    parent: NodeRef,
+    child: Option<NodeRef>,
+    nodes: &[NodeRef],
+) -> PreInsertValidity {
+    // To pre-insert a node node into a node parent before null or a node child:
+
+    // 1. Ensure pre-insert validity given node, parent, child, and « ».
+    let validity = ensure_pre_insert_validity_of(main_thread, node, parent, child, ChildrenToExclude::Nothing);
+    if validity != PreInsertValidity::Valid {
+        return validity;
+    }
+
+    // 2. Let referenceChild be child.
+    let mut reference_child = child;
+
+    // 3. If referenceChild is node, then set referenceChild to node’s next sibling.
+    if reference_child == Some(node) {
+        reference_child = node.next_sibling();
+    }
+
+    // 4. Insert node into parent before referenceChild.
+    insert(main_thread, node, nodes, parent, reference_child, false);
+
+    // 5. Return node.
+    PreInsertValidity::Valid
+}
+
 /// https://dom.spec.whatwg.org/#concept-doctype
 fn is_doctype(node: Node<'_>) -> bool {
     node.node_type() == NodeType::DOCUMENT_TYPE_NODE
@@ -213,6 +274,28 @@ pub unsafe extern "C" fn rust_dom_ensure_pre_insert_validity(
         child.map(from_cell),
         children_to_exclude,
     )
+}
+
+/// Pre-inserts `node`, whose nodes are `nodes`, into `parent` before `child`, for DOM::Node, and answers which
+/// DOMException to throw if it throws one.
+///
+/// # Safety
+///
+/// The nodes must be live and rooted for the call, `nodes` must be `node`'s children if it is a DocumentFragment and
+/// « node » otherwise, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_pre_insert(
+    parent: &NodeCell,
+    node: &NodeCell,
+    nodes: ak::Span<'_, NodeRef>,
+    child: RawNullableNodeRef,
+) -> PreInsertValidity {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The nodes are live.
+    let reference = |cell| unsafe { NodeRef::from_cell(cell, &main_thread) };
+    let (parent, node) = (reference(parent), reference(node));
+    pre_insert(&mut main_thread, node, parent, child.into(), nodes.as_slice())
 }
 
 #[cfg(test)]

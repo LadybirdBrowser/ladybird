@@ -787,12 +787,11 @@ bool Node::is_browsing_context_connected() const
     return is_connected() && document().browsing_context();
 }
 
-// https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
-WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, ChildrenToExclude children_to_exclude) const
+// The exception libweb_rust's validity checks (see Rust/src/dom/pre_insert.rs) say to throw.
+static WebIDL::ExceptionOr<void> throw_if_not_valid(RustFFI::PreInsertValidity validity)
 {
-    // NB: libweb_rust runs the checks, see Rust/src/dom/pre_insert.rs, and says which exception to throw.
     // FIXME: The "Invalid node type for insertion" messages could be more descriptive.
-    switch (RustFFI::rust_dom_ensure_pre_insert_validity(node.ptr(), this, child.ptr(), children_to_exclude)) {
+    switch (validity) {
     case RustFFI::PreInsertValidity::Valid:
         return {};
     case RustFFI::PreInsertValidity::ParentCannotHaveChildren:
@@ -807,13 +806,16 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node
     VERIFY_NOT_REACHED();
 }
 
+// https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
+WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, ChildrenToExclude children_to_exclude) const
+{
+    // NB: libweb_rust runs the checks, see Rust/src/dom/pre_insert.rs, and says which exception to throw.
+    return throw_if_not_valid(RustFFI::rust_dom_ensure_pre_insert_validity(node.ptr(), this, child.ptr(), children_to_exclude));
+}
+
 // https://dom.spec.whatwg.org/#concept-node-insert
 void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_observers)
 {
-    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
-    if (auto history = document().editing_history_if_exists())
-        history->notify_dom_mutation();
-
     // 1. Let nodes be node’s children, if node is a DocumentFragment node; otherwise « node ».
     // NB: The nodes are rooted in this frame for libweb_rust, which runs the algorithm, see Rust/src/dom/insert.rs, and
     //     calls RustDOMHooks for the steps whose state C++ keeps.
@@ -892,8 +894,7 @@ void Node::insert_node_into_children(GC::Ref<Node> node, GC::Ptr<Node> child)
 }
 
 // https://dom.spec.whatwg.org/#concept-node-insert
-template<typename Nodes>
-static void run_post_connection_steps(Nodes const& nodes)
+static void run_post_connection_steps(ReadonlySpan<GC::Ref<Node>> nodes)
 {
     // 10. Let staticNodeList be a list of nodes, initially « ».
     // NOTE: We collect all nodes before calling the post-connection steps on any one of them, instead of calling the
@@ -925,68 +926,24 @@ static void run_post_connection_steps(Nodes const& nodes)
 // https://dom.spec.whatwg.org/#concept-node-insert
 void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
-    // AD-HOC: The insertion of one node the parser has just created into a tree the style engine does not track.
-    //         Script can hold such a tree, so observers, live ranges, collection caches and the post-connection steps
-    //         are served, but style, layout and custom element reactions have nothing to do until the tree is tracked.
-
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/insert.rs, and leaves out what RustFFI::InsertionKind::Parser
+    //     says, for the one node the parser has just created and inserts into a tree the style engine does not track.
     VERIFY(!is_tracked_by_style_engine());
-
-    // 5. If child is non-null:
-    if (child)
-        adjust_live_ranges_for_insertion(*child, 1);
-
-    // 6. Let previousSibling be child’s previous sibling or parent’s last child if child is null.
-    GC::Ptr<Node> previous_sibling = child ? child->previous_sibling() : last_child();
-
-    // 7. For each node in nodes, in tree order:
-    insert_node_into_children(node, child);
-
-    // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
-    //    1. Run the insertion steps with inclusiveDescendant.
-    //    2. If inclusiveDescendant is not connected, then continue.
-    node->for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
-        inclusive_descendant.inserted();
-        return TraversalDecision::Continue;
-    });
-
-    // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
-    //    and child.
-    // OPTIMIZATION: Without an observer of tree mutations, the record is never queued. The exceptions are DevTools and
-    // an assistive technology, which consume every mutation, observer or not (see queue_mutation_record()).
-    auto& page = document().page();
-    if (document().has_mutation_observers_of_type(MutationType::childList) || page.listen_for_dom_mutations() || page.accessibility_interested())
-        queue_tree_mutation_record({ &node, 1 }, {}, previous_sibling.ptr(), child.ptr());
-
-    // 9. Run the children changed steps for parent.
-    auto affects_elements = mutation_affects_elements(*node);
-    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
-    children_changed(metadata);
-    invalidate_html_collection_caches_in_ancestors(affects_elements);
-
-    // OPTIMIZATION: Disconnected subtrees cannot have post-connection steps to run.
-    if (is_connected())
-        run_post_connection_steps(Array { node });
-
-    bump_dom_tree_version();
+    RustFFI::rust_dom_parser_insert(this, node.ptr(), child.ptr());
 }
 
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_insert(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
-    // 1. Ensure pre-insertion validity of node into parent before child.
-    TRY(ensure_pre_insertion_validity(node, child));
-
-    // 2. Let referenceChild be child.
-    auto reference_child = child;
-
-    // 3. If referenceChild is node, then set referenceChild to node’s next sibling.
-    if (reference_child == node)
-        reference_child = node->next_sibling();
-
-    // 4. Insert node into parent before referenceChild.
-    insert_before(node, reference_child);
-
-    // 5. Return node.
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/pre_insert.rs, with the nodes that step 1 of inserting
+    //     collects rooted in this frame.
+    if (is<DocumentFragment>(*node)) {
+        auto fragment_children = node->children_as_vector();
+        TRY(throw_if_not_valid(RustFFI::rust_dom_pre_insert(this, node.ptr(), fragment_children.span(), child.ptr())));
+        return node;
+    }
+    // OPTIMIZATION: A single node needs no vector.
+    TRY(throw_if_not_valid(RustFFI::rust_dom_pre_insert(this, node.ptr(), { &node, 1 }, child.ptr())));
     return node;
 }
 
@@ -1000,14 +957,9 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::remove_child(GC::Ref<Node> child)
 // https://dom.spec.whatwg.org/#concept-node-pre-remove
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_remove(GC::Ref<Node> child)
 {
-    // 1. If child’s parent is not parent, then throw a "NotFoundError" DOMException.
-    if (child->parent() != this)
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/remove.rs, and says whether to throw.
+    if (!RustFFI::rust_dom_pre_remove(this, child.ptr()))
         return WebIDL::NotFoundError::create("Child does not belong to this node"_utf16);
-
-    // 2. Remove child.
-    child->remove();
-
-    // 3. Return child.
     return child;
 }
 
@@ -1279,13 +1231,6 @@ void Node::assign_slottables_after_removal(Node& parent, Node& parent_root, Read
     }
 }
 
-void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_tracked_by_style_engine)
-{
-    // NB: libweb_rust walks the subtree, see Rust/src/dom/remove.rs, and calls RustDOMHooks::run_removing_steps() for
-    //     each node.
-    RustFFI::rust_dom_run_removing_steps(this, &parent, &parent_root, was_tracked_by_style_engine);
-}
-
 // https://dom.spec.whatwg.org/#add-transient-registered-observers
 void Node::add_transient_registered_observers(Node& parent)
 {
@@ -1355,54 +1300,14 @@ void Node::remove(bool suppress_observers)
 // https://dom.spec.whatwg.org/#concept-node-replace
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::Ref<Node> child)
 {
-    // 1. Ensure pre-insert validity given node, parent, child, and « child ».
-    TRY(ensure_pre_insertion_validity(node, child, ChildrenToExclude::Child));
-
-    // 2. Let referenceChild be child’s next sibling.
-    GC::Ptr<Node> reference_child = child->next_sibling();
-
-    // 3. If referenceChild is node, then set referenceChild to node’s next sibling.
-    if (reference_child == node)
-        reference_child = node->next_sibling();
-
-    // 4. Let previousSibling be child’s previous sibling.
-    GC::Ptr<Node> previous_sibling = child->previous_sibling();
-
-    // 5. Let removedNodes be the empty set.
-    GC::RootVector<GC::Ref<Node>> removed_nodes;
-
-    // 6. Adopt node into parent's node document.
-    document().adopt_node_steps(node);
-
-    // 7. If child’s parent is non-null:
-    // NOTE: The above can only be false if child is node.
-    if (child->parent()) {
-        // 1. Set removedNodes to « child ».
-        removed_nodes.append(child);
-
-        // 2. Remove child with suppressObservers set to true.
-        child->remove(true);
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/replace.rs, with the nodes of step 8 rooted in this frame.
+    if (is<DocumentFragment>(*node)) {
+        auto fragment_children = node->children_as_vector();
+        TRY(throw_if_not_valid(RustFFI::rust_dom_replace(this, node.ptr(), fragment_children.span(), child.ptr())));
+        return child;
     }
-
-    // 8. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
-    GC::RootVector<GC::Ref<Node>> nodes;
-    if (is<DocumentFragment>(*node))
-        nodes = node->children_as_vector();
-    else
-        nodes.append(node);
-
-    // AD-HOC: Since removing the child may have executed arbitrary code, we have to verify
-    //         the sanity of inserting `node` before `reference_child` again, as well as
-    //         `child` not being reinserted elsewhere.
-    if (!reference_child || (reference_child->parent() == this && !child->parent_node())) {
-        // 9. Insert node into parent before referenceChild with suppressObservers set to true.
-        insert_before(node, reference_child, true);
-    }
-
-    // 10. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
-    queue_tree_mutation_record(nodes, removed_nodes, previous_sibling.ptr(), reference_child.ptr());
-
-    // 11. Return child.
+    // OPTIMIZATION: A single node needs no vector.
+    TRY(throw_if_not_valid(RustFFI::rust_dom_replace(this, node.ptr(), { &node, 1 }, child.ptr())));
     return child;
 }
 
@@ -2593,113 +2498,9 @@ GC::RootVector<GC::Ref<Node>> Node::children_as_vector() const
 // https://dom.spec.whatwg.org/#concept-node-remove
 void Node::remove_all_children(bool suppress_observers)
 {
-    // AD-HOC: The remove algorithm for each child in tree order. The steps that concern only the parent run once for
-    //         all of the children, as noted under each.
-
-    if (!has_children())
-        return;
-
-    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
-    if (auto history = document().editing_history_if_exists())
-        history->notify_dom_mutation();
-
-    document().flush_deferred_style_change_event();
-    bool const was_connected = is_connected();
-    bool const was_tracked_by_style_engine = is_tracked_by_style_engine();
-
-    // 1. Let parent be node’s parent
-    // NB: This node is the parent of every child removed here.
-
-    // 2. Assert: parent is non-null.
-    // NB: The parent is this node, so there is nothing to check.
-    auto& parent_root = root();
-
-    // 3. Run the live range pre-remove steps, given node.
-    // NB: Run once for all of the children before any is removed. Each child is the first child when its turn comes,
-    //     and the steps for every child together leave each boundary point that was in a child or on this node at
-    //     (this, 0). Nothing that runs between the removals can observe a live range.
-    live_range_pre_remove_all_children();
-
-    bool const track_affected_elements = document().has_valid_html_collection_caches();
-    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
-    bool const a_child_holds_a_propagating_state_source = CSS::Invalidation::descendants_hold_a_propagating_state_source(*this);
-    // Every child has the same list owner, so the first child that renumbers it answers for all of them.
-    bool list_owner_renumber_scheduled = false;
-
-    while (GC::Ptr<Node> child = first_child()) {
-        if (was_connected)
-            document().page().keyboard_scroll_dom_tree_changed(*child);
-
-        // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
-        //    run the NodeIterator pre-removing steps given node and iterator.
-        child->run_node_iterator_pre_removing_steps();
-
-        // 5. Let oldPreviousSibling be node’s previous sibling.
-        // NB: The child removed is always the first, so oldPreviousSibling is always null.
-
-        // 6. Let oldNextSibling be node’s next sibling.
-        GC::Ptr<Node> old_next_sibling = child->next_sibling();
-
-        if (track_affected_elements && mutation_affects_elements(*child) == ChildrenChangedMetadata::AffectsElements::Yes)
-            affects_elements = ChildrenChangedMetadata::AffectsElements::Yes;
-
-        if (!list_owner_renumber_scheduled)
-            list_owner_renumber_scheduled = child->schedule_list_item_renumber_for_removal();
-
-        auto descendant_slots = child->descendant_slots_before_removal(parent_root);
-        auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*child, *this);
-        bool const child_holds_a_propagating_state_source = a_child_holds_a_propagating_state_source && CSS::Invalidation::holds_a_propagating_state_source(*child);
-
-        if (was_tracked_by_style_engine) {
-            child->update_layout_tree_for_removal(*this);
-            child->detach_remaining_layout_nodes_for_removal();
-            child->report_removal_to_style_engine(*this);
-        }
-
-        // 7. Remove node from its parent’s children.
-        remove_child_impl(*child);
-
-        // 8. If node is assigned, then run assign slottables for node’s assigned slot.
-        // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-        //    signal a slot change for parent.
-        // 10. If node has an inclusive descendant that is a slot, then:
-        child->assign_slottables_after_removal(*this, parent_root, descendant_slots);
-
-        if (!was_connected)
-            pin_bound_box_style_records_for_detachment(*child);
-
-        // NB: Republish the old chain before the removing steps clear the focused area.
-        if (child_holds_a_propagating_state_source)
-            CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*child, old_flat_tree_parent);
-
-        // 11. Run the removing steps with node, true, and parent.
-        // 12. Let isParentConnected be parent’s connected.
-        // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with
-        //     node, callback name "disconnectedCallback", and an empty argument list.
-        // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
-        child->run_removing_steps(*this, parent_root, was_tracked_by_style_engine);
-
-        // 15. Add transient registered observers given node and parent.
-        child->add_transient_registered_observers(*this);
-
-        // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
-        //     oldPreviousSibling, and oldNextSibling.
-        if (!suppress_observers)
-            child->queue_tree_mutation_record_for_removal(*this, nullptr, old_next_sibling);
-
-        // 17. Run the children changed steps for parent.
-        // NB: Run once after the last child has left. No script can run between two removals, so the runs in between
-        //     would only redo work on children that are about to leave.
-
-        child->bump_dom_tree_version();
-    }
-
-    // 17. Run the children changed steps for parent.
-    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::AllChildrenRemoved, *this, affects_elements };
-    children_changed(metadata);
-    invalidate_html_collection_caches_in_ancestors(affects_elements);
-
-    bump_dom_tree_version();
+    // NB: libweb_rust runs the remove algorithm for each child, see Rust/src/dom/remove.rs, and calls RustDOMHooks for the
+    //     steps whose state C++ keeps.
+    RustFFI::rust_dom_remove_all_children(this, suppress_observers);
 }
 
 // https://dom.spec.whatwg.org/#dom-node-comparedocumentposition
@@ -2997,53 +2798,34 @@ bool Node::is_shadow_including_inclusive_ancestor_of(Node const& other) const
 // https://dom.spec.whatwg.org/#concept-node-replace-all
 void Node::replace_all(GC::Ptr<Node> node)
 {
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/replace.rs, with the lists of steps 1 to 4 rooted in this
+    //     frame.
     // 1. Let removedNodes be parent’s children.
     auto removed_nodes = children_as_vector();
 
     // 2. Let addedNodes be the empty set.
-    GC::RootVector<GC::Ref<Node>> added_nodes;
-
     // 3. If node is a DocumentFragment node, then set addedNodes to node’s children.
-    if (node && is<DocumentFragment>(*node)) {
-        added_nodes = node->children_as_vector();
-    }
     // 4. Otherwise, if node is non-null, set addedNodes to « node ».
-    else if (node) {
-        added_nodes.append(*node);
+    if (node && is<DocumentFragment>(*node)) {
+        auto added_nodes = node->children_as_vector();
+        RustFFI::rust_dom_replace_all(this, node.ptr(), added_nodes.span(), removed_nodes.span());
+        return;
     }
-
-    // 5. Remove all parent’s children, in tree order, with suppressObservers set to true.
-    remove_all_children(true);
-
-    // 6. If node is non-null, then insert node into parent before null with suppressObservers set to true.
-    if (node)
-        insert_before(*node, nullptr, true);
-
-    // 7. If either addedNodes or removedNodes is not empty, then queue a tree mutation record for parent with
-    //    addedNodes, removedNodes, null, and null.
-    if (!added_nodes.is_empty() || !removed_nodes.is_empty()) {
-        queue_tree_mutation_record(added_nodes, removed_nodes, nullptr, nullptr);
+    if (!node) {
+        RustFFI::rust_dom_replace_all(this, nullptr, {}, removed_nodes.span());
+        return;
     }
+    // OPTIMIZATION: A single node needs no vector.
+    GC::Ref<Node> added_node = *node;
+    RustFFI::rust_dom_replace_all(this, node.ptr(), { &added_node, 1 }, removed_nodes.span());
 }
 
+// Replaces all of this node's children with `added_nodes`, which have no parent and are no DocumentFragment, as
+// replacing all with a DocumentFragment that holds them would, without making one no one can observe.
 void Node::replace_all(GC::RootVector<GC::Ref<Node>> added_nodes)
 {
-    if (auto history = document().editing_history_if_exists())
-        history->notify_dom_mutation();
-
     auto removed_nodes = children_as_vector();
-
-    document().flush_deferred_style_change_event();
-    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
-    if (document().has_valid_html_collection_caches())
-        affects_elements = mutation_affects_elements(added_nodes.span());
-
-    remove_all_children(true);
-    if (!added_nodes.is_empty())
-        RustFFI::rust_dom_insert_nodes_replacing_all(this, added_nodes.span(), { affects_elements, s_last_tree_version });
-
-    if (!added_nodes.is_empty() || !removed_nodes.is_empty())
-        queue_tree_mutation_record(added_nodes, removed_nodes, nullptr, nullptr);
+    RustFFI::rust_dom_replace_all(this, nullptr, added_nodes.span(), removed_nodes.span());
 }
 
 void Node::string_replace_all(Utf16View string)
@@ -4527,29 +4309,34 @@ static_assert(IsTriviallyCopyable<GC::Ptr<Node>> && sizeof(GC::Ptr<Node>) == siz
 class RustDOMHooks {
 public:
     // https://dom.spec.whatwg.org/#concept-node-insert
-    static RustFFI::InsertionStart begin_insertion(GC::Ref<Node> parent, GC::Ref<Node> node, ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> child)
+    template<RustFFI::InsertionKind kind>
+    static RustFFI::InsertionStart begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* child)
     {
-        // OPTIMIZATION: Geometry reads defer replayable selector facts, but a tree mutation changes
-        //               authoritative relationships. Consume that style-change boundary while the old
-        //               tree is still intact.
         auto& document = parent->document();
-        document.flush_deferred_style_change_event();
-        if (&node->document() != &document)
-            node->document().flush_deferred_style_change_event();
+
+        // NB: The parser's insertions leave these out, see RustFFI::InsertionKind::Parser.
+        if constexpr (kind == RustFFI::InsertionKind::Dom) {
+            // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+            if (auto history = document.editing_history_if_exists())
+                history->notify_dom_mutation();
+
+            // OPTIMIZATION: Geometry reads defer replayable selector facts, but a tree mutation changes
+            //               authoritative relationships. Consume that style-change boundary while the old
+            //               tree is still intact.
+            document.flush_deferred_style_change_event();
+            if (node && &node->document() != &document)
+                node->document().flush_deferred_style_change_event();
+        }
 
         auto affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
         if (document.has_valid_html_collection_caches())
             affects_elements = mutation_affects_elements(nodes);
 
         // 4. If node is a DocumentFragment node:
-        if (is<DocumentFragment>(*node)) {
-            // 1. Remove its children with suppressObservers set to true.
-            node->remove_all_children(true);
-
-            // 2. Queue a tree mutation record for node with « », nodes, null, and null.
-            // NOTE: This step intentionally does not pay attention to suppressObservers.
+        //    2. Queue a tree mutation record for node with « », nodes, null, and null.
+        //    NOTE: This step intentionally does not pay attention to suppressObservers.
+        if (node && is<DocumentFragment>(*node))
             node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
-        }
 
         // 5. If child is non-null:
         if (child)
@@ -4558,9 +4345,18 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
-    static void insert_node_into_children(GC::Ref<Node> parent, GC::Ref<Node> node, GC::Ptr<Node> child, bool* any_node_has_post_connection_steps)
+    template<RustFFI::InsertionKind kind>
+    static void insert_node_into_children(Node* parent, Node* node, Node* child, bool* any_node_has_post_connection_steps)
     {
         parent->insert_node_into_children(node, child);
+
+        // NB: The parser's insertions leave out the style engine's records, see RustFFI::InsertionKind::Parser.
+        if constexpr (kind == RustFFI::InsertionKind::Parser) {
+            // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
+            //    order:
+            RustFFI::rust_dom_run_parser_insertion_steps(node, any_node_has_post_connection_steps);
+            return;
+        }
 
         // And a subtree holding the focused or hovered node brings `:focus-within` and `:hover` to
         // the chain it lands under.
@@ -4575,14 +4371,16 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
-    static bool run_insertion_steps(GC::Ref<Node> inclusive_descendant)
+    template<RustFFI::InsertionKind kind>
+    static bool run_insertion_steps(Node* inclusive_descendant)
     {
         // 1. Run the insertion steps with inclusiveDescendant.
         inclusive_descendant->inserted();
         auto has_post_connection_steps = inclusive_descendant->has_post_connection_steps();
 
         // 2. If inclusiveDescendant is not connected, then continue.
-        if (!inclusive_descendant->is_connected())
+        // NB: The parser's insertions leave out the custom element steps below, see RustFFI::InsertionKind::Parser.
+        if (kind == RustFFI::InsertionKind::Parser || !inclusive_descendant->is_connected())
             return has_post_connection_steps;
 
         // 3. If inclusiveDescendant is an element and inclusiveDescendant’s custom element registry is non-null:
@@ -4620,17 +4418,32 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
-    static u64 end_insertion(GC::Ref<Node> parent, GC::Ref<Node> node, ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> previous_sibling, GC::Ptr<Node> child, bool suppress_observers, Node::ChildrenChangedMetadata::AffectsElements affects_elements)
+    template<RustFFI::InsertionKind kind>
+    static u64 end_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* previous_sibling, Node* child, bool suppress_observers, Node::ChildrenChangedMetadata::AffectsElements affects_elements)
     {
         // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « »,
         //    previousSibling, and child.
-        if (!suppress_observers)
+        // OPTIMIZATION: Without an observer of tree mutations, the parser's record is never queued. The exceptions are
+        //               DevTools and an assistive technology, which consume every mutation, observer or not (see
+        //               queue_mutation_record()).
+        auto should_queue_record = [&] {
+            if constexpr (kind == RustFFI::InsertionKind::Dom)
+                return true;
+            auto& document = parent->document();
+            auto& page = document.page();
+            return document.has_mutation_observers_of_type(MutationType::childList) || page.listen_for_dom_mutations() || page.accessibility_interested();
+        };
+        if (!suppress_observers && should_queue_record())
             parent->queue_tree_mutation_record(nodes, {}, previous_sibling, child);
 
         // 9. Run the children changed steps for parent.
         Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
         parent->children_changed(metadata);
         parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
+
+        // NB: The parser inserts into a tree the layout tree does not hold yet, see RustFFI::InsertionKind::Parser.
+        if constexpr (kind == RustFFI::InsertionKind::Parser)
+            return s_last_tree_version;
 
         // NB: The marks are set before the post-connection steps, since those can run script that reads layout
         //     geometry and must find the inserted nodes waiting for their boxes.
@@ -4652,10 +4465,17 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
-    static void finish_insertion(GC::Ref<Node> parent, ReadonlySpan<GC::Ref<Node>> nodes, bool should_run_post_connection_steps)
+    template<RustFFI::InsertionKind kind>
+    static void finish_insertion(Node* parent, ReadonlySpan<GC::Ref<Node>> nodes, bool should_run_post_connection_steps)
     {
         if (should_run_post_connection_steps)
             run_post_connection_steps(nodes);
+
+        // NB: The parser's insertions leave the list numbering alone, see RustFFI::InsertionKind::Parser.
+        if constexpr (kind == RustFFI::InsertionKind::Parser) {
+            parent->bump_dom_tree_version();
+            return;
+        }
 
         // AD-HOC: An inserted list item can renumber the list-item counter for its list owner's whole list.
         //         Appending to a forward counter does not change any existing counter value.
@@ -4672,15 +4492,50 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
-    static RustFFI::RemovalFacts prepare_removal(GC::Ref<Node> node, GC::Ref<Node> parent)
+    static RustFFI::ChildrenRemoval begin_removing_all_children(Node* parent)
     {
-        auto& document = node->document();
+        auto& document = parent->document();
 
         // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
         if (auto history = document.editing_history_if_exists())
             history->notify_dom_mutation();
 
         document.flush_deferred_style_change_event();
+
+        // 3. Run the live range pre-remove steps, given node.
+        parent->live_range_pre_remove_all_children();
+
+        RustFFI::ChildrenRemoval children_removal {};
+        children_removal.affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
+        children_removal.track_affected_elements = document.has_valid_html_collection_caches();
+        children_removal.a_child_holds_a_propagating_state_source = CSS::Invalidation::descendants_hold_a_propagating_state_source(*parent);
+        return children_removal;
+    }
+
+    // https://dom.spec.whatwg.org/#concept-node-remove
+    static void end_removing_all_children(Node* parent, RustFFI::ChildrenRemoval children_removal)
+    {
+        // 17. Run the children changed steps for parent.
+        Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::AllChildrenRemoved, parent, children_removal.affects_elements };
+        parent->children_changed(metadata);
+        parent->invalidate_html_collection_caches_in_ancestors(children_removal.affects_elements);
+
+        parent->bump_dom_tree_version();
+    }
+
+    // https://dom.spec.whatwg.org/#concept-node-remove
+    static RustFFI::RemovalFacts prepare_removal(Node* node, Node* parent, RustFFI::ChildrenRemoval* children_removal)
+    {
+        auto& document = node->document();
+
+        // NB: The removal of all children did this for each of them, see begin_removing_all_children().
+        if (!children_removal) {
+            // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+            if (auto history = document.editing_history_if_exists())
+                history->notify_dom_mutation();
+
+            document.flush_deferred_style_change_event();
+        }
         RustFFI::RemovalFacts facts {};
         facts.was_connected = node->is_connected();
         facts.was_tracked_by_style_engine = node->is_tracked_by_style_engine();
@@ -4688,16 +4543,26 @@ public:
             document.page().keyboard_scroll_dom_tree_changed(*node);
 
         // 3. Run the live range pre-remove steps, given node.
-        node->live_range_pre_remove();
+        if (!children_removal)
+            node->live_range_pre_remove();
 
         // 4. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
         //    NodeIterator pre-remove steps given node and iterator.
         node->run_node_iterator_pre_removing_steps();
 
-        node->schedule_list_item_renumber_for_removal();
+        if (!children_removal) {
+            node->schedule_list_item_renumber_for_removal();
+            facts.holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*node);
+        } else {
+            if (children_removal->track_affected_elements && mutation_affects_elements(*node) == Node::ChildrenChangedMetadata::AffectsElements::Yes)
+                children_removal->affects_elements = Node::ChildrenChangedMetadata::AffectsElements::Yes;
+            // NB: Every child has the same list owner, so the first child that renumbers it answers for all of them.
+            if (!children_removal->list_owner_renumber_scheduled)
+                children_removal->list_owner_renumber_scheduled = node->schedule_list_item_renumber_for_removal();
+            facts.holds_a_propagating_state_source = children_removal->a_child_holds_a_propagating_state_source && CSS::Invalidation::holds_a_propagating_state_source(*node);
+        }
 
         facts.has_descendant_slots = node->settle_descendant_slots_before_removal(parent->root());
-        facts.holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*node);
         facts.is_assigned = node->has_assigned_slot();
 
         if (facts.was_tracked_by_style_engine) {
@@ -4712,7 +4577,7 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
-    static void assign_slottables_after_removal(GC::Ref<Node> node, GC::Ref<Node> parent, GC::Ref<Node> parent_root, RustFFI::RemovalFacts facts)
+    static void assign_slottables_after_removal(Node* node, Node* parent, Node* parent_root, RustFFI::RemovalFacts facts)
     {
         // NB: The node's assigned slot stays until the steps below unassign it.
         auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*node, *parent);
@@ -4737,7 +4602,7 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
-    static void finish_removal(GC::Ref<Node> node, GC::Ref<Node> parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling, bool suppress_observers)
+    static void finish_removal(Node* node, Node* parent, Node* old_previous_sibling, Node* old_next_sibling, bool suppress_observers, bool is_one_of_all_children)
     {
         // 15. Add transient registered observers given node and parent.
         node->add_transient_registered_observers(*parent);
@@ -4746,6 +4611,13 @@ public:
         //     oldPreviousSibling, and oldNextSibling.
         if (!suppress_observers)
             node->queue_tree_mutation_record_for_removal(*parent, old_previous_sibling, old_next_sibling);
+
+        // NB: The removal of all children runs step 17 and moves the tree version of the parent once, see
+        //     end_removing_all_children().
+        if (is_one_of_all_children) {
+            node->bump_dom_tree_version();
+            return;
+        }
 
         // 17. Run the children changed steps for parent.
         auto affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
@@ -4774,18 +4646,40 @@ public:
         if (element && element->is_custom() && is_parent_connected)
             element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
     }
+
+    // https://dom.spec.whatwg.org/#concept-node-adopt
+    static void adopt_into_document_of(Node* node, Node* parent)
+    {
+        parent->document().adopt_node_steps(node);
+    }
+
+    // https://dom.spec.whatwg.org/#concept-collection
+    static void queue_tree_mutation_record(Node* target, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+    {
+        target->queue_tree_mutation_record(added_nodes, removed_nodes, previous_sibling, next_sibling);
+    }
+};
+
+template<RustFFI::InsertionKind kind>
+static constexpr RustFFI::InsertionHooks s_rust_insertion_hooks {
+    .begin_insertion = RustDOMHooks::begin_insertion<kind>,
+    .insert_node_into_children = RustDOMHooks::insert_node_into_children<kind>,
+    .run_insertion_steps = RustDOMHooks::run_insertion_steps<kind>,
+    .end_insertion = RustDOMHooks::end_insertion<kind>,
+    .finish_insertion = RustDOMHooks::finish_insertion<kind>,
 };
 
 static constexpr RustFFI::DomHooks s_rust_dom_hooks {
-    .begin_insertion = RustDOMHooks::begin_insertion,
-    .insert_node_into_children = RustDOMHooks::insert_node_into_children,
-    .run_insertion_steps = RustDOMHooks::run_insertion_steps,
-    .end_insertion = RustDOMHooks::end_insertion,
-    .finish_insertion = RustDOMHooks::finish_insertion,
+    .insertion = s_rust_insertion_hooks<RustFFI::InsertionKind::Dom>,
+    .parser_insertion = s_rust_insertion_hooks<RustFFI::InsertionKind::Parser>,
+    .begin_removing_all_children = RustDOMHooks::begin_removing_all_children,
+    .end_removing_all_children = RustDOMHooks::end_removing_all_children,
     .prepare_removal = RustDOMHooks::prepare_removal,
     .assign_slottables_after_removal = RustDOMHooks::assign_slottables_after_removal,
     .finish_removal = RustDOMHooks::finish_removal,
     .run_removing_steps = RustDOMHooks::run_removing_steps,
+    .adopt_into_document_of = RustDOMHooks::adopt_into_document_of,
+    .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
 };
 
 static struct RustDOMHooksRegistration {
