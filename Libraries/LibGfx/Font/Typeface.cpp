@@ -17,6 +17,7 @@
 #include <LibGfx/Font/FontTable.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/RustFFI.h>
 #ifdef AK_OS_MACOS
 #    include <LibGfx/Font/TypefaceCoreText.h>
 #endif
@@ -69,57 +70,6 @@ ReadonlyBytes Typeface::FontDataBacking::bytes() const
         [](NonnullOwnPtr<Core::MappedFile> const& mapped_file) { return mapped_file->bytes(); });
 }
 
-static constexpr FourCC truetype_tag { "true" };
-
-static bool is_sfnt_version(u32 tag)
-{
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
-    return tag == 0x00010000 || tag == FourCC { "OTTO" }.to_u32() || tag == truetype_tag.to_u32();
-}
-
-// https://learn.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
-// The rules of FreeType for a table directory. A table that starts after the end of the data does not count, and
-// neither does one that ends after it, except for the metrics tables, which FreeType cuts off.
-static bool is_valid_table_directory(FontDataReader const& data, size_t offset, u32 version)
-{
-    if (!data.contains(offset, 12))
-        return false;
-    size_t table_count = data.u16_at(offset + 4);
-    if (table_count == 0)
-        return false;
-    // FreeType checks the directory of a face with CFF outlines no further.
-    if (version == FourCC { "OTTO" }.to_u32())
-        return data.contains(offset + 12, table_count * 16);
-
-    size_t valid_tables = 0;
-    bool has_head = false;
-    bool has_sing = false;
-    bool has_meta = false;
-    for (size_t index = 0; index < table_count && data.contains(offset + 12 + index * 16, 16); ++index) {
-        auto record = offset + 12 + index * 16;
-        auto tag = data.u32_at(record);
-        size_t table_offset = data.u32_at(record + 8);
-        size_t table_length = data.u32_at(record + 12);
-        if (table_offset > data.bytes().size())
-            continue;
-        if (table_length > data.bytes().size() - table_offset && tag != FourCC { "hmtx" }.to_u32() && tag != FourCC { "vmtx" }.to_u32())
-            continue;
-        ++valid_tables;
-        if (tag == FourCC { "head" }.to_u32() || tag == FourCC { "bhed" }.to_u32()) {
-            // Each font header must have its full size, whichever of them FreeType reads.
-            if (table_length < 54)
-                return false;
-            has_head = true;
-        } else if (tag == FourCC { "SING" }.to_u32()) {
-            has_sing = true;
-        } else if (tag == FourCC { "META" }.to_u32()) {
-            has_meta = true;
-        }
-    }
-    // A face with SING and META tables, which Adobe fonts of single glyphs have, does not need a font header.
-    return valid_tables > 0 && (has_head || (has_sing && has_meta));
-}
-
 // https://learn.microsoft.com/en-us/typography/opentype/spec/fvar#instancerecord
 // The number of named instances that the upper 16 bits of a face index can select. If no instance of a face has the
 // default coordinates, FreeType adds an instance with them after the others. It gives a face with only CFF outlines
@@ -151,22 +101,14 @@ static u32 named_instance_count(hb_face_t* face)
     return instance_count + 1;
 }
 
-// Font data must have a face that FreeType loads as an SFNT font and that HarfBuzz reads. These are the rules by which
-// FreeType loads the tables of a face.
+// Font data must have a face that FreeType loads as an SFNT font and that HarfBuzz reads. The Rust code checks the
+// rules by which FreeType loads the tables of a face, and HarfBuzz tells which faces and named instances it reads.
 static ErrorOr<void> validate_face(ReadonlyBytes bytes, u32 ttc_index)
 {
-    // Skia does not load font data of more than 1 GiB.
-    if (bytes.size() > 1 * GiB)
-        return Error::from_string_literal("Font data is too large");
-
     auto face_index = ttc_index & 0xFFFF;
-    FontDataReader data { bytes };
-    auto directory_offset = table_directory_offset(data, face_index);
-    if (!directory_offset.has_value() || !data.contains(*directory_offset, 4))
-        return Error::from_string_literal("Font data has no face in the SFNT format");
-    auto version = data.u32_at(*directory_offset);
-    if (!is_sfnt_version(version) || !is_valid_table_directory(data, *directory_offset, version))
-        return Error::from_string_literal("Font data has no face in the SFNT format");
+    size_t error_length = 0;
+    if (auto const* error = FFI::sfnt_rust_validate_face(bytes.data(), bytes.size(), face_index, &error_length))
+        return Error::from_string_view(StringView { error, error_length });
 
     auto* blob = hb_blob_create(reinterpret_cast<char const*>(bytes.data()), bytes.size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
     ScopeGuard destroy_blob = [&] { hb_blob_destroy(blob); };
@@ -174,60 +116,6 @@ static ErrorOr<void> validate_face(ReadonlyBytes bytes, u32 ttc_index)
         return Error::from_string_literal("Font data has no face that HarfBuzz can read");
     auto* face = hb_face_create(blob, ttc_index);
     ScopeGuard destroy_face = [&] { hb_face_destroy(face); };
-
-    auto has_table = [&](char const* tag) { return face_has_table(face, FourCC { tag }); };
-    // A header of a table that FreeType reads with its fixed size, from the following data if the table is shorter.
-    auto read_header = [&](char const* tag, size_t size) -> Optional<FontDataReader> {
-        FontTable table { face, FourCC { tag } };
-        if (table.is_empty() || !table.with_following_data().contains(0, size))
-            return {};
-        return table.with_following_data();
-    };
-
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/head
-    // A face without outlines can be an Apple bitmap font, which has a bhed table instead of a head table.
-    bool has_outlines = has_table("glyf") || has_table("CFF ") || has_table("CFF2");
-    auto bitmap_header = has_outlines ? Optional<FontDataReader> {} : read_header("bhed", 54);
-    bool is_apple_bitmap_font = bitmap_header.has_value();
-    auto header = bitmap_header;
-    if (!is_apple_bitmap_font || has_table("sbix")) {
-        header = read_header("head", 54);
-        if (!header.has_value())
-            return Error::from_string_literal("Font face has no head table");
-    }
-    auto units_per_em = header->u16_at(18);
-    if (units_per_em < 16 || units_per_em > 16384)
-        return Error::from_string_literal("Font face has an invalid number of units per em");
-
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/maxp
-    if (!has_table("maxp"))
-        return Error::from_string_literal("Font face has no maxp table");
-
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/hhea
-    // A TrueType font for macOS does not need horizontal metrics.
-    if (!is_apple_bitmap_font) {
-        if (read_header("hhea", 36).has_value()) {
-            if (!has_table("hmtx"))
-                return Error::from_string_literal("Font face has no hmtx table");
-        } else if (version != truetype_tag.to_u32()) {
-            return Error::from_string_literal("Font face has no hhea table");
-        }
-    }
-
-    if (version == FourCC { "OTTO" }.to_u32()) {
-        // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#organization-of-an-opentype-font
-        if (!has_table("CFF ") && !has_table("CFF2"))
-            return Error::from_string_literal("Font face with CFF outlines has no CFF table");
-    } else {
-        // https://learn.microsoft.com/en-us/typography/opentype/spec/loca
-        // FreeType needs a loca table for every TrueType face that it does not draw from bitmap strikes alone. It
-        // draws a face without outlines or strikes as a face with empty outlines, and color bitmaps replace outlines.
-        bool has_scalable_outlines = has_outlines && !has_table("CBLC") && !has_table("CBDT");
-        bool has_bitmap_strikes = has_table("EBLC") || has_table("CBLC") || has_table("bloc") || has_table("sbix");
-        if ((has_scalable_outlines || !has_bitmap_strikes) && !has_table("loca"))
-            return Error::from_string_literal("Font face has no loca table");
-    }
-
     if ((ttc_index >> 16) > named_instance_count(face))
         return Error::from_string_literal("Font face has no such named instance");
     return {};
