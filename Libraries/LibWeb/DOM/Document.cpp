@@ -105,7 +105,6 @@
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/ElementByIdMap.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -905,7 +904,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 }
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentCore) == 104 && alignof(RustFFI::DocumentCore) == 8);
+static_assert(sizeof(RustFFI::DocumentCore) == 112 && alignof(RustFFI::DocumentCore) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
 static_assert(offsetof(RustFFI::DocumentCore, window) == 4);
 static_assert(offsetof(RustFFI::DocumentCore, live_ranges) == 8);
@@ -914,12 +913,14 @@ static_assert(offsetof(RustFFI::DocumentCore, node_tree_version) == 40);
 static_assert(offsetof(RustFFI::DocumentCore, element_tree_version) == 48);
 static_assert(offsetof(RustFFI::DocumentCore, collection_attribute_versions) == 56);
 static_assert(offsetof(RustFFI::DocumentCore, element_tree_positions_dom_tree_version) == 96);
+static_assert(offsetof(RustFFI::DocumentCore, ids) == 104);
 // NB: The collection state DocumentCore took in grows a document no more than the counts of valid collection caches it
 //     replaces did.
 
 Document::~Document()
 {
     Animations::RustFFI::animations_document_animations_destroy(m_animations);
+    RustFFI::rust_dom_id_map_destroy(&m_document_core.ids);
 }
 
 void Document::create_style_computer()
@@ -9647,18 +9648,9 @@ void Document::subtree_was_moved(Badge<DOM::Node>, DOM::Node& subtree, DOM::Node
             return TraversalDecision::Continue;
 
         auto& scope_root = element->root();
-        if (id.has_value()) {
-            // NB: Descendants in a nested shadow tree keep their original tree scope.
-            auto& previous_root = &scope_root == &new_root ? old_root : scope_root;
-            if (&previous_root != &scope_root) {
-                if (auto* shadow_root = as_if<ShadowRoot>(previous_root))
-                    shadow_root->element_by_id().remove(*id, *element);
-                else
-                    element_by_id().remove(*id, *element);
-            }
-            element->document_or_shadow_root_element_by_id_map().add(*id, *element);
+        // NB: libweb_rust has moved the element between the maps of elements by ID, see Rust/src/dom/id_map.rs.
+        if (id.has_value())
             moved_ids = true;
-        }
 
         if (m_potentially_named_elements.remove_first_matching([&](auto& existing) { return existing.ptr() == element; }))
             named_elements_changed = true;
@@ -9711,13 +9703,9 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
     }
 
+    // NB: libweb_rust has moved the element between the entries of the map of elements by ID, see
+    //     Rust/src/dom/id_map.rs.
     auto new_id = element->id();
-    if (old_id.has_value()) {
-        element->document_or_shadow_root_element_by_id_map().remove(old_id.value(), element);
-    }
-    if (new_id.has_value()) {
-        element->document_or_shadow_root_element_by_id_map().add(new_id.value(), element);
-    }
     note_svg_paint_resources_changed();
     if (old_id.has_value())
         republish_svg_patterns_inheriting_from(*old_id);
@@ -9736,8 +9724,8 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
             did_add_supported_property_name();
     }
 
+    // NB: libweb_rust has put the element in the map of elements by ID, see Rust/src/dom/id_map.rs.
     if (auto id = element->id(); id.has_value()) {
-        element->document_or_shadow_root_element_by_id_map().add(id.value(), element);
         note_svg_paint_resources_changed();
         republish_svg_patterns_inheriting_from(*id);
     }
@@ -9750,8 +9738,8 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Ele
 
     (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
 
+    // NB: libweb_rust has taken the element out of the map of elements by ID, see Rust/src/dom/id_map.rs.
     if (auto id = element->id(); id.has_value()) {
-        element->document_or_shadow_root_element_by_id_map().remove(id.value(), element);
         note_svg_paint_resources_changed();
         republish_svg_patterns_inheriting_from(*id);
     }
@@ -11983,13 +11971,6 @@ void Document::upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry> 
         element->enqueue_a_custom_element_upgrade_reaction(definition);
         return TraversalDecision::Continue;
     });
-}
-
-ElementByIdMap& Document::element_by_id() const
-{
-    if (!m_element_by_id)
-        m_element_by_id = make<ElementByIdMap>();
-    return *m_element_by_id;
 }
 
 Utf16String Document::dump_display_list(Painting::DisplayListDumpOptions const& options)

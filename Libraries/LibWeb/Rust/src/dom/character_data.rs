@@ -185,7 +185,7 @@ fn replace_data(
 ///
 /// The code units must be live for the lifetime the caller picks.
 #[inline(always)]
-unsafe fn units_of_view<'a>(latin1: *const u8, utf16: *const u16, length: usize) -> Utf16StringUnits<'a> {
+pub(super) unsafe fn units_of_view<'a>(latin1: *const u8, utf16: *const u16, length: usize) -> Utf16StringUnits<'a> {
     // SAFETY: Guaranteed by the caller.
     unsafe {
         match latin1.is_null() {

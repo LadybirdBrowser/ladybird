@@ -46,6 +46,8 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/HTMLCollection.h>
+#include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/RootedNodeList.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
@@ -2356,8 +2358,9 @@ Vector<Utf16FlyString> Window::supported_property_names() const
         if (auto name = element->name(); name.has_value())
             property_names.set(*name, AK::HashSetExistingEntryBehavior::Keep);
     }
-    associated_document().element_by_id().for_each_id([&](auto id) {
-        property_names.set(id, AK::HashSetExistingEntryBehavior::Keep);
+    // NB: libweb_rust keeps the document's elements by ID, see Rust/src/dom/id_map.rs.
+    DOM::RustFFI::rust_dom_for_each_id(&associated_document(), &property_names, [](void* context, size_t id) {
+        static_cast<HashTable<Utf16FlyString>*>(context)->set(Utf16FlyString::from_raw(id), AK::HashSetExistingEntryBehavior::Keep);
     });
 
     Vector<Utf16FlyString> result;
@@ -2372,7 +2375,7 @@ bool Window::is_supported_property_name(Utf16FlyString const& name) const
     // OPTIMIZATION: Answer membership without constructing the full set of supported names.
     //               In particular, unrelated element IDs need not be visited for a property lookup.
     auto& document = associated_document();
-    if (document.element_by_id().contains(name))
+    if (DOM::RustFFI::rust_dom_has_element_with_id(&document, name.raw_identity()))
         return true;
     for (auto element : document.potentially_named_elements()) {
         if (is_named_element_by_name(*element) && element->name() == name)
@@ -2457,9 +2460,10 @@ Window::NamedObjects Window::named_objects(Utf16View name)
         if (auto element_name = element->name(); element_name.has_value() && element_name->view() == name)
             objects.elements.append(*element);
     }
-    associated_document().element_by_id().for_each_element_with_id(name, associated_document(), [&](auto& element) {
-        objects.elements.append(element);
-    });
+    DOM::RootedNodeList elements_with_id;
+    DOM::elements_with_id(associated_document(), name, DOM::InTreeOrder::Yes, elements_with_id);
+    for (auto const& element : elements_with_id.nodes())
+        objects.elements.append(static_cast<DOM::Element&>(*element));
 
     return objects;
 }

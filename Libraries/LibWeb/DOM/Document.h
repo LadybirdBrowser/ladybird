@@ -1841,8 +1841,6 @@ public:
     void add_render_blocking_element(GC::Ref<Element>);
     void remove_render_blocking_element(GC::Ref<Element>);
 
-    ElementByIdMap& element_by_id() const;
-
     // https://fullscreen.spec.whatwg.org/#run-the-fullscreen-steps
     void run_fullscreen_steps();
     void append_pending_fullscreen_change(PendingFullscreenEvent::Type type, GC::Ref<Element> element, Fullscreen::RequestType request_type);
@@ -2046,7 +2044,6 @@ private:
     URL::URL m_url;
     mutable Optional<String> m_serialized_url;
     mutable Optional<String> m_serialized_base_url;
-    mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 

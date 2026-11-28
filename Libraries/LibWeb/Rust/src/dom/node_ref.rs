@@ -341,6 +341,22 @@ impl NodeRef {
         }
     }
 
+    /// The node after this one in tree order that is a descendant of `root`, an inclusive ancestor of it, or none.
+    #[inline(always)]
+    pub(super) fn next_in_subtree(self, root: NodeRef) -> Option<NodeRef> {
+        if let Some(first_child) = self.first_child() {
+            return Some(first_child);
+        }
+        let mut current = self;
+        while current != root {
+            if let Some(next_sibling) = current.next_sibling() {
+                return Some(next_sibling);
+            }
+            current = current.parent()?;
+        }
+        None
+    }
+
     /// The core of a slot, read for as long as the reference is borrowed, during which nothing may call into C++, or
     /// none for a node that is no slot.
     #[inline(always)]

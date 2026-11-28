@@ -2799,9 +2799,6 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
     if (old_root.is_connected() && document().is_render_blocking_element(*this))
         unblock_rendering();
 
-    if (m_element_core.id.has_value() && is<ShadowRoot>(old_root))
-        static_cast<ShadowRoot&>(old_root).element_by_id().remove(*m_element_core.id, *this);
-
     if (old_root.is_connected()) {
         if (m_element_core.id.has_value())
             document().element_with_id_was_removed({}, *this);
@@ -6401,14 +6398,6 @@ CSS::StyleScope& Element::document_or_shadow_root_style_scope()
         return static_cast<DOM::ShadowRoot&>(root_node).style_scope();
 
     return document().style_scope();
-}
-
-ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()
-{
-    auto& root_node = root();
-    if (is<ShadowRoot>(root_node))
-        return static_cast<ShadowRoot&>(root_node).element_by_id();
-    return document().element_by_id();
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml

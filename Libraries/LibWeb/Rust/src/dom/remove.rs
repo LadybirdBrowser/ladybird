@@ -10,6 +10,7 @@
 use super::hooks;
 use super::hooks::IsSubtreeRoot;
 use super::hooks::RemovalFacts;
+use super::id_map;
 use super::links;
 use super::node::NodeCell;
 use super::node_ref::NodeRef;
@@ -244,6 +245,11 @@ fn run_removing_steps_for_subtree(
     //               nothing to do for, see steps.rs. Neither is such a node custom with a connected parent.
     let steps_may_do_something =
         |node| was_tracked_by_style_engine || !removing_steps_do_nothing(node, parent, parent_root);
+    // NB: An element with an ID that leaves a connected tree leaves the tree's map of elements by ID, see id_map.rs.
+    let was_connected = parent_root.is_connected();
+    if was_connected {
+        id_map::element_disconnected(main_thread, node, parent_root);
+    }
     if steps_may_do_something(node) {
         hooks::run_removing_steps(
             main_thread,
@@ -262,6 +268,9 @@ fn run_removing_steps_for_subtree(
     //        with descendant, callback name "disconnectedCallback", and « ».
     //     2. Run the removing steps with descendant, false, and parent.
     for_each_shadow_including_descendant(node, &mut |descendant| {
+        if was_connected {
+            id_map::element_disconnected(main_thread, descendant, parent_root);
+        }
         if !steps_may_do_something(descendant) {
             return;
         }

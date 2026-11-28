@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/RootedNodeList.h>
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
@@ -218,8 +219,10 @@ private:
         }
         auto const& tree_root = root.root();
         auto const* shadow_root = as_if<ShadowRoot>(tree_root);
-        auto const& element_by_id = shadow_root ? shadow_root->element_by_id() : document.element_by_id();
-        auto elements = element_by_id.elements_with_id(Utf16FlyString::from_raw(lookup.id));
+        Node const& scope_root = shadow_root ? static_cast<Node const&>(*shadow_root) : document;
+        // NB: libweb_rust keeps the map, see Rust/src/dom/id_map.rs. Most ids name one element, which comes without a list.
+        size_t element_count = 0;
+        GC::Ptr<Node> only_element = const_cast<Node*>(RustFFI::rust_dom_element_with_id(&scope_root, lookup.id, &element_count));
         auto is_under_root = [&](Node const& node) {
             return &tree_root == &root ? &node != &root : node.is_descendant_of(root);
         };
@@ -227,9 +230,16 @@ private:
         if (lookup.kind == Subject) {
             // Only the elements with the id can match.
             GC::RootVector<GC::Ref<Element>, 1> candidates;
-            for (auto const& element : elements) {
-                if (element && is_under_root(*element))
-                    candidates.append(*element);
+            if (element_count == 1) {
+                if (is_under_root(*only_element))
+                    candidates.append(static_cast<Element&>(*only_element));
+            } else if (element_count > 1) {
+                RootedNodeList elements;
+                elements_with_id(scope_root, Utf16FlyString::from_raw(lookup.id).view(), InTreeOrder::No, elements);
+                for (auto const& element : elements.nodes()) {
+                    if (is_under_root(*element))
+                        candidates.append(static_cast<Element&>(*element));
+                }
             }
             if (candidates.size() > 1)
                 quick_sort(candidates, [](auto const& a, auto const& b) { return a->is_before(*b); });
@@ -241,15 +251,15 @@ private:
         }
 
         // No element without the id holds a match.
-        if (elements.is_empty())
+        if (element_count == 0)
             return;
         // NB: The subtrees of several elements with the id can nest, which only a walk of the whole tree visits once.
-        if (elements.size() > 1 || !elements[0]) {
+        if (element_count > 1) {
             for_each_in_subtree(root, callback);
             return;
         }
         // Every match is under the element with the id, or under its parent past a sibling combinator.
-        Node* search_root = elements[0].ptr().ptr();
+        Node* search_root = only_element.ptr();
         if (lookup.kind == AncestorsParent)
             search_root = search_root->parent();
         if (!search_root || !(search_root == &root || is_under_root(*search_root))) {

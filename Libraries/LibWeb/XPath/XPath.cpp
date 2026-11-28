@@ -22,6 +22,7 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
+#include <LibWeb/DOM/RootedNodeList.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/Namespace.h>
@@ -464,7 +465,10 @@ template<typename Callback>
 static void for_each_element_with_id(DOM::Node& root, Utf16View id, Callback callback)
 {
     if (auto* document = as_if<DOM::Document>(root)) {
-        document->element_by_id().for_each_element_with_id(id, root, [&](DOM::Element& element) { callback(element); });
+        DOM::RootedNodeList elements;
+        DOM::elements_with_id(*document, id, DOM::InTreeOrder::No, elements);
+        for (auto const& element : elements.nodes())
+            callback(static_cast<DOM::Element&>(*element));
         return;
     }
     root.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {

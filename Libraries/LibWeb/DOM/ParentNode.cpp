@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/NodeOperations.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/RootedNodeList.h>
 #include <LibWeb/DOM/SelectorQuery.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
@@ -299,33 +300,21 @@ GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(Utf16View class_n
         HTMLCollection::AttributeInvalidationType::Class);
 }
 
+void elements_with_id(Node const& scope_root, Utf16View id, InTreeOrder in_tree_order, RootedNodeList& result)
+{
+    if (id.has_latin1_storage())
+        RustFFI::rust_dom_elements_with_id(&scope_root, id.latin1_span().data(), nullptr, id.length_in_code_units(), in_tree_order == InTreeOrder::Yes, &result.core());
+    else
+        RustFFI::rust_dom_elements_with_id(&scope_root, nullptr, reinterpret_cast<u16 const*>(id.utf16_span().data()), id.length_in_code_units(), in_tree_order == InTreeOrder::Yes, &result.core());
+}
+
 GC::Ptr<Element> ParentNode::get_element_by_id(Utf16View id) const
 {
-    if (is_connected()) {
-        // For connected document and shadow root we have a cache that allows fast lookup.
-        if (is_document()) {
-            auto const& document = static_cast<Document const&>(*this);
-            return document.element_by_id().get(id, document);
-        }
-        if (is_shadow_root()) {
-            auto const& shadow_root = static_cast<ShadowRoot const&>(*this);
-            return shadow_root.element_by_id().get(id, shadow_root);
-        }
-        // The document element's inclusive subtree contains every element in the document, so the document's cache
-        // gives the same answer as walking our subtree.
-        if (auto const& document = this->document(); document.document_element() == this)
-            return document.element_by_id().get(id, document);
-    }
-
-    GC::Ptr<Element> found_element;
-    const_cast<ParentNode&>(*this).for_each_in_inclusive_subtree_of_type<Element>([&](Element& element) {
-        if (element.id().has_value() && element.id()->view() == id) {
-            found_element = &element;
-            return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    });
-    return found_element;
+    // NB: libweb_rust looks the ID up, see Rust/src/dom/id_map.rs.
+    auto const* element = id.has_latin1_storage()
+        ? RustFFI::rust_dom_get_element_by_id(this, id.latin1_span().data(), nullptr, id.length_in_code_units())
+        : RustFFI::rust_dom_get_element_by_id(this, nullptr, reinterpret_cast<u16 const*>(id.utf16_span().data()), id.length_in_code_units());
+    return static_cast<Element*>(const_cast<Node*>(element));
 }
 
 }

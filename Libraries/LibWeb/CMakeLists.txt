@@ -202,7 +202,6 @@ set(SOURCES
     DOM/DOMTokenList.cpp
     DOM/EditingHostManager.cpp
     DOM/Element.cpp
-    DOM/ElementByIdMap.cpp
     DOM/ElementFactory.cpp
     DOM/Event.cpp
     DOM/EventDispatcher.cpp

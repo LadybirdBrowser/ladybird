@@ -37,6 +37,7 @@ use super::hooks::ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD;
 use super::hooks::ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS;
 use super::hooks::ATTRIBUTE_CHANGE_STEPS;
 use super::hooks::ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE;
+use super::id_map;
 use super::mutation_observers::attribute_mutation_record_is_heard;
 use super::node::NodeCell;
 use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
@@ -44,6 +45,7 @@ use super::node_core::DOCUMENT_IS_HTML_DOCUMENT;
 use super::node_ref::NodeRef;
 use super::qualified_name::QualifiedNameImpl;
 use super::slots;
+use super::slots::IsSlotName;
 use super::strings::BorrowedString;
 use super::strings::ascii_lowercase_short_raw;
 use super::strings::is_short_raw;
@@ -451,6 +453,17 @@ fn handle_attribute_changes(
     } else if value_changed && style_engine_hears {
         steps |= ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE;
     }
+    // NB: A connected element whose ID changes moves between the entries of its tree's map of elements by ID, see
+    //     id_map.rs, before C++ hears of the change, which it does in the attribute change steps it runs for the id of
+    //     a connected element.
+    if steps & ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS != 0
+        && value_changed
+        && element.is_connected()
+        && parts.namespace().is_none()
+        && matches!(parts.local_name().units(), Utf16StringUnits::Ascii(b"id"))
+    {
+        id_map::element_id_changing(main_thread, element, old_value, new_value);
+    }
     if steps & ATTRIBUTE_CHANGE_STEPS != 0 {
         hooks::attribute_changed(
             main_thread,
@@ -462,17 +475,25 @@ fn handle_attribute_changes(
         );
     }
 
-    // NB: The attribute change steps of every element that C++ does not run: those of slots and slottables, the
-    //     collections whose filters read the attribute, and the DOM tree version, see below.
-    if parts.namespace().is_none() {
-        slots::run_attribute_change_steps(main_thread, element, parts.local_name().units(), old_value, new_value);
-    }
+    // NB: The attribute change steps of every element that C++ does not run: those of slots and slottables, which
+    //     return early where the value stays the same, the collections whose filters read the attribute, and the DOM
+    //     tree version.
     if value_changed {
-        if parts.namespace().is_none() {
-            let attribute_types = collection_attribute_types(parts.local_name().units());
-            if attribute_types != 0 {
-                collection_attributes_changed(main_thread, element, attribute_types);
-            }
+        let name_steps = match parts.namespace() {
+            None => match parts.local_name().units() {
+                Utf16StringUnits::Ascii(ascii) => local_name_steps(ascii),
+                _ => 0,
+            },
+            Some(_) => 0,
+        };
+        if name_steps & LOCAL_NAME_IS_SLOT != 0 {
+            slots::run_name_attribute_change_steps(main_thread, element, IsSlotName::No, old_value, new_value);
+        } else if name_steps & LOCAL_NAME_IS_NAME != 0 && slots::is_slot(element) {
+            slots::run_name_attribute_change_steps(main_thread, element, IsSlotName::Yes, old_value, new_value);
+        }
+        let attribute_types = name_steps & LOCAL_NAME_COLLECTION_ATTRIBUTE_TYPES;
+        if attribute_types != 0 {
+            collection_attributes_changed(main_thread, element, attribute_types);
         }
         bump_dom_tree_version_for_attribute_change(main_thread, element);
     }
@@ -622,19 +643,24 @@ fn add_to_subtree_name_filter(element: NodeRef, bits: u64) {
     }
 }
 
-/// The attribute types of the collections whose filters read an attribute without a namespace whose local name is
-/// `local_name`, as a mask of the bits of the HTMLCollection::AttributeInvalidationType values but None, less one.
+/// The attribute types of the collections whose filters read an attribute, as a mask of the bits of the
+/// HTMLCollection::AttributeInvalidationType values but None, less one.
+const LOCAL_NAME_COLLECTION_ATTRIBUTE_TYPES: u8 = 0b1_1111;
+const LOCAL_NAME_IS_SLOT: u8 = 1 << 5;
+const LOCAL_NAME_IS_NAME: u8 = 1 << 6;
+
+/// What the steps of handle_attribute_changes() that follow the local name do for a change to the value of an attribute
+/// without a namespace whose local name is `local_name`: the attribute types of the collections whose filters read it,
+/// and whether it is the element's slot or its name.
 #[inline(always)]
-fn collection_attribute_types(local_name: Utf16StringUnits<'_>) -> u8 {
-    let Utf16StringUnits::Ascii(ascii) = local_name else {
-        return 0;
-    };
-    match ascii {
+fn local_name_steps(local_name: &[u8]) -> u8 {
+    match local_name {
         b"class" => 1 << 0,
-        b"name" => (1 << 1) | (1 << 2),
+        b"name" => (1 << 1) | (1 << 2) | LOCAL_NAME_IS_NAME,
         b"id" => 1 << 2,
         b"href" => 1 << 3,
         b"type" => 1 << 4,
+        b"slot" => LOCAL_NAME_IS_SLOT,
         _ => 0,
     }
 }

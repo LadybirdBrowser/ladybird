@@ -55,6 +55,7 @@ ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
 ShadowRoot::~ShadowRoot()
 {
     RustFFI::rust_dom_shadow_root_core_destroy(&m_shadow_root_core);
+    RustFFI::rust_dom_id_map_destroy(&m_shadow_root_core.ids);
 }
 
 void ShadowRoot::finalize()
@@ -294,13 +295,6 @@ void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetSt
                 callback(style_sheet);
         });
     }
-}
-
-ElementByIdMap& ShadowRoot::element_by_id() const
-{
-    if (!m_element_by_id)
-        m_element_by_id = make<ElementByIdMap>();
-    return *m_element_by_id;
 }
 
 void ShadowRoot::did_start_needing_slot_assignment()
