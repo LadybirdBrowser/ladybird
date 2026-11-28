@@ -198,7 +198,7 @@ impl NodeListField {
     }
 
     /// Frees the buffer, which leaves the list empty.
-    fn free(&self) {
+    pub(super) fn free(&self) {
         let capacity = self.capacity.get() as usize;
         if capacity != 0 {
             // SAFETY: The buffer was allocated with the layout of `capacity` nodes.

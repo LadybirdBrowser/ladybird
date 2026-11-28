@@ -211,7 +211,6 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
 {
     Node::RareData::visit_edges(visitor);
     SlottableMixin::RareData::visit_edges(visitor);
-    visitor.visit(attribute_map);
     visitor.visit(class_list);
     visitor.visit(part_list);
     if (custom_element_reaction_queue) {
@@ -380,16 +379,6 @@ void Element::finalize()
     finalize_animations();
 }
 
-void Element::append_to_attribute_list(QualifiedName name, Utf16String value)
-{
-    add_to_subtree_name_filter(name_filter_bit(name.local_name()));
-    if (!m_element_core.attributes)
-        m_element_core.attributes = AttributeList::create(1);
-    else
-        m_element_core.attributes = AttributeList::ensure_room_for_one_more(m_element_core.attributes.release_nonnull());
-    m_element_core.attributes->unchecked_append(move(name), move(value));
-}
-
 void Element::add_to_subtree_name_filter(u64 bits)
 {
     // An element's filter holds those of its children, so the walk up ends at the first that has the bits.
@@ -399,41 +388,12 @@ void Element::add_to_subtree_name_filter(u64 bits)
 
 void Element::ensure_attribute_capacity(size_t capacity)
 {
-    if (capacity == 0)
-        return;
-    if (!m_element_core.attributes)
-        m_element_core.attributes = AttributeList::create(capacity);
-    else if (m_element_core.attributes->capacity() < capacity)
-        m_element_core.attributes = m_element_core.attributes->moved_into_new_list(capacity);
+    RustFFI::rust_dom_reserve_attributes(this, capacity);
 }
 
 void Element::synchronize_all_attributes() const
 {
     synchronize_style_attribute();
-}
-
-void RustAttributeHooks::append_attribute(GC::Ref<Node> node, size_t local_name, size_t prefix, size_t namespace_, size_t value)
-{
-    auto fly_string_from_raw = [](size_t raw) { return Utf16FlyString { Utf16String::from_raw(raw) }; };
-    auto optional_fly_string_from_raw = [&](size_t raw) -> Optional<Utf16FlyString> {
-        if (raw == 0)
-            return {};
-        return fly_string_from_raw(raw);
-    };
-    QualifiedName name { fly_string_from_raw(local_name), optional_fly_string_from_raw(prefix), optional_fly_string_from_raw(namespace_) };
-    static_cast<Element&>(*node).append_to_attribute_list(move(name), Utf16String::adopt_raw(value));
-}
-
-void RustAttributeHooks::reserve_attributes(GC::Ref<Node> node, size_t count)
-{
-    auto& attributes = static_cast<Element&>(*node).m_element_core.attributes;
-    if (!attributes) {
-        attributes = AttributeList::create(count);
-        return;
-    }
-    auto size = attributes->size();
-    if (attributes->capacity() - size < count)
-        attributes = attributes->moved_into_new_list(size + count);
 }
 
 // https://dom.spec.whatwg.org/#handle-attribute-changes
@@ -447,11 +407,6 @@ void RustAttributeHooks::attribute_changed(Node* node, QualifiedName::Impl* name
     Optional<Utf16String> new_value;
     if (!(steps & RustFFI::ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL))
         new_value = Utf16String::from_raw(new_raw_value);
-
-    if (steps & RustFFI::ATTRIBUTE_CHANGE_DETACH_ATTRIBUTE_NODE) {
-        if (auto* rare_data = element.element_rare_data(); rare_data && rare_data->attribute_map)
-            rare_data->attribute_map->detach_attribute_node(name, *old_value);
-    }
 
     // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
     if (steps & RustFFI::ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY)
@@ -476,11 +431,6 @@ void RustAttributeHooks::attribute_changed(Node* node, QualifiedName::Impl* name
 void RustAttributeHooks::synchronize_style_attribute(Node* node)
 {
     static_cast<Element&>(*node).synchronize_style_attribute();
-}
-
-void RustAttributeHooks::release_qualified_name(QualifiedName::Impl* name_parts)
-{
-    name_parts->unref();
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-by-name
@@ -511,6 +461,8 @@ void Element::visit_edges(Cell::Visitor& visitor)
     // NB: Almost no element is assigned to a slot, so leave the marker out for those.
     if (m_element_core.assigned_slot)
         visitor.visit(m_element_core.assigned_slot);
+    if (auto* attribute_map = m_element_core.attributes.attribute_map_slot())
+        visitor.visit(*attribute_map);
 }
 
 size_t Element::external_memory_size() const
@@ -518,11 +470,11 @@ size_t Element::external_memory_size() const
     auto size = Base::external_memory_size();
     if (m_inline_declarations)
         size = JS::saturating_add_external_memory_size(size, CSS::Parser::ValueParserFFI::rust_declaration_block_external_memory_size(m_inline_declarations));
-    if (!m_element_core.attributes)
+    if (!m_element_core.attributes.memory())
         return size;
 
-    size = JS::saturating_add_external_memory_size(size, sizeof(AttributeList) + m_element_core.attributes->capacity() * sizeof(Attribute));
-    for (auto const& attribute : m_element_core.attributes->span())
+    size = JS::saturating_add_external_memory_size(size, m_element_core.attributes.allocation_size());
+    for (auto const& attribute : m_element_core.attributes.span())
         size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(attribute.value));
     return size;
 }
@@ -531,7 +483,7 @@ size_t Element::external_memory_size() const
 Optional<Utf16String> Element::get_attribute(Utf16FlyString const& name) const
 {
     auto index = find_attribute_index(name);
-    return index.has_value() ? Optional<Utf16String> { m_element_core.attributes->at(*index).value } : Optional<Utf16String> {};
+    return index.has_value() ? Optional<Utf16String> { m_element_core.attributes.at(*index).value } : Optional<Utf16String> {};
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributens
@@ -545,7 +497,7 @@ Optional<Utf16String> Element::get_attribute_ns(Optional<Utf16FlyString> const& 
         return {};
 
     // 3. Return attr’s value.
-    return m_element_core.attributes->at(*index).value;
+    return m_element_core.attributes.at(*index).value;
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-get-value
@@ -559,7 +511,7 @@ Utf16String Element::get_attribute_value(Utf16FlyString const& local_name, Optio
         return {};
 
     // 3. Return attr’s value.
-    return m_element_core.attributes->at(*index).value;
+    return m_element_core.attributes.at(*index).value;
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#get-an-element's-target
@@ -1082,13 +1034,7 @@ void Element::append_attribute(Attr& attribute)
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
 void Element::append_attribute(QualifiedName name, Utf16String value)
 {
-    // 1. Append attribute to element’s attribute list.
-    append_to_attribute_list(name, value);
-
-    // 2. Set attribute’s element to element.
-    // 3. Set attribute’s node document to element’s node document.
-    // 4. Handle attribute changes for attribute with element, null, and attribute’s value.
-    handle_attribute_changes(name, {}, value);
+    RustFFI::rust_dom_append_an_attribute(this, const_cast<QualifiedName::Impl*>(name.identity()), move(value).into_raw());
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-change
@@ -1097,12 +1043,6 @@ void Element::change_attribute_value(GC::Ref<Attr> attribute_node, Utf16String v
     auto index = find_attribute_index_ns(attribute_node->namespace_uri(), attribute_node->local_name());
     VERIFY(index.has_value());
     RustFFI::rust_dom_change_an_attribute(this, *index, move(value).into_raw());
-}
-
-// https://dom.spec.whatwg.org/#handle-attribute-changes
-void Element::handle_attribute_changes(QualifiedName const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value)
-{
-    RustFFI::rust_dom_handle_attribute_changes(this, const_cast<QualifiedName::Impl*>(name.identity()), old_value.has_value() ? old_value->raw_identity() : 0, !old_value.has_value(), new_value.has_value() ? new_value->raw_identity() : 0, !new_value.has_value());
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set-value
@@ -1189,10 +1129,8 @@ Vector<Utf16FlyString> Element::get_attribute_names() const
 {
     // The getAttributeNames() method steps are to return the qualified names of the attributes in this’s attribute list, in order; otherwise a new list.
     synchronize_all_attributes();
-    if (!m_element_core.attributes)
-        return {};
     Vector<Utf16FlyString> names;
-    for (auto const& attribute : m_element_core.attributes->span())
+    for (auto const& attribute : m_element_core.attributes.span())
         names.append(attribute.name.as_string());
     return names;
 }
@@ -2464,13 +2402,11 @@ void Element::did_update_inline_style()
 
     bool had_style_attribute = m_element_core.style_attribute_is_dirty;
     Optional<Utf16String> old_value;
-    if (m_element_core.attributes) {
-        for (auto const& attribute : m_element_core.attributes->span()) {
-            if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
-                had_style_attribute = true;
-                old_value = attribute.value;
-                break;
-            }
+    for (auto const& attribute : m_element_core.attributes.span()) {
+        if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
+            had_style_attribute = true;
+            old_value = attribute.value;
+            break;
         }
     }
 
@@ -2503,24 +2439,15 @@ void Element::synchronize_style_attribute() const
     element.m_element_core.style_attribute_is_dirty = false;
 
     Optional<Utf16String> old_value;
-    Optional<size_t> style_attribute_index;
-    if (element.m_element_core.attributes) {
-        for (size_t index = 0; index < element.m_element_core.attributes->size(); ++index) {
-            auto const& attribute = element.m_element_core.attributes->at(index);
-            if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
-                old_value = attribute.value;
-                style_attribute_index = index;
-                break;
-            }
+    for (auto const& attribute : element.m_element_core.attributes.span()) {
+        if (!attribute.name.namespace_().has_value() && attribute.name.local_name() == HTML::AttributeNames::style) {
+            old_value = attribute.value;
+            break;
         }
     }
 
     auto new_value = element.m_inline_style->serialized();
-    if (style_attribute_index.has_value()) {
-        element.m_element_core.attributes->at(*style_attribute_index).value = new_value;
-    } else {
-        element.append_to_attribute_list(QualifiedName { HTML::AttributeNames::style, {}, {} }, new_value);
-    }
+    RustFFI::rust_dom_write_attribute_value_without_change_steps(&element, HTML::AttributeNames::style.raw_identity(), Utf16String { new_value }.into_raw());
 
     CSS::record_element_attribute_changed(element, HTML::AttributeNames::style, {}, old_value, new_value);
 }
@@ -4959,28 +4886,26 @@ void Element::set_prefix(Optional<Utf16FlyString> value)
 
 void Element::move_attribute_nodes_to_document(Badge<Document>, Document& document)
 {
-    if (auto* rare_data = element_rare_data(); rare_data && rare_data->attribute_map)
-        rare_data->attribute_map->move_attribute_nodes_to_document({}, document);
+    if (auto* attribute_map = m_element_core.attributes.attribute_map_slot())
+        (*attribute_map)->move_attribute_nodes_to_document({}, document);
 }
 
 void Element::for_each_attribute(Function<void(Attr const&)> callback) const
 {
     synchronize_all_attributes();
-    if (!m_element_core.attributes)
+    if (m_element_core.attributes.is_empty())
         return;
     auto attribute_map = attributes();
-    for (size_t i = 0; i < m_element_core.attributes->size(); ++i)
+    for (size_t i = 0; i < m_element_core.attributes.size(); ++i)
         callback(*attribute_map->item(i));
 }
 
 void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> callback) const
 {
     synchronize_all_attributes();
-    if (!m_element_core.attributes)
-        return;
-    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
-        auto name = m_element_core.attributes->at(index).name.as_string();
-        auto value = m_element_core.attributes->at(index).value;
+    for (size_t index = 0; index < m_element_core.attributes.size(); ++index) {
+        auto name = m_element_core.attributes.at(index).name.as_string();
+        auto value = m_element_core.attributes.at(index).value;
         callback(move(name), move(value));
     }
 }
@@ -4988,11 +4913,9 @@ void Element::for_each_attribute(Function<void(Utf16FlyString, Utf16String)> cal
 void Element::for_each_attribute(Function<void(QualifiedName, Utf16String)> callback) const
 {
     synchronize_all_attributes();
-    if (!m_element_core.attributes)
-        return;
-    for (size_t index = 0; index < m_element_core.attributes->size(); ++index) {
-        auto name = m_element_core.attributes->at(index).name;
-        auto value = m_element_core.attributes->at(index).value;
+    for (size_t index = 0; index < m_element_core.attributes.size(); ++index) {
+        auto name = m_element_core.attributes.at(index).name;
+        auto value = m_element_core.attributes.at(index).value;
         callback(move(name), move(value));
     }
 }
@@ -5032,21 +4955,19 @@ Layout::NodeWithStyle const* Element::unsafe_layout_node(Layout::BegunRead const
 bool Element::has_attributes() const
 {
     synchronize_all_attributes();
-    return m_element_core.attributes && !m_element_core.attributes->is_empty();
+    return !m_element_core.attributes.is_empty();
 }
 
 size_t Element::attribute_list_size() const
 {
     synchronize_all_attributes();
-    return m_element_core.attributes ? m_element_core.attributes->size() : 0;
+    return m_element_core.attributes.size();
 }
 
 ReadonlySpan<Element::Attribute> Element::attribute_list() const
 {
     synchronize_all_attributes();
-    if (!m_element_core.attributes)
-        return {};
-    return m_element_core.attributes->span();
+    return m_element_core.attributes.span();
 }
 
 CSS::ComputedStyleRecordView Element::computed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
@@ -6690,11 +6611,11 @@ bool Element::has_pointer_capture(WebIDL::Long pointer_id) const
 
 GC::Ptr<NamedNodeMap> Element::attributes()
 {
-    auto& attribute_map = ensure_element_rare_data().attribute_map;
-    if (!attribute_map) {
-        attribute_map = NamedNodeMap::create(*this);
-        set_element_core_flag(RustFFI::ELEMENT_MAY_HAVE_ATTRIBUTE_NODES, true);
-    }
+    if (auto* attribute_map = m_element_core.attributes.attribute_map_slot())
+        return *attribute_map;
+    auto attribute_map = NamedNodeMap::create(*this);
+    // NB: The element keeps its map in its attribute list, see Rust/src/dom/attr.rs.
+    *reinterpret_cast<GC::Member<NamedNodeMap>*>(RustFFI::rust_dom_element_ensure_attribute_map_slot(this)) = attribute_map;
     return attribute_map;
 }
 

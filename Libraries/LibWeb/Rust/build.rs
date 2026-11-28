@@ -2810,11 +2810,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut dom_config = base_config.clone();
     dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
     dom_config.includes = vec![
-        "AK/OwnPtr.h".to_string(),
         "AK/Utf16String.h".to_string(),
         "LibGC/Member.h".to_string(),
         "LibGC/Ptr.h".to_string(),
         "LibWeb/CSS/StyleEngineIdentifiers.h".to_string(),
+        "LibWeb/DOM/AttributeList.h".to_string(),
         "LibWeb/DOM/ClassNames.h".to_string(),
         "LibWeb/DOM/CppNodeFlags.h".to_string(),
         "LibWeb/DOM/QualifiedName.h".to_string(),
@@ -2828,6 +2828,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "DocumentFragmentCore".to_string(),
         "DocumentCore".to_string(),
         "ElementCore".to_string(),
+        "AttrCore".to_string(),
+        "NamedNodeMapCore".to_string(),
         "EventTargetCore".to_string(),
         "EventCore".to_string(),
         "EventHooks".to_string(),
@@ -2875,7 +2877,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("QualifiedNameImpl", "Web::DOM::QualifiedName::Impl"),
         ("OptionalFlyStringField", "AK::Optional<AK::Utf16FlyString>"),
         ("ClassNamesField", "Web::DOM::ClassNames"),
-        ("AttributeListField", "AK::OwnPtr<Web::DOM::AttributeList>"),
+        ("AttributeListField", "Web::DOM::AttributeList"),
         ("StringField", "AK::Utf16String"),
         ("MoveScope", "Web::DOM::MoveScope"),
         ("CloneScope", "Web::DOM::CloneScope"),
@@ -2894,12 +2896,13 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Event; class EventTarget; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct CloneScope; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
+        "\nnamespace Web::DOM { class AbstractRange; class Document; class Element; class Event; class EventTarget; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct CloneScope; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
     );
     generate_ffi_header_strict(
         dom_config,
         &[
             manifest_dir.join("src/dom/element_core.rs"),
+            manifest_dir.join("src/dom/attr.rs"),
             manifest_dir.join("src/dom/attributes.rs"),
             manifest_dir.join("src/dom/character_data.rs"),
             manifest_dir.join("src/dom/queries.rs"),

@@ -4,64 +4,46 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Checked.h>
 #include <LibWeb/DOM/AttributeList.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/RustFFI.h>
 
 namespace Web::DOM {
 
-NonnullOwnPtr<AttributeList> AttributeList::create(size_t capacity)
-{
-    VERIFY(capacity > 0 && capacity <= NumericLimits<u32>::max());
-    auto allocation_size = Checked<size_t>(capacity);
-    allocation_size *= sizeof(Attribute);
-    allocation_size += sizeof(AttributeList);
-    auto* memory = AttributeList::operator new(allocation_size.value());
-    return adopt_own(*new (memory) AttributeList(static_cast<u32>(capacity)));
-}
-
 AttributeList::~AttributeList()
 {
-    // NB: libweb_rust reads the attributes in place, with a mirror of this layout (see Rust/src/dom/element_core.rs).
-    static_assert(sizeof(AttributeList) == 8 && alignof(AttributeList) == 4);
-    static_assert(offsetof(AttributeList, m_size) == 0);
-    static_assert(offsetof(AttributeList, m_capacity) == 4);
+    // NB: libweb_rust defines this layout (see Rust/src/dom/element_core.rs), which it asserts too.
+    static_assert(sizeof(AttributeList) == 8 && alignof(AttributeList) == 8);
+    static_assert(sizeof(Header) == 8 && alignof(Header) == 4);
+    static_assert(offsetof(Header, size) == 0);
+    static_assert(offsetof(Header, capacity) == 4);
     static_assert(sizeof(Attribute) == 16 && alignof(Attribute) == 8);
     static_assert(offsetof(Attribute, name) == 0);
     static_assert(offsetof(Attribute, value) == 8);
+    static_assert(RustFFI::ATTRIBUTE_LIST_PREFIX_SIZE == 8);
 
-    for (auto& attribute : span())
-        attribute.~Attribute();
+    if (m_list)
+        RustFFI::rust_dom_attribute_list_destroy(this);
 }
 
-NonnullOwnPtr<AttributeList> AttributeList::ensure_room_for_one_more(NonnullOwnPtr<AttributeList> list)
+size_t AttributeList::capacity() const
 {
-    if (list->m_size < list->m_capacity)
-        return list;
-    return list->moved_into_new_list(max(static_cast<size_t>(list->m_capacity) * 2, static_cast<size_t>(4)));
+    return m_list ? (m_list->capacity & ~RustFFI::ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP) : 0;
 }
 
-NonnullOwnPtr<AttributeList> AttributeList::moved_into_new_list(size_t capacity)
+size_t AttributeList::allocation_size() const
 {
-    VERIFY(capacity >= m_size);
-    auto new_list = create(capacity);
-    for (auto& attribute : span())
-        new (&new_list->attributes()[new_list->m_size++]) Attribute(move(attribute));
-    return new_list;
+    if (!m_list)
+        return 0;
+    return (attribute_map_slot() ? RustFFI::ATTRIBUTE_LIST_PREFIX_SIZE : 0) + sizeof(Header) + capacity() * sizeof(Attribute);
 }
 
-void AttributeList::unchecked_append(QualifiedName name, Utf16String value)
+GC::Member<NamedNodeMap>* AttributeList::attribute_map_slot() const
 {
-    VERIFY(m_size < m_capacity);
-    new (&attributes()[m_size++]) Attribute(move(name), move(value));
-}
-
-void AttributeList::remove(size_t index)
-{
-    VERIFY(index < m_size);
-    auto* attributes = this->attributes();
-    for (size_t i = index; i + 1 < m_size; ++i)
-        attributes[i] = move(attributes[i + 1]);
-    attributes[--m_size].~Attribute();
+    if (!m_list || !(m_list->capacity & RustFFI::ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP))
+        return nullptr;
+    // NB: The list keeps the field just before its header.
+    return reinterpret_cast<GC::Member<NamedNodeMap>*>(reinterpret_cast<u8*>(m_list) - RustFFI::ATTRIBUTE_LIST_PREFIX_SIZE);
 }
 
 }

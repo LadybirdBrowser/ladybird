@@ -268,7 +268,7 @@ public:
 
     // The element's attributes in order, borrowed until they next change.
     ReadonlySpan<Attribute> attribute_list() const;
-    void const* attribute_list_memory() const { return m_element_core.attributes.ptr(); }
+    void const* attribute_list_memory() const { return m_element_core.attributes.memory(); }
 
     // A filter over the local names of the attributes and the classes of this element and its descendants: a name whose
     // bit is clear is on none of them. Bits are only ever added, so a name may keep its bit after it is last removed.
@@ -985,14 +985,11 @@ private:
     void bump_dom_tree_version_for_attribute_change();
     void clear_custom_highlight_styles();
 
-    void append_to_attribute_list(QualifiedName, Utf16String value);
-
     void install_custom_property_data(Layout::BegunRead const& read, Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>, CSS::IsAnimationOverlay);
     void synchronize_style_attribute() const;
     Optional<size_t> find_attribute_index(Utf16FlyString const& qualified_name) const;
     Optional<size_t> find_attribute_index_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void change_attribute_value(GC::Ref<Attr>, Utf16String value);
-    void handle_attribute_changes(QualifiedName const&, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
     void remove_attribute_at(size_t index);
 
     using PseudoElementData = HashMap<CSS::PseudoElement, GC::Ref<PseudoElement>>;
@@ -1118,11 +1115,8 @@ inline bool Element::has_class(Utf16FlyString const& class_name, CaseSensitivity
 // The callbacks of the attribute algorithms in libweb_rust (see Rust/src/dom/attributes.rs), which DOM::Node registers
 // with the other DOM hooks.
 struct RustAttributeHooks {
-    static void append_attribute(Node*, size_t local_name, size_t prefix, size_t namespace_, size_t value);
-    static void reserve_attributes(Node*, size_t count);
     static void attribute_changed(Node*, QualifiedName::Impl*, size_t old_value, size_t new_value, u8 steps);
     static void synchronize_style_attribute(Node*);
-    static void release_qualified_name(QualifiedName::Impl*);
 };
 
 bool is_valid_namespace_prefix(Utf16View);

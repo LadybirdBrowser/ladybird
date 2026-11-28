@@ -301,13 +301,6 @@ pub struct DomHooks {
         previous_sibling: RawNullableNodeRef,
         next_sibling: RawNullableNodeRef,
     ),
-    /// Creates an attribute whose local name, namespace prefix and namespace are the strings whose raw words are
-    /// `local_name`, `prefix` and `namespace_uri` (0 for null), and whose value is the string `value` gives a reference
-    /// to, and appends it to the element's attribute list. Allocates, and runs no script.
-    pub append_attribute:
-        unsafe extern "C" fn(element: RawNodeRef, local_name: usize, prefix: usize, namespace_uri: usize, value: usize),
-    /// Makes room in the element's attribute list for `count` more attributes. Allocates, and runs no script.
-    pub reserve_attributes: unsafe extern "C" fn(element: RawNodeRef, count: usize),
     /// Runs the steps of handling attribute changes that C++ owns, which `steps` names (see ATTRIBUTE_CHANGE_*),
     /// for the attribute named `name` of the element, whose old and new values are the strings whose raw words are
     /// `old_value` and `new_value`. Can run script.
@@ -320,8 +313,6 @@ pub struct DomHooks {
     ),
     /// Writes the declarations of the element's inline style to its style attribute. Runs no script.
     pub synchronize_style_attribute: unsafe extern "C" fn(element: RawNodeRef),
-    /// Drops the last reference to a qualified name's parts, which frees them. Runs no script.
-    pub release_qualified_name: unsafe extern "C" fn(name: NonNull<QualifiedNameImpl>),
     /// Runs what replacing `count` code units from `offset` of the data of a CharacterData node with data
     /// `data_length` code units long does beyond the data and the live ranges, which `steps` names (see
     /// CHARACTER_DATA_*). `old_data` is the raw word of the data before. Can run script.
@@ -358,18 +349,16 @@ pub const CHARACTER_DATA_DATA_CHANGED: u8 = 1 << 3;
 pub const ATTRIBUTE_CHANGE_OLD_VALUE_IS_NULL: u8 = 1 << 0;
 /// The new value is null.
 pub const ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL: u8 = 1 << 1;
-/// Set the element of the removed attribute's Attr node to null.
-pub const ATTRIBUTE_CHANGE_DETACH_ATTRIBUTE_NODE: u8 = 1 << 2;
 /// Tell the document's editing history of the mutation.
-pub const ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY: u8 = 1 << 3;
+pub const ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY: u8 = 1 << 2;
 /// Queue a mutation record of "attributes".
-pub const ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD: u8 = 1 << 4;
+pub const ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD: u8 = 1 << 3;
 /// Enqueue a custom element callback reaction with callback name "attributeChangedCallback".
-pub const ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION: u8 = 1 << 5;
+pub const ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION: u8 = 1 << 4;
 /// Run the attribute change steps, but for what attributes.rs does after the hook returns.
-pub const ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS: u8 = 1 << 6;
+pub const ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS: u8 = 1 << 5;
 /// Tell the style engine of the change, as the attribute change steps do, where no attribute change steps act on it.
-pub const ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE: u8 = 1 << 7;
+pub const ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE: u8 = 1 << 6;
 /// The bits that name steps to run, rather than what the values are.
 pub const ATTRIBUTE_CHANGE_STEPS: u8 = !(ATTRIBUTE_CHANGE_OLD_VALUE_IS_NULL | ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL);
 
@@ -827,29 +816,6 @@ pub(crate) fn queue_tree_mutation_record(
     }
 }
 
-/// Appends an attribute to the element's attribute list, see DomHooks::append_attribute. `local_name`, `prefix` and
-/// `namespace_uri` are raw words of live strings, or 0 for a null prefix or namespace.
-#[inline]
-pub(crate) fn append_attribute(
-    main_thread: &mut MainThread<'_>,
-    element: NodeRef,
-    local_name: usize,
-    prefix: usize,
-    namespace_uri: usize,
-    value: ak::Utf16String,
-) {
-    // SAFETY: The callback is called on the main thread with a live element and live strings, and takes over the
-    //         reference to the value.
-    unsafe { (hooks(main_thread).append_attribute)(element, local_name, prefix, namespace_uri, value.into_raw()) }
-}
-
-/// Makes room in the element's attribute list for `count` more attributes, see DomHooks::reserve_attributes.
-#[inline]
-pub(crate) fn reserve_attributes(main_thread: &mut MainThread<'_>, element: NodeRef, count: usize) {
-    // SAFETY: The callback is called on the main thread with a live element.
-    unsafe { (hooks(main_thread).reserve_attributes)(element, count) }
-}
-
 /// Steps 1 to 4 and 6 of cloning a single node `node` with the document and, where `uses_fallback_registry` says so,
 /// the fallback registry of `scope`: makes the copy, and gives it the state of `node` that its interface has but for an
 /// element's attributes, which the caller copies. For a node that is no element, also runs the cloning steps of
@@ -989,17 +955,6 @@ pub(crate) fn attribute_changed(
 pub(crate) fn synchronize_style_attribute(main_thread: &mut MainThread<'_>, element: NodeRef) {
     // SAFETY: The callback is called on the main thread with a live element.
     unsafe { (hooks(main_thread).synchronize_style_attribute)(element) }
-}
-
-/// Drops a reference to a qualified name's parts, which the caller holds.
-#[inline]
-pub(crate) fn release_qualified_name(main_thread: &mut MainThread<'_>, name: NonNull<QualifiedNameImpl>) {
-    // SAFETY: The caller holds the reference, on the main thread.
-    if unsafe { name.as_ref().unref_unless_last() } {
-        return;
-    }
-    // SAFETY: The callback is called on the main thread with the last reference to the parts, which it takes over.
-    unsafe { (hooks(main_thread).release_qualified_name)(name) }
 }
 
 /// Runs the C++ steps of replacing the data of a CharacterData node, see DomHooks::character_data_replaced. The

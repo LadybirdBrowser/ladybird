@@ -8,23 +8,28 @@
 //! DOM::Element and reads and writes in place.
 //!
 //! Its fields are AK and DOM types to C++, which owns what they hold: C++ constructs, assigns and destroys every field
-//! as the C++ type it sees, and Rust reads them in place. What Rust writes is the attribute list, whose attributes it
-//! changes the values of and takes out (see attributes.rs), while C++ allocates the list and appends to it, the id and
-//! the subtree name filter, and the classes, whose storage only Rust changes, for C++ too.
+//! as the C++ type it sees, and Rust reads them in place. What Rust writes is the attribute list, which it allocates,
+//! changes and frees, for C++ too (see attributes.rs), the id and the subtree name filter, and the classes, whose
+//! storage only Rust changes, for C++ too.
 
 use super::node_core::ElementMember;
 use super::node_core::NodePointer;
 use super::node_core::ShadowRootMember;
+use core::alloc::Layout;
 use core::cell::Cell;
 use core::cell::UnsafeCell;
 use core::mem::offset_of;
 use core::ptr::NonNull;
 
+use super::qualified_name;
 use super::qualified_name::QualifiedNameField;
 use super::qualified_name::QualifiedNameImpl;
 use super::strings::FlyStringField;
 use super::strings::OptionalFlyStringField;
 use super::strings::StringField;
+use crate::stage::MainThread;
+
+crate::stage::main_thread_ffi_entries!(without_host);
 
 /// Where DOM::Element embeds its core, in bytes from the start of the element's cell, which Element.cpp asserts.
 pub const ELEMENT_CORE_OFFSET: usize = 144;
@@ -151,8 +156,8 @@ const _: () = assert!(offset_of!(ClassNamesField, capacity) == 4);
 const _: () = assert!(offset_of!(ClassNamesField, outline_buffer) == 8);
 const _: () = assert!(offset_of!(ClassNamesField, inline_class) == 16);
 
-/// An attribute of an element, laid out as C++'s DOM::AttributeList::Attribute, which C++ constructs, assigns and
-/// destroys in the list that holds it.
+/// An attribute of an element, laid out as C++'s DOM::AttributeList::Attribute, which only Rust constructs, changes and
+/// destroys, in the list that holds it.
 /// https://dom.spec.whatwg.org/#concept-attribute
 ///
 /// NB: This mirrors the C++ layout, which AttributeList.cpp asserts.
@@ -179,30 +184,52 @@ const _: () = assert!(size_of::<Attribute>() == 16 && align_of::<Attribute>() ==
 const _: () = assert!(offset_of!(Attribute, name) == 0);
 const _: () = assert!(offset_of!(Attribute, value) == 8);
 
-/// The start of a DOM::AttributeList, whose attributes follow it in its allocation.
+/// The start of an element's attribute list, whose attributes follow it in its allocation.
 ///
-/// NB: This mirrors the C++ layout, which AttributeList.cpp asserts.
+/// NB: AttributeList.cpp asserts the same layout.
 #[repr(C)]
 struct AttributeListHeader {
     size: UnsafeCell<u32>,
+    /// The number of attributes the list has room for, with ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP set where an
+    /// [`AttributeListPrefix`] comes before the header.
     capacity: UnsafeCell<u32>,
 }
 
-const _: () = assert!(size_of::<AttributeListHeader>() == 8 && align_of::<Attribute>() == 8);
+const _: () = assert!(size_of::<AttributeListHeader>() == 8 && align_of::<AttributeListHeader>() == 4);
 const _: () = assert!(offset_of!(AttributeListHeader, size) == 0);
 const _: () = assert!(offset_of!(AttributeListHeader, capacity) == 4);
 
-/// A field that holds the attributes of an element, laid out as C++'s AK::OwnPtr<DOM::AttributeList>, which is what C++
-/// sees it as: the list, which C++ allocates and frees, or null for an element that never had an attribute.
+/// The bit of an attribute list's capacity that says an [`AttributeListPrefix`] comes before its header.
+pub const ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP: u32 = 1 << 31;
+
+/// The size of an [`AttributeListPrefix`], which comes this many bytes before the header of a list that has one.
+pub const ATTRIBUTE_LIST_PREFIX_SIZE: usize = 8;
+
+/// What comes before the header of the attribute list of an element that script asked for the NamedNodeMap of: the
+/// element's map, which the element visits in place as it visits its edges. Elements that never had one, which is
+/// nearly all of them, keep no field for it.
+#[repr(C)]
+struct AttributeListPrefix {
+    /// The element's NamedNodeMap, laid out as a GC::Member<DOM::NamedNodeMap>.
+    attribute_map: Cell<u32>,
+    _padding: u32,
+}
+
+const _: () = assert!(size_of::<AttributeListPrefix>() == ATTRIBUTE_LIST_PREFIX_SIZE);
+const _: () = assert!(offset_of!(AttributeListPrefix, attribute_map) == 0);
+
+/// A field that holds the attributes of an element, laid out as C++'s DOM::AttributeList, which is what C++ sees it as:
+/// a pointer to the list's header, in an allocation Rust makes, grows and frees, or null for an element that never had
+/// an attribute. C++ only reads the list.
 #[repr(transparent)]
-pub struct AttributeListField(UnsafeCell<*const AttributeListHeader>);
+pub struct AttributeListField(UnsafeCell<*mut AttributeListHeader>);
 
 impl AttributeListField {
     /// The attributes, in order.
     #[inline(always)]
     pub fn as_slice(&self) -> &[Attribute] {
-        // SAFETY: C++ does not write the field, or the list it owns, while Rust borrows it. The size counts the
-        //         attributes that follow the list's header.
+        // SAFETY: Nothing writes the list while Rust borrows it. The size counts the attributes that follow the list's
+        //         header.
         unsafe {
             let list = *self.0.get();
             if list.is_null() {
@@ -211,21 +238,114 @@ impl AttributeListField {
             ak::slice_from_raw_parts(list.add(1).cast::<Attribute>(), *(*list).size.get() as usize)
         }
     }
-}
 
-impl AttributeListField {
-    /// The attributes after the list's header, and the count of them.
     #[inline(always)]
-    fn raw_parts(&self) -> Option<(*mut Attribute, *mut u32)> {
-        // SAFETY: C++ does not write the field while Rust reads it.
-        let list = unsafe { *self.0.get() }.cast_mut();
+    fn header(&self) -> *mut AttributeListHeader {
+        // SAFETY: Nothing writes the field while Rust reads it.
+        unsafe { *self.0.get() }
+    }
+
+    /// The number of attributes the list has room for.
+    #[inline(always)]
+    fn capacity(&self) -> usize {
+        let list = self.header();
         if list.is_null() {
-            return None;
+            return 0;
         }
-        // SAFETY: The attributes follow the list's header, in its allocation.
-        Some((unsafe { list.add(1).cast::<Attribute>() }, unsafe {
-            (*list).size.get()
-        }))
+        // SAFETY: The list is live.
+        (unsafe { *(*list).capacity.get() } & !ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP) as usize
+    }
+
+    /// Whether an AttributeListPrefix comes before the list's header.
+    #[inline(always)]
+    fn has_prefix(&self) -> bool {
+        let list = self.header();
+        // SAFETY: The list is live.
+        !list.is_null() && unsafe { *(*list).capacity.get() } & ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP != 0
+    }
+
+    /// The layout of a list with room for `capacity` attributes, with a prefix where `has_prefix` says so, and the
+    /// offset of its header in it.
+    #[inline(always)]
+    fn layout(capacity: usize, has_prefix: bool) -> (Layout, usize) {
+        let prefix_size = if has_prefix { ATTRIBUTE_LIST_PREFIX_SIZE } else { 0 };
+        let size = size_of::<Attribute>()
+            .checked_mul(capacity)
+            .and_then(|size| size.checked_add(prefix_size + size_of::<AttributeListHeader>()))
+            .expect("an attribute list is never that long");
+        (
+            Layout::from_size_align(size, align_of::<Attribute>()).expect("an attribute list is never that long"),
+            prefix_size,
+        )
+    }
+
+    /// Moves the list into an allocation with room for `capacity` attributes, at least as many as it holds, with a
+    /// prefix where `has_prefix` says so, which keeps the element's map where the list had one.
+    fn reallocate(&self, capacity: usize, has_prefix: bool) {
+        let old_list = self.header();
+        let size = self.as_slice().len();
+        assert!(capacity >= size);
+        let capacity_u32 = u32::try_from(capacity)
+            .ok()
+            .filter(|&capacity| capacity & ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP == 0)
+            .expect("an element has fewer than 2^31 attributes");
+        let old_has_prefix = self.has_prefix();
+        let (new_layout, new_header_offset) = Self::layout(capacity, has_prefix);
+        // SAFETY: The layout is not zero-sized.
+        let allocation = unsafe { std::alloc::alloc(new_layout) };
+        if allocation.is_null() {
+            std::alloc::handle_alloc_error(new_layout);
+        }
+        // SAFETY: The new allocation has room for the header and `capacity` attributes after `new_header_offset`
+        //         bytes, and the old one, if any, holds `size` attributes after its header, which move with their bytes,
+        //         as an attribute is a qualified name and a string that each are a word holding a reference.
+        unsafe {
+            let new_list = allocation.add(new_header_offset).cast::<AttributeListHeader>();
+            let attribute_map = match old_has_prefix {
+                true => (*old_list
+                    .byte_sub(ATTRIBUTE_LIST_PREFIX_SIZE)
+                    .cast::<AttributeListPrefix>())
+                .attribute_map
+                .get(),
+                false => 0,
+            };
+            if has_prefix {
+                allocation.cast::<AttributeListPrefix>().write(AttributeListPrefix {
+                    attribute_map: Cell::new(attribute_map),
+                    _padding: 0,
+                });
+            } else {
+                assert!(attribute_map == 0, "a list keeps the element's map");
+            }
+            new_list.write(AttributeListHeader {
+                size: UnsafeCell::new(size as u32),
+                capacity: UnsafeCell::new(match has_prefix {
+                    true => capacity_u32 | ATTRIBUTE_LIST_HAS_ATTRIBUTE_MAP,
+                    false => capacity_u32,
+                }),
+            });
+            if !old_list.is_null() {
+                core::ptr::copy_nonoverlapping(
+                    old_list.add(1).cast::<Attribute>(),
+                    new_list.add(1).cast::<Attribute>(),
+                    size,
+                );
+                Self::deallocate(old_list, self.capacity(), old_has_prefix);
+            }
+            *self.0.get() = new_list;
+        }
+    }
+
+    /// Frees the allocation of the list whose header is `list`, which has room for `capacity` attributes and a prefix
+    /// where `has_prefix` says so, and whose attributes have moved out or been dropped.
+    ///
+    /// # Safety
+    ///
+    /// `list` must be a list this field allocated with that capacity and prefix, which is not read again.
+    unsafe fn deallocate(list: *mut AttributeListHeader, capacity: usize, has_prefix: bool) {
+        let (layout, header_offset) = Self::layout(capacity, has_prefix);
+        // SAFETY: Guaranteed by the caller.
+        unsafe { std::alloc::dealloc(list.cast::<u8>().sub(header_offset), layout) };
     }
 
     /// Stores `value` as the value of the attribute at `index`, and gives back the value it had, whose reference passes
@@ -240,53 +360,65 @@ impl AttributeListField {
         unsafe { self.as_slice()[index].value.replace(value) }
     }
 
-    /// Whether the list has room for one more attribute.
-    #[inline(always)]
-    pub(super) fn has_room_for_one_more(&self) -> bool {
-        // SAFETY: C++ does not write the field, or the list it owns, while Rust reads it.
-        unsafe {
-            let list = *self.0.get();
-            !list.is_null() && *(*list).size.get() < *(*list).capacity.get()
+    /// Makes room in the list for `count` more attributes than it holds.
+    pub(super) fn reserve(&self, count: usize) {
+        let needed = self.as_slice().len() + count;
+        if count == 0 || needed <= self.capacity() {
+            return;
         }
+        self.reallocate(needed, self.has_prefix());
     }
 
-    /// Appends an attribute named `name` whose value is `value`, whose references pass to the list, as
-    /// DOM::AttributeList::unchecked_append() does.
+    /// Appends an attribute named `name` whose value is `value`, whose references pass to the list.
     ///
     /// # Safety
     ///
-    /// The list must have room for one more attribute, see has_room_for_one_more(), and nothing may borrow an
-    /// attribute of the list.
+    /// Nothing may borrow an attribute of the list.
     #[inline(always)]
-    pub(super) unsafe fn append_unchecked(&self, name: NonNull<QualifiedNameImpl>, value: ak::Utf16String) {
-        let (attributes, size) = self.raw_parts().expect("the list has room");
-        // SAFETY: Guaranteed by the caller. An attribute is a qualified name and a string, each a word that holds a
-        //         reference, which moves into the slot after the last attribute.
+    pub(super) unsafe fn append(&self, name: NonNull<QualifiedNameImpl>, value: ak::Utf16String) {
+        let size = self.as_slice().len();
+        if size == self.capacity() {
+            self.grow();
+        }
+        let list = self.header();
+        // SAFETY: Guaranteed by the caller. The list has room for one more attribute, a qualified name and a string,
+        //         each a word that holds a reference, which moves into the slot after the last attribute.
         unsafe {
-            let attribute = attributes.add(*size as usize);
+            let attribute = list.add(1).cast::<Attribute>().add(size);
             attribute.cast::<NonNull<QualifiedNameImpl>>().write(name);
             attribute.cast::<usize>().add(1).write(value.into_raw());
-            *size += 1;
+            *(*list).size.get() += 1;
         }
     }
 
-    /// Takes the attribute at `index` out of the list, moving the attributes after it down by one, as
-    /// DOM::AttributeList::remove() does, and gives back its name and value, whose references pass to the caller.
+    /// Moves the list into one with room for more attributes: one for a list that never had any, and twice as many
+    /// as it holds, and at least four, after that.
+    #[inline(never)]
+    fn grow(&self) {
+        let capacity = self.capacity();
+        let new_capacity = match self.header().is_null() {
+            true => 1,
+            false => (capacity * 2).max(4),
+        };
+        self.reallocate(new_capacity, self.has_prefix());
+    }
+
+    /// Takes the attribute at `index` out of the list, moving the attributes after it down by one, and gives back its
+    /// name and value, whose references pass to the caller.
     ///
     /// # Safety
     ///
     /// Nothing may borrow an attribute of the list.
     pub(super) unsafe fn take(&self, index: usize) -> (NonNull<QualifiedNameImpl>, ak::Utf16String) {
-        let (attributes, size) = self
-            .raw_parts()
-            .expect("an attribute is taken out of a list that holds it");
+        let list = self.header();
+        assert!(index < self.as_slice().len());
         // SAFETY: Guaranteed by the caller: nothing borrows the list, whose size counts the attributes that follow its
         //         header. An attribute is a qualified name and a string, each a word that holds a reference, which
         //         moves with the word.
         unsafe {
+            let size = (*list).size.get();
             let count = *size as usize;
-            assert!(index < count);
-            let attribute = attributes.add(index);
+            let attribute = list.add(1).cast::<Attribute>().add(index);
             let name = attribute.cast::<NonNull<QualifiedNameImpl>>().read();
             let value = attribute.cast::<usize>().add(1).read();
             core::ptr::copy(attribute.add(1), attribute, count - index - 1);
@@ -294,6 +426,95 @@ impl AttributeListField {
             (name, ak::Utf16String::from_raw_owned(value))
         }
     }
+
+    /// Replaces the attribute at `index` with one named `name` whose value is `value`, whose references pass to the
+    /// list, and gives back the name and value of the attribute it replaces, whose references pass to the caller.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may borrow an attribute of the list.
+    pub(super) unsafe fn replace(
+        &self,
+        index: usize,
+        name: NonNull<QualifiedNameImpl>,
+        value: ak::Utf16String,
+    ) -> (NonNull<QualifiedNameImpl>, ak::Utf16String) {
+        let list = self.header();
+        assert!(index < self.as_slice().len());
+        // SAFETY: As for take(), and the attribute at `index` takes over the references of `name` and `value`.
+        unsafe {
+            let attribute = list.add(1).cast::<Attribute>().add(index);
+            let old_name = attribute.cast::<NonNull<QualifiedNameImpl>>().replace(name);
+            let old_value = attribute.cast::<usize>().add(1).replace(value.into_raw());
+            (old_name, ak::Utf16String::from_raw_owned(old_value))
+        }
+    }
+
+    /// The element's NamedNodeMap, laid out as a GC::Member, where the list keeps one, see AttributeListPrefix.
+    #[inline(always)]
+    pub(super) fn attribute_map(&self) -> Option<&Cell<u32>> {
+        if !self.has_prefix() {
+            return None;
+        }
+        // SAFETY: A list with a prefix keeps it just before its header, in its allocation.
+        Some(unsafe {
+            &(*self
+                .header()
+                .byte_sub(ATTRIBUTE_LIST_PREFIX_SIZE)
+                .cast::<AttributeListPrefix>())
+            .attribute_map
+        })
+    }
+
+    /// Gives the list a field for the element's NamedNodeMap, see AttributeListPrefix, and gives it back.
+    pub(super) fn ensure_attribute_map(&self) -> &Cell<u32> {
+        if !self.has_prefix() {
+            self.reallocate(self.capacity(), true);
+        }
+        self.attribute_map().expect("the list has a prefix")
+    }
+
+    /// Drops every attribute and frees the list, which leaves the field null.
+    ///
+    /// # Safety
+    ///
+    /// Nothing may borrow an attribute of the list.
+    unsafe fn destroy(&self, main_thread: &mut MainThread<'_>) {
+        let list = self.header();
+        if list.is_null() {
+            return;
+        }
+        let (capacity, has_prefix) = (self.capacity(), self.has_prefix());
+        // SAFETY: Guaranteed by the caller. The list holds a reference to the name and value of each of its attributes,
+        //         and is not read again once the field is null.
+        unsafe {
+            let size = *(*list).size.get() as usize;
+            let attributes = list.add(1).cast::<Attribute>();
+            for index in 0..size {
+                let attribute = attributes.add(index);
+                let name = attribute.cast::<NonNull<QualifiedNameImpl>>().read();
+                drop(ak::Utf16String::from_raw_owned(attribute.cast::<usize>().add(1).read()));
+                qualified_name::release(main_thread, name);
+            }
+            *self.0.get() = core::ptr::null_mut();
+            Self::deallocate(list, capacity, has_prefix);
+        }
+    }
+}
+
+/// Drops the attributes of an element's attribute list and frees it, for DOM::AttributeList as the element is
+/// destroyed.
+///
+/// # Safety
+///
+/// `list` must be the attribute list of an element that is being destroyed, and the call must be made on the main
+/// thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_attribute_list_destroy(list: &AttributeListField) {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: Nothing borrows the attributes of an element that is being destroyed.
+    unsafe { list.destroy(&mut main_thread) }
 }
 
 const _: () = assert!(size_of::<AttributeListField>() == 8 && align_of::<AttributeListField>() == 8);
@@ -315,8 +536,6 @@ pub const ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS: u8 = 1 << 4;
 /// Whether the element is custom, which C++ keeps as the element's custom element state changes.
 /// https://dom.spec.whatwg.org/#concept-element-custom
 pub const ELEMENT_IS_CUSTOM: u8 = 1 << 5;
-/// Whether the element may have Attr nodes, which C++ sets as it makes the element's NamedNodeMap, and never clears.
-pub const ELEMENT_MAY_HAVE_ATTRIBUTE_NODES: u8 = 1 << 7;
 
 // The ELEMENT_REFLECTION_* flags, of an element's reflection_flags.
 
@@ -477,7 +696,7 @@ impl ElementCore {
             qualified_name,
             id: OptionalFlyStringField::for_test(None),
             classes: ClassNamesField::for_test(&[]),
-            attributes: AttributeListField(UnsafeCell::new(core::ptr::null())),
+            attributes: AttributeListField(UnsafeCell::new(core::ptr::null_mut())),
             subtree_name_filter: Cell::new(0),
             style_attribute_is_dirty: Cell::new(false),
             flags: Cell::new(0),

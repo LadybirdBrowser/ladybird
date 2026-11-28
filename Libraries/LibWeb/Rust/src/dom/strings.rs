@@ -18,6 +18,12 @@ use core::cell::UnsafeCell;
 pub struct FlyStringField(UnsafeCell<usize>);
 
 impl FlyStringField {
+    /// A field that holds `value`, whose reference passes to it.
+    #[inline(always)]
+    pub(super) fn from_owned(value: ak::Utf16FlyString) -> Self {
+        Self(UnsafeCell::new(value.into_raw()))
+    }
+
     /// The word that names the string, which is the same for every AK::Utf16FlyString of the same string.
     #[inline(always)]
     pub fn raw_identity(&self) -> usize {
@@ -56,6 +62,12 @@ impl FlyStringField {
 pub struct OptionalFlyStringField(UnsafeCell<usize>);
 
 impl OptionalFlyStringField {
+    /// A field that holds `value` or none, whose reference passes to it.
+    #[inline(always)]
+    pub(super) fn from_owned(value: Option<ak::Utf16FlyString>) -> Self {
+        Self(UnsafeCell::new(value.map_or(0, ak::Utf16FlyString::into_raw)))
+    }
+
     #[inline(always)]
     pub fn get(&self) -> Option<&FlyStringField> {
         // SAFETY: C++ does not write the field while Rust borrows it.

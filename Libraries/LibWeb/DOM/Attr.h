@@ -11,6 +11,7 @@
 #include <AK/WeakPtr.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/QualifiedName.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/Export.h>
 
 namespace Web::DOM {
@@ -27,12 +28,13 @@ public:
 
     virtual ~Attr() override = default;
 
-    virtual Utf16FlyString node_name() const override { return m_qualified_name.as_string(); }
+    virtual Utf16FlyString node_name() const override { return m_attr_core.qualified_name.as_string(); }
 
-    Optional<Utf16FlyString> const& namespace_uri() const { return m_qualified_name.namespace_(); }
-    Optional<Utf16FlyString> const& prefix() const { return m_qualified_name.prefix(); }
-    Utf16FlyString const& local_name() const { return m_qualified_name.local_name(); }
-    Utf16FlyString const& name() const { return m_qualified_name.as_string(); }
+    QualifiedName const& qualified_name() const { return m_attr_core.qualified_name; }
+    Optional<Utf16FlyString> const& namespace_uri() const { return m_attr_core.qualified_name.namespace_(); }
+    Optional<Utf16FlyString> const& prefix() const { return m_attr_core.qualified_name.prefix(); }
+    Utf16FlyString const& local_name() const { return m_attr_core.qualified_name.local_name(); }
+    Utf16FlyString const& name() const { return m_attr_core.qualified_name.as_string(); }
 
     Utf16String value() const;
     WebIDL::ExceptionOr<void> set_value(Utf16String value);
@@ -42,23 +44,18 @@ public:
 
     Element* owner_element();
     Element const* owner_element() const;
-    void set_owner_element(Element* owner_element);
-    static constexpr GC::MemberOffset owner_element_offset() { return GC_FIELD_OFFSET(Attr, m_owner_element); }
+    static constexpr GC::MemberOffset owner_element_offset() { return GC_FIELD_OFFSET(Attr, m_attr_core.owner_element); }
 
     // Always returns true: https://dom.spec.whatwg.org/#dom-attr-specified
     constexpr bool specified() const { return true; }
 
 private:
-    friend class NamedNodeMap;
-
-    void detach_from_element(Utf16String value);
-
     Attr(Document&, QualifiedName, Utf16String value, GC::Ptr<Element>);
     virtual void visit_edges(Cell::Visitor&) override;
 
-    QualifiedName m_qualified_name;
-    Utf16String m_value;
-    GC::Member<Element> m_owner_element;
+    // The state of the Attr node, whose layout libweb_rust defines (see Rust/src/dom/attr.rs), which reads and writes it
+    // in place: it detaches an Attr node from its element, and attaches it to one.
+    RustFFI::AttrCore m_attr_core;
 };
 
 }
