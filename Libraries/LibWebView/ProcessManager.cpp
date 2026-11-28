@@ -33,6 +33,8 @@ Optional<ProcessType> process_type_from_name(StringView name)
         return ProcessType::MediaServer;
     if (name == "ladybird-audio"sv)
         return ProcessType::AudioServer;
+    if (name == "ladybird-camera"sv)
+        return ProcessType::CameraServer;
     if (name == "ladybird-video"sv)
         return ProcessType::VideoDecoderServer;
     if (name == "ladybird-webrtc"sv)
@@ -64,6 +66,8 @@ StringView process_name_from_type(ProcessType type)
         return "ladybird-media"sv;
     case ProcessType::AudioServer:
         return "ladybird-audio"sv;
+    case ProcessType::CameraServer:
+        return "ladybird-camera"sv;
     case ProcessType::VideoDecoderServer:
         return "ladybird-video"sv;
     case ProcessType::WebRTCClient:

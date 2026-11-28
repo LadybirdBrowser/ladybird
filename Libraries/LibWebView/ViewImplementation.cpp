@@ -119,7 +119,7 @@ void ViewImplementation::did_leave_owners_tab(Badge<PictureInPictureWindow>)
 
     // Whether a process may capture audio depends on the tabs its pages are part of.
     traversable().for_each_hosting_page([](WebContentPage& page) {
-        page.client().update_audio_capture_permission();
+        page.client().update_capture_permissions();
     });
 }
 
@@ -264,7 +264,7 @@ void ViewImplementation::did_update_url()
 
     did_change_state();
     if (auto page = traversable().display_page(); page && page->routed_connection())
-        page->routed_connection()->update_audio_capture_permission();
+        page->routed_connection()->update_capture_permissions();
     update_displayed_url();
 }
 
@@ -709,6 +709,8 @@ DiscardBlockers ViewImplementation::discard_blockers(DiscardReason reason, Monot
         blockers |= DiscardBlockers::RecentlyPlayedAudio;
     if (is_capturing_audio())
         blockers |= DiscardBlockers::CapturingAudio;
+    if (is_capturing_video())
+        blockers |= DiscardBlockers::CapturingVideo;
     if (m_tab_indicators.is_active(TabIndicator::UsingLocation))
         blockers |= DiscardBlockers::UsingLocation;
 
@@ -3601,16 +3603,44 @@ void ViewImplementation::update_microphone_capture()
     m_tab_indicators.set_active(TabIndicator::UsingMicrophone, capturing, MonotonicTime::now());
 }
 
+void ViewImplementation::update_camera_capture()
+{
+    // An owned view has no tab of its own, so its capture shows on its owner's, with one linger for them all.
+    if (m_owner_view_id.has_value()) {
+        if (auto owner = find_view_by_id(*m_owner_view_id); owner.has_value())
+            owner->update_camera_capture();
+        return;
+    }
+
+    auto capturing = false;
+    auto check_pages_of = [&](ViewImplementation const& view) {
+        view.traversable().for_each_hosting_page([&](WebContentPage& page) {
+            if (page.is_capturing_video())
+                capturing = true;
+        });
+    };
+
+    check_pages_of(*this);
+    for_each_view([&](ViewImplementation& view) {
+        if (view.m_owner_view_id == m_view_id && view.has_traversable())
+            check_pages_of(view);
+        return IterationDecision::Continue;
+    });
+    m_tab_indicators.set_active(TabIndicator::UsingCamera, capturing, MonotonicTime::now());
+}
+
 void ViewImplementation::did_release_page(Badge<CanonicalTraversable>)
 {
     update_audibility();
     update_microphone_capture();
+    update_camera_capture();
 }
 
 void ViewImplementation::reset_page_media_state()
 {
     update_audibility();
     update_microphone_capture();
+    update_camera_capture();
 
     if (m_screen_wake_lock_state != Web::ScreenWakeLockState::Released) {
         m_screen_wake_lock_state = Web::ScreenWakeLockState::Released;
@@ -5294,7 +5324,7 @@ Vector<SitePermissionRow> ViewImplementation::site_permission_rows() const
     auto const& manager = *session().permission_manager;
 
     Vector<SitePermissionRow> rows;
-    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone, Web::Permissions::PermissionName::Notifications }) {
+    for (auto name : Web::Permissions::PERMISSION_NAMES) {
         auto decision = manager.decision(name, origin);
         rows.append({
             .name = name,
@@ -5414,6 +5444,18 @@ void ViewImplementation::show_microphone_denied_notice()
     auto is_file = top_level_origin.is_opaque() && url().scheme() == "file"sv;
     PermissionPromptRequest request { Web::Permissions::PermissionName::Microphone, move(top_level_origin), is_file, false, PermissionPromptKind::SystemDeniedNotice };
     request_permission_prompt(move(request), [](Web::Permissions::PromptOutcome) { });
+}
+
+void ViewImplementation::did_choose_permission_prompt_device(PermissionPromptRequest const& request, ByteString const& device_id)
+{
+    // The UI is held to what it was offered: a prompt that is still up, and a device that was on it.
+    auto pending = m_pending_permission_prompts.find_if([&](auto const& candidate) { return candidate.request.is_same_request_as(request); });
+    if (pending == m_pending_permission_prompts.end())
+        return;
+    if (!any_of(pending->request.devices, [&](auto const& device) { return device.id == device_id; }))
+        return;
+    if (pending->request.name == Web::Permissions::PermissionName::Camera)
+        WebContentClient::set_preferred_camera(device_id);
 }
 
 void ViewImplementation::did_show_permission_prompt(PermissionPromptRequest const& request)

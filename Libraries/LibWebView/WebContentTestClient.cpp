@@ -160,6 +160,14 @@ Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse 
     return false;
 }
 
+Messages::WebContentTestClient::DidRequestTabIsCapturingVideoForTestingResponse WebContentTestClient::did_request_tab_is_capturing_video_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->did_request_tab_is_capturing_video_for_testing();
+
+    return false;
+}
+
 void WebContentTestClient::report_audio_capture_for_testing(Web::PageId page_id, Web::PageId labelled_page_id, bool capturing)
 {
     if (auto* page = m_client.page(page_id))

@@ -132,6 +132,12 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         "PULSE_RUNTIME_PATH"sv,
         "PULSE_SERVER"sv,
     };
+    // PipeWire's library reads these to find its daemon, and the Browser uses them to decide which daemon the camera
+    // clients may connect to.
+    static constexpr Array camera_names {
+        "PIPEWIRE_REMOTE"sv,
+        "PIPEWIRE_RUNTIME_DIR"sv,
+    };
     // Mesa, its drivers, libva, NVIDIA's driver and the Vulkan loader read these to select and configure the GPU driver.
     static constexpr Array gpu_prefixes {
         "ACO_"sv,
@@ -161,6 +167,8 @@ Vector<ByteString> Process::helper_process_environment(ProcessType type)
         }
         if (type == ProcessType::AudioServer)
             is_allowed |= audio_names.contains_slow(entry.name);
+        if (type == ProcessType::CameraServer)
+            is_allowed |= camera_names.contains_slow(entry.name);
         if (type == ProcessType::Compositor || type == ProcessType::VideoDecoderServer)
             is_allowed |= any_of(gpu_prefixes, [&](auto prefix) { return entry.name.starts_with(prefix); });
         if (is_allowed)

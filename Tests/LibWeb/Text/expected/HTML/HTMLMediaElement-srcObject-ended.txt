@@ -1,0 +1,12 @@
+rates once a stream is assigned: 1, 1
+rates once it is not: 3, 3
+empty stream: readyState 0, play() pending, currentTime 0
+after a track was added: readyState 4, play() resolved, advances true
+only a disabled track: advances true
+only track stopped: ended true, paused true, stays still true
+another track added: ended true, paused true
+played again: ended false, paused false, advances true
+looping, only track removed: ended true, paused true
+audio element, its audio track stopped: ended true, stream active true
+autoplaying, only track stopped: ended true, paused true
+autoplaying, another track added: ended false, paused false, advances true

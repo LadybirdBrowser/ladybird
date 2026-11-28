@@ -1,0 +1,14 @@
+#include <LibCamera/StreamRequest.h>
+
+endpoint CameraServer {
+    // The list comes once it is known and again on every change, and once more for every further call.
+    watch_devices() =|
+
+    // The label names the page the stream captures for, which the client vouches for alone. The Browser rules on every
+    // stream before the camera is opened for it.
+    create_capture_stream(u64 stream_id, ByteString device_id, u64 page_label, Camera::StreamRequest request) =|
+    destroy_capture_stream(u64 stream_id) =|
+
+    // The client is done reading the picture in the buffer, which may then carry another.
+    release_frame(u64 stream_id, u32 buffer_index) =|
+}

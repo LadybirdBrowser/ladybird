@@ -14,6 +14,7 @@ from pathlib import Path
 
 HELPERS = (
     "AudioServer",
+    "CameraServer",
     "Compositor",
     "ImageDecoder",
     "MediaServer",

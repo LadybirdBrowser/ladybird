@@ -5,7 +5,7 @@
 interface RTCRtpSender {
     readonly attribute MediaStreamTrack? track;
     [FIXME] readonly attribute RTCDtlsTransport? transport;
-    [FIXME] static RTCRtpCapabilities? getCapabilities(DOMString kind);
+    static RTCRtpCapabilities? getCapabilities(DOMString kind);
     Promise<undefined> setParameters(RTCRtpSendParameters parameters,
             optional RTCSetParameterOptions setParameterOptions = {});
     RTCRtpSendParameters getParameters();

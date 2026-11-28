@@ -10,6 +10,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Badge.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -19,8 +20,12 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibCore/Forward.h>
 #include <LibGC/Function.h>
 #include <LibGC/Weak.h>
+#include <LibGfx/Size.h>
+#include <LibMedia/I420Picture.h>
+#include <LibMediaCodecs/CodecID.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -89,8 +94,32 @@ private:
     Vector<float> m_scratch;
 };
 
+class EncodedVideoSource;
+class VideoPictureSource;
+class VideoTrackEncoder;
+
+// One frame of a video track, as its source encoded it, or as the track encoded a picture its source gave.
+struct EncodedVideoFrame {
+    Media::CodecID codec_id { Media::CodecID::Unknown };
+    bool is_key_frame { false };
+    // Advances at the rate the frames were captured at, from an arbitrary start.
+    AK::Duration timestamp;
+    ReadonlyBytes data;
+};
+
+// Receives a track's video on the main thread, starting from a key frame and without gaps that would keep the frames
+// from being decoded.
+struct VideoFrameSink final : public RefCounted<VideoFrameSink> {
+    Function<void(EncodedVideoFrame const&)> on_frame;
+    // Set while the frames since the last key frame have not all been delivered.
+    bool needs_key_frame { true };
+    // The codec the sink takes frames in, from a track that encodes for its sinks; any, if there is none. Set before
+    // the sink is added to a track. A track that carries frames as its source encoded them gives every sink those.
+    Optional<Media::CodecID> codec;
+};
+
 // Spec: https://w3c.github.io/mediacapture-main/#mediastreamtrack
-class MediaStreamTrack final : public DOM::EventTarget {
+class MediaStreamTrack : public DOM::EventTarget {
     WEB_WRAPPABLE(MediaStreamTrack, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaStreamTrack);
 
@@ -108,8 +137,21 @@ public:
     void set_enabled(bool enabled);
 
     bool muted() const { return m_muted; }
+    // For the track's source to say whether it has media to give at the moment.
+    void set_muted(bool);
+
+    void set_onmute(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onmute();
+    void set_onunmute(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onunmute();
+    void set_onended(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onended();
 
     MediaStreamTrackState track_ready_state() const { return m_state; }
+
+    using EndedCallbackId = u64;
+    EndedCallbackId add_ended_callback(Function<void()>);
+    void remove_ended_callback(EndedCallbackId);
 
     // A device-backed track captures from its device from here until it ends, whether or not anything consumes it.
     // Without on_started, a device that won't open ends the track.
@@ -143,11 +185,35 @@ public:
 
     void deliver_audio_frames(float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate);
 
-private:
+    void add_video_sink(NonnullRefPtr<VideoFrameSink>);
+    void remove_video_sink(VideoFrameSink const&);
+    void deliver_video_frame(EncodedVideoFrame const&);
+    // Asks the source for a key frame, for a sink that can't decode what it is given without one.
+    void request_video_key_frame();
+    // Makes the track one of a source that gives frames already encoded, which the track passes on to its sinks.
+    void set_encoded_video_source(NonnullRefPtr<EncodedVideoSource>);
+    EncodedVideoSource* encoded_video_source() const { return m_encoded_video_source.ptr(); }
+
+    // Makes the track one of a source that gives pictures, which the track encodes for its sinks.
+    void set_video_picture_source(NonnullRefPtr<VideoPictureSource>);
+    // The source has permanently stopped giving pictures.
+    // https://w3c.github.io/mediacapture-main/#track-ended
+    void video_source_ended();
+    void deliver_video_picture(NonnullRefPtr<Media::I420Picture>);
+
+protected:
     explicit MediaStreamTrack();
+
+    // The first step of https://w3c.github.io/mediacapture-main/#dfn-create-a-mediastreamtrack, for a track that
+    // was allocated as its source's kind of track.
+    void initialize_track(MediaStreamTrackKind, Optional<Utf16String> label, bool muted);
+
+    // Makes the object that clone() fills in, of the same type as this one.
+    virtual GC::Ref<MediaStreamTrack> allocate_clone() const;
 
     virtual void finalize() override;
 
+private:
     void apply_constraints_impl(Optional<MediaTrackConstraints> constraints);
 
     void stop_audio_capture();
@@ -168,6 +234,35 @@ private:
 
     u64 m_provider_id { 0 };
     GC::Weak<MediaDevices> m_media_devices;
+
+    EndedCallbackId m_next_ended_callback_id { 1 };
+    HashMap<EndedCallbackId, Function<void()>> m_ended_callbacks;
+
+    Vector<NonnullRefPtr<VideoFrameSink>> m_video_sinks;
+
+    void video_enabled_state_changed();
+    void start_black_video_for_encoded_source();
+    void encode_last_video_picture();
+    void deliver_encoded_video_picture(EncodedVideoFrame const&);
+    void stop_unwanted_video_encoders();
+    void remove_detached_video_sinks();
+    void stop_video_encoders();
+
+    RefPtr<VideoPictureSource> m_video_picture_source;
+    RefPtr<EncodedVideoSource> m_encoded_video_source;
+    // Kept so that a sink that needs a key frame gets one though the source has nothing new to show. For a source that
+    // encodes its own frames, it is the black picture that the track gives while it is disabled.
+    RefPtr<Media::I420Picture> m_last_video_picture;
+    RefPtr<Media::I420Picture> m_black_video_picture;
+    // The size of the pictures that a source which encodes its own frames last gave, and when it gave its last frame.
+    Optional<Gfx::IntSize> m_encoded_video_size;
+    Optional<AK::Duration> m_last_encoded_video_timestamp;
+    MonotonicTime m_last_encoded_video_time { MonotonicTime::now() };
+    Optional<MonotonicTime> m_first_video_picture_time;
+    MonotonicTime m_last_video_encode_time { MonotonicTime::now() };
+    RefPtr<Core::Timer> m_video_refresh_timer;
+    // One for each codec that the track's sinks take its pictures in.
+    HashMap<Media::CodecID, NonnullRefPtr<VideoTrackEncoder>> m_video_encoders;
 
     NonnullRefPtr<AudioFrameFanout> m_audio_fanout;
     RefPtr<Audio::RecordStream> m_audio_capture_stream;

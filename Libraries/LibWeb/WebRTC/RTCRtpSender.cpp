@@ -11,6 +11,7 @@
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebRTC/RTCPeerConnection.h>
+#include <LibWeb/WebRTC/RTCRtpCapabilities.h>
 #include <LibWeb/WebRTC/RTCRtpReceiver.h>
 #include <LibWeb/WebRTC/RTCRtpScriptTransform.h>
 #include <LibWeb/WebRTC/RTCRtpSender.h>
@@ -80,6 +81,12 @@ RTCRtpSenderTransform RTCRtpSender::transform() const
     if (auto* sframe_transform = as_if<RTCSFrameSenderTransform>(*m_transform))
         return GC::Ref { *sframe_transform };
     return Empty {};
+}
+
+// https://w3c.github.io/webrtc-pc/#dom-rtcrtpsender-getcapabilities
+Optional<RTCRtpCapabilities> RTCRtpSender::get_capabilities(Utf16View kind)
+{
+    return capabilities_for_sending(kind);
 }
 
 GC::Ptr<RTCRtpScriptTransform> RTCRtpSender::script_transform()

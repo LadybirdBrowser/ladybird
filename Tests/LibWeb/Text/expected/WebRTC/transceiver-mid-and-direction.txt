@@ -1,0 +1,7 @@
+before an offer: mid null, current direction null; mid null, current direction null
+with a local offer: mid 0, current direction null; mid 1, current direction null
+with an answer: mid 0, current direction sendonly; mid 1, current direction recvonly
+on the other end: mid 0, current direction recvonly; mid 1, current direction sendonly
+track event on the receiving transceiver: true
+after the other end stopped sending: mid 0, current direction sendonly; mid 1, current direction inactive
+the receiver's track is still live

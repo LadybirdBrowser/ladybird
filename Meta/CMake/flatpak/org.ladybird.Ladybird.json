@@ -273,7 +273,8 @@
         {
           "type": "git",
           "url": "https://chromium.googlesource.com/libyuv/libyuv",
-          "commit": "a37e6bc81b52d39cdcfd0f1428f5d6c2b2bc9861"
+          "commit": "d98915a654d3564e4802a0004add46221c4e4348",
+          "x-branch": "1916"
         }
       ],
       "config-opts": [

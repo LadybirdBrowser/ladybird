@@ -171,6 +171,8 @@ enum class XMLHttpRequestResponseType : u8;
 
 namespace Web::MediaCapture {
 
+class CanvasCaptureMediaStreamTrack;
+class CanvasCaptureSource;
 class MediaStream;
 class MediaStreamTrack;
 

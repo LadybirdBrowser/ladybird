@@ -67,7 +67,7 @@ def run_test(webdriver_binary):
                 assert query("geolocation") == state, (state, query("geolocation"))
 
             for body in (
-                {"descriptor": {"name": "camera"}, "state": "granted"},
+                {"descriptor": {"name": "midi"}, "state": "granted"},
                 {"descriptor": {"name": "geolocation"}, "state": "maybe"},
                 {"descriptor": "geolocation", "state": "granted"},
                 {"state": "granted"},

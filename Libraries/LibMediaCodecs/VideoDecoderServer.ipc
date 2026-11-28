@@ -14,7 +14,7 @@ endpoint VideoDecoderServer
 
     // A decoder answers every frame submitted to it with coded_frame_consumed, and tags everything else it reports with
     // the generation it was in, which each flush advances.
-    create_decoder(u64 decoder_id, u32 generation, Media::CodecID codec_id, ByteBuffer codec_initialization_data) =|
+    create_decoder(u64 decoder_id, u32 generation, Media::CodecID codec_id, ByteBuffer codec_initialization_data, Media::DecoderLatency latency) =|
     destroy_decoder(u64 decoder_id) =|
     // The coded data of the frames submitted after this lives in this ring, until it is replaced again.
     replace_coded_data_ring(u64 decoder_id, Core::AnonymousBuffer ring) =|

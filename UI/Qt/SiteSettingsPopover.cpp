@@ -84,6 +84,8 @@ static QString autoplay_policy_name(Web::HTML::AutoplayPolicy policy)
 static QString permission_label(Web::Permissions::PermissionName name)
 {
     switch (name) {
+    case Web::Permissions::PermissionName::Camera:
+        return QStringLiteral("Camera");
     case Web::Permissions::PermissionName::Geolocation:
         return QStringLiteral("Location");
     case Web::Permissions::PermissionName::Microphone:
@@ -97,6 +99,8 @@ static QString permission_label(Web::Permissions::PermissionName name)
 static ChromeIcon permission_icon(Web::Permissions::PermissionName name)
 {
     switch (name) {
+    case Web::Permissions::PermissionName::Camera:
+        return ChromeIcon::Camera;
     case Web::Permissions::PermissionName::Geolocation:
         return ChromeIcon::Location;
     case Web::Permissions::PermissionName::Microphone:

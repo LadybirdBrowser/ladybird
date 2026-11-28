@@ -47,6 +47,7 @@ enum class ChromeIcon {
     Moon,
     SiteSettings,
     Microphone,
+    Camera,
     Location,
     Notifications,
     Person,

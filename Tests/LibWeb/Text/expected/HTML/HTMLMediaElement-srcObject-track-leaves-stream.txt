@@ -1,0 +1,6 @@
+video tracks: shown (selected), other; audio tracks: 1
+removetrack for: shown
+after the shown track left: other (selected), and it is what the video shows
+addtrack for: shown
+after it came back: other (selected), shown
+audio removetrack for: audio, audio tracks left: 0

@@ -69,6 +69,8 @@ public:
     WebIDL::ExceptionOr<Utf16String> to_data_url(Utf16View type, Optional<JS::Value> quality);
     WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, Utf16View type, Optional<JS::Value> quality);
 
+    WebIDL::ExceptionOr<GC::Ref<MediaCapture::MediaStream>> capture_stream(Optional<double> frame_request_rate);
+
     void prepare_for_compositing();
     bool has_unpresented_content() const { return m_canvas_content_dirty; }
     void notify_compositor_backing_storage_lost();
@@ -108,6 +110,10 @@ private:
 
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, GC::Ref<WebGL::WebGL2RenderingContext>, GC::Ref<ImageBitmapRenderingContext>, Empty> m_context;
     bool m_canvas_content_dirty { false };
+
+    void notify_capture_sources_about_changed_content();
+    // What each captureStream() that still has a live track captures.
+    Vector<NonnullRefPtr<MediaCapture::CanvasCaptureSource>> m_capture_sources;
 
     bool m_is_placeholder { false };
     Optional<Compositing::CanvasId> m_placeholder_canvas_id;

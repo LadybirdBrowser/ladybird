@@ -19,6 +19,7 @@
 #include <AK/WeakPtr.h>
 #include <LibAudio/Audibility.h>
 #include <LibAudio/PlaybackGroupId.h>
+#include <LibCamera/DeviceInfo.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
@@ -196,6 +197,17 @@ public:
     void add_permission_origin(URL::Origin const&);
     // The permission follows the origins the process's open pages show, so it goes with a navigation away.
     void update_audio_capture_permission();
+    // The same for the camera, whose permission is another: the process's CameraServer hears of it.
+    ErrorOr<void> grant_camera_capture_to_file(URL::URL const&);
+    void update_camera_capture_permission();
+    // The cameras by name, the default one marked, if the process has looked for cameras; none otherwise.
+    Vector<Camera::DeviceInfo> camera_devices() const;
+    // The camera the user chose, which every process's pages get from here on when they name none. It lasts as long as
+    // the browser runs.
+    // FIXME: Keep it with the settings, and offer the choice there too.
+    static void set_preferred_camera(ByteString device_id);
+    // Both, for a change that says nothing of which.
+    void update_capture_permissions();
     u64 audio_capture_decision_count() const { return m_audio_capture_decision_count; }
     u64 audio_capture_refusal_count() const { return m_audio_capture_refusal_count; }
     // Stands in for the AudioServer reporting a capture stream with the given label, which the renderer chooses.
@@ -260,6 +272,7 @@ private:
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection(Optional<Utf16String> top_level_site) override;
     virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual Messages::WebContentClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;
+    virtual Messages::WebContentClient::RequestCameraServerConnectionResponse request_camera_server_connection() override;
     virtual Messages::WebContentClient::RequestWebrtcClientConnectionResponse request_webrtc_client_connection() override;
     virtual Messages::WebContentClient::RequestImageDecoderConnectionResponse request_image_decoder_connection() override;
     virtual void did_release_image_decoder() override;
@@ -321,6 +334,18 @@ private:
     void decide_audio_capture_request(u64 request_id, Audio::PlaybackGroupId);
     void send_audio_capture_decision(u64 request_id, bool allowed);
     void update_audio_capture_indicators();
+    // Whether the tab the page is part of has the permission, by the site's decision or, for a file, by its own grant.
+    bool page_may_capture(WebContentPage const&, Web::Permissions::PermissionName, HashTable<String> const& file_grants) const;
+    // Whether the page's documents may use what the tab was granted, too.
+    bool page_permits_capture(WebContentPage const&, Web::Permissions::PermissionName, Web::PermissionsPolicy::PolicyControlledFeature, HashTable<String> const& file_grants) const;
+
+    ErrorOr<IPC::TransportHandle> connect_camera_server_client();
+    ErrorOr<void> ensure_camera_server_controller();
+    ErrorOr<void> tell_camera_server_of_capture_permission();
+    bool page_permits_camera_capture(WebContentPage const&) const;
+    WebContentPage* page_permitting_camera_capture() const;
+    void decide_camera_capture_request(u64 request_id);
+    void update_camera_capture_indicators();
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
     // until it exits. The AudioServer mixes for this process alone, so a compromised one hears only its own site.
@@ -342,6 +367,13 @@ private:
         [this](Audio::PlaybackGroupId group, Audio::Audibility audibility) { did_change_audio_playback_audibility(group, audibility); },
         [this] { update_audio_capture_indicators(); },
     };
+    // The CameraServer spawned for this process, from the first time it looks for a camera until it exits; it is told
+    // what the AudioServer is of the microphone, and rules on nothing itself either.
+    RefPtr<CameraServerControlClient> m_camera_server_client;
+    HashTable<String> m_camera_capture_grants;
+    bool m_camera_capture_permitted { false };
+    // The labels the CameraServer holds capture streams for, which the renderer chose.
+    HashTable<u64> m_camera_capturing_labels;
     RefPtr<Core::Timer> m_detached_page_close_timer;
 
     bool all_tabs_are_hidden() const;

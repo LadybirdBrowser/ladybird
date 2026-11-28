@@ -25,13 +25,15 @@ pub fn create_paired_transports() -> std::io::Result<(Transport, Transport)> {
     Ok((local, remote))
 }
 
-// NB: The generated code names the types an .ipc file declares as crate::ipc::ipc_types::Namespace_Name.
+// NB: The generated code names the types an .ipc file declares as crate::ipc_types::Namespace_Name, which is where
+//     the crate root re-exports this module.
 #[allow(clippy::all, unused_imports)]
-mod ipc_types {
+pub(crate) mod ipc_types {
     include!(concat!(env!("OUT_DIR"), "/WebRTCClientServerEndpoint.rs"));
     include!(concat!(env!("OUT_DIR"), "/WebRTCClientClientEndpoint.rs"));
 }
 
+pub use ipc_types::WebRTCClient_TransceiverState as TransceiverState;
 pub use ipc_types::web_rtcclient_client::Message as ClientMessage;
 pub use ipc_types::web_rtcclient_client::messages as client;
 pub use ipc_types::web_rtcclient_server::Message as ServerMessage;

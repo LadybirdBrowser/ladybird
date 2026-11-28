@@ -12,6 +12,7 @@
 #include <LibMediaCodecs/Color/ColorMetadata.h>
 
 #include "DecoderError.h"
+#include "DecoderLatency.h"
 
 namespace Media {
 

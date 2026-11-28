@@ -8,7 +8,8 @@
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub(crate) enum PermissionName {
-    Geolocation = 0,
-    Microphone = 1,
-    Notifications = 2,
+    Camera = 0,
+    Geolocation = 1,
+    Microphone = 2,
+    Notifications = 3,
 }

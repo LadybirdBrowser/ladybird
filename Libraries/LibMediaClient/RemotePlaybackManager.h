@@ -32,6 +32,7 @@
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
 #include <LibMediaClient/Forward.h>
+#include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/DecoderError.h>
 
 namespace MediaClient {
@@ -80,6 +81,26 @@ public:
     using AddMediaSourcePromise = Core::Promise<AddedTracks, Media::DecoderError>;
     NonnullRefPtr<AddMediaSourcePromise> add_media_source(RemoteMediaStream&);
 
+    // Live playback stays open for new sources, even when it has none.
+    void set_is_live();
+
+    // A live source is one track of media that is handed over as it is produced, such as a MediaStreamTrack. What
+    // arrives plays at the position playback has reached, rather than at a time of its own.
+    using AddLiveSourcePromise = Core::Promise<Media::Track, Media::DecoderError>;
+    struct LiveSource {
+        u64 id { 0 };
+        NonnullRefPtr<AddLiveSourcePromise> track;
+    };
+    LiveSource add_live_audio_source(u32 sample_rate, u8 channel_count, Utf16String const& label);
+    LiveSource add_live_video_source(Utf16String const& label);
+    // Whole frames of interleaved 32-bit float samples, in the format the source was added with.
+    void add_to_live_audio_source(u64 source_id, ReadonlyBytes interleaved_samples);
+    // The source timestamp only needs to advance at the rate the frames were captured at.
+    void add_to_live_video_source(u64 source_id, Media::CodecID, bool is_key_frame, AK::Duration source_timestamp, ReadonlyBytes);
+    void end_live_source(u64 source_id);
+    // The video that the source is given can't be decoded until it includes a key frame.
+    Function<void(u64 source_id)> on_live_source_key_frame_needed;
+
     void start();
     void play();
     void pause();
@@ -125,6 +146,9 @@ public:
     void media_stream_scan_state_changed(Badge<Client>, u64 stream_id, Media::DemuxerScanState);
     void error(Badge<Client>, Media::DecoderError);
     void video_resized(Badge<Client>, Media::VideoSinkHandle, Gfx::Size<u32>);
+    void live_source_added(Badge<Client>, u64 source_id, Media::Track);
+    void live_source_failed(Badge<Client>, u64 source_id, Media::DecoderError);
+    void live_source_key_frame_needed(Badge<Client>, u64 source_id);
     void source_buffer_duration_received(Badge<Client>, u64 source_buffer_id, double duration);
     void source_buffer_first_initialization_segment_received(Badge<Client>, u64 source_buffer_id, Vector<Media::Track> const& audio_tracks, Vector<Media::Track> const& video_tracks, Vector<Media::Track> const& text_tracks);
     void source_buffer_coded_frames_processed(Badge<Client>, u64 source_buffer_id, AK::Duration group_end_timestamp);
@@ -152,6 +176,7 @@ private:
     RemotePlaybackManager(RefPtr<Client>, u64 session_id);
 
     bool can_send() const;
+    bool has_reached_the_end() const;
     void handle_connection_lost();
     void dispatch_error(Media::DecoderError&&);
     RemoteSourceBuffer* find_source_buffer(u64 source_buffer_id);
@@ -170,6 +195,7 @@ private:
     Optional<Media::MediaTimeReader> m_time_reader;
     Media::MediaTimeline m_timeline;
     bool m_duration_is_set_by_owner { false };
+    bool m_is_live { false };
     Optional<AK::UnixDateTime> m_start_time_realtime;
     bool m_is_in_error_state { false };
     Vector<Media::Track> m_audio_tracks;
@@ -197,6 +223,8 @@ private:
     HashMap<u64, MediaStreamSource> m_media_stream_sources;
     HashMap<u64, RemoteSourceBuffer*> m_source_buffers;
     HashMap<u64, NonnullRefPtr<AddMediaSourcePromise>> m_pending_media_stream_sources;
+    u64 m_next_live_source_id { 1 };
+    HashMap<u64, NonnullRefPtr<AddLiveSourcePromise>> m_pending_live_sources;
 };
 
 }

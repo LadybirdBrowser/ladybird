@@ -27,6 +27,15 @@ public:
 
     virtual ~MediaStream() override = default;
 
+    // Told when tracks join or leave the stream, by whatever renders it.
+    class Observer : public Weakable<Observer> {
+    public:
+        virtual ~Observer() = default;
+        virtual void media_stream_tracks_changed() = 0;
+    };
+    void add_observer(Observer&);
+    void remove_observer(Observer&);
+
     Utf16String const& id() const { return m_id; }
 
     GC::RootVector<GC::Ref<MediaStreamTrack>> get_audio_tracks() const;
@@ -52,7 +61,10 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     Utf16String m_id;
+    void notify_observers();
+
     Vector<GC::Ref<MediaStreamTrack>> m_tracks;
+    Vector<WeakPtr<Observer>> m_observers;
 };
 
 }

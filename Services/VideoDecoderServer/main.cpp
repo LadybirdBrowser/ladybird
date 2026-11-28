@@ -29,9 +29,9 @@
 #    include <LibMediaCodecs/FFmpeg/SystemFFmpeg.h>
 #endif
 
-static Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> create_software_video_decoder(Media::CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> create_software_video_decoder(Media::CodecID codec_id, ReadonlyBytes codec_initialization_data, Media::DecoderLatency latency)
 {
-    return NonnullOwnPtr<Media::VideoDecoder> { TRY(Media::FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+    return NonnullOwnPtr<Media::VideoDecoder> { TRY(Media::FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data, latency)) };
 }
 
 // Software decoders belong in the MediaServer, away from the GPU access this process will have. These are only for

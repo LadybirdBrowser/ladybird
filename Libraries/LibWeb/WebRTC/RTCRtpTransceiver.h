@@ -25,12 +25,15 @@ public:
     static GC::Ref<RTCRtpTransceiver> create(RTCPeerConnection&, GC::Ref<RTCRtpSender>, GC::Ref<RTCRtpReceiver>, Bindings::RTCRtpTransceiverDirection, Bindings::MediaStreamTrackKind);
     virtual ~RTCRtpTransceiver() override;
 
+    Optional<Utf16String> const& mid() const { return m_mid; }
+    void set_mid(Optional<Utf16String> mid) { m_mid = move(mid); }
     GC::Ref<RTCRtpSender> sender() const { return m_sender; }
     GC::Ref<RTCRtpReceiver> receiver() const { return m_receiver; }
     Bindings::RTCRtpTransceiverDirection direction() const { return m_direction; }
     void set_direction(Bindings::RTCRtpTransceiverDirection);
     Bindings::MediaStreamTrackKind kind() const { return m_kind; }
     Optional<Bindings::RTCRtpTransceiverDirection> current_direction() const { return m_current_direction; }
+    void set_current_direction(Optional<Bindings::RTCRtpTransceiverDirection> direction) { m_current_direction = direction; }
     bool is_stopped() const { return m_stopped; }
     bool is_stopping() const { return m_stopping; }
 
@@ -54,6 +57,8 @@ private:
 
     // [[Connection]]
     GC::Ref<RTCPeerConnection> m_connection;
+    // [[Mid]]
+    Optional<Utf16String> m_mid;
     // [[Sender]]
     GC::Ref<RTCRtpSender> m_sender;
     // [[Receiver]]

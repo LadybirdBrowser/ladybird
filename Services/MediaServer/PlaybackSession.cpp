@@ -50,7 +50,78 @@ PlaybackSession::PlaybackSession(ConnectionFromClient& connection, u64 id, Audio
     m_connection.async_playback_session_clock_changed(m_id, m_manager->time_reader());
 }
 
-PlaybackSession::~PlaybackSession() = default;
+PlaybackSession::~PlaybackSession()
+{
+    // The decoding threads may hold on to the sources for a while longer.
+    for (auto& [_, live_source] : m_live_sources)
+        live_source->on_key_frame_needed = nullptr;
+}
+
+void PlaybackSession::add_live_source(u64 source_id, NonnullRefPtr<Media::LiveDemuxer> live_source)
+{
+    m_live_sources.set(source_id, live_source);
+    m_manager->add_live_source(live_source)
+        ->when_resolved([this, source_id](Media::PlaybackManager::AddedTracks& added_tracks) {
+            auto track = added_tracks.audio_tracks.is_empty() ? added_tracks.video_tracks.first() : added_tracks.audio_tracks.first();
+            m_connection.async_playback_session_media_source_added(m_id, {}, move(added_tracks.audio_tracks), move(added_tracks.video_tracks), m_manager->preferred_audio_track(), m_manager->preferred_video_track(), m_manager->start_time_realtime(), m_manager->earliest_possible_position(), {});
+            m_connection.async_playback_session_live_source_added(m_id, source_id, move(track));
+        })
+        .when_rejected([this, source_id](Media::DecoderError& error) {
+            // NB: A source that can't be played has its slot let go of, and the media still on its way to it is dropped.
+            end_live_source(source_id);
+            m_connection.async_playback_session_live_source_failed(m_id, source_id, move(error));
+        });
+}
+
+void PlaybackSession::add_live_audio_source(u64 source_id, Audio::SampleSpecification sample_specification, Utf16String const& label)
+{
+    add_live_source(source_id, Media::LiveDemuxer::create_for_audio(source_id, sample_specification, label));
+}
+
+void PlaybackSession::add_live_video_source(u64 source_id, Utf16String const& label)
+{
+    auto live_source = Media::LiveDemuxer::create_for_video(source_id, label);
+    live_source->on_key_frame_needed = [this, source_id] {
+        m_connection.async_playback_session_live_source_key_frame_needed(m_id, source_id);
+    };
+    add_live_source(source_id, move(live_source));
+}
+
+bool PlaybackSession::add_to_live_audio_source(u64 source_id, ReadonlyBytes interleaved_samples)
+{
+    auto live_source = m_live_sources.get(source_id);
+    if (!live_source.has_value())
+        return m_ended_live_sources.get(source_id) == Media::TrackType::Audio;
+    if ((*live_source)->track().type() != Media::TrackType::Audio)
+        return false;
+    (*live_source)->push_audio(interleaved_samples);
+    return true;
+}
+
+bool PlaybackSession::add_to_live_video_source(u64 source_id, Media::CodecID codec_id, bool is_key_frame, AK::Duration source_timestamp, ReadonlyBytes data)
+{
+    auto live_source = m_live_sources.get(source_id);
+    if (!live_source.has_value())
+        return m_ended_live_sources.get(source_id) == Media::TrackType::Video;
+    if ((*live_source)->track().type() != Media::TrackType::Video)
+        return false;
+    auto frame_data = FixedArray<u8>::create(data);
+    if (frame_data.is_error())
+        return true;
+    m_manager->add_to_live_video_source(**live_source, codec_id, is_key_frame ? Media::FrameFlags::Keyframe : Media::FrameFlags::None, source_timestamp, frame_data.release_value());
+    return true;
+}
+
+void PlaybackSession::end_live_source(u64 source_id)
+{
+    auto live_source = m_live_sources.take(source_id);
+    if (!live_source.has_value())
+        return;
+    // The decoding threads may hold on to the source for a while longer.
+    (*live_source)->on_key_frame_needed = nullptr;
+    (*live_source)->end();
+    m_ended_live_sources.set(source_id, (*live_source)->track().type());
+}
 
 void PlaybackSession::report_playback_state()
 {

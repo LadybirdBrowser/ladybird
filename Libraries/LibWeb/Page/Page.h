@@ -18,6 +18,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibAudio/Forward.h>
+#include <LibCamera/Forward.h>
 #include <LibCompositing/Types.h>
 #include <LibCore/Forward.h>
 #include <LibGC/Root.h>
@@ -412,7 +413,9 @@ public:
 
     // The browser-process bridge for the Permissions spec's "ask the user for express permission" step.
     using PermissionPromptCallback = GC::Ref<GC::Function<void(Web::Permissions::EffectiveState)>>;
-    void request_permission(HTML::CrossProcessId requesting_document_id, Utf16String const& name, PermissionPromptCallback);
+    // The requester names the device where it has said which camera (e.g.) it wants, which leaves the user no choice of one
+    // to be offered.
+    void request_permission(HTML::CrossProcessId requesting_document_id, Utf16String const& name, bool names_device, PermissionPromptCallback);
     void permission_request_completed(u64 request_id, Web::Permissions::EffectiveState);
 
     // The list of notifications (https://notifications.spec.whatwg.org/#list-of-notifications) this page has asked
@@ -987,6 +990,7 @@ public:
     virtual bool page_did_request_tab_is_heard_playing_audio_for_testing() { return false; }
     virtual bool page_did_request_tab_is_using_microphone_for_testing() { return false; }
     virtual bool page_did_request_tab_is_capturing_audio_for_testing() { return false; }
+    virtual bool page_did_request_tab_is_capturing_video_for_testing() { return false; }
     virtual void page_did_report_audio_capture_for_testing([[maybe_unused]] Web::PageId labelled_page_id, [[maybe_unused]] bool capturing) { }
     virtual void page_did_retire_picture_in_picture_window_for_testing() { }
     virtual Vector<bool> page_did_request_tab_audibility_transitions_for_testing() { return {}; }
@@ -1021,7 +1025,7 @@ public:
     virtual void page_did_cancel_geolocation_position_request([[maybe_unused]] u64 request_id) { }
     virtual void page_did_start_geolocation_position_watch([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId requesting_document_id) { }
     virtual void page_did_stop_geolocation_position_watch([[maybe_unused]] u64 request_id) { }
-    virtual void page_did_request_permission([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId requesting_document_id, [[maybe_unused]] Utf16String const& name) { }
+    virtual void page_did_request_permission([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId requesting_document_id, [[maybe_unused]] Utf16String const& name, [[maybe_unused]] bool names_device) { }
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_request_permission_snapshot([[maybe_unused]] URL::Origin const& top_level_origin) { return {}; }
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing([[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] String const& name, [[maybe_unused]] String const& state) { return {}; }
     virtual void page_did_set_next_permission_prompt_outcome_for_testing([[maybe_unused]] String const& name, [[maybe_unused]] String const& outcome, [[maybe_unused]] bool held) { }
@@ -1076,6 +1080,8 @@ public:
     // A media element adopted from another page's document plays its sound for this page from then on.
     virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&);
     // Every microphone track captures through its own, for this page.
+    // Every camera track captures through a stream of its source's, for this page.
+    virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Camera::CaptureStream>>> create_camera_capture_stream(StringView device_id, Camera::StreamRequest, Function<void(Camera::Frame const&)>);
     virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Audio::RecordStream>>> create_audio_record_stream(StringView device_id, Function<void(ReadonlyBytes, Audio::SampleSpecification const&)>);
     virtual void page_did_change_screen_wake_lock_state(ScreenWakeLockState) { }
 

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setAutoplayPolicy("allow-audio-and-video");
+        const media = await (await fetch("../../../Assets/blue-with-second-in-gray-64x36.webm")).arrayBuffer();
+        const track = internals.createEncodedVideoTrack(media);
+        println(`track: ${track.kind}, ${track.readyState}`);
+
+        const video = document.createElement("video");
+        document.body.append(video);
+        const resized = new Promise(resolve => video.addEventListener("resize", resolve, { once: true }));
+        const trackAdded = new Promise(resolve => video.videoTracks.addEventListener("addtrack", resolve, { once: true }));
+        video.srcObject = new MediaStream([track]);
+        await video.play();
+        println(`duration: ${video.duration}`);
+        println(`seekable ranges: ${video.seekable.length}`);
+
+        await trackAdded;
+        println(`video tracks: ${video.videoTracks.length}, selected: ${video.videoTracks[0].selected}`);
+        println(`video track has the stream track's id: ${video.videoTracks[0].id === track.id}`);
+        println(`found by the stream track's id: ${video.videoTracks.getTrackById(track.id) === video.videoTracks[0]}`);
+        await resized;
+        println(`size: ${video.videoWidth}x${video.videoHeight}`);
+
+        await new Promise(resolve => {
+            const waitForFrames = () => {
+                if (video.getVideoPlaybackQuality().totalVideoFrames >= 5)
+                    resolve();
+                else
+                    video.requestVideoFrameCallback(waitForFrames);
+            };
+            waitForFrames();
+        });
+        println("frames were presented");
+        println(`currentTime advanced: ${video.currentTime > 0}`);
+        println(`ended: ${video.ended}`);
+
+        // A stream only has the present to play, so attempts to seek or change the rate are ignored.
+        let rateChanges = 0;
+        video.addEventListener("ratechange", () => rateChanges++);
+        video.currentTime = 100;
+        println(`seeking: ${video.seeking}`);
+        video.fastSeek(100);
+        println(`seeking after fastSeek(): ${video.seeking}`);
+        println(`currentTime stayed in the present: ${video.currentTime < 100}`);
+        video.playbackRate = 2;
+        video.defaultPlaybackRate = 3;
+        println(`playbackRate: ${video.playbackRate}, defaultPlaybackRate: ${video.defaultPlaybackRate}`);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`ratechange events: ${rateChanges}`);
+
+        video.pause();
+        await video.play();
+        const framesBefore = video.getVideoPlaybackQuality().totalVideoFrames;
+        await new Promise(resolve => {
+            const waitForFrames = () => {
+                if (video.getVideoPlaybackQuality().totalVideoFrames >= framesBefore + 3)
+                    resolve();
+                else
+                    video.requestVideoFrameCallback(waitForFrames);
+            };
+            waitForFrames();
+        });
+        println("frames were presented after pausing");
+        // Frames are shown as they arrive, rather than being late by the time they are decoded.
+        const quality = video.getVideoPlaybackQuality();
+        println(`most frames were shown: ${quality.droppedVideoFrames * 2 < quality.totalVideoFrames}`);
+
+        track.stop();
+        video.srcObject = null;
+    });
+</script>

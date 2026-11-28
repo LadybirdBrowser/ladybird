@@ -108,6 +108,10 @@ private:
     virtual void playback_session_error(u64 session_id, Media::DecoderError error) override;
     virtual void playback_session_video_resized(u64 session_id, Media::VideoSinkHandle handle, u32 width, u32 height) override;
 
+    virtual void playback_session_live_source_added(u64 session_id, u64 source_id, Media::Track track) override;
+    virtual void playback_session_live_source_failed(u64 session_id, u64 source_id, Media::DecoderError error) override;
+    virtual void playback_session_live_source_key_frame_needed(u64 session_id, u64 source_id) override;
+
     virtual void source_buffer_duration_received(u64 session_id, u64 source_buffer_id, double duration) override;
     virtual void source_buffer_first_initialization_segment_received(u64 session_id, u64 source_buffer_id, Vector<Media::Track> audio_tracks, Vector<Media::Track> video_tracks, Vector<Media::Track> text_tracks) override;
     virtual void source_buffer_coded_frames_processed(u64 session_id, u64 source_buffer_id, AK::Duration group_end_timestamp) override;

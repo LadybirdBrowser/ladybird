@@ -2474,9 +2474,30 @@ void SeccompPolicy::allow_pulseaudio_client_file_operations()
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
 
-    // With no cookie yet, libpulse opens one for writing, to create it. Refuse that the way Landlock refuses a write
-    // there, rather than killing the process: libpulse then opens the cookie read-only, and goes on without one if
-    // there's none to read. A read-only open falls through to whatever else the policy allows.
+    // With no cookie yet, libpulse opens one for writing, to create it. Refused, it opens the cookie read-only, and goes
+    // on without one if there's none to read.
+    refuse_writable_file_opens();
+
+    // It also holds a record lock on its cookie while reading it.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLK, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLKW, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
+}
+
+// Refuses an open for writing the way Landlock refuses a write, rather than killing the process, for a library that tries
+// one and carries on when it can't. A read-only open falls through to whatever else the policy allows.
+void SeccompPolicy::refuse_writable_file_opens()
+{
 #ifdef __NR_open
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 5));
     append(SECCOMP_LOAD_ARGUMENT(1));
@@ -2493,21 +2514,6 @@ void SeccompPolicy::allow_pulseaudio_client_file_operations()
     append(refused_path_syscall_action(EACCES));
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
-
-    // It also holds a record lock on its cookie while reading it.
-    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
-    append(SECCOMP_LOAD_ARGUMENT(1));
-    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLK, 0, 1));
-    append(SECCOMP_ALLOW);
-    append(SECCOMP_LOAD_SYSCALL_NR);
-    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
-
-    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
-    append(SECCOMP_LOAD_ARGUMENT(1));
-    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, F_SETLKW, 0, 1));
-    append(SECCOMP_ALLOW);
-    append(SECCOMP_LOAD_SYSCALL_NR);
-    append(BPF_STMT(BPF_ALU | BPF_ADD | BPF_K, 0));
 }
 
 // NB: Seccomp cannot follow the sockaddr pointer that connect() is given, and Landlock does not

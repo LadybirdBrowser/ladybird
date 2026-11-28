@@ -26,6 +26,7 @@
 #include <LibWebView/AudioServerControlClient.h>
 #include <LibWebView/AuthenticatorManager.h>
 #include <LibWebView/BlobURLStore.h>
+#include <LibWebView/CameraServerControlClient.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalDocument.h>
@@ -1240,7 +1241,7 @@ Messages::WebContentClient::DidRequestPermissionSnapshotResponse WebContentClien
     return manager.snapshot_for(m_permission_origins);
 }
 
-bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
+bool WebContentClient::page_may_capture(WebContentPage const& page, Web::Permissions::PermissionName name, HashTable<String> const& file_grants) const
 {
     // A new page has no view until the chrome makes one, and replacing a window can get here before that.
     auto view = page.traversable().view();
@@ -1257,24 +1258,33 @@ bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
     auto origin = tab_view->permission_origin();
     if (origin.is_opaque()) {
         // NB: The global default binds a file: page too; its own grant only matters while sites may ask.
-        if (session().permission_manager->global_default(Web::Permissions::PermissionName::Microphone) == Web::Permissions::EffectiveState::Denied)
+        if (session().permission_manager->global_default(name) == Web::Permissions::EffectiveState::Denied)
             return false;
-        return m_audio_capture_grants.contains(audio_capture_permission_key(tab_view->url()));
+        return file_grants.contains(audio_capture_permission_key(tab_view->url()));
     }
-    return session().permission_manager->effective_state(Web::Permissions::PermissionName::Microphone, origin) == Web::Permissions::EffectiveState::Granted;
+    return session().permission_manager->effective_state(name, origin) == Web::Permissions::EffectiveState::Granted;
 }
 
-// A tab's grant reaches only the documents whose permissions policy allows them the microphone. A window that is part of
+// A tab's grant reaches only the documents whose permissions policy allows them the feature. A window that is part of
 // the tab is held to the document it acts for too, or an iframe could get past its policy by opening a window.
-bool WebContentClient::page_permits_audio_capture(WebContentPage const& page) const
+bool WebContentClient::page_permits_capture(WebContentPage const& page, Web::Permissions::PermissionName name, Web::PermissionsPolicy::PolicyControlledFeature feature, HashTable<String> const& file_grants) const
 {
-    if (!page.is_open() || !page_may_capture_audio(page))
+    if (!page.is_open() || !page_may_capture(page, name, file_grants))
         return false;
 
-    auto microphone = Web::PermissionsPolicy::PolicyControlledFeature::Microphone;
-    if (auto const* owner_document = page.view().owner_document(); owner_document && !owner_document->is_allowed_to_use(microphone))
+    if (auto const* owner_document = page.view().owner_document(); owner_document && !owner_document->is_allowed_to_use(feature))
         return false;
-    return page.hosts_a_document_allowed_to_use(microphone);
+    return page.hosts_a_document_allowed_to_use(feature);
+}
+
+bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
+{
+    return page_may_capture(page, Web::Permissions::PermissionName::Microphone, m_audio_capture_grants);
+}
+
+bool WebContentClient::page_permits_audio_capture(WebContentPage const& page) const
+{
+    return page_permits_capture(page, Web::Permissions::PermissionName::Microphone, Web::PermissionsPolicy::PolicyControlledFeature::Microphone, m_audio_capture_grants);
 }
 
 // The process may capture if it hosts a page that permits it, as it can act for any document it hosts.
@@ -1431,6 +1441,186 @@ Messages::WebContentClient::RequestAudioServerConnectionResponse WebContentClien
     auto handle = connect_audio_server_client();
     if (handle.is_error()) {
         warnln("Unable to connect an AudioServer client: {}", handle.error());
+        return OptionalNone {};
+    }
+    return handle.release_value();
+}
+
+// The camera goes the way of the microphone: the process's CameraServer opens it, is told whether an open page of the
+// process holds the permission, and asks about every stream.
+
+bool WebContentClient::page_permits_camera_capture(WebContentPage const& page) const
+{
+    return page_permits_capture(page, Web::Permissions::PermissionName::Camera, Web::PermissionsPolicy::PolicyControlledFeature::Camera, m_camera_capture_grants);
+}
+
+WebContentPage* WebContentClient::page_permitting_camera_capture() const
+{
+    for (auto const& it : m_pages) {
+        if (page_permits_camera_capture(*it.value))
+            return it.value.ptr();
+    }
+    return nullptr;
+}
+
+ErrorOr<IPC::TransportHandle> WebContentClient::connect_camera_server_client()
+{
+    // The server must know of the permission before any client gets its connection. A failed request can reveal that
+    // the existing server has died, so the connection is tried once more, letting a closed controller be replaced and
+    // initialized first.
+    auto connect = [this]() -> ErrorOr<IPC::TransportHandle> {
+        TRY(ensure_camera_server_controller());
+        return connect_new_camera_server_client(*m_camera_server_client, m_audio_tab_id);
+    };
+    auto handle = connect();
+    if (handle.is_error())
+        handle = connect();
+    return handle;
+}
+
+static ByteString& preferred_camera()
+{
+    static NeverDestroyed<ByteString> preferred_camera;
+    return *preferred_camera;
+}
+
+ErrorOr<void> WebContentClient::ensure_camera_server_controller()
+{
+    auto* previous_controller = m_camera_server_client.ptr();
+    TRY(ensure_camera_server_is_running(m_camera_server_client, child_id(), is_private()));
+    if (m_camera_server_client.ptr() == previous_controller)
+        return {};
+
+    // Whatever the last server captured for went with it.
+    m_camera_capturing_labels.clear();
+    update_camera_capture_indicators();
+
+    if (!preferred_camera().is_empty())
+        m_camera_server_client->async_set_preferred_device(preferred_camera());
+
+    m_camera_server_client->on_capture_requested = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 request_id, ByteString const&, u64) {
+        auto self = weak_self.strong_ref();
+        if (self && tab_id == self->m_audio_tab_id)
+            self->decide_camera_capture_request(request_id);
+    };
+    m_camera_server_client->on_capture_activity_changed = [weak_self = make_weak_ptr<WebContentClient>()](u64 tab_id, u64 page_label, bool capturing) {
+        auto self = weak_self.strong_ref();
+        if (!self || tab_id != self->m_audio_tab_id)
+            return;
+        if (capturing)
+            self->m_camera_capturing_labels.set(page_label);
+        else
+            self->m_camera_capturing_labels.remove(page_label);
+        self->update_camera_capture_indicators();
+    };
+    m_camera_server_client->on_death = [weak_self = make_weak_ptr<WebContentClient>()] {
+        auto self = weak_self.strong_ref();
+        if (!self)
+            return;
+        self->m_camera_capturing_labels.clear();
+        self->update_camera_capture_indicators();
+    };
+
+    // A server that isn't told everything gets no clients; the next attempt starts over with another.
+    if (m_camera_capture_permitted) {
+        if (auto result = tell_camera_server_of_capture_permission(); result.is_error()) {
+            m_camera_server_client->shutdown();
+            return result.release_error();
+        }
+    }
+    return {};
+}
+
+ErrorOr<void> WebContentClient::tell_camera_server_of_capture_permission()
+{
+    auto response = m_camera_server_client->send_sync_but_allow_failure<Messages::CameraServerControl::SetCapturePermission>(m_audio_tab_id, m_camera_capture_permitted);
+    if (!response)
+        return Error::from_string_literal("Failed to tell the CameraServer of the capture permission");
+    return {};
+}
+
+ErrorOr<void> WebContentClient::grant_camera_capture_to_file(URL::URL const& url)
+{
+    m_camera_capture_grants.set(audio_capture_permission_key(url));
+    m_camera_capture_permitted = page_permitting_camera_capture();
+    if (!m_camera_capture_permitted)
+        return {};
+    TRY(ensure_camera_server_controller());
+    return tell_camera_server_of_capture_permission();
+}
+
+void WebContentClient::update_camera_capture_permission()
+{
+    // A page that comes to permit capture, or stops, can take over a stream labelled for no permitting page.
+    update_camera_capture_indicators();
+
+    auto permitted = page_permitting_camera_capture() != nullptr;
+    if (permitted == m_camera_capture_permitted)
+        return;
+    m_camera_capture_permitted = permitted;
+    if (!m_camera_server_client || !m_camera_server_client->is_open())
+        return;
+    if (auto result = tell_camera_server_of_capture_permission(); result.is_error())
+        warnln("Unable to update the CameraServer's capture permission: {}", result.error());
+}
+
+Vector<Camera::DeviceInfo> WebContentClient::camera_devices() const
+{
+    if (!m_camera_server_client || !m_camera_server_client->is_open())
+        return {};
+    return m_camera_server_client->devices();
+}
+
+void WebContentClient::set_preferred_camera(ByteString device_id)
+{
+    if (preferred_camera() == device_id)
+        return;
+    preferred_camera() = move(device_id);
+    for_each_client([](WebContentClient& client) {
+        if (client.m_camera_server_client && client.m_camera_server_client->is_open())
+            client.m_camera_server_client->async_set_preferred_device(preferred_camera());
+        return IterationDecision::Continue;
+    });
+}
+
+void WebContentClient::update_capture_permissions()
+{
+    update_audio_capture_permission();
+    update_camera_capture_permission();
+}
+
+void WebContentClient::decide_camera_capture_request(u64 request_id)
+{
+    // FIXME: Have the system asked for the camera where it keeps one from the browser (macOS), as for the microphone.
+    if (m_camera_server_client && m_camera_server_client->is_open())
+        m_camera_server_client->async_capture_decided(request_id, page_permitting_camera_capture() != nullptr);
+}
+
+// The CameraServer counts every capture stream of the process, but the renderer labels them, so a label counts only for
+// a page that permits capture. A stream with any other label is shown on every such page, as the process could be
+// capturing for any of them.
+void WebContentClient::update_camera_capture_indicators()
+{
+    HashTable<Web::PageId> labelled_pages;
+    auto shown_on_every_permitting_page = false;
+    for (auto label : m_camera_capturing_labels) {
+        if (auto* page = this->page(Web::PageId { label }); page && page_permits_camera_capture(*page))
+            labelled_pages.set(page->id());
+        else
+            shown_on_every_permitting_page = true;
+    }
+
+    for (auto const& [page_id, page] : m_pages) {
+        auto capturing = labelled_pages.contains(page_id) || (shown_on_every_permitting_page && page_permits_camera_capture(*page));
+        page->set_capturing_video(capturing);
+    }
+}
+
+Messages::WebContentClient::RequestCameraServerConnectionResponse WebContentClient::request_camera_server_connection()
+{
+    auto handle = connect_camera_server_client();
+    if (handle.is_error()) {
+        warnln("Unable to connect a CameraServer client: {}", handle.error());
         return OptionalNone {};
     }
     return handle.release_value();

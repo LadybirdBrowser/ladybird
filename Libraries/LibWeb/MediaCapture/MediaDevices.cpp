@@ -6,6 +6,7 @@
 
 #include <AK/AnyOf.h>
 #include <LibAudio/AudioDevices.h>
+#include <LibCamera/Devices.h>
 #include <LibGC/Heap.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootVector.h>
@@ -23,10 +24,12 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/MediaCapture/CameraVideoSource.h>
 #include <LibWeb/MediaCapture/MediaDeviceInfo.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -52,6 +55,8 @@ static Utf16FlyString const& VIDEO_INPUT_KIND = *new Utf16FlyString("videoinput"
 using ConstrainDOMString = Variant<Utf16String, Vector<Utf16String>, ConstrainDOMStringParameters>;
 
 static Optional<DeviceIdConstraint> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value);
+static Camera::StreamRequest stream_request_from(MediaTrackConstraints const&);
+static Optional<StringView> unsatisfied_required_video_constraint(VideoRequest const&, u32 width, u32 height, double frame_rate);
 
 GC_DEFINE_ALLOCATOR(MediaDevices);
 
@@ -90,6 +95,11 @@ MediaDevices::MediaDevices(HTML::Window& window)
         did_observe_audio_device_cache_update();
     });
 
+    // NB: Listening asks for nothing: the CameraServer is first asked for its cameras when a page looks for one.
+    m_camera_device_list_listener_id = Camera::Devices::the().add_devices_changed_listener([this] {
+        did_observe_camera_device_list_update();
+    });
+
     did_observe_audio_device_cache_update();
 }
 
@@ -121,6 +131,8 @@ void MediaDevices::finalize()
     Base::finalize();
     if (m_audio_device_cache_listener_id.has_value())
         Audio::AudioDevices::the().remove_devices_changed_listener(m_audio_device_cache_listener_id.release_value());
+    if (m_camera_device_list_listener_id.has_value())
+        Camera::Devices::the().remove_devices_changed_listener(m_camera_device_list_listener_id.release_value());
 }
 
 void MediaDevices::visit_edges(Cell::Visitor& visitor)
@@ -133,6 +145,7 @@ void MediaDevices::visit_edges(Cell::Visitor& visitor)
         visitor.visit(request.promise);
     visitor.visit(m_pending_request_state_change_listener);
     visitor.visit(m_awaiting_fresh_audio_device_list);
+    visitor.visit(m_awaiting_camera_device_list);
 }
 
 MediaTrackSupportedConstraints MediaDevices::get_supported_constraints()
@@ -258,12 +271,14 @@ void MediaDevices::enumerate_devices(GC::Ref<WebIDL::Promise> promise)
         return;
     }
 
-    if (!Audio::AudioDevices::the().has_device_list()) {
+    // AD-HOC: The cameras are the CameraServer's to list, and it is first asked when a page wants to know.
+    Camera::Devices::the().ensure_watching();
+    if (!Audio::AudioDevices::the().has_device_list() || !Camera::Devices::the().has_device_list()) {
         m_pending_enumerate_devices_requests.append({ promise });
         return;
     }
 
-    m_stored_device_list = current_audio_device_snapshot();
+    m_stored_device_list = current_device_snapshot();
 
     // 3. Let mediaDevices be this.
     // 4. Run the following steps in parallel.
@@ -293,6 +308,8 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
             kind = MediaDeviceKind::Audioinput;
         else if (device.kind == "audiooutput"sv)
             kind = MediaDeviceKind::Audiooutput;
+        else if (device.kind == "videoinput"sv)
+            kind = MediaDeviceKind::Videoinput;
         else
             return {};
 
@@ -305,7 +322,11 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
             label = {};
             group_id = {};
         }
-        // FIXME: Implement videoinput creation when camera enumeration is available.
+        if (device.kind == VIDEO_INPUT_KIND && !camera_information_can_be_exposed()) {
+            device_id = {};
+            label = {};
+            group_id = {};
+        }
 
         return MediaDeviceInfo::create(move(device_id), *kind, move(label), move(group_id));
     };
@@ -416,14 +437,15 @@ static GC::Ref<WebIDL::DOMException> device_access_failure(Error const& error)
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<DeviceIdConstraint> device_id_constraint)
+void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<DeviceIdConstraint> device_id_constraint, Optional<VideoRequest> video_request)
 {
     GC::Ref<MediaDevices> media_devices = *this;
 
-    // FIXME: Add camera/video
+    // NB: These are the steps for "audio". Those for "video" follow them in acquire_video_track(), which adds its track
+    //     to the stream made here.
     auto audio_input_devices = Audio::AudioDevices::the().input_devices();
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Root(promise), media_devices, move(device_id_constraint), move(audio_input_devices)), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& audio_input_devices) {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(GC::Root(promise), media_devices, move(device_id_constraint), move(audio_input_devices), move(video_request)), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& audio_input_devices, auto& video_request) {
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -492,7 +514,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         // 11.5 For each media type kind in requestedMediaTypes, run the following sub steps, preferably at the same time.
         // 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name associated with kind.
         auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
-        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, device_id_constraint, stream), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& stream, PermissionsAPI::PermissionState microphone_permission_result) {
+        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, device_id_constraint, stream, video_request), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& stream, auto& video_request, PermissionsAPI::PermissionState microphone_permission_result) {
             auto& realm = WebIDL::promise_realm(*promise);
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -511,7 +533,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
             // AD-HOC: The input devices' names and ids reach this process only once the Browser has told its AudioServer
             // of the grant, so finalSet is gathered again from a list fetched after it.
-            media_devices->run_with_fresh_audio_device_list(GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, device_id_constraint, stream), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& stream) {
+            media_devices->run_with_fresh_audio_device_list(GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, device_id_constraint, stream, video_request), [](auto& promise, auto& media_devices, auto& device_id_constraint, auto& stream, auto& video_request) {
                 auto& realm = WebIDL::promise_realm(*promise);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -582,7 +604,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                 track->set_settings(move(settings));
                 track->set_media_devices({}, *media_devices);
 
-                track->start_audio_capture(GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, stream, track, move(granted_device_id)), [](auto& promise, auto& media_devices, auto& stream, auto& track, auto& granted_device_id, ErrorOr<void> access) {
+                track->start_audio_capture(GC::create_function(GC::Heap::the(), GC::captures(promise, media_devices, stream, track, move(granted_device_id), video_request), [](auto& promise, auto& media_devices, auto& stream, auto& track, auto& granted_device_id, auto& video_request, ErrorOr<void> access) {
                     auto& realm = WebIDL::promise_realm(*promise);
                     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -625,7 +647,8 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                     media_devices->m_media_stream_track_sources.append(track);
 
                     // 11.12 Resolve p with stream and abort these steps.
-                    resolve_media_stream_promise(*promise, stream);
+                    // NB: Once the stream has its camera track, if one was asked for.
+                    media_devices->finish_get_user_media(*promise, stream, video_request);
                 }));
             }));
         }));
@@ -652,8 +675,16 @@ void MediaDevices::process_pending_enumerate_devices_requests()
         return;
     if (!Audio::AudioDevices::the().has_device_list())
         return;
+    // A request that waits for the cameras has them asked for now, as one made while it could not proceed hasn't.
+    // NB: A server that can't be reached is reported as no cameras at once, to the listener that brings us back here,
+    //     so they are asked for only while there is no list, which that report is.
+    if (!m_pending_enumerate_devices_requests.is_empty() && !Camera::Devices::the().has_device_list()) {
+        Camera::Devices::the().ensure_watching();
+        if (!Camera::Devices::the().has_device_list())
+            return;
+    }
 
-    run_device_change_notification_steps(current_audio_device_snapshot());
+    run_device_change_notification_steps(current_device_snapshot());
 
     GC::RootVector pending_requests { move(m_pending_enumerate_devices_requests) };
     for (auto& request : pending_requests)
@@ -664,12 +695,20 @@ void MediaDevices::process_pending_get_user_media_requests()
 {
     if (!get_user_media_can_proceed())
         return;
-    if (!Audio::AudioDevices::the().has_device_list())
-        return;
 
-    GC::RootVector pending_requests { move(m_pending_get_user_media_requests) };
-    for (auto& request : pending_requests)
-        queue_get_user_media_task(request.promise, move(request.device_id_constraint));
+    GC::RootVector<PendingGetUserMediaRequest> ready_requests;
+    m_pending_get_user_media_requests.remove_all_matching([&](auto& request) {
+        if (request.audio_requested && !Audio::AudioDevices::the().has_device_list())
+            return false;
+        ready_requests.append(move(request));
+        return true;
+    });
+
+    GC::RootVector<GC::Ref<WebIDL::Promise>> promises;
+    for (auto const& request : ready_requests)
+        promises.append(request.promise);
+    for (auto& request : ready_requests)
+        start_get_user_media(request.promise, request.audio_requested, move(request.device_id_constraint), move(request.video_request));
 }
 
 // https://w3c.github.io/mediacapture-main/#dfn-device-change-notification-steps
@@ -731,6 +770,7 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     bool audio_requested = false;
     bool video_requested = false;
     Optional<DeviceIdConstraint> device_id_constraint;
+    Optional<VideoRequest> video_request;
 
     // 1. Let constraints be the method's first argument.
     if (!constraints.has_value()) {
@@ -751,10 +791,21 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     }
 
     auto const& video_value = constraints_value.video;
-    if (video_value.has<bool>())
+    if (video_value.has<bool>()) {
         video_requested = video_value.get<bool>();
-    else
+        if (video_requested)
+            video_request = VideoRequest {};
+    } else {
         video_requested = true;
+        auto const& video_constraints = video_value.get<MediaTrackConstraints>();
+        video_request = VideoRequest {
+            .device_id_constraint = extract_device_id_constraint(video_constraints.device_id),
+            .stream_request = stream_request_from(video_constraints),
+            .width = video_constraints.width,
+            .height = video_constraints.height,
+            .frame_rate = video_constraints.frame_rate,
+        };
+    }
 
     // 3. If requestedMediaTypes is the empty set, return a promise rejected with a TypeError.
     if (!audio_requested && !video_requested) {
@@ -788,25 +839,257 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     // 9. Let isInView be the result of the is in view algorithm.
 
     // 10. Let p be a new promise.
-    if (video_requested) {
-        WebIDL::reject_promise(promise, WebIDL::NotSupportedError::create("Video capture is not supported"_utf16));
-        return;
-    }
 
     // 11. Run the following steps in parallel.
     // AD-HOC: Keep the request queued until isInView and hasSystemFocus allow the deferred task
     // to continue without spinning in the event loop.
-    if (!get_user_media_can_proceed()) {
-        m_pending_get_user_media_requests.append({ .promise = promise, .device_id_constraint = move(device_id_constraint) });
+    if (!get_user_media_can_proceed() || (audio_requested && !Audio::AudioDevices::the().has_device_list())) {
+        m_pending_get_user_media_requests.append({
+            .promise = promise,
+            .device_id_constraint = move(device_id_constraint),
+            .audio_requested = audio_requested,
+            .video_request = move(video_request),
+        });
         return;
     }
 
-    if (!Audio::AudioDevices::the().has_device_list()) {
-        m_pending_get_user_media_requests.append({ .promise = promise, .device_id_constraint = move(device_id_constraint) });
+    start_get_user_media(promise, audio_requested, move(device_id_constraint), move(video_request));
+}
+
+void MediaDevices::start_get_user_media(GC::Ref<WebIDL::Promise> promise, bool audio_requested, Optional<DeviceIdConstraint> device_id_constraint, Optional<VideoRequest> video_request)
+{
+    if (audio_requested) {
+        queue_get_user_media_task(promise, move(device_id_constraint), move(video_request));
         return;
     }
 
-    queue_get_user_media_task(promise, move(device_id_constraint));
+    // 11.4 Let stream be a new and empty MediaStream object.
+    finish_get_user_media(promise, MediaStream::create(), move(video_request));
+}
+
+void MediaDevices::finish_get_user_media(GC::Ref<WebIDL::Promise> promise, GC::Ref<MediaStream> stream, Optional<VideoRequest> video_request)
+{
+    if (video_request.has_value()) {
+        acquire_video_track(promise, stream, video_request.release_value());
+        return;
+    }
+
+    // 11.12 Resolve p with stream and abort these steps.
+    auto& realm = WebIDL::promise_realm(promise);
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    resolve_media_stream_promise(promise, stream);
+}
+
+void MediaDevices::fail_get_user_media(WebIDL::Promise& promise, MediaStream& stream, GC::Ref<WebIDL::DOMException> exception)
+{
+    auto& realm = WebIDL::promise_realm(promise);
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    // AD-HOC: The page never sees the stream, so nothing else would stop a microphone it already has a track of.
+    for (auto const& track : stream.get_tracks())
+        track->stop();
+    WebIDL::reject_promise(promise, exception);
+}
+
+// https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
+void MediaDevices::acquire_video_track(GC::Ref<WebIDL::Promise> promise, GC::Ref<MediaStream> stream, VideoRequest video_request)
+{
+    // NB: These are the steps of getUserMedia() for the media type "video", from where the request may proceed.
+
+    // AD-HOC: The cameras are the CameraServer's to list, and it is first asked when a page wants one.
+    Camera::Devices::the().ensure_watching();
+    run_with_camera_device_list(DeviceListAge::Any, GC::create_function(heap(), GC::captures(GC::Ref(*this), promise, stream, move(video_request)), [](auto& media_devices, auto& promise, auto& stream, auto& video_request) {
+        auto const& device_id_constraint = video_request.device_id_constraint;
+
+        // 11.3.1 For each possible configuration of each possible source device of media of type kind, conceive a
+        //        candidate as a placeholder for an eventual MediaStreamTrack holding a source device and configured
+        //        with a settings dictionary comprised of its specific settings. Call this set of candidates the
+        //        candidateSet.
+        //        If candidateSet is the empty set, jump to the step labeled NotFound Failure below.
+        auto candidate_set = Camera::Devices::the().devices();
+        if (candidate_set.is_empty()) {
+            // 11.13.2 Reject p with a new DOMException object whose name attribute has the value "NotFoundError".
+            media_devices->fail_get_user_media(promise, stream, WebIDL::NotFoundError::create("No cameras available"_utf16));
+            return;
+        }
+
+        // 11.3.5 Run the SelectSettings algorithm on each candidate in candidateSet with CS as the constraint set.
+        // AD-HOC: Until the tab may capture, this process only learns that cameras exist, not their ids, so a required
+        //         camera can only be looked for once the permission is granted.
+        // FIXME: Fail with an OverconstrainedError where no camera can do what a required constraint asks.
+        auto device_ids_are_known = any_of(candidate_set, [](auto const& device) { return !device.dom_device_id.is_empty(); });
+        if (device_id_constraint.has_value() && device_id_constraint->is_required && device_ids_are_known) {
+            candidate_set.remove_all_matching([&](auto const& device) {
+                return !device_id_constraint->device_ids.contains_slow(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+            });
+            if (candidate_set.is_empty()) {
+                media_devices->fail_get_user_media(promise, stream, WebIDL::NotFoundError::create("Requested camera not found"_utf16));
+                return;
+            }
+        }
+
+        // 11.3.6 Read the current permission state for all candidate devices in candidateSet that are not attached to a
+        //        live MediaStreamTrack in the current Document. Remove from candidateSet any candidate whose device's
+        //        permission state is "denied".
+        auto camera_permission = Web::Permissions::PermissionName::Camera;
+        auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
+        if (PermissionsAPI::permission_state(camera_permission, settings_object) == PermissionsAPI::PermissionState::Denied) {
+            media_devices->fail_get_user_media(promise, stream, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+            return;
+        }
+
+        // 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name
+        //        associated with kind.
+        // AD-HOC: A page that names no camera leaves the choice of one to the user, who is offered it with the prompt; the
+        //         camera chosen is the default one of the list fetched once the permission is granted.
+        auto device_is_named = device_id_constraint.has_value() ? PermissionsAPI::DeviceIsNamed::Yes : PermissionsAPI::DeviceIsNamed::No;
+        auto on_camera_permission_decided = GC::create_function(GC::Heap::the(), GC::captures(media_devices, promise, stream, video_request), [](auto& media_devices, auto& promise, auto& stream, auto& video_request, PermissionsAPI::PermissionState camera_permission_result) {
+            // AD-HOC: The prompt may outlive the document, and capture must not start for one the user has left.
+            if (!media_devices->m_window->associated_document().is_fully_active()) {
+                media_devices->fail_get_user_media(promise, stream, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
+                return;
+            }
+
+            // 11.5.2 If the result of the request is "denied", jump to the step labeled Permission Failure below.
+            if (camera_permission_result == PermissionsAPI::PermissionState::Denied) {
+                // 11.15 Permission Failure: Reject p with a new DOMException object whose name attribute has the value
+                //       "NotAllowedError".
+                media_devices->fail_get_user_media(promise, stream, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                return;
+            }
+
+            // AD-HOC: The cameras' names and ids reach this process only once the Browser has told its CameraServer of
+            //         the grant, so finalSet is gathered from a list fetched after it.
+            media_devices->run_with_camera_device_list(DeviceListAge::Fresh, GC::create_function(GC::Heap::the(), GC::captures(media_devices, promise, stream, video_request), [](auto& media_devices, auto& promise, auto& stream, auto& video_request) {
+                // AD-HOC: The user may have taken the permission away while the list was fetched, and no track is
+                //         created for a document that may no longer capture.
+                auto& document = media_devices->m_window->associated_document();
+                auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
+                if (!document.is_fully_active() || PermissionsAPI::permission_state(Web::Permissions::PermissionName::Camera, settings_object) != PermissionsAPI::PermissionState::Granted) {
+                    media_devices->fail_get_user_media(promise, stream, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                    return;
+                }
+
+                // 11.3.8 Add all candidates from candidateSet to finalSet.
+                auto final_set = Camera::Devices::the().devices();
+                if (auto const& device_id_constraint = video_request.device_id_constraint; device_id_constraint.has_value()) {
+                    auto matching_devices = final_set;
+                    matching_devices.remove_all_matching([&](auto const& device) {
+                        return !device_id_constraint->device_ids.contains_slow(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+                    });
+                    if (!matching_devices.is_empty()) {
+                        final_set = move(matching_devices);
+                    } else if (device_id_constraint->is_required) {
+                        // FIXME: Reject with an OverconstrainedError for the deviceId constraint.
+                        media_devices->fail_get_user_media(promise, stream, WebIDL::NotFoundError::create("Requested camera not found"_utf16));
+                        return;
+                    }
+                }
+
+                // 11.8 Set the device information exposure on mediaDevices with requestedMediaTypes and true.
+                media_devices->set_device_information_exposure(false, true, true);
+
+                // 11.9.1 Let finalCandidate be the provided media, which MUST be precisely one candidate of type kind
+                //        from finalSet.
+                Optional<Camera::DeviceInfo> final_candidate;
+                for (auto const& device : final_set) {
+                    if (!final_candidate.has_value() || device.is_default)
+                        final_candidate = device;
+                    if (device.is_default)
+                        break;
+                }
+                // NB: A camera with no id is one this process may not open, as before the permission.
+                if (!final_candidate.has_value() || final_candidate->dom_device_id.is_empty()) {
+                    media_devices->fail_get_user_media(promise, stream, WebIDL::NotReadableError::create("No readable cameras available"_utf16));
+                    return;
+                }
+
+                // 11.9.2 The result of the request is "granted". If a hardware error such as an OS/program/webpage lock
+                //        prevents access, remove the corresponding candidate from finalSet. If finalSet has no
+                //        candidates of type kind, reject p with a new DOMException object whose name attribute has the
+                //        value "NotReadableError" and abort these steps. Otherwise, restart these sub steps with the
+                //        updated finalSet.
+                // AD-HOC: The camera is opened through the source of the track it feeds, so the source is created
+                //         first, and the page sees a track of it only once access succeeds.
+                // FIXME: Restart these sub steps with the rest of finalSet when the camera fails.
+                auto source = CameraVideoSource::create();
+                // NB: The callback takes the candidate with it, so the id is copied out first.
+                auto device_id_to_open = final_candidate->dom_device_id;
+                source->open(media_devices->m_window->page(), device_id_to_open, video_request.stream_request,
+                    [media_devices = GC::Root(media_devices), promise = GC::Root(promise), stream = GC::Root(stream), source, device = final_candidate.release_value(), video_request](ErrorOr<void> access) {
+                        if (access.is_error()) {
+                            // AD-HOC: The Browser refuses a capture only once the permission is gone, which is a
+                            //         failure of permission rather than of the camera.
+                            if (access.error().is_errno() && access.error().code() == EPERM)
+                                media_devices->fail_get_user_media(*promise, *stream, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                            else
+                                media_devices->fail_get_user_media(*promise, *stream, WebIDL::NotReadableError::create("The camera could not be opened"_utf16));
+                            return;
+                        }
+
+                        // AD-HOC: The user may have left the document while the camera opened, or taken the permission
+                        //         away; the source closes the camera as it goes, having no track.
+                        auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
+                        if (!media_devices->m_window->associated_document().is_fully_active()) {
+                            media_devices->fail_get_user_media(*promise, *stream, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
+                            return;
+                        }
+                        if (PermissionsAPI::permission_state(Web::Permissions::PermissionName::Camera, settings_object) != PermissionsAPI::PermissionState::Granted) {
+                            media_devices->fail_get_user_media(*promise, *stream, WebIDL::NotAllowedError::create("Permission denied"_utf16));
+                            return;
+                        }
+
+                        auto& realm = WebIDL::promise_realm(*promise);
+                        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                        // 11.9.3 Let grantedDevice be finalCandidate's source device.
+                        // 11.9.4 Using grantedDevice's deviceId, deviceId, set mediaDevices.[[devicesLiveMap]][deviceId]
+                        //        to true, if it isn't already true, and set
+                        //        mediaDevices.[[devicesAccessibleMap]][deviceId] to true, if it isn't already true.
+                        auto granted_device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view());
+                        media_devices->m_devices_live_map.set(granted_device_id, true);
+                        media_devices->m_devices_accessible_map.set(granted_device_id, true);
+
+                        // 11.9.5 Let track be the result of creating a MediaStreamTrack with grantedDevice and
+                        //        mediaDevices. The source of the MediaStreamTrack MUST NOT change.
+                        auto track = MediaStreamTrack::create(MediaStreamTrackKind::Video, Utf16String::from_utf8_with_replacement_character(device.label.view()));
+                        // NB: Use the CameraServer's output settings after cropping and scaling to the request.
+                        MediaTrackSettings settings;
+                        settings.device_id = granted_device_id;
+                        settings.width = source->width();
+                        settings.height = source->height();
+                        settings.frame_rate = source->frame_rate();
+                        if (source->height() != 0)
+                            settings.aspect_ratio = static_cast<double>(source->width()) / source->height();
+                        track->set_settings(move(settings));
+                        track->set_media_devices({}, *media_devices);
+                        track->set_video_picture_source(source);
+
+                        // 11.9.6 Add track to stream's track set.
+                        stream->add_track(track);
+
+                        // NB: The camera gives the closest it does to what was asked for, which a required constraint
+                        //     may still rule out.
+                        if (auto constraint = unsatisfied_required_video_constraint(video_request, source->width(), source->height(), source->frame_rate()); constraint.has_value()) {
+                            // FIXME: Reject with an OverconstrainedError object, whose constraint attribute names the constraint.
+                            media_devices->fail_get_user_media(*promise, *stream, WebIDL::DOMException::create("OverconstrainedError"_utf16_fly_string, Utf16String::formatted("The camera can't satisfy the {} constraint", *constraint)));
+                            return;
+                        }
+
+                        // FIXME: 11.10 Run the ApplyConstraints algorithm on all tracks in stream with the appropriate
+                        //        constraints.
+
+                        // 11.11 For each track in stream, tie track source to MediaDevices with track.[[Source]] and
+                        //       mediaDevices.
+                        media_devices->m_media_stream_track_sources.append(track);
+
+                        // 11.12 Resolve p with stream and abort these steps.
+                        resolve_media_stream_promise(*promise, *stream);
+                    });
+            }));
+        });
+        PermissionsAPI::request_permission_with_user_prompt(camera_permission, settings_object, on_camera_permission_decided, device_is_named);
+    }));
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-ondevicechange
@@ -820,7 +1103,7 @@ void MediaDevices::set_ondevicechange(WebIDL::CallbackType* event_handler)
     set_event_handler_attribute(HTML::EventNames::devicechange, event_handler);
 }
 
-Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
+Vector<MediaDevices::StoredDevice> MediaDevices::current_device_snapshot()
 {
     Vector<StoredDevice> stored_devices;
     auto input_devices = Audio::AudioDevices::the().input_devices();
@@ -847,6 +1130,17 @@ Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
         });
     }
 
+    // NB: Empty until some page of the process has looked for a camera.
+    for (auto const& device : Camera::Devices::the().devices()) {
+        stored_devices.append(StoredDevice {
+            .dom_device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()),
+            .kind = VIDEO_INPUT_KIND,
+            .label = Utf16String::from_utf8_with_replacement_character(device.label.view()),
+            .group_id = Utf16String::from_utf8_with_replacement_character(device.group_id.view()),
+            .is_default = device.is_default,
+        });
+    }
+
     return stored_devices;
 }
 
@@ -861,6 +1155,27 @@ void MediaDevices::did_observe_audio_device_cache_update()
         callback->function()();
 }
 
+void MediaDevices::did_observe_camera_device_list_update()
+{
+    end_tracks_of_removed_devices();
+    process_pending_enumerate_devices_requests();
+
+    GC::RootVector awaiting { move(m_awaiting_camera_device_list) };
+    for (auto const& callback : awaiting)
+        callback->function()();
+}
+
+void MediaDevices::run_with_camera_device_list(DeviceListAge age, GC::Ref<GC::Function<void()>> callback)
+{
+    auto& devices = Camera::Devices::the();
+    auto must_wait = age == DeviceListAge::Fresh ? devices.request_fresh_device_list() : !devices.has_device_list();
+    if (!must_wait) {
+        callback->function()();
+        return;
+    }
+    m_awaiting_camera_device_list.append(callback);
+}
+
 void MediaDevices::run_with_fresh_audio_device_list(GC::Ref<GC::Function<void()>> callback)
 {
     if (!Audio::AudioDevices::the().request_fresh_device_list()) {
@@ -873,9 +1188,12 @@ void MediaDevices::run_with_fresh_audio_device_list(GC::Ref<GC::Function<void()>
 // https://w3c.github.io/mediacapture-main/#track-ended
 void MediaDevices::end_tracks_of_removed_devices()
 {
-    Vector<Utf16String> present_device_ids;
+    Vector<Utf16String> present_microphone_ids;
     for (auto const& device : Audio::AudioDevices::the().input_devices())
-        present_device_ids.append(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+        present_microphone_ids.append(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+    Vector<Utf16String> present_camera_ids;
+    for (auto const& device : Camera::Devices::the().devices())
+        present_camera_ids.append(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
 
     GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
     m_media_stream_track_sources.remove_all_matching([&](GC::Weak<MediaStreamTrack> const& weak_track) {
@@ -883,6 +1201,7 @@ void MediaDevices::end_tracks_of_removed_devices()
         if (!track || track->track_ready_state() == MediaStreamTrackState::Ended)
             return true;
         auto device_id = track->device_id();
+        auto const& present_device_ids = track->is_video() ? present_camera_ids : present_microphone_ids;
         if (!device_id.has_value() || present_device_ids.contains_slow(device_id.value()))
             return false;
         tracks_to_end.append(*track);
@@ -894,29 +1213,33 @@ void MediaDevices::end_tracks_of_removed_devices()
 // https://w3c.github.io/mediacapture-main/#dfn-device-permission-revocation-algorithm
 void MediaDevices::end_tracks_without_permission()
 {
-    // NB: A track's source is the microphone, the one device Ladybird captures from, so every live track ends once the
-    //     document may no longer use it.
-    auto& settings = HTML::relevant_settings_object(*m_window);
-    if (PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone, settings) == PermissionsAPI::PermissionState::Granted)
-        return;
-
+    // NB: A track's source is the microphone or a camera, so every live track ends once the document may no longer use
+    //     the one it has.
     GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
     m_media_stream_track_sources.remove_all_matching([&](GC::Weak<MediaStreamTrack> const& weak_track) {
         auto track = weak_track.ptr();
         if (!track || track->track_ready_state() == MediaStreamTrackState::Ended)
             return true;
+        if (may_capture_for(*track))
+            return false;
         tracks_to_end.append(*track);
         return true;
     });
     end_tracks(move(tracks_to_end));
 }
 
-// A clone of a microphone track captures from the microphone too, so it ends with the permission like its original. A
-// clone made once the permission is gone (from an ended listener of another track, e.g.) ends at once.
-void MediaDevices::track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone)
+bool MediaDevices::may_capture_for(MediaStreamTrack const& track) const
 {
     auto& settings = HTML::relevant_settings_object(*m_window);
-    if (PermissionsAPI::permission_state(Web::Permissions::PermissionName::Microphone, settings) != PermissionsAPI::PermissionState::Granted) {
+    auto name = track.is_video() ? Web::Permissions::PermissionName::Camera : Web::Permissions::PermissionName::Microphone;
+    return PermissionsAPI::permission_state(name, settings) == PermissionsAPI::PermissionState::Granted;
+}
+
+// A clone of a device's track captures from the device too, so it ends with the permission like its original. A clone
+// made once the permission is gone (from an ended listener of another track, e.g.) ends at once.
+void MediaDevices::track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone)
+{
+    if (!may_capture_for(clone)) {
         GC::RootVector<GC::Ref<MediaStreamTrack>> tracks_to_end;
         tracks_to_end.append(clone);
         end_tracks(move(tracks_to_end));
@@ -964,6 +1287,68 @@ void MediaDevices::stop_all_sources()
         if (auto track = weak_track.ptr())
             track->stop();
     }
+}
+
+// https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
+// NB: What a constraint would most like, which is as far as this goes: the camera is asked for it and gives the closest
+//     it does. A bare value is an ideal one, and a range without one is taken for its upper end, or else its lower.
+template<typename T, typename Range>
+static Optional<T> preferred_value(Optional<Variant<T, Range>> const& constraint)
+{
+    if (!constraint.has_value())
+        return {};
+    if (constraint->template has<T>())
+        return constraint->template get<T>();
+    auto const& range = constraint->template get<Range>();
+    if (range.exact.has_value())
+        return range.exact;
+    if (range.ideal.has_value())
+        return range.ideal;
+    if (range.max.has_value())
+        return range.max;
+    return range.min;
+}
+
+// https://w3c.github.io/mediacapture-main/#dfn-fitness-distance
+// If the constraint is required (constraintValue either contains one or more members named 'min', 'max', or 'exact',
+// or is itself a bare value and bare values are to be treated as 'exact'), and the settings dictionary's value for the
+// constraint does not satisfy the constraint, the fitness distance is positive infinity.
+// NB: A bare value is an ideal one here.
+template<typename T, typename Range>
+static bool satisfies_required(Optional<Variant<T, Range>> const& constraint, double value)
+{
+    if (!constraint.has_value() || !constraint->template has<Range>())
+        return true;
+    auto const& range = constraint->template get<Range>();
+    if (range.exact.has_value() && value != static_cast<double>(*range.exact))
+        return false;
+    if (range.min.has_value() && value < static_cast<double>(*range.min))
+        return false;
+    if (range.max.has_value() && value > static_cast<double>(*range.max))
+        return false;
+    return true;
+}
+
+static Optional<StringView> unsatisfied_required_video_constraint(VideoRequest const& request, u32 width, u32 height, double frame_rate)
+{
+    if (!satisfies_required(request.width, width))
+        return "width"sv;
+    if (!satisfies_required(request.height, height))
+        return "height"sv;
+    if (!satisfies_required(request.frame_rate, frame_rate))
+        return "frameRate"sv;
+    return {};
+}
+
+static Camera::StreamRequest stream_request_from(MediaTrackConstraints const& constraints)
+{
+    // FIXME: Take the advanced constraint sets, aspectRatio, facingMode and resizeMode into account.
+    Camera::StreamRequest request;
+    request.width = min(preferred_value(constraints.width).value_or(0), Camera::MAXIMUM_PICTURE_DIMENSION);
+    request.height = min(preferred_value(constraints.height).value_or(0), Camera::MAXIMUM_PICTURE_DIMENSION);
+    if (auto frame_rate = preferred_value(constraints.frame_rate); frame_rate.has_value() && *frame_rate >= 1)
+        request.frame_rate = static_cast<u32>(min(*frame_rate, 240.0));
+    return request;
 }
 
 static Optional<Vector<Utf16String>> dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> const& value)

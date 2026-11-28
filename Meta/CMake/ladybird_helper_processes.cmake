@@ -1,5 +1,6 @@
 set(ladybird_helper_processes
     AudioServer
+    CameraServer
     Compositor
     Hub
     ImageDecoder

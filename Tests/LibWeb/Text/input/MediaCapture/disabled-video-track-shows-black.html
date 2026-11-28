@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// A disabled video track gives black frames, at once and whether or not its source has anything new, both from a
+// source of pictures such as a canvas and from one that gives frames already encoded, such as a WebRTC receiver.
+asyncTest(async done => {
+    internals.setAutoplayPolicy("allow-audio-and-video");
+    // Use numeric host candidates so this loopback test does not depend on mDNS multicast.
+    await internals.setPermission("microphone", "granted");
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 36;
+    const context = canvas.getContext("2d");
+    const fill = color => {
+        context.fillStyle = color;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    };
+
+    const probe = document.createElement("canvas");
+    probe.width = 64;
+    probe.height = 36;
+    const probeContext = probe.getContext("2d", { willReadFrequently: true });
+    const colorShownBy = video => {
+        probeContext.drawImage(video, 0, 0, probe.width, probe.height);
+        const [red, green, blue] = probeContext.getImageData(32, 18, 1, 1).data;
+        if (red > 180 && green < 80 && blue < 80)
+            return "red";
+        if (red < 30 && green < 30 && blue < 30)
+            return "black";
+        return `rgb(${red}, ${green}, ${blue})`;
+    };
+    const shows = (video, color) => new Promise((resolve, reject) => {
+        const deadline = performance.now() + 15000;
+        const check = () => {
+            if (video.videoWidth > 0 && colorShownBy(video) === color)
+                resolve();
+            else if (performance.now() > deadline)
+                reject(new Error(`the video never showed ${color}, but ${video.videoWidth > 0 ? colorShownBy(video) : "nothing"}`));
+            else
+                setTimeout(check, 20);
+        };
+        check();
+    });
+    const within = (promise, what) => Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(what)), 15000))]);
+    const play = async track => {
+        const video = document.createElement("video");
+        document.body.append(video);
+        video.srcObject = new MediaStream([track]);
+        await within(video.play(), "the video didn't start playing");
+        return video;
+    };
+
+    const cleanups = [];
+    try {
+        fill("red");
+        let drawing = setInterval(() => fill("red"), 30);
+        cleanups.push(() => clearInterval(drawing));
+        const track = canvas.captureStream().getVideoTracks()[0];
+        const video = await play(track);
+        await shows(video, "red");
+        println("enabled: red");
+
+        track.enabled = false;
+        await shows(video, "black");
+        println(`disabled: black, at ${video.videoWidth}x${video.videoHeight}`);
+        track.enabled = true;
+        await shows(video, "red");
+        println("enabled again: red");
+
+        clearInterval(drawing);
+        track.enabled = false;
+        await shows(video, "black");
+        println("disabled while the canvas is idle: black");
+        track.enabled = true;
+        await shows(video, "red");
+        println("enabled again while the canvas is idle: red");
+
+        const clone = track.clone();
+        clone.enabled = false;
+        const cloneVideo = await play(clone);
+        await shows(cloneVideo, "black");
+        println(`disabled clone: black, while the original shows ${colorShownBy(video)}`);
+
+        // Over WebRTC, from the sending end and from the receiving end.
+        drawing = setInterval(() => fill("red"), 30);
+        const a = new RTCPeerConnection();
+        const b = new RTCPeerConnection();
+        cleanups.push(() => a.close(), () => b.close());
+        a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
+        b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+        const sent = canvas.captureStream().getVideoTracks()[0];
+        const received = new Promise(resolve => b.ontrack = event => resolve(event.track));
+        a.addTrack(sent);
+        await a.setLocalDescription(await a.createOffer());
+        await b.setRemoteDescription(a.localDescription);
+        await b.setLocalDescription(await b.createAnswer());
+        await a.setRemoteDescription(b.localDescription);
+        const remote = await within(received, "no track event");
+        const remoteVideo = await play(remote);
+        await shows(remoteVideo, "red");
+        println("received: red");
+        sent.enabled = false;
+        await shows(remoteVideo, "black");
+        println("sender disabled: black");
+        sent.enabled = true;
+        await shows(remoteVideo, "red");
+        println("sender enabled again: red");
+        remote.enabled = false;
+        await shows(remoteVideo, "black");
+        println(`receiver disabled: black, at ${remoteVideo.videoWidth}x${remoteVideo.videoHeight}`);
+        remote.enabled = true;
+        await shows(remoteVideo, "red");
+        println("receiver enabled again: red");
+    } catch (error) {
+        println(`FAIL: ${error.message}`);
+    } finally {
+        for (const cleanup of cleanups)
+            cleanup();
+    }
+    done();
+});
+</script>

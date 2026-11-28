@@ -1,0 +1,4 @@
+clone of the received track: red
+clone disabled: black, while the received track shows red
+clone enabled again: red
+received track stopped: the clone is live and shows what is sent now

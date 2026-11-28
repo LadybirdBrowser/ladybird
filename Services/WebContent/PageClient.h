@@ -363,6 +363,7 @@ private:
     virtual bool page_did_request_tab_is_heard_playing_audio_for_testing() override;
     virtual bool page_did_request_tab_is_using_microphone_for_testing() override;
     virtual bool page_did_request_tab_is_capturing_audio_for_testing() override;
+    virtual bool page_did_request_tab_is_capturing_video_for_testing() override;
     virtual void page_did_report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing) override;
     virtual void page_did_retire_picture_in_picture_window_for_testing() override;
     virtual Vector<bool> page_did_request_tab_audibility_transitions_for_testing() override;
@@ -384,7 +385,7 @@ private:
     virtual void page_did_cancel_geolocation_position_request(u64 request_id) override;
     virtual void page_did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId requesting_document_id) override;
     virtual void page_did_stop_geolocation_position_watch(u64 request_id) override;
-    virtual void page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name) override;
+    virtual void page_did_request_permission(u64 request_id, Web::HTML::CrossProcessId requesting_document_id, Utf16String const& name, bool names_device) override;
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_request_permission_snapshot(URL::Origin const& top_level_origin) override;
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state) override;
     virtual void page_did_set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held) override;
@@ -430,6 +431,7 @@ private:
     virtual NonnullRefPtr<Media::AudioOutputFactory> create_audio_output_factory() override;
     virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager() override;
     virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&) override;
+    virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Camera::CaptureStream>>> create_camera_capture_stream(StringView device_id, Camera::StreamRequest, Function<void(Camera::Frame const&)>) override;
     virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Audio::RecordStream>>> create_audio_record_stream(StringView device_id, Function<void(ReadonlyBytes, Audio::SampleSpecification const&)>) override;
     virtual void page_did_change_media_session_state(Optional<Web::MediaSession::MediaSessionState> const&) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;

@@ -12,6 +12,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebRTC/EncodedFrame.h>
 
 namespace Web::WebRTC {
 
@@ -34,9 +35,9 @@ public:
 
     // Send a frame to the worker. Frames written to the transformer's writable
     // return to the parent through on_frame_written.
-    void enqueue_encoded_audio_frame(ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
+    void enqueue_encoded_frame(EncodedFrame);
 
-    using FrameWrittenCallback = AK::Function<void(ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)>;
+    using FrameWrittenCallback = AK::Function<void(EncodedFrame)>;
     void set_on_frame_written(FrameWrittenCallback callback) { m_on_frame_written = move(callback); }
     bool has_frame_written_callback() const { return static_cast<bool>(m_on_frame_written); }
 

@@ -336,6 +336,9 @@ interface Internals {
     DOMString microphoneState();
     // Whether this process has a capture waiting on the AudioServer for its device.
     boolean audioCaptureIsPending();
+    // A live video track that keeps delivering the encoded frames of the media's first video track, the way a track
+    // received from a peer does.
+    MediaStreamTrack createEncodedVideoTrack(BufferSource media);
     undefined releaseHeldPermissionPrompt(optional unsigned long waiters = 1);
     Promise<undefined> advancePermissionClock(unsigned long long milliseconds);
     sequence<DOMString> permissionCacheOrigins();
@@ -538,6 +541,9 @@ interface Internals {
     boolean tabIsUsingMicrophone();
     // Whether the AudioServer holds a capture stream for this window's tab, whatever the tab shows.
     boolean tabIsCapturingAudio();
+    // Whether the page of the tab holds a capture stream of a camera, and how many this process has, opening or open.
+    boolean tabIsCapturingVideo();
+    unsigned long cameraCaptureStreamCount();
     // Has the UI process hear of a capture stream of this process whose label names none of its pages.
     undefined reportAudioCaptureOfUnknownPage(boolean capturing);
     // The ID of the page that shows this page's Picture-in-Picture window.

@@ -65,6 +65,7 @@ public:
     // Shows, while the page uses the user's location or microphone, a chip that says so.
     void set_location_in_use(bool);
     void set_microphone_in_use(bool);
+    void set_camera_in_use(bool);
 
     Optional<URL::URL const&> url() const { return m_url; }
     void set_url(Optional<URL::URL>);
@@ -160,6 +161,7 @@ private:
     QVariantAnimation* m_zoom_indicator_fade { nullptr };
     InUseChip* m_location_in_use_chip { nullptr };
     InUseChip* m_microphone_in_use_chip { nullptr };
+    InUseChip* m_camera_in_use_chip { nullptr };
     QLabel* m_completion_title { nullptr };
     // The editing icon on the button, unless it has to be set afresh.
     Optional<WebView::Omnibox::EditingIcon::Kind> m_editing_icon_kind;

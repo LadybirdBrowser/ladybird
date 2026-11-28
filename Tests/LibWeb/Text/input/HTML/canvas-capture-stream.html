@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        internals.setAutoplayPolicy("allow-audio-and-video");
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 36;
+        const context = canvas.getContext("2d");
+        const fill = color => {
+            context.fillStyle = color;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        };
+        fill("rgb(255, 0, 0)");
+
+        try {
+            canvas.captureStream(-1);
+            println("FAIL: a negative frame rate was accepted");
+        } catch (error) {
+            println(`negative frame rate: ${error.name}`);
+        }
+
+        const stream = canvas.captureStream();
+        const [track] = stream.getTracks();
+        println(`tracks: ${stream.getTracks().length}, ${track.kind}, ${track.readyState}, muted: ${track.muted}`);
+        println(`track is a CanvasCaptureMediaStreamTrack: ${track instanceof CanvasCaptureMediaStreamTrack}`);
+        println(`track is a MediaStreamTrack: ${track instanceof MediaStreamTrack}`);
+        println(`track.canvas is the canvas: ${track.canvas === canvas}`);
+
+        const probe = document.createElement("canvas");
+        probe.width = 64;
+        probe.height = 36;
+        const probeContext = probe.getContext("2d", { willReadFrequently: true });
+        // Allow for color changes from lossy encoding.
+        const colorShownBy = video => {
+            probeContext.drawImage(video, 0, 0, probe.width, probe.height);
+            const [red, green, blue] = probeContext.getImageData(32, 18, 1, 1).data;
+            if (red > 180 && green < 80 && blue < 80)
+                return "red";
+            if (red < 80 && green < 80 && blue > 180)
+                return "blue";
+            if (red < 80 && green > 100 && blue < 80)
+                return "green";
+            return `rgb(${red}, ${green}, ${blue})`;
+        };
+        const shows = (video, color) => new Promise((resolve, reject) => {
+            const deadline = performance.now() + 10000;
+            const check = () => {
+                if (video.videoWidth > 0 && colorShownBy(video) === color)
+                    resolve();
+                else if (performance.now() > deadline)
+                    reject(new Error(`the video never showed ${color}, but ${video.videoWidth > 0 ? colorShownBy(video) : "nothing"}`));
+                else
+                    setTimeout(check, 20);
+            };
+            check();
+        });
+        const play = async stream => {
+            const video = document.createElement("video");
+            document.body.append(video);
+            video.srcObject = stream;
+            await video.play();
+            return video;
+        };
+
+        const video = await play(stream);
+        await shows(video, "red");
+        println(`size: ${video.videoWidth}x${video.videoHeight}`);
+        println("the video shows what the canvas showed when it was captured");
+
+        fill("rgb(0, 0, 255)");
+        await shows(video, "blue");
+        println("the video shows what was drawn to the canvas since");
+
+        // The clone must show the current canvas without another draw.
+        const clone = track.clone();
+        println(`clone is a CanvasCaptureMediaStreamTrack: ${clone instanceof CanvasCaptureMediaStreamTrack}, of the same canvas: ${clone.canvas === canvas}`);
+        const cloneVideo = await play(new MediaStream([clone]));
+        await shows(cloneVideo, "blue");
+        println("the clone shows the canvas");
+        track.stop();
+        println(`stopped: ${track.readyState}, clone: ${clone.readyState}`);
+        fill("rgb(0, 128, 0)");
+        await shows(cloneVideo, "green");
+        println("the clone goes on after the track it was cloned from has stopped");
+        clone.stop();
+
+        const manualStream = canvas.captureStream(0);
+        const [manualTrack] = manualStream.getTracks();
+        const manualVideo = await play(manualStream);
+        await shows(manualVideo, "green");
+        fill("rgb(255, 0, 0)");
+        await new Promise(resolve => setTimeout(resolve, 300));
+        println(`without a frame being requested, the video shows ${colorShownBy(manualVideo)}`);
+        manualTrack.requestFrame();
+        await shows(manualVideo, "red");
+        println("requestFrame() captures the canvas");
+        manualTrack.stop();
+
+        for (const element of document.querySelectorAll("video"))
+            element.srcObject = null;
+    });
+</script>

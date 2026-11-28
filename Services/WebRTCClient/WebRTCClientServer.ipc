@@ -29,6 +29,18 @@ endpoint WebRTCClientServer
     // webrtc-rs advances the RTP timestamp by duration_micros, typically 20000 for a 20 ms frame.
     audio_track_encoded_frame(u64 sender_id, u32 duration_micros, ByteBuffer payload) =|
 
+    // Makes a sender ready to send video, which is answered with on_video_track_added. The codecs ("VP8", "VP9",
+    // "H264") are the ones the renderer can encode: the sender takes the first of the codecs negotiated for it that
+    // is one of them, and says which with on_video_sender_codec, again whenever that changes.
+    add_video_track(u64 pc_id, u64 sender_id, Vector<String> codecs) =|
+
+    // Sends one encoded (and possibly encrypted) video frame, in the codec's bitstream format, which the helper
+    // splits into packets. The RTP timestamp advances by duration_micros afterwards.
+    video_track_encoded_frame(u64 sender_id, u32 duration_micros, ByteBuffer payload) =|
+
+    // Asks the sender of a received video track for a frame that can be decoded on its own.
+    request_key_frame(u64 pc_id, u64 receiver_id) =|
+
     add_data_channel(u64 pc_id, u64 channel_id, String label, bool ordered, Optional<u16> max_packet_life_time, Optional<u16> max_retransmits, String protocol, bool negotiated, Optional<u16> id) =|
     data_channel_send_text(u64 channel_id, String data) =|
     data_channel_send_binary(u64 channel_id, ByteBuffer data) =|

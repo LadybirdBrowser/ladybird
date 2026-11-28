@@ -22,6 +22,7 @@ public:
     static GC::Ref<VideoTrackList> create(GC::Ptr<HTMLMediaElement> = nullptr);
 
     void add_track(GC::Ref<VideoTrack>);
+    void remove_track(VideoTrack&);
     void remove_all_tracks();
 
     Span<GC::Ref<VideoTrack>> video_tracks() { return m_video_tracks; }

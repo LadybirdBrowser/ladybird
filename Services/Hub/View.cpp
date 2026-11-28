@@ -745,6 +745,7 @@ ViewState View::current_state() const
     state.plays_audio_indicator_visible = tab_indicator_visible(WebView::TabIndicator::PlayingAudio);
     state.uses_location_indicator_visible = tab_indicator_visible(WebView::TabIndicator::UsingLocation);
     state.uses_microphone_indicator_visible = tab_indicator_visible(WebView::TabIndicator::UsingMicrophone);
+    state.uses_camera_indicator_visible = tab_indicator_visible(WebView::TabIndicator::UsingCamera);
     state.page_background_color = page_background_color();
     state.crash_overlay_active = crash_overlay_active();
     state.crash_report_name = crash_report_name();

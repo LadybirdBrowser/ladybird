@@ -1,0 +1,2 @@
+the track event's transceiver is the answerer's: true
+mid: true, current direction: recvonly

@@ -81,8 +81,8 @@ WebIDL::ExceptionOr<void> RTCRtpScriptTransformer::enqueue_encoded_frame(JS::Val
 {
     if (!m_readable_source || !m_readable->is_readable())
         return {};
-    // Encoded audio is real-time data. Bound unread frames to 200 ms at the
-    // normal 20 ms packet duration instead of replaying an ever-growing backlog.
+    // Bound unread frames to ten (200 ms of audio at 20 ms per packet) to avoid a backlog.
+    // Consumers already handle missing frames because the transform script may drop them.
     // NB: The readable side of a TransformStream has a highWaterMark of 0, so its desired size is minus its queue size.
     if (auto desired_size = m_readable->desired_size(); desired_size.has_value() && *desired_size <= -10)
         return {};

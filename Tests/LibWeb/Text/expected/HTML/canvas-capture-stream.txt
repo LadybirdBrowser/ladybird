@@ -1,0 +1,14 @@
+negative frame rate: NotSupportedError
+tracks: 1, video, live, muted: false
+track is a CanvasCaptureMediaStreamTrack: true
+track is a MediaStreamTrack: true
+track.canvas is the canvas: true
+size: 64x36
+the video shows what the canvas showed when it was captured
+the video shows what was drawn to the canvas since
+clone is a CanvasCaptureMediaStreamTrack: true, of the same canvas: true
+the clone shows the canvas
+stopped: ended, clone: live
+the clone goes on after the track it was cloned from has stopped
+without a frame being requested, the video shows green
+requestFrame() captures the canvas

@@ -48,7 +48,7 @@ public:
     static void set_time_without_progress_until_server_is_stuck(AK::Duration);
 
     static Optional<DecoderCapabilities> capabilities(ParsedCodec const&);
-    static DecoderErrorOr<NonnullOwnPtr<RemoteVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data);
+    static DecoderErrorOr<NonnullOwnPtr<RemoteVideoDecoder>> try_create(CodecID, ReadonlyBytes codec_initialization_data, DecoderLatency = DecoderLatency::Default);
 
     virtual ~RemoteVideoDecoder() override;
 
@@ -64,7 +64,7 @@ public:
     struct State;
 
 private:
-    RemoteVideoDecoder(CodecID, ByteBuffer codec_configuration, NonnullRefPtr<State>);
+    RemoteVideoDecoder(CodecID, ByteBuffer codec_configuration, DecoderLatency, NonnullRefPtr<State>);
 
     DecoderErrorOr<void> start_server_decoder();
     DecoderErrorOr<u64> write_to_ring(ReadonlyBytes);
@@ -72,6 +72,7 @@ private:
 
     CodecID const m_codec_id;
     ByteBuffer m_codec_configuration;
+    DecoderLatency m_latency { DecoderLatency::Default };
     NonnullRefPtr<State> m_state;
 
     // Only the caller's thread uses these.

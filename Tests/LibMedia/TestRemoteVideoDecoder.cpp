@@ -43,9 +43,9 @@ struct AK::Formatter<FrameDigest> : Formatter<FormatString> {
 
 namespace {
 
-Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> create_software_video_decoder(Media::CodecID codec_id, ReadonlyBytes codec_initialization_data)
+Media::DecoderErrorOr<NonnullOwnPtr<Media::VideoDecoder>> create_software_video_decoder(Media::CodecID codec_id, ReadonlyBytes codec_initialization_data, Media::DecoderLatency latency)
 {
-    return NonnullOwnPtr<Media::VideoDecoder> { TRY(Media::FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data)) };
+    return NonnullOwnPtr<Media::VideoDecoder> { TRY(Media::FFmpeg::FFmpegVideoDecoder::try_create(codec_id, codec_initialization_data, latency)) };
 }
 
 ReadonlySpan<Media::VideoDecoderRegistration> hosted_decoders()

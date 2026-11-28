@@ -1669,7 +1669,7 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
         // Whether a process may capture audio depends on the documents it hosts.
         for (auto const& page : { previous_host, document->host() }) {
             if (page && page->is_open())
-                page->client().update_audio_capture_permission();
+                page->client().update_capture_permissions();
         }
     }
 

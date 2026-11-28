@@ -31,6 +31,8 @@ static StringView plain_process_name(StringView process)
         return "Media process"sv;
     if (process == "ladybird-audio"sv || process == "AudioServer"sv)
         return "Audio process"sv;
+    if (process == "ladybird-camera"sv)
+        return "Camera process"sv;
     if (process == "ladybird-video"sv || process == "VideoDecoderServer"sv)
         return "Video decoder"sv;
     if (process == "ladybird-webrtc"sv || process == "WebRTCClient"sv)

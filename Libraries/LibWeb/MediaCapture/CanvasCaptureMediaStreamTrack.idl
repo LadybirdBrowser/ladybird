@@ -1,0 +1,6 @@
+// https://w3c.github.io/mediacapture-fromelement/#the-canvascapturemediastreamtrack
+[Exposed=Window]
+interface CanvasCaptureMediaStreamTrack : MediaStreamTrack {
+    readonly attribute HTMLCanvasElement canvas;
+    undefined requestFrame();
+};

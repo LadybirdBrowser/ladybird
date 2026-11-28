@@ -17,6 +17,8 @@
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
+#include <LibWebView/CameraDaemonSocket.h>
+#include <LibWebView/CameraServerControlClient.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/FontServiceHost.h>
@@ -33,6 +35,7 @@
 #    include <sys/wait.h>
 #elif defined(AK_OS_LINUX)
 #    include <AudioServer/BrokeredAudioDaemon.h>
+#    include <CameraServer/BrokeredCameraDaemon.h>
 #    include <LibWebView/AudioDaemonSocket.h>
 #    include <signal.h>
 #    include <sys/socket.h>
@@ -246,10 +249,11 @@ static ErrorOr<ChildIdentity> launch_helper_process(StringView server_name, Vect
         // The AudioServer cannot create a socket of its own. It connects to a name nothing listens on, and the
         // broker connects that socket to the audio daemon wherever it is at the time, so the daemon is found
         // without anyone knowing its address in advance, and found again should it move.
-        if (process_type == ProcessType::AudioServer) {
-            auto broker = Sandbox::ConnectBroker::create(ByteString { AudioServer::brokered_audio_daemon_path }, [] {
-                return audio_daemon_socket_path();
-            });
+        // The CameraServer reaches the daemon that has the cameras the same way.
+        if (process_type == ProcessType::AudioServer || process_type == ProcessType::CameraServer) {
+            auto broker = process_type == ProcessType::AudioServer
+                ? Sandbox::ConnectBroker::create(ByteString { AudioServer::brokered_audio_daemon_path }, [] { return audio_daemon_socket_path(); })
+                : Sandbox::ConnectBroker::create(ByteString { CameraServer::brokered_camera_daemon_path }, [] { return camera_daemon_socket_path(); });
             if (broker.is_error()) {
                 warnln("Could not start the {} connection broker: {}", server_name, broker.error());
             } else {
@@ -485,6 +489,23 @@ ErrorOr<NonnullRefPtr<AudioServerControlClient>> launch_audio_server_process(u64
     }
 
     return launch_server_process_for<AudioServerControlClient>(owner_child_id, is_private, "ladybird-audio"sv, arguments);
+}
+
+static ErrorOr<NonnullRefPtr<CameraServerControlClient>> launch_camera_server_process(u64 owner_child_id, IsPrivate is_private)
+{
+    auto const& browser_options = WebView::Application::browser_options();
+
+    Vector<ByteString> arguments;
+    if (browser_options.headless_mode.has_value())
+        arguments.append("--headless"sv);
+    if (browser_options.disable_sandbox == DisableSandbox::Yes)
+        arguments.append("--disable-sandbox"sv);
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
+    return launch_server_process_for<CameraServerControlClient>(owner_child_id, is_private, "ladybird-camera"sv, arguments);
 }
 
 ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process(u64 owner_child_id, IsPrivate is_private)
@@ -736,6 +757,24 @@ ErrorOr<IPC::TransportHandle> connect_new_audio_server_client(AudioServerControl
     auto response = send_sync_to_helper<Messages::AudioServerControl::ConnectNewClient>(controller, audio_tab_id);
     if (!response || !response->handle().has_value())
         return Error::from_string_literal("Failed to connect to AudioServer");
+    return response->take_handle().release_value();
+}
+
+ErrorOr<void> ensure_camera_server_is_running(RefPtr<CameraServerControlClient>& controller, u64 owner_child_id, IsPrivate is_private)
+{
+    if (!controller || !controller->is_open())
+        controller = TRY(launch_camera_server_process(owner_child_id, is_private));
+    return {};
+}
+
+ErrorOr<IPC::TransportHandle> connect_new_camera_server_client(CameraServerControlClient& controller, u64 tab_id)
+{
+    if (!controller.is_open())
+        return Error::from_string_literal("The CameraServer is gone");
+
+    auto response = send_sync_to_helper<Messages::CameraServerControl::ConnectNewClient>(controller, tab_id);
+    if (!response || !response->handle().has_value())
+        return Error::from_string_literal("Failed to connect to CameraServer");
     return response->take_handle().release_value();
 }
 

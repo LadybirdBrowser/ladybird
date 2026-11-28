@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 177 tests
+Found 186 tests
 
-143 Pass
-34 Fail
+155 Pass
+31 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Navigator: original interface defined
@@ -79,10 +79,10 @@ Pass	MediaStreamTrack interface: attribute id
 Pass	MediaStreamTrack interface: attribute label
 Pass	MediaStreamTrack interface: attribute enabled
 Pass	MediaStreamTrack interface: attribute muted
-Fail	MediaStreamTrack interface: attribute onmute
-Fail	MediaStreamTrack interface: attribute onunmute
+Pass	MediaStreamTrack interface: attribute onmute
+Pass	MediaStreamTrack interface: attribute onunmute
 Pass	MediaStreamTrack interface: attribute readyState
-Fail	MediaStreamTrack interface: attribute onended
+Pass	MediaStreamTrack interface: attribute onended
 Pass	MediaStreamTrack interface: operation clone()
 Pass	MediaStreamTrack interface: operation stop()
 Pass	MediaStreamTrack interface: operation getCapabilities()
@@ -96,10 +96,10 @@ Pass	MediaStreamTrack interface: track must inherit property "id" with the prope
 Pass	MediaStreamTrack interface: track must inherit property "label" with the proper type
 Pass	MediaStreamTrack interface: track must inherit property "enabled" with the proper type
 Pass	MediaStreamTrack interface: track must inherit property "muted" with the proper type
-Fail	MediaStreamTrack interface: track must inherit property "onmute" with the proper type
-Fail	MediaStreamTrack interface: track must inherit property "onunmute" with the proper type
+Pass	MediaStreamTrack interface: track must inherit property "onmute" with the proper type
+Pass	MediaStreamTrack interface: track must inherit property "onunmute" with the proper type
 Pass	MediaStreamTrack interface: track must inherit property "readyState" with the proper type
-Fail	MediaStreamTrack interface: track must inherit property "onended" with the proper type
+Pass	MediaStreamTrack interface: track must inherit property "onended" with the proper type
 Pass	MediaStreamTrack interface: track must inherit property "clone()" with the proper type
 Pass	MediaStreamTrack interface: track must inherit property "stop()" with the proper type
 Pass	MediaStreamTrack interface: track must inherit property "getCapabilities()" with the proper type
@@ -171,6 +171,15 @@ Pass	MediaDeviceInfo interface: audioinput must inherit property "label" with th
 Pass	MediaDeviceInfo interface: audioinput must inherit property "groupId" with the proper type
 Pass	MediaDeviceInfo interface: audioinput must inherit property "toJSON()" with the proper type
 Pass	MediaDeviceInfo interface: default toJSON operation on audioinput
+Fail	InputDeviceInfo must be primary interface of videoinput
+Fail	Stringification of videoinput
+Fail	InputDeviceInfo interface: videoinput must inherit property "getCapabilities()" with the proper type
+Pass	MediaDeviceInfo interface: videoinput must inherit property "deviceId" with the proper type
+Pass	MediaDeviceInfo interface: videoinput must inherit property "kind" with the proper type
+Pass	MediaDeviceInfo interface: videoinput must inherit property "label" with the proper type
+Pass	MediaDeviceInfo interface: videoinput must inherit property "groupId" with the proper type
+Pass	MediaDeviceInfo interface: videoinput must inherit property "toJSON()" with the proper type
+Pass	MediaDeviceInfo interface: default toJSON operation on videoinput
 Fail	DeviceChangeEvent interface: existence and properties of interface object
 Fail	DeviceChangeEvent interface object length
 Fail	DeviceChangeEvent interface object name

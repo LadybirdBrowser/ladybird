@@ -62,7 +62,7 @@ public:
 
     void rtc_transform_init(u64 transform_id, Web::HTML::SerializedTransferRecord options_record);
     void rtc_transform_teardown(u64 transform_id);
-    void rtc_transform_encoded_audio_frame(u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number);
+    void rtc_transform_encoded_frame(u64 transform_id, Web::WebRTC::EncodedFrame);
 
 private:
     ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, RefPtr<DedicatedWorkerThreadLink>);

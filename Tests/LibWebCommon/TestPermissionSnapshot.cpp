@@ -64,7 +64,9 @@ TEST_CASE(permission_names_round_trip)
     EXPECT(to_string(PermissionName::Microphone) == "microphone"sv);
     EXPECT(permission_name_from_string("geolocation"sv) == PermissionName::Geolocation);
     EXPECT(permission_name_from_string("microphone"sv) == PermissionName::Microphone);
-    EXPECT(!permission_name_from_string("camera"sv).has_value());
+    EXPECT(to_string(PermissionName::Camera) == "camera"sv);
+    EXPECT(permission_name_from_string("camera"sv) == PermissionName::Camera);
+    EXPECT(!permission_name_from_string("midi"sv).has_value());
     EXPECT(to_string(PermissionName::Notifications) == "notifications"sv);
     EXPECT(permission_name_from_string("notifications"sv) == PermissionName::Notifications);
 }

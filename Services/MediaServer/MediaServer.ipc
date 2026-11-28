@@ -2,6 +2,7 @@
 #include <LibAudio/PlaybackGroupId.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/TransportHandle.h>
+#include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/DecoderCapabilities.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferProcessor.h>
 #include <LibMedia/MediaSupport.h>
@@ -45,6 +46,14 @@ endpoint MediaServer
     reserve_video_sink(u64 session_id, u64 seek_request_id, Media::Track track, Media::VideoSinkHandle handle, bool resume_ended_playback) =|
     disable_video_sink(u64 session_id, u64 seek_request_id, Media::VideoSinkHandle handle) =|
     set_video_sink_ticking(u64 session_id, Media::VideoSinkHandle handle, bool ticking) =|
+
+    // A live source is one track of media that the renderer provides as it is produced. Its audio is interleaved
+    // 32-bit float PCM.
+    add_live_audio_source(u64 session_id, u64 source_id, u32 sample_rate, u8 channel_count, Utf16String label) =|
+    add_live_video_source(u64 session_id, u64 source_id, Utf16String label) =|
+    add_to_live_audio_source(u64 session_id, u64 source_id, ByteBuffer interleaved_samples) =|
+    add_to_live_video_source(u64 session_id, u64 source_id, Media::CodecID codec_id, bool is_key_frame, AK::Duration source_timestamp, ByteBuffer data) =|
+    end_live_source(u64 session_id, u64 source_id) =|
 
     create_source_buffer(u64 session_id, u64 source_buffer_id) =|
     destroy_source_buffer(u64 session_id, u64 source_buffer_id) =|

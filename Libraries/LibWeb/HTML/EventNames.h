@@ -100,6 +100,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(mark)                        \
     __ENUMERATE_HTML_EVENT(message)                     \
     __ENUMERATE_HTML_EVENT(messageerror)                \
+    __ENUMERATE_HTML_EVENT(mute)                        \
     __ENUMERATE_HTML_EVENT(navigate)                    \
     __ENUMERATE_HTML_EVENT(navigateerror)               \
     __ENUMERATE_HTML_EVENT(navigatesuccess)             \
@@ -163,6 +164,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(transitionstart)             \
     __ENUMERATE_HTML_EVENT(unhandledrejection)          \
     __ENUMERATE_HTML_EVENT(unload)                      \
+    __ENUMERATE_HTML_EVENT(unmute)                      \
     __ENUMERATE_HTML_EVENT(upgradeneeded)               \
     __ENUMERATE_HTML_EVENT(versionchange)               \
     __ENUMERATE_HTML_EVENT(visibilitychange)            \

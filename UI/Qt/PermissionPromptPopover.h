@@ -12,6 +12,7 @@
 #include <LibWebView/ViewImplementation.h>
 #include <UI/Qt/Popover.h>
 
+class QComboBox;
 class QKeyEvent;
 class QLabel;
 class QShowEvent;
@@ -41,6 +42,8 @@ public:
     void withdraw();
 
     Function<void(Web::Permissions::PromptOutcome)> on_outcome;
+    // Reports the chosen device before on_outcome when the user allows the request.
+    Function<void(ByteString const& device_id)> on_device_chosen;
     // Runs each time the prompt comes up, so whoever shows it can place it by its anchor.
     Function<void()> on_shown;
     // A notice that the system denies the browser the feature offers to show the system's setting for it.
@@ -56,6 +59,7 @@ private:
 
     WebView::PermissionPromptRequest m_request;
     QLabel* m_icon_tile { nullptr };
+    QComboBox* m_device_picker { nullptr };
     bool m_finished { false };
     bool m_suspended { false };
 };

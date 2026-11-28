@@ -1843,6 +1843,7 @@ name = "ladybird_webrtc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "audiopus",
  "base64",
  "bytes",

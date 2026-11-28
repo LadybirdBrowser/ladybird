@@ -615,6 +615,9 @@ GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
     // The seekable attribute must return a new static normalized TimeRanges object that represents the ranges of the media resource, if any, that the
     // user agent is able to seek to, at the time the attribute is evaluated.
     auto time_ranges = TimeRanges::create();
+    // NB: A MediaStream only has the present to play.
+    if (m_media_stream_playback)
+        return time_ranges;
 
     // https://w3c.github.io/media-source/#htmlmediaelement-extensions-seekable
     // If recent duration equals NaN:
@@ -721,6 +724,10 @@ void HTMLMediaElement::set_current_time(double current_time)
     // On setting, if the media element's readyState is HAVE_NOTHING, then it must set the media element's default playback start
     // position to the new value; otherwise, it must set the official playback position to the new value and then seek to the new
     // value. The new value must be interpreted as being in seconds.
+    // NB: For a MediaStream, any attempt to alter it MUST be ignored.
+    //     https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (has_media_stream_provider())
+        return;
     if (m_ready_state == ReadyState::HaveNothing) {
         m_default_playback_start_position = current_time;
     } else {
@@ -732,6 +739,11 @@ void HTMLMediaElement::set_current_time(double current_time)
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-fastseek
 void HTMLMediaElement::fast_seek(double time)
 {
+    // NB: Any calls to the fastSeek() method on a HTMLMediaElement whose provider is a MediaStream must be ignored.
+    //     https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (has_media_stream_provider())
+        return;
+
     // The fastSeek(time) method must seek to the time given by time, with the approximate-for-speed flag set.
     seek_element(time, MediaSeekMode::ApproximateForSpeed);
 }
@@ -745,8 +757,6 @@ void HTMLMediaElement::seek_from_media_controls(double time)
 // https://html.spec.whatwg.org/multipage/media.html#current-playback-position
 double HTMLMediaElement::current_playback_position() const
 {
-    if (m_media_stream_playback)
-        return m_media_stream_playback->current_time();
     if (!m_playback_manager)
         return 0;
     return m_playback_manager->current_time().to_seconds_f64();
@@ -946,8 +956,6 @@ void HTMLMediaElement::update_volume()
 {
     if (m_playback_manager)
         m_playback_manager->set_volume(effective_media_volume());
-    if (m_media_stream_playback)
-        m_media_stream_playback->set_volume(effective_media_volume());
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
@@ -2095,19 +2103,50 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
         },
         [&](GC::Ref<MediaCapture::MediaStream> stream) {
             // https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
-            // FIXME: Reflect the stream's tracks in audioTracks and videoTracks, follow tracks added to or removed
-            //        from the stream after assignment, and render video tracks.
-            m_media_stream_playback = MediaStreamPlayback::create(document().page().client().create_audio_output_factory());
-            m_media_stream_playback->set_tracks(stream->get_audio_tracks());
-            update_volume();
+            // NB: The stream's tracks play through the playback manager like any other media, so that it keeps them in
+            //     sync and the element's controls apply to them.
+            m_playback_manager = document().page().client().create_media_playback_manager();
+            m_playback_manager->set_is_live();
+            m_has_enabled_preferred_audio_track = false;
+            m_has_selected_preferred_video_track = false;
 
-            // A MediaStream is live and unbounded, so its duration is infinite and its data is always as complete as it
-            // will get.
-            set_duration(AK::Infinity<double>);
-            set_ready_state(ReadyState::HaveMetadata);
-            set_ready_state(ReadyState::HaveEnoughData);
+            m_playback_manager_failure_callback = GC::create_function(GC::Heap::the(), GC::captures(failure_callback), [](auto& failure_callback, Utf16String error_message) {
+                failure_callback->function()(move(error_message));
+            });
+            listen_for_playback_manager_errors();
+            m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
+                self.on_playback_manager_state_change();
+            });
+            m_playback_manager->on_seek_decided = GC::weak_callback(*this, [](auto& self, Media::SeekDecision decision) {
+                self.on_playback_manager_seek_decided(decision);
+            });
+            m_playback_manager->on_playback_state_settled_change = GC::weak_callback(*this, [](auto& self) {
+                self.update_pending_activity();
+            });
+
+            // NB: An audio element has ended playback once the stream is inaudible, and a video element once it is inactive.
+            auto activity_of = is<HTMLAudioElement>(*this) ? MediaStreamPlayback::ActivityOf::AudioTracks : MediaStreamPlayback::ActivityOf::AnyTrack;
+            m_media_stream_playback = MediaStreamPlayback::create(*m_playback_manager, stream, activity_of);
+            m_media_stream_playback->on_track_added = GC::weak_callback(*this, [](auto& self, Media::Track const& track, Utf16String const& media_stream_track_id) {
+                self.on_media_stream_track_added(track, media_stream_track_id);
+            });
+            m_media_stream_playback->on_track_removed = GC::weak_callback(*this, [](auto& self, u64 track_identifier) {
+                self.on_media_stream_track_removed(track_identifier);
+            });
+            m_media_stream_playback->on_active_change = GC::weak_callback(*this, [](auto& self, bool active) {
+                self.on_media_stream_active_change(active);
+            });
+            update_volume();
+            m_playback_manager->start();
+
+            m_media_stream_has_been_active = false;
+            m_media_stream_became_inactive_since_play = false;
+            // NB: A stream that has no track yet may never get one, so it doesn't hold up the document's load event, nor
+            //     count as a load in progress.
             set_network_state(NetworkState::Idle);
             set_delaying_the_load_event(false);
+            if (m_media_stream_playback->stream_is_active())
+                on_media_stream_active_change(true);
         },
         [&](GC::Ref<FileAPI::Blob>) {
             // FIXME: Support File objects.
@@ -2391,7 +2430,9 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
         attach_selected_video_track_sink(video_track->track_in_playback_manager());
         if (auto* video_element = as_if<HTMLVideoElement>(this)) {
             auto const& video_data = video_track->track_in_playback_manager().video_data();
-            video_element->set_intrinsic_video_dimensions(Gfx::Size<u32>(video_data.pixel_width, video_data.pixel_height));
+            // NB: The size of a MediaStream's video is only known from its frames, which report it as they are shown.
+            if (video_data.pixel_width != 0 && video_data.pixel_height != 0)
+                video_element->set_intrinsic_video_dimensions(Gfx::Size<u32>(video_data.pixel_width, video_data.pixel_height));
         }
     } else {
         if (auto handle = video_sink_handle(); handle.has_value()) {
@@ -2537,6 +2578,121 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
     // 7. Fire an event named addtrack at this VideoTrackList object, using TrackEvent, with the track attribute initialized to the new VideoTrack object.
     auto event = create_track_event(relevant_realm(*this), HTML::EventNames::addtrack, video_track);
     m_video_tracks->dispatch_event(event);
+}
+
+// https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+void HTMLMediaElement::on_media_stream_track_added(Media::Track const& track, Utf16String const& media_stream_track_id)
+{
+    if (!m_playback_manager || !m_media_stream_playback)
+        return;
+
+    // Whenever an AudioTrack or a VideoTrack is created, the id and label attributes must be initialized to the
+    // corresponding attributes of the MediaStreamTrack, the kind attribute must be initialized to "main" and the
+    // language attribute to the empty string.
+    // NB: The label and kind are the playback's track's already.
+    if (track.type() == Media::TrackType::Video) {
+        auto video_track = VideoTrack::create(*this, track);
+        video_track->set_id(media_stream_track_id);
+        m_video_tracks->add_track(video_track);
+        // NB: The first video track of the stream is selected, which is whichever is added while none is. The playback
+        //     manager's preferred track is not asked about, as a stream's tracks can leave before they are added.
+        if (m_video_tracks->selected_index() == -1)
+            video_track->set_selected(true);
+        m_video_tracks->dispatch_event(create_track_event(relevant_realm(*this), EventNames::addtrack, video_track));
+        return;
+    }
+
+    // All of the stream's audio tracks are enabled, and play mixed together.
+    auto audio_track = AudioTrack::create(*this, track);
+    audio_track->set_id(media_stream_track_id);
+    m_audio_tracks->add_track(audio_track);
+    audio_track->set_enabled(true);
+
+    m_audio_tracks->dispatch_event(create_track_event(relevant_realm(*this), EventNames::addtrack, audio_track));
+}
+
+// https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+void HTMLMediaElement::on_media_stream_active_change(bool active)
+{
+    if (!m_media_stream_playback)
+        return;
+
+    if (active && !m_media_stream_has_been_active) {
+        m_media_stream_has_been_active = true;
+
+        // NB: Like other browsers, the element has the metadata of a stream once the stream has a track to play, and
+        //     not before. A MediaStream is live and unbounded, so its duration is infinite and its data is always as
+        //     complete as it will get.
+        set_duration(AK::Infinity<double>);
+        set_ready_state(ReadyState::HaveMetadata);
+        set_ready_state(ReadyState::HaveEnoughData);
+        return;
+    }
+
+    if (!active) {
+        // The MediaStream state is inactive after having been active.
+        m_media_stream_became_inactive_since_play = true;
+        upon_current_playback_position_possibly_changed();
+        reached_end_of_media_playback();
+    } else if (m_media_stream_became_inactive_since_play && has_attribute(HTML::AttributeNames::autoplay)) {
+        // Once playback has ended, it won't resume if new MediaStreamTracks are added to the MediaStream unless
+        // autoplay is true or the element is restarted, e.g., by the web application calling play().
+        // NB: Resuming by itself is autoplaying, which the user agent has to allow as it would at first.
+        if (is_allowed_to_play())
+            play_element();
+    }
+    upon_has_ended_playback_possibly_changed();
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource
+void HTMLMediaElement::on_media_stream_track_removed(u64 track_identifier)
+{
+    // NB: A MediaStreamTrack that leaves the stream ends the track that played it, all of whose media data is then
+    //     before the earliest possible position, as a stream has only the present to play.
+    // If at any time the user agent learns that an audio or video track has ended and all media data relating to that
+    // track corresponds to parts of the media timeline that are before the earliest possible position, the user agent
+    // may queue a media element task given the media element to run these steps:
+    queue_a_media_element_task(GC::create_function(GC::Heap::the(), GC::captures(track_identifier), [](u64 track_identifier, HTMLMediaElement& self) {
+        if (!self.m_media_stream_playback)
+            return;
+
+        // 1. Remove the track from the audioTracks attribute's AudioTrackList object or the videoTracks attribute's
+        //    VideoTrackList object as appropriate.
+        GC::Ptr<VideoTrack> video_track;
+        self.m_video_tracks->for_each_track([&](auto& candidate) {
+            if (candidate.track_in_playback_manager().identifier() == track_identifier)
+                video_track = candidate;
+            return IterationDecision::Continue;
+        });
+        if (video_track) {
+            auto was_selected = video_track->selected();
+            self.m_video_tracks->remove_track(*video_track);
+
+            // 2. Fire an event named removetrack at the media element's aforementioned AudioTrackList or VideoTrackList
+            //    object, using TrackEvent, with the track attribute initialized to the AudioTrack or VideoTrack object
+            //    representing the track.
+            self.m_video_tracks->dispatch_event(create_track_event(relevant_realm(self), EventNames::removetrack, GC::Ref { *video_track }));
+
+            // NB: Like other browsers, the element goes on to show another of the stream's video tracks, rather than
+            //     none.
+            if (was_selected && self.m_video_tracks->selected_index() == -1) {
+                if (auto next_track = self.m_video_tracks->item(0))
+                    next_track->set_selected(true);
+            }
+            return;
+        }
+
+        GC::Ptr<AudioTrack> audio_track;
+        self.m_audio_tracks->for_each_track([&](auto& candidate) {
+            if (candidate.track_in_playback_manager().identifier() == track_identifier)
+                audio_track = candidate;
+            return IterationDecision::Continue;
+        });
+        if (!audio_track)
+            return;
+        self.m_audio_tracks->remove_track(*audio_track);
+        self.m_audio_tracks->dispatch_event(create_track_event(relevant_realm(self), EventNames::removetrack, GC::Ref { *audio_track }));
+    }));
 }
 
 void HTMLMediaElement::on_metadata_parsed(SourceType source_type)
@@ -2981,12 +3137,12 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     m_audio_tracks->remove_all_tracks();
     m_video_tracks->remove_all_tracks();
     update_audio_play_state();
-    m_playback_manager.clear();
-    update_pending_activity();
     if (m_media_stream_playback) {
-        m_media_stream_playback->set_tracks({});
+        m_media_stream_playback->stop();
         m_media_stream_playback.clear();
     }
+    m_playback_manager.clear();
+    update_pending_activity();
     m_last_known_current_playback_position = {};
     start_or_stop_playback_position_update_timer();
     update_screen_wake_lock();
@@ -3170,6 +3326,10 @@ void HTMLMediaElement::update_ready_state()
     if (!m_playback_manager)
         return;
 
+    // NB: A MediaStream holds nothing ahead of what it is playing, and is as ready as it will get from the start.
+    if (m_media_stream_playback)
+        return;
+
     // AD-HOC: The playback manager reports a seek's target as the current position before the seek has been decided,
     //         but the seek only sets the current playback position, which informs the ready state after queuing the
     //         seeking event.
@@ -3320,7 +3480,8 @@ void HTMLMediaElement::on_playback_manager_state_change()
 
     start_or_stop_playback_position_update_timer();
 
-    if (state == Media::PlaybackState::Ended && !m_error) {
+    // NB: A MediaStream that has no tracks to play has not ended, since it may be given tracks later.
+    if (state == Media::PlaybackState::Ended && !m_error && !m_media_stream_playback) {
         upon_current_playback_position_possibly_changed();
         reached_end_of_media_playback();
     }
@@ -3342,12 +3503,20 @@ void HTMLMediaElement::play_element()
         continue_fetching_the_resource_after_an_implementation_defined_event();
     }
 
+    // NB: A MediaStream's playback is ended by it having become inactive after play() was last called.
+    //     https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (m_media_stream_playback) {
+        m_media_stream_became_inactive_since_play = false;
+        upon_has_ended_playback_possibly_changed();
+    }
+
     // 2. If the playback has ended and the direction of playback is forwards, seek to the earliest possible position
     //    of the media resource.
     // AD-HOC: Ignore the loop attribute here, so that playback restarts from the beginning if it was specified after
     //         playback ended.
     //         See https://github.com/whatwg/html/issues/4487
-    if (has_ended_playback(IgnoreLoopAttribute::Yes) && direction_of_playback() == PlaybackDirection::Forwards) {
+    // NB: A MediaStream has only the present to play.
+    if (!m_media_stream_playback && has_ended_playback(IgnoreLoopAttribute::Yes) && direction_of_playback() == PlaybackDirection::Forwards) {
         // AD-HOC: Seek to zero instead of the earliest possible position. Seeking clamps to the earliest possible
         //         position already, and it cannot be less than zero.
         seek_element(0);
@@ -3571,8 +3740,6 @@ void HTMLMediaElement::notify_about_playing()
 
     if (m_playback_manager)
         m_playback_manager->play();
-    if (m_media_stream_playback)
-        m_media_stream_playback->play();
 
     m_has_started_playback = true;
     update_audio_play_state();
@@ -3622,8 +3789,6 @@ void HTMLMediaElement::set_paused(bool paused)
 
         if (m_playback_manager)
             m_playback_manager->pause();
-        if (m_media_stream_playback)
-            m_media_stream_playback->pause();
 
         update_audio_play_state();
     }
@@ -3650,6 +3815,11 @@ void HTMLMediaElement::set_ended(bool ended)
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
 void HTMLMediaElement::set_default_playback_rate(double new_value)
 {
+    // NB: For a MediaStream, any attempt to alter it MUST be ignored, which also means that the ratechange event will
+    //     not fire. https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (has_media_stream_provider())
+        return;
+
     // When the defaultPlaybackRate or playbackRate attributes change value (either by being set by script or by being changed directly by the user agent, e.g. in response to user
     // control), the user agent must queue a media element task given the media element to fire an event named ratechange at the media element.
     if (m_default_playback_rate != new_value) {
@@ -3665,6 +3835,11 @@ void HTMLMediaElement::set_default_playback_rate(double new_value)
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-playbackrate
 WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
 {
+    // NB: For a MediaStream, any attempt to alter it MUST be ignored, which also means that the ratechange event will
+    //     not fire. https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (has_media_stream_provider())
+        return {};
+
     // on setting, the user agent must follow these steps:
 
     // 1. If the given value is not supported by the user agent, then throw a "NotSupportedError" DOMException.
@@ -3685,7 +3860,8 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_playback_rate(double new_value)
     // AD-HOC: Set the playback rate even when not potentially playing. The spec mandates that the media time advances
     //         by playbackRate units of media time per unit time on the clock. There's no reason this shouldn't be set
     //         always.
-    if (m_playback_manager)
+    // NB: A MediaStream plays at the rate it is produced at.
+    if (m_playback_manager && !m_media_stream_playback)
         m_playback_manager->set_playback_rate(static_cast<float>(new_value));
 
     return {};
@@ -3835,11 +4011,15 @@ bool HTMLMediaElement::has_ended_playback(IgnoreLoopAttribute ignore_loop_attrib
     if (m_ready_state < ReadyState::HaveMetadata)
         return false;
 
-    // NB: A MediaStream is unbounded, so playback never reaches its end and it has no earliest position to go back to.
-    // FIXME: Report ended playback once the MediaStream becomes inactive.
-    //        https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
-    if (m_media_stream_playback)
-        return false;
+    // https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (m_media_stream_playback) {
+        // The MediaStream state is inactive after having been active, or
+        if (!m_media_stream_playback->stream_is_active())
+            return m_media_stream_has_been_active;
+        // The MediaStream state is active after having been inactive after having been active after play() was last
+        // called, and autoplay is false.
+        return m_media_stream_became_inactive_since_play && !has_attribute(HTML::AttributeNames::autoplay);
+    }
 
     VERIFY(m_playback_manager != nullptr);
     // Either:
@@ -3893,7 +4073,9 @@ void HTMLMediaElement::update_ended_attribute()
 void HTMLMediaElement::reached_end_of_media_playback()
 {
     // 1. If the media element has a loop attribute specified,
-    if (has_attribute(HTML::AttributeNames::loop)) {
+    // NB: Setting the loop attribute has no effect since a MediaStream has no defined end and therefore cannot be
+    //     looped. https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    if (has_attribute(HTML::AttributeNames::loop) && !m_media_stream_playback) {
         // then seek to the earliest possible position of the media resource and return.
 
         // AD-HOC: Don't seek back to the start while scrubbing from the media controls. Playing will restart it.

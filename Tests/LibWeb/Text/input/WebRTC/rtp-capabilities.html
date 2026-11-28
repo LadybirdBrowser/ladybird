@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // What can be sent is what there is an encoder for, which is less than what can be received.
+    test(() => {
+        const describe = capabilities => {
+            if (capabilities === null)
+                return "null";
+            const codecs = [...new Set(capabilities.codecs.map(codec => `${codec.mimeType}/${codec.clockRate}${codec.channels ? `/${codec.channels}` : ""}`))];
+            return `${codecs.join(", ")}; ${capabilities.headerExtensions.length} header extensions`;
+        };
+        for (const kind of ["audio", "video", "text"]) {
+            println(`send ${kind}: ${describe(RTCRtpSender.getCapabilities(kind))}`);
+            println(`receive ${kind}: ${describe(RTCRtpReceiver.getCapabilities(kind))}`);
+        }
+        const h264 = RTCRtpReceiver.getCapabilities("video").codecs.find(codec => codec.mimeType === "video/H264");
+        println(`H.264 parameters: ${h264.sdpFmtpLine}`);
+    });
+</script>

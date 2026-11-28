@@ -435,6 +435,12 @@ void ConnectionFromUI::view_did_show_permission_prompt(u64 view_id, WebView::Per
         view->did_show_permission_prompt(request);
 }
 
+void ConnectionFromUI::view_did_choose_permission_prompt_device(u64 view_id, WebView::PermissionPromptRequest request, ByteString device_id)
+{
+    if (auto* view = find_view(view_id))
+        view->did_choose_permission_prompt_device(request, device_id);
+}
+
 void ConnectionFromUI::view_load_navigation(u64 view_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     if (auto* view = find_view(view_id))

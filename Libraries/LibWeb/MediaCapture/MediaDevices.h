@@ -12,6 +12,7 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibCamera/StreamRequest.h>
 #include <LibGC/Forward.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
@@ -37,13 +38,23 @@ struct DeviceIdConstraint final {
     bool is_required { false };
 };
 
+// What a getUserMedia() call wants of its "video": which camera, and what to ask it for.
+struct VideoRequest final {
+    Optional<DeviceIdConstraint> device_id_constraint;
+    Camera::StreamRequest stream_request;
+    // What the constraints require of the track's settings, which the camera is only asked to come close to.
+    decltype(MediaTrackConstraints::width) width;
+    decltype(MediaTrackConstraints::height) height;
+    decltype(MediaTrackConstraints::frame_rate) frame_rate;
+};
+
 // https://w3c.github.io/mediacapture-main/#mediadevices
 class MediaDevices final : public DOM::EventTarget {
     WEB_WRAPPABLE(MediaDevices, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(MediaDevices);
 
 public:
-    // Ends every live track once the document may no longer use the microphone.
+    // Ends every live track whose device the document may no longer use: the microphone's, the camera's, or both.
     void end_tracks_without_permission();
     void track_was_cloned(Badge<MediaStreamTrack>, MediaStreamTrack& clone);
     void track_source_ended(Badge<MediaStreamTrack>, MediaStreamTrack&);
@@ -73,6 +84,8 @@ private:
     struct PendingGetUserMediaRequest final {
         GC::Ref<WebIDL::Promise> promise;
         Optional<DeviceIdConstraint> device_id_constraint;
+        bool audio_requested { true };
+        Optional<VideoRequest> video_request;
 
         void visit_edges(GC::Cell::Visitor&) const;
     };
@@ -97,16 +110,33 @@ private:
     bool has_live_device_of_kind(Utf16FlyString const& kind) const;
     void set_device_information_exposure(bool audio_requested, bool video_requested, bool value);
     void queue_enumerate_devices_task(GC::Ref<WebIDL::Promise>);
-    void queue_get_user_media_task(GC::Ref<WebIDL::Promise>, Optional<DeviceIdConstraint>);
+    void queue_get_user_media_task(GC::Ref<WebIDL::Promise>, Optional<DeviceIdConstraint>, Optional<VideoRequest>);
+    void start_get_user_media(GC::Ref<WebIDL::Promise>, bool audio_requested, Optional<DeviceIdConstraint>, Optional<VideoRequest>);
+    // Resolves the promise with the stream, once it has the track of a camera if one was asked for.
+    void finish_get_user_media(GC::Ref<WebIDL::Promise>, GC::Ref<MediaStream>, Optional<VideoRequest>);
+    void acquire_video_track(GC::Ref<WebIDL::Promise>, GC::Ref<MediaStream>, VideoRequest);
+    // Rejects the promise and stops any tracks acquired before the failure.
+    void fail_get_user_media(WebIDL::Promise&, MediaStream&, GC::Ref<WebIDL::DOMException>);
     void process_pending_enumerate_devices_requests();
     void process_pending_get_user_media_requests();
     GC::RootVector<GC::Ref<MediaDeviceInfo>> create_list_of_device_info_objects(Vector<StoredDevice> const& device_list);
     void run_device_change_notification_steps(Vector<StoredDevice> const& device_list);
-    static Vector<StoredDevice> current_audio_device_snapshot();
+    static Vector<StoredDevice> current_device_snapshot();
     void did_observe_audio_device_cache_update();
+    void did_observe_camera_device_list_update();
+    enum class DeviceListAge : u8 {
+        Any,
+        // One the CameraServer sent after it was asked now, which a page that was just granted the camera needs: only
+        // then does its process hear what the cameras are.
+        Fresh,
+    };
+    // Runs the callback once the process has a list of the cameras, or at once where no list ever comes.
+    void run_with_camera_device_list(DeviceListAge, GC::Ref<GC::Function<void()>>);
     // Runs the callback once the process has a device list fetched from now on, or at once where no list ever comes.
     void run_with_fresh_audio_device_list(GC::Ref<GC::Function<void()>>);
     void end_tracks_of_removed_devices();
+    // Whether the document holds the permission for the device the track is of.
+    bool may_capture_for(MediaStreamTrack const&) const;
     void end_tracks(GC::RootVector<GC::Ref<MediaStreamTrack>>);
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -130,10 +160,13 @@ private:
     Vector<PendingEnumerateDevicesRequest> m_pending_enumerate_devices_requests;
     Vector<PendingGetUserMediaRequest> m_pending_get_user_media_requests;
     Vector<GC::Ref<GC::Function<void()>>> m_awaiting_fresh_audio_device_list;
+    Vector<GC::Ref<GC::Function<void()>>> m_awaiting_camera_device_list;
     GC::Ptr<DOM::IDLEventListener> m_pending_request_state_change_listener;
     Optional<u64> m_audio_device_cache_listener_id;
+    Optional<u64> m_camera_device_list_listener_id;
 };
 
 }
 
 GC_UNTRACED_CAPTURE(Web::MediaCapture::DeviceIdConstraint);
+GC_UNTRACED_CAPTURE(Web::MediaCapture::VideoRequest);

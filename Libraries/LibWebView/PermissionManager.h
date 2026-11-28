@@ -164,6 +164,7 @@ private:
     HashMap<u64, ViewPresence> m_views;
     HashMap<String, u64> m_generations;
 
+    Web::Permissions::EffectiveState m_camera_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_geolocation_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_microphone_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_notifications_default { Web::Permissions::EffectiveState::Prompt };

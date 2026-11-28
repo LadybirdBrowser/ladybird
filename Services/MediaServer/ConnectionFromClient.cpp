@@ -461,6 +461,80 @@ void ConnectionFromClient::set_video_sink_ticking(u64 session_id, Media::VideoSi
         Media::PlaybackManager::set_video_sink_ticking(handle, ticking);
 }
 
+// What a renderer could plausibly have to play at once, with room to spare.
+static constexpr size_t MAXIMUM_LIVE_SOURCES_PER_SESSION = 64;
+// Ended source IDs live until the session ends. Bound their memory use while allowing hours of track replacement
+// at one track per second.
+static constexpr size_t MAXIMUM_LIVE_SOURCE_IDS_PER_SESSION = 64 * 1024;
+static constexpr u32 MAXIMUM_LIVE_AUDIO_SAMPLE_RATE = 384'000;
+static constexpr size_t MAXIMUM_LIVE_AUDIO_BYTES_PER_MESSAGE = 1 * MiB;
+static constexpr size_t MAXIMUM_LIVE_VIDEO_FRAME_BYTES = 32 * MiB;
+
+void ConnectionFromClient::add_live_audio_source(u64 session_id, u64 source_id, u32 sample_rate, u8 channel_count, Utf16String label)
+{
+    if (sample_rate == 0 || sample_rate > MAXIMUM_LIVE_AUDIO_SAMPLE_RATE || channel_count == 0 || channel_count > 2) {
+        did_misbehave("Invalid live audio format");
+        return;
+    }
+    auto* session = find_playback_session(session_id);
+    if (!session)
+        return;
+    if (session->has_live_source(source_id) || session->live_source_count() >= MAXIMUM_LIVE_SOURCES_PER_SESSION || session->live_source_id_count() >= MAXIMUM_LIVE_SOURCE_IDS_PER_SESSION) {
+        did_misbehave("Invalid live source ID");
+        return;
+    }
+    auto channel_map = channel_count == 1 ? Audio::ChannelMap::mono() : Audio::ChannelMap::stereo();
+    session->add_live_audio_source(source_id, Audio::SampleSpecification(sample_rate, channel_map), label);
+}
+
+void ConnectionFromClient::add_live_video_source(u64 session_id, u64 source_id, Utf16String label)
+{
+    auto* session = find_playback_session(session_id);
+    if (!session)
+        return;
+    if (session->has_live_source(source_id) || session->live_source_count() >= MAXIMUM_LIVE_SOURCES_PER_SESSION || session->live_source_id_count() >= MAXIMUM_LIVE_SOURCE_IDS_PER_SESSION) {
+        did_misbehave("Invalid live source ID");
+        return;
+    }
+    session->add_live_video_source(source_id, label);
+}
+
+void ConnectionFromClient::add_to_live_audio_source(u64 session_id, u64 source_id, ByteBuffer interleaved_samples)
+{
+    if (interleaved_samples.size() > MAXIMUM_LIVE_AUDIO_BYTES_PER_MESSAGE) {
+        did_misbehave("Oversized live audio");
+        return;
+    }
+    auto* session = find_playback_session(session_id);
+    if (!session)
+        return;
+    if (!session->add_to_live_audio_source(source_id, interleaved_samples.bytes()))
+        did_misbehave("Audio for a live source that takes none");
+}
+
+void ConnectionFromClient::add_to_live_video_source(u64 session_id, u64 source_id, Media::CodecID codec_id, bool is_key_frame, AK::Duration source_timestamp, ByteBuffer data)
+{
+    if (!Media::all_codec_ids.contains_slow(codec_id) || Media::track_type_from_codec_id(codec_id) != Media::TrackType::Video) {
+        did_misbehave("Invalid live video codec");
+        return;
+    }
+    if (data.is_empty() || data.size() > MAXIMUM_LIVE_VIDEO_FRAME_BYTES) {
+        did_misbehave("Invalid live video frame size");
+        return;
+    }
+    auto* session = find_playback_session(session_id);
+    if (!session)
+        return;
+    if (!session->add_to_live_video_source(source_id, codec_id, is_key_frame, source_timestamp, data.bytes()))
+        did_misbehave("Video for a live source that takes none");
+}
+
+void ConnectionFromClient::end_live_source(u64 session_id, u64 source_id)
+{
+    if (auto* session = find_playback_session(session_id))
+        session->end_live_source(source_id);
+}
+
 void ConnectionFromClient::create_source_buffer(u64 session_id, u64 source_buffer_id)
 {
     if (auto* session = find_playback_session(session_id))

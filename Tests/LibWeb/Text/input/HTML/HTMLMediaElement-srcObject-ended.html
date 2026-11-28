@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+// An element playing a MediaStream has nothing to play until the stream has a track, and has ended playback once the
+// stream becomes inactive. It doesn't resume when the stream becomes active again, unless it autoplays or it is played.
+asyncTest(async done => {
+    internals.setAutoplayPolicy("allow-audio-and-video");
+
+    const timers = [];
+    const canvasTrack = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 36;
+        const context = canvas.getContext("2d");
+        const draw = () => {
+            context.fillStyle = "red";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+        };
+        draw();
+        timers.push(setInterval(draw, 30));
+        return canvas.captureStream().getVideoTracks()[0];
+    };
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const within = (promise, what) => Promise.race([promise, sleep(10000).then(() => { throw new Error(what); })]);
+    const settled = promise => Promise.race([promise.then(() => "resolved", error => `rejected with ${error.name}`), sleep(10).then(() => "pending")]);
+    const nextEvent = (target, name) => within(new Promise(resolve => target.addEventListener(name, resolve, { once: true })), `no ${name} event`);
+    // NB: The playback clock starts, and stops, a little after the element says so, by however long the media
+    //     process takes to hear of it, so the clock is given time to start moving, or to settle before it is watched.
+    const advances = async video => {
+        const start = video.currentTime;
+        for (let attempt = 0; attempt < 200; ++attempt) {
+            await sleep(50);
+            if (video.currentTime - start > 0.2)
+                return true;
+        }
+        return false;
+    };
+    const staysStill = async video => {
+        await sleep(500);
+        const start = video.currentTime;
+        await sleep(500);
+        return video.currentTime - start < 0.1;
+    };
+    const newVideo = () => {
+        const video = document.createElement("video");
+        video.muted = true;
+        document.body.append(video);
+        return video;
+    };
+
+    try {
+        {
+            // The rates of an element are 1.0 from when a MediaStream is assigned to it, and those it had before come back,
+            // as loading what replaces the stream sets the playback rate to the default one.
+            const video = newVideo();
+            video.playbackRate = 2;
+            video.defaultPlaybackRate = 3;
+            video.srcObject = new MediaStream();
+            println(`rates once a stream is assigned: ${video.playbackRate}, ${video.defaultPlaybackRate}`);
+            video.srcObject = null;
+            println(`rates once it is not: ${video.playbackRate}, ${video.defaultPlaybackRate}`);
+        }
+        {
+            const video = newVideo();
+            const stream = new MediaStream();
+            video.srcObject = stream;
+            const played = video.play();
+            await sleep(300);
+            println(`empty stream: readyState ${video.readyState}, play() ${await settled(played)}, currentTime ${video.currentTime}`);
+            stream.addTrack(canvasTrack());
+            await within(played, "play() didn't resolve once the stream had a track");
+            println(`after a track was added: readyState ${video.readyState}, play() resolved, advances ${await advances(video)}`);
+        }
+        {
+            const video = newVideo();
+            const track = canvasTrack();
+            track.enabled = false;
+            video.srcObject = new MediaStream([track]);
+            await within(video.play(), "play() didn't resolve for a disabled track");
+            println(`only a disabled track: advances ${await advances(video)}`);
+        }
+        {
+            const video = newVideo();
+            const track = canvasTrack();
+            const stream = new MediaStream([track]);
+            video.srcObject = stream;
+            await within(video.play(), "play() didn't resolve");
+            const ended = nextEvent(video, "ended");
+            const paused = nextEvent(video, "pause");
+            track.stop();
+            await paused;
+            await ended;
+            println(`only track stopped: ended ${video.ended}, paused ${video.paused}, stays still ${await staysStill(video)}`);
+
+            stream.addTrack(canvasTrack());
+            await sleep(300);
+            println(`another track added: ended ${video.ended}, paused ${video.paused}`);
+            await within(video.play(), "play() didn't resolve after the stream was active again");
+            await sleep(0);
+            println(`played again: ended ${video.ended}, paused ${video.paused}, advances ${await advances(video)}`);
+        }
+        {
+            const video = newVideo();
+            video.loop = true;
+            const track = canvasTrack();
+            const stream = new MediaStream([track]);
+            video.srcObject = stream;
+            await within(video.play(), "play() didn't resolve");
+            const ended = nextEvent(video, "ended");
+            stream.removeTrack(track);
+            await ended;
+            println(`looping, only track removed: ended ${video.ended}, paused ${video.paused}`);
+        }
+        {
+            // An audio element has ended playback once the stream has no audio left, whatever else it has.
+            const audio = document.createElement("audio");
+            document.body.append(audio);
+            const context = new AudioContext();
+            const destination = context.createMediaStreamDestination();
+            context.createOscillator().connect(destination);
+            const audioTrack = destination.stream.getAudioTracks()[0];
+            const stream = new MediaStream([audioTrack, canvasTrack()]);
+            audio.srcObject = stream;
+            await within(audio.play(), "play() didn't resolve for an audio element");
+            const ended = nextEvent(audio, "ended");
+            audioTrack.stop();
+            await ended;
+            println(`audio element, its audio track stopped: ended ${audio.ended}, stream active ${stream.active}`);
+            context.close();
+        }
+        {
+            const video = newVideo();
+            video.autoplay = true;
+            const track = canvasTrack();
+            const stream = new MediaStream([track]);
+            video.srcObject = stream;
+            await nextEvent(video, "playing");
+            const ended = nextEvent(video, "ended");
+            track.stop();
+            await ended;
+            println(`autoplaying, only track stopped: ended ${video.ended}, paused ${video.paused}`);
+            const playing = nextEvent(video, "playing");
+            stream.addTrack(canvasTrack());
+            await playing;
+            println(`autoplaying, another track added: ended ${video.ended}, paused ${video.paused}, advances ${await advances(video)}`);
+        }
+    } catch (error) {
+        println(`FAIL: ${error.message}`);
+    } finally {
+        timers.forEach(clearInterval);
+    }
+    done();
+});
+</script>

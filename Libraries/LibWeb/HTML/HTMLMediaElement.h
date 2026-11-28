@@ -146,10 +146,12 @@ public:
     double volume() const { return m_volume; }
     WebIDL::ExceptionOr<void> set_volume(double);
 
-    double default_playback_rate() const { return m_default_playback_rate; }
+    // NB: A MediaStream is not seekable, so both rates are 1.0 while one plays.
+    //     https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    double default_playback_rate() const { return has_media_stream_provider() ? 1.0 : m_default_playback_rate; }
     void set_default_playback_rate(double);
 
-    double playback_rate() const { return m_playback_rate; }
+    double playback_rate() const { return has_media_stream_provider() ? 1.0 : m_playback_rate; }
     WebIDL::ExceptionOr<void> set_playback_rate(double);
 
     bool muted() const { return m_muted; }
@@ -314,6 +316,9 @@ private:
 
     void on_audio_track_added(Media::Track const&);
     void on_video_track_added(Media::Track const&);
+    void on_media_stream_track_added(Media::Track const&, Utf16String const& media_stream_track_id);
+    void on_media_stream_track_removed(u64 track_identifier);
+    void on_media_stream_active_change(bool active);
     void on_metadata_parsed(SourceType);
     void on_playback_manager_state_change();
     void on_playback_manager_seek_decided(Media::SeekDecision);
@@ -406,6 +411,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#assigned-media-provider-object
     MediaProvider m_assigned_media_provider_object;
+    // NB: What the element's attributes do while a MediaStream is its provider applies from when it is assigned, before
+    //     the resource selection algorithm gets to it. https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    bool has_media_stream_provider() const { return m_assigned_media_provider_object.has<GC::Ref<MediaCapture::MediaStream>>(); }
 
     // https://w3c.github.io/media-source/#mediasource-attach
     // NB: Unlike the assigned media provider object, this is also set when a MediaSource is attached through a blob
@@ -510,6 +518,9 @@ private:
 
     OwnPtr<MediaClient::RemotePlaybackManager> m_playback_manager;
     OwnPtr<MediaStreamPlayback> m_media_stream_playback;
+    // https://w3c.github.io/mediacapture-main/#mediastreams-in-media-elements
+    bool m_media_stream_has_been_active { false };
+    bool m_media_stream_became_inactive_since_play { false };
     GC::Ptr<GC::Function<void(Utf16String)>> m_playback_manager_failure_callback;
 
     RefPtr<Core::Timer> m_playback_position_update_timer;

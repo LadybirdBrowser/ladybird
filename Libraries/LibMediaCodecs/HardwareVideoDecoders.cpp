@@ -19,21 +19,21 @@
 namespace Media {
 
 #ifdef AK_OS_MACOS
-static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_videotoolbox_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_videotoolbox_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency)
 {
     return NonnullOwnPtr<VideoDecoder> { TRY(VideoToolbox::VideoToolboxVideoDecoder::try_create(codec_id, codec_initialization_data)) };
 }
 #endif
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
-static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_vulkan_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_vulkan_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency)
 {
     return NonnullOwnPtr<VideoDecoder> { TRY(FFmpeg::FFmpegVulkanVideoDecoder::try_create(codec_id, codec_initialization_data)) };
 }
 #endif
 
 #ifdef AK_OS_WINDOWS
-static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_windows_media_foundation_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data)
+static DecoderErrorOr<NonnullOwnPtr<VideoDecoder>> create_windows_media_foundation_video_decoder(CodecID codec_id, ReadonlyBytes codec_initialization_data, DecoderLatency)
 {
     return NonnullOwnPtr<VideoDecoder> { TRY(WindowsMediaFoundation::WindowsMediaFoundationVideoDecoder::try_create(codec_id, codec_initialization_data)) };
 }

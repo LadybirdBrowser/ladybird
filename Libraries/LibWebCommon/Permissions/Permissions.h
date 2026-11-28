@@ -18,12 +18,14 @@ namespace Web::Permissions {
 
 // The powerful features whose permission the UI process asks the user for.
 enum class PermissionName : u8 {
+    Camera,
     Geolocation,
     Microphone,
     Notifications,
 };
 
 constexpr inline Array PERMISSION_NAMES {
+    PermissionName::Camera,
     PermissionName::Geolocation,
     PermissionName::Microphone,
     PermissionName::Notifications,
@@ -64,6 +66,7 @@ struct WEBCOMMON_API PermissionSnapshot {
     u64 revision { 0 };
     Vector<URL::Origin> origins;
     Vector<PermissionSnapshotEntry> entries;
+    EffectiveState camera_default { EffectiveState::Prompt };
     EffectiveState geolocation_default { EffectiveState::Prompt };
     EffectiveState microphone_default { EffectiveState::Prompt };
     EffectiveState notifications_default { EffectiveState::Prompt };

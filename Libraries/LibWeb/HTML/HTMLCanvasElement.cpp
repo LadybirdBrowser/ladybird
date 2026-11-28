@@ -37,6 +37,8 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/MediaCapture/CanvasCaptureMediaStreamTrack.h>
+#include <LibWeb/MediaCapture/MediaStream.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -212,9 +214,44 @@ GC::Ptr<Bindings::Wrappable> HTMLCanvasElement::canvas_relevant_global_impl() co
     return document().window();
 }
 
+// https://w3c.github.io/mediacapture-fromelement/#dom-htmlcanvaselement-capturestream
+WebIDL::ExceptionOr<GC::Ref<MediaCapture::MediaStream>> HTMLCanvasElement::capture_stream(Optional<double> frame_request_rate)
+{
+    // If frameRequestRate is negative, then the User Agent MUST throw a NotSupportedError.
+    if (frame_request_rate.has_value() && (*frame_request_rate < 0 || isnan(*frame_request_rate)))
+        return WebIDL::NotSupportedError::create(HTML::relevant_realm(*this), "The frame rate can't be negative"_utf16);
+
+    // If the origin-clean flag of the canvas is false, then the User Agent MUST throw a SecurityError.
+    if (!is_origin_clean())
+        return WebIDL::SecurityError::create(HTML::relevant_realm(*this), "Canvas is not origin-clean"_utf16);
+
+    // The resulting media stream has a single video CanvasCaptureMediaStreamTrack that matches the dimensions of
+    // the canvas element.
+    m_capture_sources.remove_all_matching([](auto const& source) { return !source->has_tracks(); });
+    auto source = MediaCapture::CanvasCaptureSource::create(*this, frame_request_rate);
+    m_capture_sources.append(source);
+    auto track = MediaCapture::CanvasCaptureMediaStreamTrack::create(*this, source);
+    auto stream = MediaCapture::MediaStream::create();
+    stream->add_track(track);
+
+    // A new frame is captured when the stream is created, so that it shows the canvas as it is.
+    source->request_frame();
+    return stream;
+}
+
+void HTMLCanvasElement::notify_capture_sources_about_changed_content()
+{
+    if (m_capture_sources.is_empty())
+        return;
+    m_capture_sources.remove_all_matching([](auto const& source) { return !source->has_tracks(); });
+    for (auto const& source : m_capture_sources)
+        source->canvas_content_changed();
+}
+
 void HTMLCanvasElement::did_change_canvas_content()
 {
     set_canvas_content_dirty();
+    notify_capture_sources_about_changed_content();
 
     // NB: The output bitmap of an ImageBitmapRenderingContext reaches the Compositor in the paint facts of the canvas,
     //     so the display list has to record the canvas again.
@@ -656,6 +693,7 @@ void HTMLCanvasElement::placeholder_frame_committed(Compositing::CanvasId canvas
 void HTMLCanvasElement::did_commit_placeholder_frame(Gfx::IntSize size, bool origin_clean)
 {
     m_placeholder_frame_is_origin_clean = origin_clean;
+    notify_capture_sources_about_changed_content();
 
     queue_an_element_task(Task::Source::DOMManipulation, GC::create_function(GC::Heap::the(), GC::captures(*this, size.width(), size.height()), [](auto& self, auto& width, auto& height) {
         if (self.width() != static_cast<WebIDL::UnsignedLong>(width))

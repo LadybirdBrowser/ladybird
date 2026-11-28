@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Badge.h>
 #include <AK/Debug.h>
+#include <AK/FixedArray.h>
 #include <AK/Forward.h>
 #include <AK/HashTable.h>
 #include <AK/Mutex.h>
@@ -34,11 +35,14 @@
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
+#include <LibMediaCodecs/CodecID.h>
 #include <LibMediaCodecs/DecoderError.h>
+#include <LibMediaCodecs/FrameFlags.h>
 #include <LibMediaCodecs/VideoFrameMetadata.h>
 
 namespace Media {
 
+class LiveDemuxer;
 class WeakPlaybackManagerLink;
 class WeakPlaybackManager;
 
@@ -136,6 +140,12 @@ public:
     NonnullRefPtr<AddMediaSourcePromise> add_media_source(NonnullRefPtr<MediaStream> const&);
     NonnullRefPtr<AddMediaSourcePromise> add_media_source(NonnullRefPtr<Demuxer> const&);
 
+    // A live source supplies one track at the current playback position, synchronized with the other live sources.
+    NonnullRefPtr<AddMediaSourcePromise> add_live_source(NonnullRefPtr<LiveDemuxer> const&);
+    // Send audio directly through LiveDemuxer::push_audio(); playback places video on the shared timeline.
+    // Source timestamps only need to advance at the capture rate.
+    void add_to_live_video_source(LiveDemuxer&, CodecID, FrameFlags, AK::Duration source_timestamp, FixedArray<u8> data);
+
     struct RemoteVideoEdge {
         NonnullRefPtr<RemoteVideoSink> sink;
         MediaTimeReader time_reader;
@@ -193,6 +203,8 @@ private:
     void notify_video_sinks_of_clock_resumption();
 
     void set_clock(NonnullRefPtr<MediaClock> const&);
+    // Timeline position for synchronizing newly arrived live media.
+    AK::Duration live_edge() const;
     void disable_audio();
 
     void set_up_producers();
@@ -277,6 +289,7 @@ private:
     NonnullRefPtr<MediaClock> m_clock;
     MediaTimeReader m_time_reader;
     HostHooks m_host_hooks;
+    Vector<NonnullRefPtr<LiveDemuxer>> m_live_sources;
     float m_playback_rate { 1.0f };
 
     bool m_started { false };

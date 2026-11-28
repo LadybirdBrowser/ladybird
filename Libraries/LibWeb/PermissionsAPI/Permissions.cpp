@@ -19,6 +19,8 @@ namespace Web::PermissionsAPI {
 
 Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View name)
 {
+    if (name == "camera"_utf16)
+        return Web::Permissions::PermissionName::Camera;
     if (name == "geolocation"_utf16)
         return Web::Permissions::PermissionName::Geolocation;
     if (name == "microphone"_utf16)
@@ -31,6 +33,8 @@ Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View name)
 static Optional<PermissionsPolicy::PolicyControlledFeature> policy_controlled_feature_for(Web::Permissions::PermissionName name)
 {
     switch (name) {
+    case Web::Permissions::PermissionName::Camera:
+        return PermissionsPolicy::PolicyControlledFeature::Camera;
     case Web::Permissions::PermissionName::Geolocation:
         return PermissionsPolicy::PolicyControlledFeature::Geolocation;
     case Web::Permissions::PermissionName::Microphone:
@@ -73,7 +77,7 @@ static void store_permission_decision(Web::Permissions::PermissionName name, HTM
 }
 
 // https://w3c.github.io/permissions/#dfn-request-permission-to-use
-void request_permission_with_user_prompt(Web::Permissions::PermissionName name, HTML::EnvironmentSettingsObject& settings, PermissionDecisionCallback on_decided)
+void request_permission_with_user_prompt(Web::Permissions::PermissionName name, HTML::EnvironmentSettingsObject& settings, PermissionDecisionCallback on_decided, DeviceIsNamed device_is_named)
 {
     // 1. Let current state be the descriptor's permission state.
     auto current_state = permission_state(name, settings);
@@ -113,7 +117,7 @@ void request_permission_with_user_prompt(Web::Permissions::PermissionName name, 
         on_decided->function()(current_state);
     });
 
-    window->page().request_permission(window->associated_document().id(), Utf16String::from_utf8(Web::Permissions::to_string(name)), settle);
+    window->page().request_permission(window->associated_document().id(), Utf16String::from_utf8(Web::Permissions::to_string(name)), device_is_named == DeviceIsNamed::Yes, settle);
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state
@@ -162,9 +166,10 @@ u8 web_permissions_api_permission_state(HTML::EnvironmentSettingsObject*, u8 nam
 void web_permissions_api_request_permission_to_use(HTML::EnvironmentSettingsObject*, u8 name, GC::Cell* cell, void (*steps)(JSVM*, void*, u8));
 }
 
-static_assert(to_underlying(Web::Permissions::PermissionName::Geolocation) == 0);
-static_assert(to_underlying(Web::Permissions::PermissionName::Microphone) == 1);
-static_assert(to_underlying(Web::Permissions::PermissionName::Notifications) == 2);
+static_assert(to_underlying(Web::Permissions::PermissionName::Camera) == 0);
+static_assert(to_underlying(Web::Permissions::PermissionName::Geolocation) == 1);
+static_assert(to_underlying(Web::Permissions::PermissionName::Microphone) == 2);
+static_assert(to_underlying(Web::Permissions::PermissionName::Notifications) == 3);
 static_assert(to_underlying(PermissionState::Granted) == 0);
 static_assert(to_underlying(PermissionState::Denied) == 1);
 static_assert(to_underlying(PermissionState::Prompt) == 2);

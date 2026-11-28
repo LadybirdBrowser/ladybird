@@ -25,10 +25,18 @@ dictionary RTCEncodedVideoFrameOptions {
     RTCEncodedVideoFrameMetadata metadata;
 };
 
-// FIXME: spec has `readonly attribute EncodedVideoChunkType type;` — WebCodecs isn't implemented.
+// https://w3c.github.io/webcodecs/#enumdef-encodedvideochunktype
+// FIXME: This belongs to WebCodecs, which isn't implemented.
+enum EncodedVideoChunkType {
+    "key",
+    "delta"
+};
+
+// FIXME: Frames can't be serialized yet, so they can't be posted to another worker.
 [Exposed=(Window,DedicatedWorker), Serializable]
 interface RTCEncodedVideoFrame {
-    [FIXME] constructor(RTCEncodedVideoFrame originalFrame, optional RTCEncodedVideoFrameOptions options = {});
-    [FIXME] attribute ArrayBuffer data;
-    [FIXME] RTCEncodedVideoFrameMetadata getMetadata();
+    constructor(RTCEncodedVideoFrame originalFrame, optional RTCEncodedVideoFrameOptions options = {});
+    readonly attribute EncodedVideoChunkType type;
+    attribute ArrayBuffer data;
+    RTCEncodedVideoFrameMetadata getMetadata();
 };

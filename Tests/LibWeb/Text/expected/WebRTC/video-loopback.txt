@@ -1,0 +1,9 @@
+received a video track, sent as sendonly
+size: 64x36
+the other end shows the canvas
+the other end shows what was drawn since
+received a video track, sent as sendonly
+with transforms, the other end shows the canvas
+sent: RTCEncodedVideoFrame: true
+received: RTCEncodedVideoFrame: true, first frame: key
+with transforms, the other end shows what was drawn since

@@ -14,6 +14,9 @@ interface HTMLCanvasElement : HTMLElement {
     USVString toDataURL(optional DOMString type = "image/png", optional any quality);
     undefined toBlob(BlobCallback _callback, optional DOMString type = "image/png", optional any quality);
     OffscreenCanvas transferControlToOffscreen();
+
+    // https://w3c.github.io/mediacapture-fromelement/#html-canvas-element-media-capture-extensions
+    MediaStream captureStream(optional double frameRequestRate);
 };
 
 callback BlobCallback = undefined (Blob? blob);

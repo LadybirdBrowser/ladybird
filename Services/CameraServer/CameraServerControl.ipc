@@ -1,0 +1,20 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint CameraServerControl
+{
+
+    // The Browser names the tab a client belongs to, which is whose permission the client captures with.
+    connect_new_client(u64 tab_id) => (Optional<IPC::TransportHandle> handle)
+
+    // Whether the tab's pages hold the camera permission: without it the tab's clients learn of the cameras by their
+    // existence alone, and the capture streams they have are closed. Synchronous, so it is in place before the page
+    // hears of it.
+    set_capture_permission(u64 tab_id, bool granted) => ()
+
+    // The camera the user chose, which is the default one for the clients from here on, while it is there. Empty for
+    // the platform's default.
+    set_preferred_device(ByteString device_id) =|
+
+    // The answer to capture_requested.
+    capture_decided(u64 request_id, bool allowed) =|
+}

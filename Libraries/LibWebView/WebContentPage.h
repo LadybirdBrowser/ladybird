@@ -120,6 +120,9 @@ public:
     // Whether the AudioServer holds a capture stream for the page.
     bool is_capturing_audio() const { return m_capturing_audio; }
     void set_capturing_audio(bool);
+    // Whether the CameraServer holds a capture stream for the page.
+    bool is_capturing_video() const { return m_capturing_video; }
+    void set_capturing_video(bool);
 
     // The channel to the WebUI this page shows, if it shows one. Each page has its own, so two WebUI pages in one
     // process each keep theirs.
@@ -306,7 +309,7 @@ private:
     virtual void did_cancel_geolocation_position_request(u64 request_id) override;
     virtual void did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId document_id) override;
     virtual void did_stop_geolocation_position_watch(u64 request_id) override;
-    virtual void did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name) override;
+    virtual void did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name, bool names_device) override;
     virtual void did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon) override;
     virtual void did_request_close_notification(u64 notification_id) override;
     virtual void did_abandon_notification(u64 notification_id) override;
@@ -440,6 +443,7 @@ private:
     Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingResponse did_request_tab_is_heard_playing_audio_for_testing();
     Messages::WebContentTestClient::DidRequestTabIsUsingMicrophoneForTestingResponse did_request_tab_is_using_microphone_for_testing();
     Messages::WebContentTestClient::DidRequestTabIsCapturingAudioForTestingResponse did_request_tab_is_capturing_audio_for_testing();
+    Messages::WebContentTestClient::DidRequestTabIsCapturingVideoForTestingResponse did_request_tab_is_capturing_video_for_testing();
     void report_audio_capture_for_testing(Web::PageId labelled_page_id, bool capturing);
     void retire_picture_in_picture_window_for_testing();
     Messages::WebContentTestClient::DidRequestTabAudibilityTransitionsForTestingResponse did_request_tab_audibility_transitions_for_testing();
@@ -491,6 +495,7 @@ private:
     RefPtr<WebUI> m_web_ui;
     Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
     bool m_capturing_audio { false };
+    bool m_capturing_video { false };
     Optional<PresentedBackingStores> m_presented_backing_stores;
     bool m_needs_beforeunload_check { true };
     bool m_had_user_edits { false };
