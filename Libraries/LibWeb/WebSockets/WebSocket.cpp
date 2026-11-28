@@ -122,10 +122,8 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::create(HTML::WindowOrWorkerGl
         // 1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
         // AD-HOC: We don't yet implement this method to spec, so it's possible for the connection to fail before we
         //         make a Requests::WebSocket. If so, we need to manually error and close it.
-        if (web_socket->establish_web_socket_connection(*url_record, protocols_sequence, *client).is_error()) {
-            web_socket->on_error();
-            web_socket->on_close(to_underlying(::WebSocket::CloseStatusCode::AbnormalClosure), Utf16String {}, false);
-        }
+        if (web_socket->establish_web_socket_connection(*url_record, protocols_sequence, *client).is_error())
+            web_socket->fail_to_connect();
     }));
 
     return web_socket;
@@ -214,11 +212,26 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         return Error::from_string_literal("WebSocket connection was blocked");
     }
 
-    if (auto host = Fetch::Fetching::host_to_match_against_known_hsts_hosts(*request); host.has_value()) {
-        if (ResourceLoader::is_known_hsts_host(Bindings::principal_host_defined_page(client.realm()), *host))
-            Fetch::Fetching::upgrade_request_to_https(*request);
+    auto host = Fetch::Fetching::host_to_match_against_known_hsts_hosts(*request);
+    if (!host.has_value())
+        return connect(request, protocols, client, loader_config);
+    if (ResourceLoader::is_preloaded_hsts_host(*host)) {
+        Fetch::Fetching::upgrade_request_to_https(*request);
+        return connect(request, protocols, client, loader_config);
     }
 
+    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(client);
+    ResourceLoader::the().look_up_known_hsts_host(network_isolation_key, *host, [web_socket = GC::make_root(*this), request, protocols, client = GC::make_root(client), loader_config](bool is_known_hsts_host) {
+        if (is_known_hsts_host)
+            Fetch::Fetching::upgrade_request_to_https(*request);
+        if (web_socket->connect(request, protocols, *client, loader_config).is_error())
+            web_socket->fail_to_connect();
+    });
+    return {};
+}
+
+ErrorOr<void> WebSocket::connect(NonnullRefPtr<Fetch::Infrastructure::Request> const& request, Vector<Utf16String> const& protocols, HTML::EnvironmentSettingsObject& client, NonnullRefPtr<LoaderConfigSnapshot const> const& loader_config)
+{
     if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
         return Error::from_string_literal("The WebSocket was closed before it connected");
 
@@ -242,7 +255,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     request->header_list()->append({ "User-Agent"sv, user_agent.to_byte_string() });
 
     if (ResourceLoader::proxy_autoconfig_url().has_value()) {
-        dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the WebSocket connection", url_record);
+        dbgln("FIXME: Evaluate the PAC file to find the proxy for {}; failing the WebSocket connection", m_url);
         return Error::from_string_literal("PAC proxy configurations are not supported");
     }
 
@@ -280,6 +293,12 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     });
 
     return {};
+}
+
+void WebSocket::fail_to_connect()
+{
+    on_error();
+    on_close(to_underlying(::WebSocket::CloseStatusCode::AbnormalClosure), Utf16String {}, false);
 }
 
 bool WebSocket::should_be_kept_alive() const

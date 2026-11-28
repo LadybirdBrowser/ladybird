@@ -83,6 +83,8 @@ private:
 
     HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
     ErrorOr<void> establish_web_socket_connection(URL::URL const& url_record, Vector<Utf16String> const& protocols, HTML::EnvironmentSettingsObject& client);
+    ErrorOr<void> connect(NonnullRefPtr<Fetch::Infrastructure::Request> const&, Vector<Utf16String> const& protocols, HTML::EnvironmentSettingsObject& client, NonnullRefPtr<LoaderConfigSnapshot const> const&);
+    void fail_to_connect();
     bool should_be_kept_alive() const;
     void update_pending_activity();
 
