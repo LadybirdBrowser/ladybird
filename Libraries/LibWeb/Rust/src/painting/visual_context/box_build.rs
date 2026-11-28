@@ -355,8 +355,11 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     let transform_data = facts.transform;
 
     let effects_layer_is_inside_transform_and_clips = facts.effects_layer_is_inside_transform_and_clips();
+    let blend_mode_composited_above_masks = facts.blend_mode_composited_above_masks();
     if facts.effects.is_some() && !effects_layer_is_inside_transform_and_clips {
         append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
+    } else if let Some(blend_mode) = blend_mode_composited_above_masks {
+        append_shared_effect!(EffectNodeData::layer_blending_with(blend_mode));
     }
 
     let flattens_inherited_transform = inherited.flattens_inherited_transform;
@@ -486,7 +489,11 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     // and clip nodes rather than above them. Masks apply to the filtered backdrop too, so the layer
     // also sits under the box's masks, and replay draws the backdrop into the outermost mask's layer.
     if effects_layer_is_inside_transform_and_clips {
-        append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
+        let mut effects = facts.effects_data().unwrap();
+        if blend_mode_composited_above_masks.is_some() {
+            effects.blend_mode = libgfx_rust::CompositingAndBlendingOperator::Normal;
+        }
+        append_shared_effect!(EffectNodeData::Effects(effects));
     }
 
     if facts.needs_compositor_background_color_effect {

@@ -107,6 +107,20 @@ impl BoxFacts {
             .is_some_and(|effects| effects.filter.is_some() || effects.backdrop_filter.is_some())
     }
 
+    /// The box's blend mode, where it needs an effects node of its own above the box's masks.
+    pub(crate) fn blend_mode_composited_above_masks(&self) -> Option<CompositingAndBlendingOperator> {
+        // https://drafts.fxtf.org/compositing-1/#mix-blend-mode
+        // NB: A mask is a layer of its own, so a blend mode on the effects layer under the box's masks would blend the
+        //     box with that empty layer rather than with the backdrop of the box. The masks of a box with a backdrop
+        //     filter blend for it instead, as they are what draws its backdrop.
+        let effects = self.effects.as_ref()?;
+        (effects.filter.is_some()
+            && effects.backdrop_filter.is_none()
+            && !self.mask_layers.is_empty()
+            && effects.blend_mode != CompositingAndBlendingOperator::Normal)
+            .then_some(effects.blend_mode)
+    }
+
     /// Gathers a box's facts for the visual context update, with the bounds of the SVG filter the box references,
     /// which the update keeps on its row.
     pub(crate) fn gather(

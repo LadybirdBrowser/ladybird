@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/mix-blend-mode-on-box-with-filter-and-mask-ref.html">
+<style>
+    body { margin: 0; }
+    @keyframes hold-opacity {
+        from { opacity: 0.6; }
+        to { opacity: 0.6; }
+    }
+    .backdrop {
+        width: 200px;
+        height: 100px;
+        margin-bottom: 10px;
+        background: rgb(255, 0, 0);
+    }
+    /* Inverted to blue, which multiplies with the red backdrop to black where the mask keeps it. */
+    .blended {
+        width: 200px;
+        height: 100px;
+        background: rgb(255, 255, 0);
+        filter: invert(1);
+        mask-image: linear-gradient(black, black);
+        mask-size: 50% 100%;
+        mask-repeat: no-repeat;
+        mix-blend-mode: multiply;
+    }
+    .with-animated-opacity { animation: hold-opacity 1s linear infinite; }
+</style>
+<div class="backdrop"><div class="blended"></div></div>
+<div class="backdrop"><div class="blended with-animated-opacity"></div></div>
