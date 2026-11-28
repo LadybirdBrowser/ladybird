@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script>
+    (async () => {
+        try {
+            if (location.search === "?activated")
+                internals.grantTransientActivation();
+            const credential = await navigator.credentials.create({
+                publicKey: {
+                    rp: { name: "Test" },
+                    user: { id: new Uint8Array([1, 2, 3, 4]), name: "user", displayName: "User" },
+                    challenge: new Uint8Array(16),
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                },
+            });
+            const clientData = JSON.parse(new TextDecoder().decode(credential.response.clientDataJSON));
+            parent.postMessage({ crossOrigin: clientData.crossOrigin, topOrigin: clientData.topOrigin }, "*");
+        } catch (error) {
+            parent.postMessage({ error: error.name }, "*");
+        }
+    })();
+</script>

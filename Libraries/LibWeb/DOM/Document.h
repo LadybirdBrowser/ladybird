@@ -1294,6 +1294,7 @@ public:
     // Whether the user changed the value of a text control or the content of an editing host in this document, which
     // they would lose if the document were unloaded without asking them.
     bool had_user_edits() const { return m_had_user_edits; }
+    bool is_inside_script_edit_on_its_own() const { return m_inside_script_edit_on_its_own; }
     void did_make_user_edit();
     WebIDL::ExceptionOr<bool> exec_command_internal(Utf16FlyString const& command, bool show_ui, Utf16View value, DispatchInputEvent, Optional<Utf16FlyString> const& user_input_type = {}, GC::Ptr<StaticRange> deletion_range = nullptr, GC::Ptr<DocumentFragment> pasted_fragment = nullptr);
     WebIDL::ExceptionOr<bool> query_command_enabled(Utf16FlyString const& command);

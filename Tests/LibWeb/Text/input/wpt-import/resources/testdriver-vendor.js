@@ -180,3 +180,39 @@ window.test_driver_internal.bidi.emulation.set_geolocation_override = function(p
     );
     return Promise.resolve();
 };
+
+// https://w3c.github.io/webauthn/#sctn-automation
+function virtualAuthenticatorCommand(command, parameters) {
+    const result = JSON.parse(window.internals.virtualAuthenticatorCommandForTesting(command, JSON.stringify(parameters)));
+    if ("error" in result)
+        return Promise.reject(new Error(result.error));
+    return Promise.resolve(result.value);
+}
+
+window.test_driver_internal.add_virtual_authenticator = function(config, context) {
+    return virtualAuthenticatorCommand("addVirtualAuthenticator", config);
+};
+
+window.test_driver_internal.remove_virtual_authenticator = function(authenticatorId, context) {
+    return virtualAuthenticatorCommand("removeVirtualAuthenticator", { authenticatorId });
+};
+
+window.test_driver_internal.add_credential = function(authenticatorId, credential, context) {
+    return virtualAuthenticatorCommand("addCredential", { ...credential, authenticatorId });
+};
+
+window.test_driver_internal.get_credentials = function(authenticatorId, context) {
+    return virtualAuthenticatorCommand("getCredentials", { authenticatorId });
+};
+
+window.test_driver_internal.remove_credential = function(authenticatorId, credentialId, context) {
+    return virtualAuthenticatorCommand("removeCredential", { authenticatorId, credentialId });
+};
+
+window.test_driver_internal.remove_all_credentials = function(authenticatorId, context) {
+    return virtualAuthenticatorCommand("removeAllCredentials", { authenticatorId });
+};
+
+window.test_driver_internal.set_user_verified = function(authenticatorId, uv, context) {
+    return virtualAuthenticatorCommand("setUserVerified", { authenticatorId, isUserVerified: typeof uv === "boolean" ? uv : uv.isUserVerified });
+};

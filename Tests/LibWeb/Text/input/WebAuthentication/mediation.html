@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function command(name, parameters) {
+        const result = JSON.parse(internals.virtualAuthenticatorCommandForTesting(name, JSON.stringify(parameters)));
+        if ("error" in result)
+            throw new Error(result.error);
+        return result.value;
+    }
+
+    asyncTest(async done => {
+        const authenticatorId = command("addVirtualAuthenticator", {
+            protocol: "ctap2",
+            transport: "internal",
+            hasResidentKey: true,
+            hasUserVerification: true,
+            isUserVerified: true,
+        });
+        const creationOptions = {
+            rp: { name: "Test" },
+            user: { id: new Uint8Array([1, 2, 3, 4]), name: "user", displayName: "User" },
+            challenge: new Uint8Array(16),
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: { residentKey: "required" },
+        };
+        await navigator.credentials.create({ publicKey: creationOptions });
+
+        // A silent request does not involve the user, also when an authenticator has a credential.
+        const silent = await navigator.credentials.get({
+            mediation: "silent",
+            publicKey: { challenge: new Uint8Array(16) },
+        });
+        println(`Silent request gives: ${silent}`);
+
+        try {
+            await navigator.credentials.create({ mediation: "conditional", publicKey: creationOptions });
+            println("FAIL: The conditional creation resolved");
+        } catch (error) {
+            println(`Conditional creation rejects with: ${error.name}`);
+        }
+
+        // A signal that outlives its requests aborts none of them later.
+        const controller = new AbortController();
+        for (let i = 0; i < 2; ++i) {
+            const assertion = await navigator.credentials.get({
+                signal: controller.signal,
+                publicKey: { challenge: new Uint8Array(16) },
+            });
+            println(`Request ${i + 1} with a shared signal gives a credential: ${assertion instanceof PublicKeyCredential}`);
+        }
+        controller.abort();
+        const afterAbort = await navigator.credentials.get({ publicKey: { challenge: new Uint8Array(16) } });
+        println(`Request after the abort gives a credential: ${afterAbort instanceof PublicKeyCredential}`);
+
+        command("removeVirtualAuthenticator", { authenticatorId });
+        done();
+    });
+</script>

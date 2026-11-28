@@ -1827,6 +1827,8 @@ void HTMLInputElement::suggestions_source_element_did_change()
 
 void HTMLInputElement::did_receive_focus()
 {
+    web_authentication_field_received_focus(document().last_focus_trigger());
+
     if (!m_date_time_fields.is_empty()) {
         // NB: Keyboard focus starts at the first field; a click picks the field it lands on.
         if (document().last_focus_trigger() == FocusTrigger::Key)

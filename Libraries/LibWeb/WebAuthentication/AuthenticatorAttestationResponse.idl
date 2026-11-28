@@ -1,0 +1,9 @@
+// https://w3c.github.io/webauthn/#authenticatorattestationresponse
+[SecureContext, Exposed=Window, ImplementedIn=Rust]
+interface AuthenticatorAttestationResponse : AuthenticatorResponse {
+    [SameObject] readonly attribute ArrayBuffer attestationObject;
+    sequence<DOMString> getTransports();
+    ArrayBuffer getAuthenticatorData();
+    ArrayBuffer? getPublicKey();
+    COSEAlgorithmIdentifier getPublicKeyAlgorithm();
+};

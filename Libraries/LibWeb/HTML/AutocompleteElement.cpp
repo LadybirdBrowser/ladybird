@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
 
@@ -423,6 +425,38 @@ AutocompleteElement::AttributeDetails AutocompleteElement::parse_autocomplete_at
     idl_value = Utf16String::formatted("{} {}", section, idl_value);
 
     return step_done();
+}
+
+void AutocompleteElement::user_interacted_with_web_authentication_field()
+{
+    m_user_interacted_since_focus = true;
+    if (parse_autocomplete_attribute().credential_type != "webauthn"_utf16_fly_string)
+        return;
+    auto& document = autocomplete_element_to_html_element().document();
+    document.page().client().page_did_focus_web_authentication_field(document.id());
+}
+
+void AutocompleteElement::web_authentication_field_received_focus(FocusTrigger trigger)
+{
+    m_user_interacted_since_focus = false;
+    // NB: Only on focus that the user gave with the pointer or the keyboard. A page can focus a control in many ways
+    //     without the user, such as with autofocus, with a fragment or with the activation of a label.
+    if (trigger == FocusTrigger::Click || trigger == FocusTrigger::Key)
+        user_interacted_with_web_authentication_field();
+}
+
+void AutocompleteElement::conditional_web_authentication_request_started()
+{
+    // NB: A page can start its request when the user is already in the control, such as from the focus event. The
+    //     browser process heard of the focus before it had a request to offer credentials for, so it hears again.
+    if (m_user_interacted_since_focus)
+        user_interacted_with_web_authentication_field();
+}
+
+void AutocompleteElement::user_typed_in_web_authentication_field()
+{
+    if (!m_user_interacted_since_focus)
+        user_interacted_with_web_authentication_field();
 }
 
 }

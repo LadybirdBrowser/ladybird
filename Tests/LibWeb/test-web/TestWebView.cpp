@@ -11,6 +11,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibWebView/AuthenticatorManager.h>
 #include <LibWebView/NotificationManager.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/RecordingNotificationBackend.h>
@@ -67,6 +68,13 @@ void TestWebView::reset_permissions()
 {
     session().permission_manager->reset_origin(url().origin());
     reset_permission_prompts_for_testing();
+}
+
+// A test's virtual authenticators live in the UI process, and would otherwise answer the ceremonies of the next test in
+// this view.
+void TestWebView::reset_virtual_authenticators()
+{
+    WebView::AuthenticatorManager::the().remove_virtual_authenticators_of_view(view_id());
 }
 
 // A test's notifications live in the UI process, keyed by a page id the next test in this view gets too, so they may

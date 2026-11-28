@@ -108,6 +108,7 @@
 #include <LibWebCommon/PixelUnits.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
+#include <LibWebCommon/WebAuthentication/AuthenticatorMessages.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
 
 namespace Web {
@@ -427,6 +428,18 @@ public:
     // process hears that, so a later click opens the site instead.
     void notifications_document_destroyed(DOM::Document const&);
 
+    // The WebAuthn ceremonies that this page asked the browser process for, which holds the authenticators.
+    using MakeCredentialCallback = GC::Ref<GC::Function<void(WebAuthentication::MakeCredentialResult const&)>>;
+    u64 make_credential(HTML::CrossProcessId document_id, WebAuthentication::MakeCredentialRequest const&, MakeCredentialCallback);
+    void make_credential_completed(u64 request_id, WebAuthentication::MakeCredentialResult const&);
+    using GetAssertionCallback = GC::Ref<GC::Function<void(WebAuthentication::GetAssertionResult const&)>>;
+    u64 get_assertion(HTML::CrossProcessId document_id, WebAuthentication::GetAssertionRequest const&, GetAssertionCallback);
+    // The page gave up on the ceremony, such as when script aborted it.
+    void cancel_web_authentication_request(u64 request_id);
+    // NB: A document that goes away gets no answer, and the user is no longer asked for it.
+    void cancel_web_authentication_requests_of_document(HTML::CrossProcessId document_id);
+    void get_assertion_completed(u64 request_id, WebAuthentication::GetAssertionResult const&);
+
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     // NB: The top-level traversable's, which the UI process tells every page representing it.
     Geolocation::EmulatedPositionData const& emulated_position_data() const { return m_emulated_position_data; }
@@ -692,6 +705,11 @@ private:
 
     HashMap<u64, GC::Ref<NotificationsAPI::Notification>> m_notifications_list;
     u64 m_next_notification_id { 0 };
+
+    HashMap<u64, MakeCredentialCallback> m_pending_make_credential_requests;
+    HashMap<u64, GetAssertionCallback> m_pending_get_assertion_requests;
+    HashMap<u64, HTML::CrossProcessId> m_documents_of_web_authentication_requests;
+    u64 m_next_web_authentication_request_id { 0 };
 
     // AD-HOC: Denied until the UI process sends the browser-wide setting, so a request cannot observe the test
     //         position in the short window before that arrives.
@@ -1022,6 +1040,13 @@ public:
     virtual void page_did_request_dismiss_notification_for_testing([[maybe_unused]] u64 notification_id) { }
     virtual void page_did_request_hold_next_notification_show_for_testing() { }
     virtual void page_did_request_fail_held_notification_show_for_testing() { }
+
+    virtual void page_did_request_make_credential([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] WebAuthentication::MakeCredentialRequest const&) { }
+    virtual void page_did_request_get_assertion([[maybe_unused]] u64 request_id, [[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] WebAuthentication::GetAssertionRequest const&) { }
+    virtual void page_did_cancel_web_authentication_request([[maybe_unused]] u64 request_id) { }
+    virtual void page_did_focus_web_authentication_field([[maybe_unused]] HTML::CrossProcessId document_id) { }
+    virtual bool page_did_request_is_user_verifying_platform_authenticator_available() { return false; }
+    virtual String page_did_request_virtual_authenticator_command_for_testing([[maybe_unused]] String const& command, [[maybe_unused]] String const& parameters) { return "{}"_string; }
 
     virtual void page_did_finish_test([[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }

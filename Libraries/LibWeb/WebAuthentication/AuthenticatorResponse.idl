@@ -1,0 +1,5 @@
+// https://w3c.github.io/webauthn/#authenticatorresponse
+[SecureContext, Exposed=Window, ImplementedIn=Rust]
+interface AuthenticatorResponse {
+    [SameObject] readonly attribute ArrayBuffer clientDataJSON;
+};

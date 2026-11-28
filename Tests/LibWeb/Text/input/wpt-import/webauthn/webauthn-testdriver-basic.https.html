@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<title>Successful WebAuthn tests</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/common-inputs.js"></script>
+<script src="resources/utils.js"></script>
+
+<script>
+"use strict";
+
+let authenticator;
+
+promise_test(async t => {
+  authenticator = await window.test_driver.add_virtual_authenticator({
+    protocol: "ctap1/u2f",
+    transport: "usb",
+  });
+}, "Set up the test environment");
+
+let credential;
+let publicKey;
+
+promise_test(async t => {
+  credential = await navigator.credentials.create({
+    publicKey: MAKE_CREDENTIAL_OPTIONS,
+  });
+
+  // Perform the validations the Relying Party should do against the credential.
+  // https://w3c.github.io/webauthn/#sctn-registering-a-new-credential
+  let jsonText =
+    new TextDecoder("utf-8").decode(credential.response.clientDataJSON);
+  let clientData = JSON.parse(jsonText);
+  assert_equals(clientData.type, "webauthn.create");
+  assert_equals(clientData.challenge, base64urlEncode(CHALLENGE));
+  assert_equals(clientData.origin, window.location.origin);
+
+  let attestationObject =
+    new Cbor(credential.response.attestationObject).getCBOR();
+
+  let rpIdHash = new Uint8Array(await crypto.subtle.digest(
+    { name: "SHA-256" }, new TextEncoder().encode(PUBLIC_KEY_RP.id)));
+
+  let authenticatorData = parseAuthenticatorData(attestationObject.authData);
+
+  assert_array_equals(authenticatorData.rpIdHash, rpIdHash)
+  assert_true(authenticatorData.flags.up);
+  assert_false(authenticatorData.flags.uv);
+
+  publicKey = authenticatorData.attestedCredentialData.credentialPublicKey;
+  assert_equals(publicKey.alg, PUBLIC_KEY_PARAMETERS[0].alg);
+  assert_equals(publicKey.type, 2 /* EC2 */);
+
+  assert_equals(authenticatorData.extensions, null);
+  assert_object_equals(credential.getClientExtensionResults(), {});
+}, "Create a credential");
+
+promise_test(async t => {
+  let assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: new TextEncoder().encode(CHALLENGE),
+      rpId: PUBLIC_KEY_RP.id,
+      allowCredentials: [{
+        type: "public-key",
+        id: credential.rawId,
+        transports: ["usb"],
+      }],
+      userVerification: "discouraged",
+    },
+  });
+
+  // Perform the validations the Relying Party should do against the assertion.
+  // https://w3c.github.io/webauthn/#sctn-verifying-assertion
+  assert_object_equals(credential.rawId, assertion.rawId);
+  let jsonText =
+    new TextDecoder("utf-8").decode(assertion.response.clientDataJSON);
+  let clientData = JSON.parse(jsonText);
+  assert_equals(clientData.type, "webauthn.get");
+  assert_equals(clientData.challenge, base64urlEncode(CHALLENGE));
+  assert_equals(clientData.type, "webauthn.get");
+  assert_equals(clientData.origin, window.location.origin);
+
+  let binaryAuthenticatorData =
+    new Uint8Array(assertion.response.authenticatorData);
+
+  let authenticatorData = parseAuthenticatorData(binaryAuthenticatorData);
+
+  let rpIdHash = new Uint8Array(await crypto.subtle.digest(
+    { name: "SHA-256" }, new TextEncoder().encode(PUBLIC_KEY_RP.id)));
+
+  assert_array_equals(authenticatorData.rpIdHash, rpIdHash)
+  assert_true(authenticatorData.flags.up);
+  assert_false(authenticatorData.flags.uv);
+
+  assert_equals(authenticatorData.extensions, null);
+  assert_object_equals(credential.getClientExtensionResults(), {});
+  assert_equals(authenticatorData.attestedCredentialData, null);
+
+  let jwkPublicKey = coseObjectToJWK(publicKey);
+  let key = await crypto.subtle.importKey(
+    "jwk", jwkPublicKey, {name: "ECDSA", namedCurve: "P-256"},
+    /*extractable=*/false, ["verify"]);
+
+  let signature =
+    convertDERSignatureToSubtle(new Uint8Array(assertion.response.signature));
+
+  let clientDataJsonHash = new Uint8Array(await crypto.subtle.digest(
+    "SHA-256", assertion.response.clientDataJSON));
+  let signedData =
+    new Uint8Array(binaryAuthenticatorData.length + clientDataJsonHash.length);
+  signedData.set(binaryAuthenticatorData);
+  signedData.set(clientDataJsonHash, binaryAuthenticatorData.length);
+
+  assert_true(await crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" }, key, signature, signedData));
+}, "Get an assertion");
+
+promise_test(async t => {
+  await window.test_driver.remove_virtual_authenticator(authenticator);
+}, "Clean up the test environment");
+
+</script>

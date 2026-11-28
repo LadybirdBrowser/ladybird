@@ -10,6 +10,7 @@
 #include <AK/Utf16View.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
+#include <LibWebCommon/HTML/FocusTrigger.h>
 
 namespace Web::HTML {
 
@@ -46,12 +47,26 @@ public:
     };
     AttributeDetails parse_autocomplete_attribute() const;
 
+    // https://w3c.github.io/webauthn/#GetAssn-ConditionalMediation-Interact-FormControl
+    // NB: The browser process holds the request with conditional mediation, if the document has one, and offers the
+    //     credentials for it when the user interacts with a form control that has the "webauthn" token.
+    void user_interacted_with_web_authentication_field();
+    void web_authentication_field_received_focus(FocusTrigger);
+    // NB: Input also says so, once, for a control that has the focus without the user giving it, such as with
+    //     autofocus.
+    void user_typed_in_web_authentication_field();
+    void conditional_web_authentication_request_started();
+
     virtual HTMLElement& autocomplete_element_to_html_element() = 0;
     HTMLElement const& autocomplete_element_to_html_element() const { return const_cast<AutocompleteElement&>(*this).autocomplete_element_to_html_element(); }
 
 protected:
     AutocompleteElement() = default;
     virtual ~AutocompleteElement() = default;
+
+private:
+    // Whether the user interacted with the control, as far as conditional mediation goes, since it got the focus.
+    bool m_user_interacted_since_focus { false };
 };
 
 }

@@ -301,6 +301,7 @@ public:
     GC::Ref<WebIDL::Promise> advance_permission_clock(WebIDL::UnsignedLongLong milliseconds);
     Vector<String> permission_cache_origins();
     String notifications_state_for_testing();
+    String virtual_authenticator_command_for_testing(Utf16String const& command, Utf16String const& parameters);
     void click_notification_for_testing(NotificationsAPI::Notification&);
     void click_notification_by_id_for_testing(WebIDL::UnsignedLongLong browser_notification_id);
     void dismiss_notification_for_testing(NotificationsAPI::Notification&);

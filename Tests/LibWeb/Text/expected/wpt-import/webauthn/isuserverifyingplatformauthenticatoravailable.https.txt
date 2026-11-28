@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	No platform authenticator
+Pass	Non-user-verifying platform authenticator
+Pass	User verifying platform authenticator

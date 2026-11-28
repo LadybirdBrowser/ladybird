@@ -10,6 +10,7 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/StatsLog.h>
+#include <LibCore/Timer.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibWebCommon/Geolocation/GeolocationPositionErrorCode.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
@@ -17,6 +18,7 @@
 #include <LibWebCommon/SecureContexts/AbstractOperations.h>
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/AuthenticatorManager.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
@@ -191,6 +193,15 @@ ViewImplementation& WebContentPage::view() const
     auto view = traversable().view();
     VERIFY(view.has_value());
     return *view;
+}
+
+ViewImplementation* WebContentPage::view_if_exists() const
+{
+    if (!has_traversable())
+        return nullptr;
+    if (auto view = traversable().view(); view.has_value())
+        return &*view;
+    return nullptr;
 }
 
 bool WebContentPage::displays_tab() const
@@ -665,6 +676,8 @@ void WebContentPage::fail_renderer_owned_downloads()
         file_downloader.fail_download(download_id, "Download process exited"_string);
 }
 
+static void dismiss_passkey_prompt(WebContentPage&, AuthenticatorManager::CeremonyCancellation const&);
+
 void WebContentPage::close()
 {
     if (m_traversable) {
@@ -673,7 +686,18 @@ void WebContentPage::close()
     }
     PictureInPictureManager::the().close_window(*this);
     NotificationManager::the().page_did_close(*this);
+    // NB: What the user is being asked for a request of this page goes away with the page.
+    // NB: A prompt that goes away can end its request, which takes the request out of the map.
+    Vector<NonnullRefPtr<AuthenticatorManager::CeremonyCancellation>> cancellations;
+    for (auto const& [request_id, request] : m_active_web_authentication_requests)
+        cancellations.append(request.cancellation);
+    for (auto const& cancellation : cancellations)
+        dismiss_passkey_prompt(*this, *cancellation);
+    // NB: The page is closed before its requests end, so that nothing they do reaches for its view.
     m_is_open = false;
+    for (auto request_id : m_active_web_authentication_requests.keys())
+        end_web_authentication_request(request_id);
+    m_conditional_get_assertion_requests.clear();
     // NB: The process can outlive the page, for the shared workers it runs, or for other pages.
     if (m_client) {
         WorkerAgentManager::the().remove_web_content_page_owner(*m_client, m_id);
@@ -2104,6 +2128,351 @@ Web::Permissions::PermissionSnapshot WebContentPage::advance_permission_clock_fo
     auto& manager = *view().session().permission_manager;
     manager.age_origin_for_testing(view().url().origin(), AK::Duration::from_milliseconds(static_cast<i64>(milliseconds)));
     return manager.snapshot_for(client().permission_origins());
+}
+
+// Whether a ceremony is one of conditional mediation, which offers credentials for a form control and does not tell the
+// user that there are none.
+enum class IsConditionalMediation : u8 {
+    No,
+    Yes,
+};
+
+static AuthenticatorManager::UserInterface web_authentication_user_interface(WebContentPage&, IsConditionalMediation, NonnullRefPtr<AuthenticatorManager::CeremonyCancellation>);
+
+// The view to show and ask the user things for the request in. A page that closed has none: Its view can be gone,
+// and with it the tab. A request that was taken back has none either: The view can show another ceremony by now.
+static ViewImplementation* view_to_ask_user_in(WebContentPage& page, AuthenticatorManager::CeremonyCancellation const& cancellation)
+{
+    if (!page.is_open() || cancellation.is_cancelled())
+        return nullptr;
+    return page.view_if_exists();
+}
+
+// Takes away what the user is being shown or asked for the request, when its ceremony ends without them.
+// NB: This is before the request is taken back, and only for the ceremony that the user of the view is asked for.
+static void dismiss_passkey_prompt(WebContentPage& page, AuthenticatorManager::CeremonyCancellation const& cancellation)
+{
+    auto* view = view_to_ask_user_in(page, cancellation);
+    if (!view || !AuthenticatorManager::the().is_ceremony_with_user(view->view_id(), cancellation))
+        return;
+    if (view->on_dismiss_passkey_prompt)
+        view->on_dismiss_passkey_prompt();
+}
+
+// What the browser process itself knows about a document that asks for a WebAuthn ceremony. A renderer is not asked:
+// One that an attacker controls would say what serves the attacker.
+struct WebAuthenticationDocumentFacts {
+    NonnullRefPtr<CanonicalDocument> document;
+    // https://w3c.github.io/webappsec-credential-management/#same-origin-with-its-ancestors
+    bool same_origin_with_ancestors { true };
+    // Whether the permissions policy of the document allows the feature for its origin.
+    bool is_allowed_by_permissions_policy { false };
+    // Whether the document and every document above it have a potentially trustworthy origin. The API is exposed
+    // only in a secure context, which a renderer that an attacker controls does not have to care about.
+    bool is_secure_context { false };
+    // Whether the tab of the document is the one that the user sees.
+    bool is_visible { false };
+};
+
+static Optional<WebAuthenticationDocumentFacts> web_authentication_document_facts(WebContentPage const& page, Web::HTML::CrossProcessId document_id, Web::PermissionsPolicy::PolicyControlledFeature feature)
+{
+    Optional<WebAuthenticationDocumentFacts> facts;
+    // NB: A renderer can still ask for a page whose traversable is gone.
+    if (!page.has_traversable())
+        return facts;
+    page.traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        // NB: Only the document that the navigable shows can ask. A document that a navigation has made but not shown
+        //     yet has an origin that the user does not see, and a renderer that an attacker controls could ask for it.
+        NonnullRefPtr<CanonicalDocument> document = navigable.active_document();
+        if (document->id() != document_id || document->host() != &page)
+            return IterationDecision::Continue;
+
+        WebAuthenticationDocumentFacts found { .document = document };
+        // 3. For each navigable of document's ancestor navigables: if navigable's active document's origin is not
+        //    same origin with origin, return false.
+        for (auto const* ancestor = navigable.parent(); ancestor; ancestor = ancestor->parent()) {
+            if (!ancestor->active_document().origin().is_same_origin(document->origin())) {
+                found.same_origin_with_ancestors = false;
+                break;
+            }
+        }
+        auto is_trustworthy = [](URL::Origin const& origin) {
+            return Web::SecureContexts::is_origin_potentially_trustworthy(origin) == Web::SecureContexts::Trustworthiness::PotentiallyTrustworthy;
+        };
+        found.is_secure_context = is_trustworthy(document->origin());
+        for (auto const* ancestor = navigable.parent(); ancestor && found.is_secure_context; ancestor = ancestor->parent())
+            found.is_secure_context = is_trustworthy(ancestor->active_document().origin());
+        // NB: A page that the user does not see does not get to ask them things, such as with the prompt of the
+        //     platform, which shows over whatever the user is doing.
+        found.is_visible = navigable.top_level_traversable().system_visibility_state() == Web::HTML::VisibilityState::Visible;
+        found.is_allowed_by_permissions_policy = Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), feature, document->origin(), document->origin()) == Web::PermissionsPolicy::FeatureValue::Enabled;
+        facts = found;
+        return IterationDecision::Break;
+    });
+    return facts;
+}
+
+void WebContentPage::did_request_make_credential(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::MakeCredentialRequest request)
+{
+    auto facts = web_authentication_document_facts(*this, document_id, Web::PermissionsPolicy::PolicyControlledFeature::PublickeyCredentialsCreate);
+    // NB: A renderer that asks for a document that is not a secure context, or whose permissions policy does not
+    //     allow the feature, skipped its own checks.
+    // NB: A page can host a document before it has a view, and after its view is gone.
+    if (!facts.has_value() || !view_if_exists() || !facts->is_secure_context || !facts->is_visible || !facts->is_allowed_by_permissions_policy) {
+        async_make_credential_completed(request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+        return;
+    }
+    // https://w3c.github.io/webauthn/#sctn-createCredential
+    // 2. If sameOriginWithAncestors is false:
+    //    2. If the relevant global object, as determined by the calling create() implementation, does not have
+    //       transient activation:
+    //       1. Throw a "NotAllowedError" DOMException.
+    //    3. Consume user activation of the relevant global object.
+    // NB: The renderer did these steps with the activation of its window. This is the activation that this process
+    //     gave the page for input of the user, which a renderer cannot claim.
+    if (!facts->same_origin_with_ancestors && !consume_transient_user_activation()) {
+        async_make_credential_completed(request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+        return;
+    }
+    auto document = facts->document;
+    // NB: This goes into the client data that the Relying Party trusts, so it is never what the renderer says.
+    request.same_origin_with_ancestors = facts->same_origin_with_ancestors;
+    auto cancellation = start_web_authentication_request(request_id, WebAuthenticationCeremony::MakeCredential, request.timeout);
+    AuthenticatorManager::Caller caller { .view_id = view().view_id(), .origin = document->origin(), .top_level_origin = document->top_level_origin(), .cancellation = cancellation };
+    auto user_interface = web_authentication_user_interface(*this, IsConditionalMediation::No, cancellation);
+    AuthenticatorManager::the().make_credential(move(caller), move(request), move(user_interface), [page = NonnullRefPtr { *this }, request_id, cancellation](auto result) {
+        // NB: A request that was taken back has its answer, and its ID can be that of another request by now.
+        if (cancellation->is_cancelled())
+            return;
+        dismiss_passkey_prompt(*page, *cancellation);
+        page->end_web_authentication_request(request_id);
+        page->async_make_credential_completed(request_id, move(result));
+    });
+}
+
+void WebContentPage::did_request_get_assertion(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::GetAssertionRequest request)
+{
+    // NB: A page can host a document before it has a view, and after its view is gone.
+    if (!view_if_exists()) {
+        async_get_assertion_completed(request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+        return;
+    }
+    bool was_asking_user = false;
+    if (request.is_conditional) {
+        // NB: A request with conditional mediation waits without a timer, so what a renderer can make this process
+        //     keep is one request for each document that the page shows. A request of a document that is gone goes,
+        //     and so does the earlier request of the same document, which the new one takes the place of.
+        auto facts = web_authentication_document_facts(*this, document_id, Web::PermissionsPolicy::PolicyControlledFeature::PublickeyCredentialsGet);
+        Vector<ConditionalGetAssertionRequest> ended_requests;
+        for (size_t i = 0; i < m_conditional_get_assertion_requests.size();) {
+            auto const& pending = m_conditional_get_assertion_requests[i];
+            bool is_replaced = pending.document_id == document_id;
+            if (is_replaced || !web_authentication_document_facts(*this, pending.document_id, Web::PermissionsPolicy::PolicyControlledFeature::PublickeyCredentialsGet).has_value()) {
+                was_asking_user |= is_replaced && pending.is_asking_user;
+                ended_requests.append(m_conditional_get_assertion_requests.take(i));
+                continue;
+            }
+            ++i;
+        }
+        for (auto const& ended : ended_requests) {
+            auto active_request = m_active_web_authentication_requests.get(ended.request_id);
+            if (!active_request.has_value())
+                continue;
+            // NB: The chooser of a request that ends has no ceremony to answer anymore.
+            dismiss_passkey_prompt(*this, *active_request->cancellation);
+            end_web_authentication_request(ended.request_id);
+            async_get_assertion_completed(ended.request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+        }
+        // NB: A renderer that asks for a document that the page does not show, that is not a secure context, or
+        //     whose permissions policy does not allow the feature, skipped its own checks.
+        if (!facts.has_value() || !facts->is_secure_context || !facts->is_allowed_by_permissions_policy) {
+            async_get_assertion_completed(request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+            return;
+        }
+    }
+
+    (void)start_web_authentication_request(request_id, request.is_conditional ? WebAuthenticationCeremony::GetAssertionWithConditionalMediation : WebAuthenticationCeremony::GetAssertion, request.timeout);
+
+    // NB: A virtual authenticator answers at once, as there is no user to wait for.
+    if (!request.is_conditional || AuthenticatorManager::the().has_virtual_authenticators_for(view().view_id())) {
+        run_get_assertion(request_id, document_id, move(request));
+        return;
+    }
+
+    m_conditional_get_assertion_requests.append(ConditionalGetAssertionRequest { .request_id = request_id, .document_id = document_id, .request = move(request) });
+    // NB: The user was choosing a credential for the request that this one took the place of, and the form control
+    //     that they chose it for can still have the focus, so the new request offers its credentials at once.
+    if (was_asking_user)
+        did_focus_web_authentication_field(document_id);
+}
+
+void WebContentPage::run_get_assertion(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::GetAssertionRequest request)
+{
+    auto active_request = m_active_web_authentication_requests.get(request_id);
+    if (!active_request.has_value())
+        return;
+    auto cancellation = active_request->cancellation;
+
+    auto is_conditional = request.is_conditional;
+    auto complete = [page = NonnullRefPtr { *this }, request_id, is_conditional, cancellation](Web::WebAuthentication::GetAssertionResult result) {
+        // NB: A request that was taken back has its answer, and its ID can be that of another request by now.
+        if (cancellation->is_cancelled())
+            return;
+        dismiss_passkey_prompt(*page, *cancellation);
+        auto& pending_requests = page->m_conditional_get_assertion_requests;
+        auto index_of_pending_request = pending_requests.find_first_index_if([&](auto const& pending) { return pending.request_id == request_id; });
+        if (is_conditional && index_of_pending_request.has_value()) {
+            pending_requests[*index_of_pending_request].is_asking_user = false;
+            // NB: The request stays pending when the user chooses no credential, or when there is none to choose.
+            if (result.has<Web::WebAuthentication::AuthenticatorError>() && result.get<Web::WebAuthentication::AuthenticatorError>() == Web::WebAuthentication::AuthenticatorError::NotAllowed)
+                return;
+            pending_requests.remove(*index_of_pending_request);
+        }
+        page->end_web_authentication_request(request_id);
+        page->async_get_assertion_completed(request_id, move(result));
+    };
+
+    auto facts = web_authentication_document_facts(*this, document_id, Web::PermissionsPolicy::PolicyControlledFeature::PublickeyCredentialsGet);
+    // NB: A renderer that asks for a document that is not a secure context, or whose permissions policy does not
+    //     allow the feature, skipped its own checks.
+    // NB: A page can host a document before it has a view, and after its view is gone.
+    if (!facts.has_value() || !view_if_exists() || !facts->is_secure_context || !facts->is_visible || !facts->is_allowed_by_permissions_policy) {
+        complete(Web::WebAuthentication::AuthenticatorError::NotAllowed);
+        return;
+    }
+    auto document = facts->document;
+    // NB: This goes into the client data that the Relying Party trusts, so it is never what the renderer says.
+    request.same_origin_with_ancestors = facts->same_origin_with_ancestors;
+    AuthenticatorManager::Caller caller { .view_id = view().view_id(), .origin = document->origin(), .top_level_origin = document->top_level_origin(), .cancellation = cancellation };
+    AuthenticatorManager::the().get_assertion(move(caller), move(request), web_authentication_user_interface(*this, is_conditional ? IsConditionalMediation::Yes : IsConditionalMediation::No, cancellation), move(complete));
+}
+
+static AuthenticatorManager::UserInterface web_authentication_user_interface(WebContentPage& this_page, IsConditionalMediation is_conditional_mediation, NonnullRefPtr<AuthenticatorManager::CeremonyCancellation> cancellation)
+{
+    AuthenticatorManager::UserInterface user_interface;
+    user_interface.choose = [page = NonnullRefPtr { this_page }, is_conditional_mediation, cancellation](PasskeyChoiceKind kind, String const& rp_id, Vector<Utf16String> const& options, Function<void(Optional<u32>)> on_choice) {
+        // NB: With conditional mediation, the user is not told that there is no credential.
+        if (options.is_empty() && is_conditional_mediation == IsConditionalMediation::Yes) {
+            on_choice({});
+            return;
+        }
+        auto* view = view_to_ask_user_in(*page, *cancellation);
+        if (!view) {
+            on_choice({});
+            return;
+        }
+        // NB: Without a user interface to ask with, the first option is used: the newest credential, or the
+        //     built-in authenticator. With conditional mediation the user did not ask to sign in, so none is used.
+        if (!view->on_request_passkey_choice) {
+            on_choice(options.is_empty() || is_conditional_mediation == IsConditionalMediation::Yes ? Optional<u32> {} : Optional<u32> { 0 });
+            return;
+        }
+        view->on_request_passkey_choice(kind, rp_id, options, move(on_choice));
+    };
+    if (this_page.view().on_request_security_key_prompt) {
+        user_interface.show_security_key_prompt = [page = NonnullRefPtr { this_page }, cancellation](SecurityKeyPromptKind kind, String const& rp_id, Function<void()> on_cancel) {
+            if (auto* view = view_to_ask_user_in(*page, *cancellation); view && view->on_request_security_key_prompt)
+                view->on_request_security_key_prompt(kind, rp_id, move(on_cancel));
+        };
+        user_interface.dismiss_passkey_prompt = [page = NonnullRefPtr { this_page }, cancellation] {
+            dismiss_passkey_prompt(*page, *cancellation);
+        };
+        user_interface.request_security_key_pin = [page = NonnullRefPtr { this_page }, cancellation](SecurityKeyPinPromptReason reason, String const& rp_id, Function<void(Optional<String>)> on_pin) {
+            auto* view = view_to_ask_user_in(*page, *cancellation);
+            if (!view || !view->on_request_security_key_pin) {
+                on_pin({});
+                return;
+            }
+            view->on_request_security_key_pin(reason, rp_id, move(on_pin));
+        };
+        user_interface.show_message = [page = NonnullRefPtr { this_page }, cancellation](PasskeyMessage message, String const& rp_id) {
+            if (auto* view = view_to_ask_user_in(*page, *cancellation); view && view->on_show_passkey_message)
+                view->on_show_passkey_message(message, rp_id);
+        };
+    }
+    return user_interface;
+}
+
+// NB: The range that a timeout is corrected to, and the timeout of a request that has none.
+static constexpr u32 SHORTEST_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS = 5 * 60 * 1000;
+static constexpr u32 LONGEST_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS = 10 * 60 * 1000;
+static constexpr u32 DEFAULT_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS = SHORTEST_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS;
+
+// https://w3c.github.io/webauthn/#sctn-createCredential
+// https://w3c.github.io/webauthn/#sctn-getAssertion
+NonnullRefPtr<AuthenticatorManager::CeremonyCancellation> WebContentPage::start_web_authentication_request(u64 request_id, WebAuthenticationCeremony ceremony, Optional<u32> timeout)
+{
+    // NB: A process that an attacker controls can use the ID of a request again.
+    if (auto earlier_request = m_active_web_authentication_requests.get(request_id); earlier_request.has_value())
+        dismiss_passkey_prompt(*this, *earlier_request->cancellation);
+    end_web_authentication_request(request_id);
+
+    auto cancellation = adopt_ref(*new AuthenticatorManager::CeremonyCancellation);
+
+    // If pkOptions.timeout is present, check if its value lies within a reasonable range as defined by the client and
+    // if not, correct it to the closest value lying within that range. Set a timer lifetimeTimer to this adjusted
+    // value. If pkOptions.timeout is not present, then set lifetimeTimer to a client-specific default.
+    RefPtr<Core::Timer> lifetime_timer;
+    if (ceremony != WebAuthenticationCeremony::GetAssertionWithConditionalMediation) {
+        auto adjusted_timeout = clamp(timeout.value_or(DEFAULT_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS), SHORTEST_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS, LONGEST_WEB_AUTHENTICATION_TIMEOUT_IN_MILLISECONDS);
+        // NB: The request owns the timer, and the page owns the request.
+        lifetime_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(adjusted_timeout), [this, request_id, ceremony] {
+            auto request = m_active_web_authentication_requests.get(request_id);
+            if (!request.has_value())
+                return;
+            // NB: The timer and the page outlive the end of the request, which would otherwise take both away here.
+            NonnullRefPtr protected_page { *this };
+            auto protected_timer = request->lifetime_timer;
+
+            // If lifetimeTimer expires, for each authenticator in issuedRequests invoke the authenticatorCancel
+            // operation on authenticator and remove authenticator from issuedRequests.
+            dismiss_passkey_prompt(*this, *request->cancellation);
+            end_web_authentication_request(request_id);
+            if (ceremony == WebAuthenticationCeremony::MakeCredential)
+                async_make_credential_completed(request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+            else
+                async_get_assertion_completed(request_id, Web::WebAuthentication::AuthenticatorError::NotAllowed);
+        });
+        lifetime_timer->start();
+    }
+
+    m_active_web_authentication_requests.set(request_id, { cancellation, move(lifetime_timer) });
+    return cancellation;
+}
+
+// NB: What the ceremony still does for the request has no effect after this.
+void WebContentPage::end_web_authentication_request(u64 request_id)
+{
+    // NB: A request with conditional mediation that waits for the user is one ceremony with its ID.
+    m_conditional_get_assertion_requests.remove_all_matching([&](auto const& pending) { return pending.request_id == request_id; });
+    auto request = m_active_web_authentication_requests.take(request_id);
+    if (!request.has_value())
+        return;
+    if (request->lifetime_timer)
+        request->lifetime_timer->stop();
+    request->cancellation->cancel();
+}
+
+void WebContentPage::did_cancel_web_authentication_request(u64 request_id)
+{
+    if (auto request = m_active_web_authentication_requests.get(request_id); request.has_value()) {
+        dismiss_passkey_prompt(*this, *request->cancellation);
+        end_web_authentication_request(request_id);
+    }
+    m_conditional_get_assertion_requests.remove_all_matching([&](auto const& pending) { return pending.request_id == request_id; });
+}
+
+void WebContentPage::did_focus_web_authentication_field(Web::HTML::CrossProcessId document_id)
+{
+    auto index = m_conditional_get_assertion_requests.find_first_index_if([&](auto const& pending) { return pending.document_id == document_id; });
+    if (!index.has_value() || m_conditional_get_assertion_requests[*index].is_asking_user)
+        return;
+    auto& pending = m_conditional_get_assertion_requests[*index];
+    pending.is_asking_user = true;
+    // NB: The ceremony can end at once, and then takes the pending request away.
+    auto request_id = pending.request_id;
+    auto request = pending.request;
+    run_get_assertion(request_id, document_id, move(request));
 }
 
 void WebContentPage::did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon)

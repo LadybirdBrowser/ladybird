@@ -66,6 +66,8 @@ void HTMLTextAreaElement::visit_edges(Cell::Visitor& visitor)
 
 void HTMLTextAreaElement::did_receive_focus()
 {
+    web_authentication_field_received_focus(document().last_focus_trigger());
+
     if (!m_text_node)
         return;
     m_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);

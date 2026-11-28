@@ -27,6 +27,9 @@ AudioTrack
 AudioTrackList
 AudioWorklet
 AudioWorkletNode
+AuthenticatorAssertionResponse
+AuthenticatorAttestationResponse
+AuthenticatorResponse
 BarProp
 BaseAudioContext
 BeforeUnloadEvent
@@ -395,6 +398,7 @@ ProcessingInstruction
 ProgressEvent
 Promise
 PromiseRejectionEvent
+PublicKeyCredential
 QuotaExceededError
 RTCCertificate
 RTCDTMFSender

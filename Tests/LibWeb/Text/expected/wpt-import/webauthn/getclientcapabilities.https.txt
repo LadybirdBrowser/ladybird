@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Capabilities object has sorted keys and boolean values
+Pass	Capabilities keys are known

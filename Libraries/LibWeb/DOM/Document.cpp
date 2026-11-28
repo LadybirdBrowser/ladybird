@@ -6353,6 +6353,7 @@ void Document::run_unloading_cleanup_steps()
 void Document::destroy()
 {
     page().active_media_session_tracker().document_became_inactive(*this);
+    page().cancel_web_authentication_requests_of_document(id());
 
     // FIXME: 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
 

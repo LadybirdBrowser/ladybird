@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src=helpers.js></script>
+
+<body></body>
+<script>
+  const TESTS = [
+    {
+      transport: "usb",
+      hasUserVerification: true,
+      expectedIsuvpaa: false,
+      name: "No platform authenticator",
+    },
+    {
+      transport: "internal",
+      hasUserVerification: false,
+      expectedIsuvpaa: false,
+      name: "Non-user-verifying platform authenticator",
+    },
+    {
+      transport: "internal",
+      hasUserVerification: true,
+      expectedIsuvpaa: true,
+      name: "User verifying platform authenticator"
+    },
+  ];
+
+  for (const test of TESTS) {
+    virtualAuthenticatorPromiseTest(async _ => {
+      assert_equals(
+        await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(),
+        test.expectedIsuvpaa);
+    }, {
+      protocol: "ctap2",
+      transport: test.transport,
+      hasUserVerification: test.hasUserVerification
+    }, test.name);
+  }
+</script>

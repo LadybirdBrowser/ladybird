@@ -1346,6 +1346,14 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
     if (!text_node || !static_cast<FormAssociatedElement&>(text_control_to_html_element()).is_mutable())
         return;
 
+    // NB: A script can insert text on its own, such as with execCommand(), and that is not the user typing.
+    if (!text_control_to_html_element().document().is_inside_script_edit_on_its_own()) {
+        if (auto* input = as_if<HTMLInputElement>(text_control_to_html_element()))
+            input->user_typed_in_web_authentication_field();
+        else if (auto* textarea = as_if<HTMLTextAreaElement>(text_control_to_html_element()))
+            textarea->user_typed_in_web_authentication_field();
+    }
+
     Utf16View data_for_insertion = data;
     Optional<Utf16String> truncated_data_for_insertion;
 

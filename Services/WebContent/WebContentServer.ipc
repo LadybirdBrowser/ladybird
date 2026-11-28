@@ -66,6 +66,7 @@
 #include <LibWebCommon/WebView/Debugger.h>
 #include <LibWebCommon/WebView/DictionaryLookup.h>
 #include <LibWebCommon/Permissions/Permissions.h>
+#include <LibWebCommon/WebAuthentication/AuthenticatorMessages.h>
 #include <LibWebCommon/WebView/Geolocation.h>
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
@@ -282,6 +283,8 @@ endpoint WebContentServer routed by Web::PageId page_id
     notification_show_failed(Web::PageId page_id, u64 notification_id) =|
     notification_clicked(Web::PageId page_id, u64 notification_id) =|
     notification_closed(Web::PageId page_id, u64 notification_id, bool by_user) =|
+    make_credential_completed(Web::PageId page_id, u64 request_id, Web::WebAuthentication::MakeCredentialResult result) =|
+    get_assertion_completed(Web::PageId page_id, u64 request_id, Web::WebAuthentication::GetAssertionResult result) =|
     set_has_focus(Web::PageId page_id, bool has_focus) =|
     set_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption) =|
