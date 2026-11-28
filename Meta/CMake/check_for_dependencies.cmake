@@ -24,8 +24,6 @@ find_package(PDFJS QUIET)
 find_package(WebP REQUIRED)
 find_path(WUFFS_INCLUDE_DIR NAMES wuffs/wuffs-v0.3.c REQUIRED)
 
-pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
-
 # TODO: Figure out if we can do this the same way on all platforms
 if (NOT ANDROID)
     pkg_check_modules(AVCODEC REQUIRED IMPORTED_TARGET libavcodec-ladybird)

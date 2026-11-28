@@ -248,28 +248,6 @@
       ]
     },
     {
-      "name": "woff2",
-      "buildsystem": "cmake-ninja",
-      "sources": [
-        {
-          "type": "git",
-          "url": "https://github.com/google/woff2.git",
-          "tag": "v1.0.2",
-          "disable-submodules": true
-        },
-        {
-          "type": "patch",
-          "path": "woff2/output-h-add-missing-stdint-include.patch"
-        }
-      ],
-      "config-opts": [
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_PREFIX_PATH=/app",
-        "-DCANONICAL_PREFIXES=ON",
-        "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-      ]
-    },
-    {
       "name": "dav1d",
       "buildsystem": "meson",
       "sources": [

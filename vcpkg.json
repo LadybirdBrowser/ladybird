@@ -256,7 +256,6 @@
       "name": "vulkan-memory-allocator",
       "platform": "linux | bsd | android"
     },
-    "woff2",
     "wuffs",
     "zlib",
     "zmij"
@@ -500,10 +499,6 @@
     {
       "name": "vulkan-memory-allocator",
       "version": "3.5.0#0"
-    },
-    {
-      "name": "woff2",
-      "version": "1.0.2#5"
     },
     {
       "name": "wuffs",
