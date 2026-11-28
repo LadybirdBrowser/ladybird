@@ -27,7 +27,9 @@ pub mod matrix;
 pub mod paint_enums;
 pub mod path;
 pub mod png_encoder;
+pub mod sfnt;
 pub mod text_layout;
+pub mod woff;
 pub mod yuv;
 
 pub use color::*;

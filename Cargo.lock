@@ -1964,6 +1964,7 @@ dependencies = [
  "foldhash 0.2.0",
  "hashbrown 0.17.1",
  "ladybird_allocator",
+ "libcompress_rust",
  "libipc_rust",
  "png",
  "rustc-demangle",
