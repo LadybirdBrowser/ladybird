@@ -91,16 +91,6 @@ if (HAS_FONTCONFIG)
     target_link_libraries(LibGfx PRIVATE Fontconfig::Fontconfig)
 endif()
 
-# FIXME: Build vcpkg libraries with clang-cl so they can also build in sanitize.
-# https://github.com/LadybirdBrowser/ladybird/issues/5224
-#   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
-#   >>> LibGfx.dir\Font\WOFF2\Loader.cpp.obj has value 1
-#   >>> woff2dec.lib(woff2_dec.cc.obj) has value 0
-# Every TU that includes the standard library carries the value, so the whole target has to go without ASAN.
-if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
-    target_compile_options(LibGfx PRIVATE -fno-sanitize=address)
-endif()
-
 if (APPLE)
     target_link_libraries(LibGfx PRIVATE "-framework Metal" "-framework Accelerate" "-framework CoreFoundation" "-framework CoreGraphics" "-framework CoreText")
 endif()
