@@ -1098,6 +1098,38 @@ TEST_CASE(test_jpeg_exif_orientation_cmyk)
     EXPECT_EQ(cmyk_frame->size(), Gfx::IntSize(20, 40));
 }
 
+TEST_CASE(test_avif_rotation_and_mirroring)
+{
+    // Each file is the same 40x20 image, a red, lime, blue and yellow quadrant clockwise from the top left, with an
+    // 'irot' rotation of r times 90 degrees anticlockwise and, after it, an 'imir' mirroring across axis m.
+    struct Case {
+        StringView path;
+        Gfx::IntSize size;
+        Array<char, 4> corners;
+    };
+    static constexpr Array cases {
+        Case { "avif/orientation-r0.avif"sv, { 40, 20 }, { 'r', 'l', 'b', 'y' } },
+        Case { "avif/orientation-r0-m0.avif"sv, { 40, 20 }, { 'b', 'y', 'r', 'l' } },
+        Case { "avif/orientation-r0-m1.avif"sv, { 40, 20 }, { 'l', 'r', 'y', 'b' } },
+        Case { "avif/orientation-r1.avif"sv, { 20, 40 }, { 'l', 'y', 'r', 'b' } },
+        Case { "avif/orientation-r1-m0.avif"sv, { 20, 40 }, { 'r', 'b', 'l', 'y' } },
+        Case { "avif/orientation-r1-m1.avif"sv, { 20, 40 }, { 'y', 'l', 'b', 'r' } },
+        Case { "avif/orientation-r2.avif"sv, { 40, 20 }, { 'y', 'b', 'l', 'r' } },
+        Case { "avif/orientation-r2-m0.avif"sv, { 40, 20 }, { 'l', 'r', 'y', 'b' } },
+        Case { "avif/orientation-r2-m1.avif"sv, { 40, 20 }, { 'b', 'y', 'r', 'l' } },
+        Case { "avif/orientation-r3.avif"sv, { 20, 40 }, { 'b', 'r', 'y', 'l' } },
+        Case { "avif/orientation-r3-m0.avif"sv, { 20, 40 }, { 'y', 'l', 'b', 'r' } },
+        Case { "avif/orientation-r3-m1.avif"sv, { 20, 40 }, { 'r', 'b', 'l', 'y' } },
+    };
+    for (auto const& test_case : cases) {
+        auto file = TRY_OR_FAIL(Core::MappedFile::map(ByteString::formatted(TEST_INPUT("{}"), test_case.path)));
+        EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+        auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, test_case.size));
+        expect_quadrant_corners(*frame.image, test_case.corners);
+    }
+}
+
 TEST_CASE(test_exif_orientation_transpose_non_square)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif-orientation-5.png"sv)));
