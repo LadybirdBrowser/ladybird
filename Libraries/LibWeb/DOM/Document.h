@@ -377,6 +377,9 @@ public:
     u64 form_controls_version() const { return m_form_controls_version; }
     void bump_form_controls_version() { ++m_form_controls_version; }
 
+    // The label elements in this document's tree (not in shadow trees), in tree order.
+    ReadonlySpan<GC::Weak<HTML::HTMLLabelElement>> label_elements() const;
+
     u64 option_selectedness_version() const { return m_option_selectedness_version; }
     void bump_option_selectedness_version() { ++m_option_selectedness_version; }
 
@@ -2566,6 +2569,8 @@ private:
     Optional<AK::UnixDateTime> m_last_modified;
 
     u64 m_form_controls_version { 0 };
+    mutable Vector<GC::Weak<HTML::HTMLLabelElement>> m_label_elements;
+    mutable u64 m_label_elements_dom_tree_version { NumericLimits<u64>::max() };
     u64 m_option_selectedness_version { 0 };
     mutable Array<u64, to_underlying(HTMLCollectionAttributeInvalidationType::Count)> m_html_collection_attribute_invalidation_type_counts {};
     mutable HTMLCollectionAttributeInvalidationTypes m_html_collection_attribute_invalidation_types { 0 };

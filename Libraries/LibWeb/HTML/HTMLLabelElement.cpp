@@ -142,14 +142,10 @@ GC::Ptr<HTMLElement> HTMLLabelElement::control() const
     // and the first such element in tree order is a labelable element, then that element is the
     // label element's labeled control.
     if (auto for_attribute = for_(); for_attribute.has_value()) {
-        root().for_each_in_inclusive_subtree_of_type<DOM::Element>([&](auto& element) {
-            if (element.id().has_value() && element.id()->view() == for_attribute->utf16_view()) {
-                if (auto const* html_element = as_if<HTMLElement>(element); html_element && html_element->is_labelable())
-                    control = &const_cast<HTMLElement&>(*html_element);
-                return TraversalDecision::Break;
-            }
-            return TraversalDecision::Continue;
-        });
+        // A label is an element, so its root is a parent node.
+        auto element = as<DOM::ParentNode>(root()).get_element_by_id(for_attribute->utf16_view());
+        if (auto* html_element = as_if<HTMLElement>(element.ptr()); html_element && html_element->is_labelable())
+            control = html_element;
         return control;
     }
 

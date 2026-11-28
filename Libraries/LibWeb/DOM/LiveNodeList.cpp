@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/HTML/HTMLLabelElement.h>
 
 namespace Web::DOM {
 
@@ -61,7 +62,13 @@ void LiveNodeList::update_cache_if_needed() const
     }
 
     m_cached_nodes.clear_with_capacity();
-    if (m_scope == Scope::Descendants) {
+    if (m_kind == Kind::Labels && m_scope == Scope::Descendants && m_root->is_document()) {
+        // OPTIMIZATION: Only label elements can match, and the document keeps a list of its own.
+        for (auto const& label : static_cast<Document const&>(*m_root).label_elements()) {
+            if (auto* label_element = label.ptr().ptr(); label_element && (*m_filter)(*label_element))
+                m_cached_nodes.append(*label_element);
+        }
+    } else if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree([&](auto& node) {
             if ((*m_filter)(node))
                 m_cached_nodes.append(const_cast<Node&>(node));
