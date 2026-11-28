@@ -15,7 +15,6 @@ class RootedNodeList;
 
 class WEB_API ParentNode : public Node {
     WEB_NON_IDL_WRAPPABLE(ParentNode, Node);
-    GC_DECLARE_ALLOCATOR(ParentNode);
 
 public:
     template<typename F>
@@ -45,7 +44,6 @@ public:
     GC::Ptr<Element> get_element_by_id(Utf16View id) const;
 
 protected:
-    ParentNode(Document& document, NodeType type);
     explicit ParentNode(VtableProbe);
     explicit ParentNode(RustMadePrefix);
 

@@ -219,7 +219,7 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
     return directory[index].node.ptr().ptr();
 }
 
-Node::Node(Document& document, NodeType type)
+Node::Node(VtableProbe)
     : EventTarget()
     , m_core {}
 {
@@ -239,20 +239,6 @@ Node::Node(Document& document, NodeType type)
     static_assert(sizeof(NodeType) == 2 && alignof(NodeType) == 2);
     static_assert(sizeof(CSS::StyleNodeID) == 4 && alignof(CSS::StyleNodeID) == 4);
     static_assert(sizeof(CSS::TreeScopeID) == 4 && alignof(CSS::TreeScopeID) == 4);
-
-    m_core.document = &document;
-    m_core.root = this;
-    m_core.node_type = type;
-    // NB: A child list's generation is never 0, which is what an element that remembers no child index holds.
-    m_core.child_index_generation = 1;
-    // A Document is its own shadow-including root, so it is always connected.
-    set_is_connected(type == NodeType::DOCUMENT_NODE);
-}
-
-Node::Node(VtableProbe)
-    : EventTarget()
-    , m_core {}
-{
 }
 
 Node::Node(RustMadePrefix prefix)

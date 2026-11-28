@@ -660,7 +660,6 @@ protected:
         size_t collections_by_tag_name_sweep_size { 0 };
     };
 
-    Node(Document&, NodeType);
     explicit Node(VtableProbe);
     explicit Node(RustMadePrefix);
 
