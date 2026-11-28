@@ -218,21 +218,21 @@ static NSPoint widget_position_to_ns_point(QWidget& widget, Gfx::IntPoint positi
     return point;
 }
 
-static Optional<QPointF> widget_point_for_appkit_event(QWidget& widget, NSEvent* event)
+static Optional<QPointF> widget_point_at(QWidget& widget, NSPoint location_in_window)
 {
     auto* view = reinterpret_cast<NSView*>(widget.winId());
-    if (!view || !event.window)
+    if (!view)
         return {};
 
-    auto point = [view convertPoint:event.locationInWindow fromView:nil];
+    auto point = [view convertPoint:location_in_window fromView:nil];
     if (![view isFlipped])
         point.y = NSHeight(view.bounds) - point.y;
     return QPointF { point.x, point.y };
 }
 
-static Optional<Gfx::IntPoint> widget_position_for_appkit_event(QWidget& widget, NSEvent* event)
+static Optional<Gfx::IntPoint> widget_position_at(QWidget& widget, NSPoint location_in_window)
 {
-    auto point = widget_point_for_appkit_event(widget, event);
+    auto point = widget_point_at(widget, location_in_window);
     if (!point.has_value())
         return {};
 
@@ -243,16 +243,13 @@ static Optional<Gfx::IntPoint> widget_position_for_appkit_event(QWidget& widget,
     };
 }
 
-static WebContentView* web_content_view_for_appkit_event(NSEvent* event)
+static WebContentView* web_content_view_at(NSWindow* window, NSPoint location_in_window)
 {
-    if (!event.window)
-        return nullptr;
-
-    auto* content_view = event.window.contentView;
+    auto* content_view = window.contentView;
     if (!content_view)
         return nullptr;
 
-    auto point = [content_view convertPoint:event.locationInWindow fromView:nil];
+    auto point = [content_view convertPoint:location_in_window fromView:nil];
     for (auto* view = [content_view hitTest:point]; view; view = view.superview) {
         auto* widget = QWidget::find(reinterpret_cast<WId>(view));
         if (!widget)
@@ -264,41 +261,61 @@ static WebContentView* web_content_view_for_appkit_event(NSEvent* event)
     return nullptr;
 }
 
-static bool should_perform_dictionary_lookup_for_event(NSEvent* event)
+static bool look_up_selected_text_at(NSWindow* window, NSPoint location_in_window)
 {
-    if (!event)
-        return false;
-
-    switch (event.type) {
-    case NSEventTypeQuickLook:
-        return true;
-    case NSEventTypePressure: {
-        auto stage = event.stage;
-        auto should_lookup = s_last_pressure_stage == 1
-            && stage == 2
-            && [[NSUserDefaults standardUserDefaults] integerForKey:@"com.apple.trackpad.forceClick"] == 1;
-        s_last_pressure_stage = stage;
-        return should_lookup;
-    }
-    default:
-        return false;
-    }
-}
-
-static bool perform_dictionary_lookup_for_event(NSEvent* event)
-{
-    if (!should_perform_dictionary_lookup_for_event(event))
-        return false;
-
-    auto* view = web_content_view_for_appkit_event(event);
+    auto* view = web_content_view_at(window, location_in_window);
     if (!view)
         return false;
 
-    auto position = widget_position_for_appkit_event(*view, event);
+    auto position = widget_position_at(*view, location_in_window);
     if (!position.has_value())
         return false;
 
     return view->look_up_selected_text_at(*position);
+}
+
+static bool perform_force_click_look_up(NSEvent* event)
+{
+    if (!event || event.type != NSEventTypePressure)
+        return false;
+
+    auto stage = event.stage;
+    auto should_look_up = s_last_pressure_stage == 1
+        && stage == 2
+        && [[NSUserDefaults standardUserDefaults] integerForKey:@"com.apple.trackpad.forceClick"] == 1;
+    s_last_pressure_stage = stage;
+    if (!should_look_up || !event.window)
+        return false;
+    return look_up_selected_text_at(event.window, event.locationInWindow);
+}
+
+static void (*s_original_quick_look_with_event)(id, SEL, NSEvent*);
+
+// AppKit asks a view to show a definition with quickLookWithEvent: for the trackpad's Look Up tap and for
+// Control-Command-D, the system's Look Up shortcut, which never reaches the event filter as a key event. Qt's views leave
+// it to NSView. The word looked up is the one under the mouse pointer.
+static void qt_view_quick_look_with_event(NSView* self, SEL selector, NSEvent* event)
+{
+    if (auto* window = self.window; window && look_up_selected_text_at(window, window.mouseLocationOutsideOfEventStream))
+        return;
+    s_original_quick_look_with_event(self, selector, event);
+}
+
+static void handle_quick_look_in_qt_views()
+{
+    auto* view_class = NSClassFromString(@"QNSView");
+    if (!view_class)
+        return;
+
+    auto* selector = @selector(quickLookWithEvent:);
+    auto* method = class_getInstanceMethod(view_class, selector);
+    if (!method)
+        return;
+
+    s_original_quick_look_with_event = reinterpret_cast<void (*)(id, SEL, NSEvent*)>(method_getImplementation(method));
+    // NB: Adding the method leaves NSView's own implementation alone, for the views that aren't Qt's.
+    if (!class_addMethod(view_class, selector, reinterpret_cast<IMP>(qt_view_quick_look_with_event), method_getTypeEncoding(method)))
+        method_setImplementation(method, reinterpret_cast<IMP>(qt_view_quick_look_with_event));
 }
 
 static QPointer<WebContentView> s_view_following_mouse_while_inactive;
@@ -322,10 +339,10 @@ static void follow_mouse_while_inactive(NSEvent* event)
     if (event.type != NSEventTypeMouseMoved)
         return;
 
-    auto* view = web_content_view_for_appkit_event(event);
+    auto* view = event.window ? web_content_view_at(event.window, event.locationInWindow) : nullptr;
     if (!view || !view->follows_mouse_while_inactive())
         return;
-    auto point = widget_point_for_appkit_event(*view, event);
+    auto point = widget_point_at(*view, event.locationInWindow);
     if (!point.has_value())
         return;
 
@@ -433,7 +450,7 @@ public:
         follow_mouse_while_inactive(event);
         record_appkit_scroll_momentum_transition(event);
 
-        if (perform_dictionary_lookup_for_event(event))
+        if (perform_force_click_look_up(event))
             return true;
 
         if (should_start_window_drag_for_gesture(event)) {
@@ -459,6 +476,7 @@ void install_appkit_event_capture()
 
     if (auto* application = QCoreApplication::instance()) {
         application->installNativeEventFilter(filter);
+        handle_quick_look_in_qt_views();
         installed = true;
     }
 }
