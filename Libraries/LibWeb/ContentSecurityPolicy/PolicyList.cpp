@@ -79,4 +79,11 @@ Vector<SerializedPolicy> PolicyList::serialize() const
     return serialized_policies;
 }
 
+u64 PolicyList::index_of(Policy const& policy) const
+{
+    auto policy_index = m_policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
+    VERIFY(policy_index.has_value());
+    return *policy_index;
+}
+
 }

@@ -17,7 +17,6 @@
 
 namespace Web::ContentSecurityPolicy {
 
-[[nodiscard]] RequestViolation violation_of_request(Fetch::Infrastructure::Request const&, NonnullRefPtr<Policy const>);
 void report_a_violation_of_a_request(JS::Realm&, RequestViolation const&);
 [[nodiscard]] ViolationReporter violation_reporter_for_request(JS::Realm&, NonnullRefPtr<Fetch::Infrastructure::Request>);
 void report_a_violation_found_in_another_process(HTML::EnvironmentSettingsObject&, u64 policy_index, Utf16FlyString const& directive, URL::URL resource);
