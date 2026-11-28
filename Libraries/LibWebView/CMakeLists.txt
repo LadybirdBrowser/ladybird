@@ -113,11 +113,12 @@ if (APPLE)
         CrashReportPOSIX.cpp
         MediaSessionPlatformBackendMacOS.mm
         NotificationBackendMacOS.mm
+        PlatformAuthenticatorBackendMacOS.mm
         ProcessReaper.cpp
         QuarantineMacOS.mm
         StringConversionsMacOS.mm
     )
-    set_source_files_properties(MediaSessionPlatformBackendMacOS.mm NotificationBackendMacOS.mm QuarantineMacOS.mm StringConversionsMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    set_source_files_properties(MediaSessionPlatformBackendMacOS.mm NotificationBackendMacOS.mm PlatformAuthenticatorBackendMacOS.mm QuarantineMacOS.mm StringConversionsMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 elseif (LINUX)
     list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
 endif()
@@ -212,7 +213,7 @@ if (LINUX)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework AppKit" "-framework CoreServices" "-framework Foundation" "-framework MediaPlayer" "-framework UserNotifications")
+    target_link_libraries(LibWebView PRIVATE "-framework AppKit" "-framework CoreServices" "-framework Foundation" "-framework LocalAuthentication" "-framework MediaPlayer" "-framework Security" "-framework UserNotifications")
 endif()
 
 if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
