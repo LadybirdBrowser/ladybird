@@ -1,0 +1,6 @@
+Ladybird’s DevTools server now decodes a response’s Content-Type
+isomorphically, both for the mimeType of its network event and for
+the MIME type in its content, as it decodes every response header
+value. Firefox’s server reads header values as byte strings from
+the channel, one code unit per byte, so a non-UTF-8 Content-Type
+reaches its client the same way.
