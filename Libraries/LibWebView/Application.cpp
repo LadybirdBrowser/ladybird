@@ -2760,14 +2760,15 @@ static bool download_path_is_available(LexicalPath const& path)
     return true;
 }
 
-static LexicalPath unique_download_path(ByteString const& downloads_directory, ByteString const& file)
+static LexicalPath unique_download_path(ByteString const& downloads_directory, String const& file)
 {
-    auto destination = LexicalPath::join(downloads_directory, file.view());
+    auto destination = LexicalPath::join(downloads_directory, file);
     if (download_path_is_available(destination))
         return destination;
 
+    auto file_bytes = file.to_byte_string();
     for (u64 index = 1;; ++index) {
-        auto candidate_filename = Web::numbered_download_filename(file, index);
+        auto candidate_filename = Web::numbered_download_filename(file_bytes, index);
         auto candidate = LexicalPath::join(downloads_directory, candidate_filename.view());
         if (download_path_is_available(candidate))
             return candidate;
@@ -2795,7 +2796,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> Application::path_for_downloaded_file(
         return Core::Promise<LexicalPath>::resolved(download_path.release_value());
     }
 
-    return ask_user_for_download_path(Web::sanitize_suggested_download_filename(file))->map<LexicalPath>([](auto& download_path) {
+    return ask_user_for_download_path(Web::sanitize_suggested_download_filename(file).to_byte_string())->map<LexicalPath>([](auto& download_path) {
         return LexicalPath { download_path };
     });
 }

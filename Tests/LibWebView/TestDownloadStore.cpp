@@ -26,8 +26,8 @@ static WebView::DownloadRecord example_download(i64 id = 7)
         .id = id,
         .url = "https://cdn.example.com/big.iso"_string,
         .display_url = "https://example.com/big.iso"_string,
-        .destination = "/home/anon/Downloads/big.iso"_string,
-        .temporary_destination = "/home/anon/Downloads/big.iso.7.abc.download"_string,
+        .destination = "/home/anon/Downloads/big.iso"sv,
+        .temporary_destination = "/home/anon/Downloads/big.iso.7.abc.download"sv,
         .total_size = 4096,
         .etag = "\"abc123\""_string,
         .last_modified = {},
@@ -53,8 +53,8 @@ TEST_CASE(downloads_round_trip)
     EXPECT_EQ(download.id, 7u);
     EXPECT_EQ(download.url, "https://cdn.example.com/big.iso"_string);
     EXPECT_EQ(download.display_url, "https://example.com/big.iso"_string);
-    EXPECT_EQ(download.destination, "/home/anon/Downloads/big.iso"_string);
-    EXPECT_EQ(download.temporary_destination, "/home/anon/Downloads/big.iso.7.abc.download"_string);
+    EXPECT_EQ(download.destination, "/home/anon/Downloads/big.iso"sv);
+    EXPECT_EQ(download.temporary_destination, "/home/anon/Downloads/big.iso.7.abc.download"sv);
     EXPECT_EQ(download.total_size, 4096u);
     EXPECT_EQ(download.etag, "\"abc123\""_string);
     EXPECT(!download.last_modified.has_value());
@@ -72,6 +72,22 @@ TEST_CASE(downloads_round_trip)
     EXPECT_EQ(download.segments[1].start_offset, 2048u);
     EXPECT_EQ(download.segments[1].end_offset, 4095u);
     EXPECT_EQ(download.segments[1].next_offset, 2048u);
+}
+
+TEST_CASE(paths_that_are_not_valid_utf8_round_trip)
+{
+    auto database = create_database();
+    auto store = create_store(database);
+
+    auto download = example_download();
+    download.destination = "/home/\xff/Downloads/file-\xfe.bin"sv;
+    download.temporary_destination = "/home/\xff/Downloads/file-\xfe.bin.7.abc.download"sv;
+    store->save_download(download);
+
+    auto downloads = store->resumable_downloads();
+    EXPECT_EQ(downloads.size(), 1u);
+    EXPECT_EQ(downloads.first().destination, "/home/\xff/Downloads/file-\xfe.bin"sv);
+    EXPECT_EQ(downloads.first().temporary_destination, "/home/\xff/Downloads/file-\xfe.bin.7.abc.download"sv);
 }
 
 TEST_CASE(sqlite_integer_boundaries_round_trip)
@@ -266,6 +282,8 @@ TEST_CASE(a_database_left_at_an_older_schema_is_brought_forward)
     auto downloads = store->resumable_downloads();
     EXPECT_EQ(downloads.size(), 1u);
     EXPECT_EQ(downloads.first().id, 5u);
+    EXPECT_EQ(downloads.first().destination, "/tmp/a"sv);
+    EXPECT_EQ(downloads.first().temporary_destination, "/tmp/a.download"sv);
 
     EXPECT(!downloads.first().can_restart_from_zero);
 
