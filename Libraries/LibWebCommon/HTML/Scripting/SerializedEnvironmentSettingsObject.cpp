@@ -62,9 +62,9 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedEnvironmentSettingsObject const& object)
 {
     TRY(encoder.encode(object.id));
-    TRY(encoder.encode(object.creation_url));
-    TRY(encoder.encode(object.top_level_creation_url));
-    TRY(encoder.encode(object.top_level_origin));
+    TRY(encoder.encode(object.environment.creation_url));
+    TRY(encoder.encode(object.environment.top_level_creation_url));
+    TRY(encoder.encode(object.environment.top_level_origin));
     TRY(encoder.encode(object.api_base_url));
     TRY(encoder.encode(object.origin));
     TRY(encoder.encode(object.has_cross_site_ancestor));
@@ -84,9 +84,11 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
 {
     return Web::HTML::SerializedEnvironmentSettingsObject {
         .id = TRY(decoder.decode<Web::HTML::EnvironmentId>()),
-        .creation_url = TRY(decoder.decode<URL::URL>()),
-        .top_level_creation_url = TRY(decoder.decode<Optional<URL::URL>>()),
-        .top_level_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
+        .environment = {
+            .creation_url = TRY(decoder.decode<URL::URL>()),
+            .top_level_creation_url = TRY(decoder.decode<Optional<URL::URL>>()),
+            .top_level_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
+        },
         .api_base_url = TRY(decoder.decode<URL::URL>()),
         .origin = TRY(decoder.decode<URL::Origin>()),
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),

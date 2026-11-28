@@ -11,12 +11,7 @@
 #include <LibURL/Forward.h>
 #include <LibWebCommon/Fetch/Infrastructure/RedirectTaint.h>
 #include <LibWebCommon/Forward.h>
-
-namespace Web::HTML {
-
-struct EnvironmentSettingsObject;
-
-}
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironment.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -24,7 +19,7 @@ class Request;
 
 // The default value takes the site-compatibility rules of a top-level site and of the site of the document or worker.
 [[nodiscard]] String default_user_agent_value(LoaderConfig const&, URL::Origin const& top_level_origin, URL::Origin const& origin);
+[[nodiscard]] String default_user_agent_value(LoaderConfig const&, HTML::SerializedEnvironment const&, URL::Origin const& origin);
 [[nodiscard]] String default_user_agent_value(LoaderConfig const&, Request const&);
-[[nodiscard]] String environment_default_user_agent_value(LoaderConfig const&, HTML::EnvironmentSettingsObject const&);
 
 }

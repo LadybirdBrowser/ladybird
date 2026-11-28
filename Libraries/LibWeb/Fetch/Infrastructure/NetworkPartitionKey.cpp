@@ -7,15 +7,13 @@
 #include <LibURL/Site.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#determine-the-network-partition-key
 // NB: The frame site is that of the environment's document or worker, or, for an environment that is not yet a
 //     settings object, that of the document it is being created for.
-template<typename EnvironmentType>
-static Optional<NetworkPartitionKey> determine_the_network_partition_key(EnvironmentType const& environment, URL::Origin const& frame_origin, HasCrossSiteAncestor has_cross_site_ancestor)
+Optional<NetworkPartitionKey> determine_the_network_partition_key(HTML::SerializedEnvironment const& environment, Optional<SettingsObjectContext> const& settings_object)
 {
     // 1. Let topLevelOrigin be environment’s top-level origin.
     auto top_level_origin = environment.top_level_origin;
@@ -32,38 +30,28 @@ static Optional<NetworkPartitionKey> determine_the_network_partition_key(Environ
         return {};
 
     // 5. Let secondKey be null or an implementation-defined value.
+    auto frame_origin = settings_object.has_value() ? settings_object->origin : environment.creation_url.origin();
+    auto has_cross_site_ancestor = settings_object.has_value() && settings_object->has_cross_site_ancestor == HasCrossSiteAncestor::Yes;
+
     // 6. Return (topLevelSite, secondKey).
     return NetworkPartitionKey {
         .top_level_site = top_level_site.release_value(),
         .frame_site = URL::Site::serialize_for_partitioning(frame_origin),
         .is_subframe_document = false,
         .is_cross_site_main_frame_navigation = false,
-        .has_cross_site_ancestor = has_cross_site_ancestor == HasCrossSiteAncestor::Yes,
+        .has_cross_site_ancestor = has_cross_site_ancestor,
     };
-}
-
-Optional<NetworkPartitionKey> determine_the_network_partition_key(HTML::Environment const& environment)
-{
-    auto const* settings_object = as_if<HTML::EnvironmentSettingsObject>(environment);
-    auto frame_origin = settings_object ? settings_object->origin() : environment.creation_url.origin();
-    auto has_cross_site_ancestor = (settings_object && settings_object->has_cross_site_ancestor()) ? HasCrossSiteAncestor::Yes : HasCrossSiteAncestor::No;
-    return determine_the_network_partition_key(environment, frame_origin, has_cross_site_ancestor);
 }
 
 static Optional<NetworkPartitionKey> determine_the_network_partition_key(ClientContextSnapshot const& client)
 {
-    return determine_the_network_partition_key(client, client.origin, client.has_cross_site_ancestor);
+    return determine_the_network_partition_key(client.environment, SettingsObjectContext { .origin = client.origin, .has_cross_site_ancestor = client.has_cross_site_ancestor });
 }
 
 static Optional<NetworkPartitionKey> determine_the_network_partition_key(ReservedClientContextSnapshot const& reserved_client)
 {
-    return reserved_client.kind.visit(
-        [&](ReservedClientContext::SettingsObject const& settings_object) {
-            return determine_the_network_partition_key(reserved_client, settings_object.origin, settings_object.has_cross_site_ancestor);
-        },
-        [&](ReservedClientContext::Environment const&) {
-            return determine_the_network_partition_key(reserved_client, reserved_client.creation_url.origin(), HasCrossSiteAncestor::No);
-        });
+    auto const* settings_object = reserved_client.kind.get_pointer<SettingsObjectContext>();
+    return determine_the_network_partition_key(reserved_client.environment, settings_object ? *settings_object : Optional<SettingsObjectContext> {});
 }
 
 // https://fetch.spec.whatwg.org/#request-determine-the-network-partition-key

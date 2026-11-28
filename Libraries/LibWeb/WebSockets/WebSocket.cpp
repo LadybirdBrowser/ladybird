@@ -220,7 +220,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         return connect(request, protocols, client, loader_config);
     }
 
-    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(client);
+    auto network_isolation_key = Fetch::Fetching::determine_the_network_partition_key(client);
     ResourceLoader::the().look_up_known_hsts_host(network_isolation_key, *host, [web_socket = GC::make_root(*this), request, protocols, client = GC::make_root(client), loader_config](bool is_known_hsts_host) {
         if (is_known_hsts_host)
             Fetch::Fetching::upgrade_request_to_https(*request);
@@ -259,7 +259,7 @@ ErrorOr<void> WebSocket::connect(NonnullRefPtr<Fetch::Infrastructure::Request> c
         return Error::from_string_literal("PAC proxy configurations are not supported");
     }
 
-    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(client);
+    auto network_isolation_key = Fetch::Fetching::determine_the_network_partition_key(client);
     auto request_client = ResourceLoader::the().request_client_for(network_isolation_key);
 
     // FIXME: We could put this request in a queue until the client connection is re-established.

@@ -20,6 +20,7 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Engine/NetworkTransportHandle.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Loader/ContentBlocker.h>
@@ -179,7 +180,7 @@ static Optional<HTTP::NetworkIsolationKey> speculative_network_isolation_key(GC:
 {
     if (!document)
         return {};
-    return Fetch::Infrastructure::determine_the_network_partition_key(document->relevant_settings_object());
+    return Fetch::Fetching::determine_the_network_partition_key(document->relevant_settings_object());
 }
 
 void ResourceLoader::prefetch_dns(GC::Ptr<DOM::Document> document, URL::URL const& url, URL::URL const& source_url)
