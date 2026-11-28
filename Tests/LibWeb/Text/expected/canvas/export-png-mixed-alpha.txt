@@ -1,0 +1,6 @@
+(0, 0): canvas 200,100,50,255, exported PNG 200,100,50,255
+(1, 0): canvas 200,100,50,255, exported PNG 200,100,50,255
+(2, 0): canvas 200,100,50,255, exported PNG 200,100,50,255
+(0, 1): canvas 200,100,50,255, exported PNG 200,100,50,255
+(1, 1): canvas 199,100,50,128, exported PNG 199,100,50,128
+(2, 1): canvas 0,0,0,0, exported PNG 0,0,0,0

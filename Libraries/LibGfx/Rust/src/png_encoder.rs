@@ -48,14 +48,29 @@ impl Write for CallbackWriter {
     }
 }
 
-/// Divides the color values of an RGBA pixel by its alpha.
-fn unpremultiplied([red, green, blue, alpha]: [u8; 4]) -> [u8; 4] {
-    if alpha == 0 {
-        return [0, 0, 0, 0];
+/// Whether every pixel of a row of RGBA or BGRA pixels is opaque.
+fn is_opaque(row: &[u8]) -> bool {
+    // NB: A fold over every pixel, rather than a search that stops at the first translucent one, vectorizes.
+    row.as_chunks::<4>()
+        .0
+        .iter()
+        .fold(u8::MAX, |alpha, pixel| alpha & pixel[3])
+        == u8::MAX
+}
+
+/// Divides the color values of an RGBA pixel by its alpha, rounding to the nearest value.
+fn unpremultiplied(pixel: [u8; 4]) -> [u8; 4] {
+    let [red, green, blue, alpha] = pixel;
+    match alpha {
+        u8::MAX => pixel,
+        0 => [0, 0, 0, 0],
+        _ => {
+            let alpha_value = u32::from(alpha);
+            let channel =
+                |value: u8| u8::try_from((u32::from(value) * 255 + alpha_value / 2) / alpha_value).unwrap_or(u8::MAX);
+            [channel(red), channel(green), channel(blue), alpha]
+        }
     }
-    let alpha_value = u32::from(alpha);
-    let channel = |value: u8| u8::try_from((u32::from(value) * 255 + alpha_value / 2) / alpha_value).unwrap_or(u8::MAX);
-    [channel(red), channel(green), channel(blue), alpha]
 }
 
 /// Encodes 8-bit RGBA pixels, or BGRA pixels when `is_bgra` is set, as an RGBA PNG.
@@ -126,18 +141,21 @@ pub unsafe extern "C" fn png_rust_encode(
     let mut row = vec![0; row_bytes];
     for y in 0..height as usize {
         let source = &pixels[y * stride..y * stride + row_bytes];
-        let row = if is_bgra || options.premultiplied {
+        // NB: Most rows of most images are opaque, and unpremultiplying leaves an opaque pixel as it is, so such a row
+        //     takes the same path as an unpremultiplied one.
+        let row = if options.premultiplied && !is_opaque(source) {
             for (source, destination) in source.as_chunks::<4>().0.iter().zip(row.as_chunks_mut::<4>().0) {
                 let pixel = if is_bgra {
                     [source[2], source[1], source[0], source[3]]
                 } else {
                     *source
                 };
-                *destination = if options.premultiplied {
-                    unpremultiplied(pixel)
-                } else {
-                    pixel
-                };
+                *destination = unpremultiplied(pixel);
+            }
+            &row[..]
+        } else if is_bgra {
+            for (source, destination) in source.as_chunks::<4>().0.iter().zip(row.as_chunks_mut::<4>().0) {
+                *destination = [source[2], source[1], source[0], source[3]];
             }
             &row[..]
         } else {
@@ -151,4 +169,23 @@ pub unsafe extern "C" fn png_rust_encode(
         return false;
     }
     writer.finish().is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unpremultiplied_leaves_opaque_pixels_and_clears_transparent_ones() {
+        assert_eq!(unpremultiplied([12, 34, 56, u8::MAX]), [12, 34, 56, u8::MAX]);
+        assert_eq!(unpremultiplied([12, 34, 56, 0]), [0, 0, 0, 0]);
+        assert_eq!(unpremultiplied([100, 50, 25, 128]), [199, 100, 50, 128]);
+    }
+
+    #[test]
+    fn is_opaque_looks_at_every_pixel() {
+        assert!(is_opaque(&[1, 2, 3, 255, 4, 5, 6, 255]));
+        assert!(!is_opaque(&[1, 2, 3, 255, 4, 5, 6, 254]));
+        assert!(!is_opaque(&[1, 2, 3, 0, 4, 5, 6, 255]));
+    }
 }
