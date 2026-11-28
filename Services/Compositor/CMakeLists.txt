@@ -39,6 +39,8 @@ set(GENERATED_SOURCES
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core FEATURES allocator FFI_HEADER CompositorCoreRustFFI.h)
 target_link_libraries(compositor_core INTERFACE LibGfx)
+# The copy of libgfx_rust in the archive calls HarfBuzz, which it leaves to its users to link.
+target_link_libraries(compositor_core INTERFACE $<LINK_ONLY:harfbuzz>)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME compositor_core)
 
 add_library(compositorservice STATIC ${SOURCES} ${GENERATED_SOURCES})

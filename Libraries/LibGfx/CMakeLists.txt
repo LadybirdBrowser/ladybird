@@ -85,6 +85,10 @@ import_rust_crate(
     FFI_HEADER RustFFI.h
     KEEP_SYMBOLS ladybird_gfx_register_rust_crate_copy
 )
+# The crate calls HarfBuzz and leaves linking it to whatever links the crate, so that a process has one HarfBuzz. The
+# imports of the crates that bundle a copy of this one link it too. They take the library alone, not the include
+# directories of HarfBuzz, which only C++ that includes its headers needs.
+target_link_libraries(libgfx_rust INTERFACE $<LINK_ONLY:harfbuzz>)
 target_link_libraries(LibGfx PRIVATE libgfx_rust)
 
 if (HAS_FONTCONFIG)

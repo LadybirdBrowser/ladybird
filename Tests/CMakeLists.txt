@@ -45,6 +45,10 @@ if (NOT WIN32)
     if (OPENSSL_CRYPTO_LIBRARY)
         list(APPEND rust_test_env "LADYBIRD_OPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}")
     endif()
+    # And HarfBuzz where libgfx_rust is asked to; see its build script.
+    if (TARGET harfbuzz)
+        list(APPEND rust_test_env "LADYBIRD_HARFBUZZ_LIBRARY=$<TARGET_FILE:harfbuzz>")
+    endif()
 
     # --all-targets leaves out doctests. The workspace has none that run, but scheduling them would still make Cargo
     # compile the plain library of every crate, on top of its unit test binary.
