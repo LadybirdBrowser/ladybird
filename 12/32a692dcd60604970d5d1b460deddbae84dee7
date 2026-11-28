@@ -1,0 +1,6 @@
+This is Ladybird’s own macOS window-chrome code, so there’s no engine
+behavior to compare. A standalone non-ARC program confirms the mechanism
+under NSZombieEnabled: a CALayer holding the only reference to an
+IOSurface returns it from its contents getter at +0, and setting the
+contents to nil and back sends retain to the deallocated IOSurface, a
+trace trap; with a +1 reference held across the reset, it doesn’t.
