@@ -37,13 +37,26 @@ GC::Ref<NamedNodeMap> NamedNodeMap::create(Element& element)
 NamedNodeMap::NamedNodeMap(Element& element)
     : m_element(element)
 {
+    // NB: libweb_rust finds the core of a map at this offset into its cell.
+    static_assert(offsetof(NamedNodeMap, m_core) == RustFFI::NAMED_NODE_MAP_CORE_OFFSET);
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(NamedNodeMap, m_core) >= sizeof(Bindings::GCAllocatedWrappable));
+    static_assert(sizeof(RustFFI::NamedNodeMapCore) == 16 && alignof(RustFFI::NamedNodeMapCore) == 8);
+}
+
+NamedNodeMap::~NamedNodeMap()
+{
+    RustFFI::rust_dom_named_node_map_core_destroy(&m_core);
 }
 
 void NamedNodeMap::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_element);
-    visitor.visit(m_attribute_nodes);
+    for (auto const& attribute : attribute_nodes())
+        visitor.visit(attribute);
 }
 
 size_t NamedNodeMap::length() const
@@ -53,8 +66,9 @@ size_t NamedNodeMap::length() const
 
 GC::Ptr<Attr> NamedNodeMap::find_attribute_node(QualifiedName const& name) const
 {
-    for (auto& attribute : m_attribute_nodes) {
-        if (attribute->namespace_uri() == name.namespace_() && attribute->local_name() == name.local_name())
+    for (auto const& node : attribute_nodes()) {
+        auto& attribute = as<Attr>(*node);
+        if (attribute.namespace_uri() == name.namespace_() && attribute.local_name() == name.local_name())
             return attribute;
     }
     return nullptr;
@@ -66,7 +80,7 @@ GC::Ref<Attr> NamedNodeMap::ensure_attribute_node(QualifiedName const& name) con
         return *attribute;
     auto& element = const_cast<Element&>(associated_element());
     auto attribute = Attr::create(element.document(), name, {}, element);
-    m_attribute_nodes.append(attribute);
+    RustFFI::rust_dom_named_node_map_append_attribute_node(&m_core, attribute.ptr());
     return attribute;
 }
 
@@ -79,7 +93,7 @@ Vector<Utf16FlyString> NamedNodeMap::supported_property_names() const
     HashTable<Utf16FlyString> seen_names;
 
     for (size_t index = 0; index < length(); ++index) {
-        auto name = associated_element().m_element_core.attributes->at(index).name.as_string();
+        auto name = associated_element().m_element_core.attributes.at(index).name.as_string();
         if (seen_names.set(name) == HashSetResult::InsertedNewEntry)
             names.append(move(name));
     }
@@ -110,7 +124,7 @@ GC::Ptr<Attr> NamedNodeMap::item(u32 index) const
         return nullptr;
 
     // 2. Otherwise, return this’s attribute list[index].
-    auto name = associated_element().m_element_core.attributes->at(index).name;
+    auto name = associated_element().m_element_core.attributes.at(index).name;
     return ensure_attribute_node(move(name));
 }
 
@@ -176,7 +190,7 @@ GC::Ptr<Attr> NamedNodeMap::get_attribute(Utf16FlyString const& qualified_name, 
         return nullptr;
     if (item_index)
         *item_index = *index;
-    auto name = associated_element().m_element_core.attributes->at(*index).name;
+    auto name = associated_element().m_element_core.attributes.at(*index).name;
     return ensure_attribute_node(move(name));
 }
 
@@ -190,7 +204,7 @@ GC::Ptr<Attr> NamedNodeMap::get_attribute_ns(Optional<Utf16FlyString> const& nam
         return nullptr;
     if (item_index)
         *item_index = *index;
-    auto name = associated_element().m_element_core.attributes->at(*index).name;
+    auto name = associated_element().m_element_core.attributes.at(*index).name;
     return ensure_attribute_node(move(name));
 }
 
@@ -236,64 +250,28 @@ WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(GC::Ref<Attr> att
 // https://dom.spec.whatwg.org/#concept-element-attributes-replace
 void NamedNodeMap::replace_attribute(GC::Ref<Attr> old_attribute, GC::Ref<Attr> new_attribute, size_t old_attribute_index)
 {
-    VERIFY(old_attribute->owner_element());
-
-    // 1. Let element be oldAttribute’s element.
-    auto* element = old_attribute->owner_element();
-
-    // 2. Replace oldAttribute by newAttribute in element’s attribute list.
-    auto old_value = element->m_element_core.attributes->at(old_attribute_index).value;
-    auto new_name = new_attribute->m_qualified_name;
-    auto new_value = new_attribute->value();
-    element->m_element_core.attributes->at(old_attribute_index) = { new_name, new_value };
-
-    // 3. Set newAttribute’s element to element.
-    new_attribute->set_owner_element(element);
+    VERIFY(old_attribute->owner_element() == &associated_element());
 
     // 4. Set newAttribute’s node document to element’s node document.
-    new_attribute->set_document(Badge<NamedNodeMap> {}, element->document());
-
-    // 5. Set oldAttribute’s element to null.
-    detach_attribute_node(old_attribute->m_qualified_name, old_value);
-    m_attribute_nodes.append(new_attribute);
-
-    // 6. Handle attribute changes for oldAttribute with element, oldAttribute’s value, and newAttribute’s value.
-    element->handle_attribute_changes(move(new_name), move(old_value), move(new_value));
+    // NB: The rest of the steps run in libweb_rust, see Rust/src/dom/attr.rs.
+    new_attribute->set_document(Badge<NamedNodeMap> {}, associated_element().document());
+    RustFFI::rust_dom_replace_attribute_node(&associated_element(), old_attribute.ptr(), new_attribute.ptr(), old_attribute_index);
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-append
 void NamedNodeMap::append_attribute(GC::Ref<Attr> attribute)
 {
-    // 1. Append attribute to element’s attribute list.
-    auto value = attribute->value();
-    associated_element().append_to_attribute_list(attribute->m_qualified_name, value);
-
-    // 2. Set attribute’s element to element.
-    attribute->set_owner_element(&associated_element());
+    VERIFY(!attribute->owner_element());
 
     // 3. Set attribute’s node document to element’s node document.
+    // NB: The rest of the steps run in libweb_rust, see Rust/src/dom/attr.rs.
     attribute->set_document(Badge<NamedNodeMap> {}, associated_element().document());
-    m_attribute_nodes.append(attribute);
-
-    // 4. Handle attribute changes for attribute with element, null, and attribute’s value.
-    associated_element().handle_attribute_changes(attribute->m_qualified_name, {}, value);
-}
-
-void NamedNodeMap::detach_attribute_node(QualifiedName const& name, Utf16String value)
-{
-    for (size_t index = 0; index < m_attribute_nodes.size(); ++index) {
-        auto& attribute = m_attribute_nodes[index];
-        if (attribute->namespace_uri() != name.namespace_() || attribute->local_name() != name.local_name())
-            continue;
-        attribute->detach_from_element(move(value));
-        m_attribute_nodes.remove(index);
-        return;
-    }
+    RustFFI::rust_dom_append_attribute_node(&associated_element(), attribute.ptr());
 }
 
 void NamedNodeMap::move_attribute_nodes_to_document(Badge<Element>, Document& document)
 {
-    for (auto& attribute : m_attribute_nodes)
+    for (auto const& attribute : attribute_nodes())
         attribute->set_document(Badge<NamedNodeMap> {}, document);
 }
 

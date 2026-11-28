@@ -119,6 +119,14 @@ impl ElementMember {
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
     }
+
+    /// Stores `element`, or null, as GC::Member's assignment does, through the write barrier hook.
+    #[inline(always)]
+    pub(super) fn set(&self, element: Option<NodePointer>) {
+        let compressed = element.map_or(0, NodePointer::compressed);
+        member_write_barrier(&self.0, compressed);
+        self.0.set(compressed);
+    }
 }
 
 /// A field that holds a Window or null, laid out as C++'s GC::Member<HTML::Window>, which is what C++ sees it as. A

@@ -28,52 +28,50 @@ GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf
 
 GC::Ref<Attr> Attr::clone(Document& document) const
 {
-    return GC::Heap::the().allocate<Attr>(document, m_qualified_name, value(), nullptr);
+    return GC::Heap::the().allocate<Attr>(document, m_attr_core.qualified_name, value(), nullptr);
 }
 
 Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, GC::Ptr<Element> owner_element)
     : Node(document, NodeType::ATTRIBUTE_NODE)
-    , m_qualified_name(move(qualified_name))
-    , m_value(move(value))
-    , m_owner_element(owner_element)
+    , m_attr_core {
+        .qualified_name = move(qualified_name),
+        .value = move(value),
+        .owner_element = owner_element,
+    }
 {
+    // NB: libweb_rust finds the core of an Attr node at this offset into its cell, and defines its layout.
+    static_assert(offsetof(Attr, m_attr_core) == RustFFI::ATTR_CORE_OFFSET);
+    static_assert(sizeof(RustFFI::AttrCore) == 24 && alignof(RustFFI::AttrCore) == 8);
+    static_assert(offsetof(RustFFI::AttrCore, qualified_name) == 0);
+    static_assert(offsetof(RustFFI::AttrCore, value) == 8);
+    static_assert(offsetof(RustFFI::AttrCore, owner_element) == 16);
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Attr, m_attr_core) >= sizeof(Node));
 }
 
 void Attr::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_owner_element);
+    visitor.visit(m_attr_core.owner_element);
 }
 
 Element* Attr::owner_element()
 {
-    return m_owner_element.ptr();
+    return m_attr_core.owner_element.ptr();
 }
 
 Element const* Attr::owner_element() const
 {
-    return m_owner_element.ptr();
-}
-
-void Attr::set_owner_element(Element* owner_element)
-{
-    m_owner_element = owner_element;
+    return m_attr_core.owner_element.ptr();
 }
 
 Utf16String Attr::value() const
 {
-    if (auto* element = owner_element()) {
-        auto index = element->find_attribute_index_ns(namespace_uri(), local_name());
-        VERIFY(index.has_value());
-        return element->m_element_core.attributes->at(*index).value;
-    }
-    return m_value;
-}
-
-void Attr::detach_from_element(Utf16String value)
-{
-    m_value = move(value);
-    m_owner_element = nullptr;
+    if (!owner_element())
+        return m_attr_core.value;
+    return Utf16String::adopt_raw(RustFFI::rust_dom_attr_value(this));
 }
 
 // https://dom.spec.whatwg.org/#set-an-existing-attribute-value
@@ -81,7 +79,7 @@ WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
 {
     // 1. If attribute’s element is null, then set attribute’s value to value and return.
     if (!owner_element()) {
-        m_value = move(value);
+        m_attr_core.value = move(value);
         return {};
     }
 
@@ -98,7 +96,7 @@ WebIDL::ExceptionOr<void> Attr::set_value(Utf16String value)
 
     // 4. If attribute’s element is null, then set attribute’s value to verifiedValue, and return.
     if (!owner_element()) {
-        m_value = move(verified_value);
+        m_attr_core.value = move(verified_value);
         return {};
     }
 
@@ -115,7 +113,7 @@ void Attr::change_attribute(Utf16String value)
         element->change_attribute_value(*this, move(value));
         return;
     }
-    m_value = move(value);
+    m_attr_core.value = move(value);
 }
 
 }

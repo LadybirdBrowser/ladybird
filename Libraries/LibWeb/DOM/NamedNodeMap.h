@@ -11,6 +11,7 @@
 
 #include <AK/Badge.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -24,7 +25,9 @@ class WEB_API NamedNodeMap : public Bindings::GCAllocatedWrappable {
 
 public:
     [[nodiscard]] static GC::Ref<NamedNodeMap> create(Element&);
-    ~NamedNodeMap() = default;
+    // NB: The buffers of the core are freed when the cell is swept, not when it is finalized, as the C++ members that
+    //     held them were, so that the finalizer of another dead cell can still read them.
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~NamedNodeMap() override;
 
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     virtual bool is_supported_property_name(Utf16FlyString const&) const override;
@@ -46,7 +49,6 @@ public:
     WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute(GC::Ref<Attr> attribute);
     void replace_attribute(GC::Ref<Attr> old_attribute, GC::Ref<Attr> new_attribute, size_t old_attribute_index);
     void append_attribute(GC::Ref<Attr> attribute);
-    void detach_attribute_node(QualifiedName const&, Utf16String value);
     void move_attribute_nodes_to_document(Badge<Element>, Document&);
 
     GC::Ptr<Attr> get_attribute_ns(Optional<Utf16FlyString> const& namespace_, Utf16FlyString const& local_name, size_t* item_index = nullptr) const;
@@ -68,8 +70,13 @@ private:
     GC::Ptr<Attr> find_attribute_node(QualifiedName const&) const;
     GC::Ref<Attr> ensure_attribute_node(QualifiedName const&) const;
 
+    ReadonlySpan<GC::Member<Node>> attribute_nodes() const { return { m_core.attribute_nodes.items, m_core.attribute_nodes.size }; }
+
     GC::NonnullMember<DOM::Element> m_element;
-    mutable Vector<GC::Ref<Attr>> m_attribute_nodes;
+
+    // The Attr nodes the map made, whose layout libweb_rust defines (see Rust/src/dom/attr.rs), which detaches them
+    // from the element as their attributes go.
+    RustFFI::NamedNodeMapCore m_core {};
 };
 
 }

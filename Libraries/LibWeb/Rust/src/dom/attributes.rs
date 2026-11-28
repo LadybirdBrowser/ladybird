@@ -8,26 +8,25 @@
 //! core, and handling their changes.
 //! https://dom.spec.whatwg.org/#concept-element-attribute
 //!
-//! C++ allocates the list and the qualified names of its attributes, so appending an attribute calls into C++, which
-//! creates the attribute and appends it. Changing an attribute's value, and taking an attribute out of the list, is
-//! done in place.
+//! Rust allocates, grows and frees the list, and makes and interns the qualified names of its attributes, see
+//! qualified_name.rs, so getting, appending, changing and removing an attribute, and detaching its Attr node, see
+//! attr.rs, is done here, in place.
 //!
-//! Handling an attribute change runs steps that C++ owns: Attr nodes, the editing history, mutation records, custom
-//! element reactions and the attribute change steps. Rust calls into C++ for them only when they have something to do,
-//! as the core flags tell: an element with no Attr nodes, in a document with no editing history and no one who hears
-//! of its attribute changes, that is not custom, and that has no attribute change steps for the attribute's name, has
-//! nothing to do in C++. What is left of the attribute change steps is done here: the collection and tree versions,
-//! and, for an element the style engine does not see, the steps for its id and its classes, which are core state.
+//! Handling an attribute change runs steps that C++ owns: the editing history, mutation records, custom element
+//! reactions and the attribute change steps. Rust calls into C++ for them only when they have something to do, as the
+//! core flags tell: an element in a document with no editing history and no one who hears of its attribute changes,
+//! that is not custom, and that has no attribute change steps for the attribute's name, has nothing to do in C++. What
+//! is left of the attribute change steps is done here: the collection and tree versions, and, for an element the style
+//! engine does not see, the steps for its id and its classes, which are core state.
 
 use core::ptr::NonNull;
 
+use super::attr;
 use super::collection::collection_attributes_changed;
 use super::element_core::ELEMENT_IS_CUSTOM;
 use super::element_core::ELEMENT_IS_FORM_ASSOCIATED_CUSTOM;
-use super::element_core::ELEMENT_MAY_HAVE_ATTRIBUTE_NODES;
 use super::element_core::ELEMENT_REFLECTION_HAS_CLASS_LIST;
 use super::hooks;
-use super::hooks::ATTRIBUTE_CHANGE_DETACH_ATTRIBUTE_NODE;
 use super::hooks::ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION;
 use super::hooks::ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL;
 use super::hooks::ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY;
@@ -44,6 +43,7 @@ use super::node_class::NodeClassId;
 use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
 use super::node_core::DOCUMENT_IS_HTML_DOCUMENT;
 use super::node_ref::NodeRef;
+use super::qualified_name;
 use super::qualified_name::QualifiedNameImpl;
 use super::slots;
 use super::slots::IsSlotName;
@@ -145,7 +145,7 @@ fn lowercases_qualified_names(element: NodeRef) -> bool {
 /// Writes the declarations of the element's inline style to its style attribute, where script changed them since,
 /// before the attribute named `is_style_attribute` says is read.
 #[inline(always)]
-fn synchronize_attribute(
+pub(super) fn synchronize_attribute(
     main_thread: &mut MainThread<'_>,
     element: NodeRef,
     is_style_attribute: impl FnOnce() -> bool,
@@ -231,13 +231,13 @@ fn change_an_attribute(main_thread: &mut MainThread<'_>, element: NodeRef, index
         name,
         Some(old_value.raw_identity()),
         Some(new_value.raw_identity()),
-        IsRemoval::No,
     );
-    hooks::release_qualified_name(main_thread, name);
+    release_qualified_name(main_thread, name);
 }
 
 /// https://dom.spec.whatwg.org/#concept-element-attributes-append
 /// https://dom.spec.whatwg.org/#concept-create-attribute
+/// `local_name`, `prefix` and `namespace_uri` are raw words of live strings, 0 for a null prefix or namespace.
 fn append_an_attribute(
     main_thread: &mut MainThread<'_>,
     element: NodeRef,
@@ -246,31 +246,17 @@ fn append_an_attribute(
     namespace_uri: usize,
     value: ak::Utf16String,
 ) {
-    let new_value = value.clone();
-
-    // 1. Append attribute to element's attribute list.
-    // 2. Set attribute's element to element.
-    // 3. Set attribute's node document to element's node document.
-    hooks::append_attribute(main_thread, element, local_name, prefix, namespace_uri, value);
-
-    // 4. Handle attribute changes for attribute with element, null, and attribute's value.
-    let core = element.element_core().expect("only an element has attributes");
-    let name = hold_qualified_name(
-        core.attributes()
-            .last()
-            .expect("the attribute was appended")
-            .name()
-            .parts(),
-    );
-    handle_attribute_changes(
-        main_thread,
-        element,
-        name,
-        None,
-        Some(new_value.raw_identity()),
-        IsRemoval::No,
-    );
-    hooks::release_qualified_name(main_thread, name);
+    // NB: A qualified name is made of interned strings, which script's strings may not be yet.
+    let intern = |raw: usize| {
+        // SAFETY: The caller lends the strings for the call.
+        (raw != 0).then(|| ak::Utf16FlyString::from_utf16_string(&unsafe { ak::Utf16String::from_raw_borrowed(raw) }))
+    };
+    let (local_name, prefix, namespace_uri) = (intern(local_name), intern(prefix), intern(namespace_uri));
+    let raw = |string: &Option<ak::Utf16FlyString>| string.as_ref().map_or(0, ak::Utf16FlyString::raw_identity);
+    // SAFETY: The interned strings are live for the call.
+    let name = unsafe { qualified_name::ensure(main_thread, raw(&local_name), raw(&prefix), raw(&namespace_uri)) };
+    append_an_attribute_named(main_thread, element, name, value);
+    release_qualified_name(main_thread, name);
 }
 
 /// Step 2.5 of cloning a single node, for the element `node` and its copy `copy`, which has no attributes.
@@ -287,7 +273,10 @@ pub(super) fn copy_attributes(main_thread: &mut MainThread<'_>, node: NodeRef, c
         return;
     }
     // NB: The copy takes all of the attributes, so its list is made with room for them at once.
-    hooks::reserve_attributes(main_thread, copy, count);
+    copy.element_core()
+        .expect("only an element has attributes")
+        .attribute_list()
+        .reserve(count);
 
     // 5. For each attribute of node's attribute list:
     // NB: Handling an attribute change can run script that changes node's attributes, so the list is read anew for
@@ -308,7 +297,7 @@ pub(super) fn copy_attributes(main_thread: &mut MainThread<'_>, node: NodeRef, c
 
         // 2. Append copyAttribute to copy.
         append_an_attribute_named(main_thread, copy, name, value);
-        hooks::release_qualified_name(main_thread, name);
+        release_qualified_name(main_thread, name);
     }
 }
 
@@ -320,37 +309,30 @@ fn append_an_attribute_named(
     name: NonNull<QualifiedNameImpl>,
     value: ak::Utf16String,
 ) {
-    let new_value = value.raw_identity();
-    let core = element.element_core().expect("only an element has attributes");
-    // SAFETY: The caller holds a reference to the name's parts.
-    let local_name = unsafe { name.as_ref() }.local_name().raw_identity();
+    // NB: The value is held for the steps, which can take the attribute out of the list.
+    let new_value = value.clone();
 
     // 1. Append attribute to element's attribute list.
-    if core.attribute_list().has_room_for_one_more() {
-        add_to_subtree_name_filter(element, name_filter_bit(local_name));
-        // SAFETY: The list has room, and nothing borrows its attributes. The list takes a reference to the name.
-        unsafe {
-            core.attribute_list()
-                .append_unchecked(hold_qualified_name(name.as_ref()), value);
-        }
-    } else {
-        // SAFETY: The caller holds a reference to the name's parts.
-        let parts = unsafe { name.as_ref() };
-        hooks::append_attribute(
-            main_thread,
-            element,
-            local_name,
-            parts.prefix().map_or(0, |prefix| prefix.raw_identity()),
-            parts.namespace().map_or(0, |namespace| namespace.raw_identity()),
-            value,
-        );
-    }
+    // NB: The list takes a reference to the name of its own.
+    // SAFETY: The caller holds a reference to the name's parts.
+    append_to_attribute_list(element, hold_qualified_name(unsafe { name.as_ref() }), value);
 
     // 2. Set attribute's element to element.
     // 3. Set attribute's node document to element's node document.
     // 4. Handle attribute changes for attribute with element, null, and attribute's value.
-    // NB: The list holds a reference to the value, which stays alive while the changes are handled.
-    handle_attribute_changes(main_thread, element, name, None, Some(new_value), IsRemoval::No);
+    handle_attribute_changes(main_thread, element, name, None, Some(new_value.raw_identity()));
+}
+
+/// Appends an attribute named `name` whose value is `value`, whose references pass to the list, to `element`'s attribute
+/// list, and adds its local name to the subtree name filters.
+pub(super) fn append_to_attribute_list(element: NodeRef, name: NonNull<QualifiedNameImpl>, value: ak::Utf16String) {
+    // SAFETY: The list's reference keeps the name's parts, and so its local name, alive.
+    add_to_subtree_name_filter(element, unsafe {
+        name_filter_bit(name.as_ref().local_name().raw_identity())
+    });
+    let core = element.element_core().expect("only an element has attributes");
+    // SAFETY: Nothing borrows an attribute of the list.
+    unsafe { core.attribute_list().append(name, value) };
 }
 
 /// https://dom.spec.whatwg.org/#concept-element-attributes-remove
@@ -363,42 +345,38 @@ fn remove_an_attribute(main_thread: &mut MainThread<'_>, element: NodeRef, index
     let (name, old_value) = unsafe { core.attribute_list().take(index) };
 
     // 3. Set attribute's element to null.
+    // NB: Only an attribute that has an Attr node keeps its element, in the node.
+    // SAFETY: The list's reference to the name passed to this function.
+    attr::detach_attribute_node(element, unsafe { name.as_ref() }, &old_value);
+
     // 4. Handle attribute changes for attribute with element, attribute's value, and null.
-    // NB: The attribute_changed hook sets the element of the attribute's Attr node to null, as the first of the steps
-    //     it runs.
-    handle_attribute_changes(
-        main_thread,
-        element,
-        name,
-        Some(old_value.raw_identity()),
-        None,
-        IsRemoval::Yes,
-    );
-    hooks::release_qualified_name(main_thread, name);
+    handle_attribute_changes(main_thread, element, name, Some(old_value.raw_identity()), None);
+    release_qualified_name(main_thread, name);
 }
 
-/// Takes a reference to the parts of a qualified name, which hooks::release_qualified_name() drops.
+/// Takes a reference to the parts of a qualified name, which release_qualified_name() drops.
 #[inline(always)]
-fn hold_qualified_name(parts: &QualifiedNameImpl) -> NonNull<QualifiedNameImpl> {
+pub(super) fn hold_qualified_name(parts: &QualifiedNameImpl) -> NonNull<QualifiedNameImpl> {
     // SAFETY: The parts are live, and only the main thread counts the references to them.
     unsafe { parts.add_reference() };
     NonNull::from(parts)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum IsRemoval {
-    No,
-    Yes,
+/// Drops a reference to the parts of a qualified name, which the caller holds.
+#[inline(always)]
+pub(super) fn release_qualified_name(main_thread: &mut MainThread<'_>, name: NonNull<QualifiedNameImpl>) {
+    // SAFETY: The caller holds the reference, on the main thread.
+    unsafe { qualified_name::release(main_thread, name) }
 }
 
 /// https://dom.spec.whatwg.org/#handle-attribute-changes
-fn handle_attribute_changes(
+/// The caller holds a reference to the parts of the name, and to the values.
+pub(super) fn handle_attribute_changes(
     main_thread: &mut MainThread<'_>,
     element: NodeRef,
     name: NonNull<QualifiedNameImpl>,
     old_value: Option<usize>,
     new_value: Option<usize>,
-    is_removal: IsRemoval,
 ) {
     let value_changed = match (old_value, new_value) {
         // SAFETY: The caller holds a reference to the values.
@@ -414,9 +392,6 @@ fn handle_attribute_changes(
     }
     if new_value.is_none() {
         steps |= ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL;
-    }
-    if is_removal == IsRemoval::Yes && element_flags & ELEMENT_MAY_HAVE_ATTRIBUTE_NODES != 0 {
-        steps |= ATTRIBUTE_CHANGE_DETACH_ATTRIBUTE_NODE;
     }
     // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
     if element.document_core().flags() & DOCUMENT_HAS_EDITING_HISTORY != 0 {
@@ -1057,35 +1032,86 @@ pub unsafe extern "C" fn rust_dom_toggle_attribute(
     true
 }
 
-/// "Handle attribute changes", for the attributes C++ changes in its list itself: those of Attr nodes it appends and
-/// replaces.
-/// https://dom.spec.whatwg.org/#handle-attribute-changes
+/// "Append an attribute" for an attribute named `name`, whose value is the string `value` gives a reference to, which
+/// passes to the call, and `element`, for the C++ that creates elements with attributes.
+/// https://dom.spec.whatwg.org/#concept-element-attributes-append
 ///
 /// # Safety
 ///
-/// The element must be live, `name` the parts of a live qualified name, `old_value` and `new_value` raw words of live
-/// strings, null where `old_value_is_null` and `new_value_is_null` say so, and the call must be made on the main thread.
+/// The element must be live, `name` the parts of a live qualified name, `value` a reference to a string, and the call
+/// must be made on the main thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_handle_attribute_changes(
+pub unsafe extern "C" fn rust_dom_append_an_attribute(
     element: &NodeCell,
     name: NonNull<QualifiedNameImpl>,
-    old_value: usize,
-    old_value_is_null: bool,
-    new_value: usize,
-    new_value_is_null: bool,
+    value: usize,
 ) {
     // SAFETY: Guaranteed by the caller.
     let mut main_thread = unsafe { main_thread() };
     // SAFETY: The element is live.
     let element = unsafe { NodeRef::from_cell(element, &main_thread) };
-    handle_attribute_changes(
-        &mut main_thread,
-        element,
-        name,
-        (!old_value_is_null).then_some(old_value),
-        (!new_value_is_null).then_some(new_value),
-        IsRemoval::No,
-    );
+    // SAFETY: The caller passes its reference to the value.
+    let value = unsafe { ak::Utf16String::from_raw_owned(value) };
+    // NB: The name is held for the steps, which can run script that drops the caller's.
+    // SAFETY: The caller keeps the name's parts alive for the call.
+    let name = hold_qualified_name(unsafe { name.as_ref() });
+    append_an_attribute_named(&mut main_thread, element, name, value);
+    release_qualified_name(&mut main_thread, name);
+}
+
+/// Makes room in `element`'s attribute list for `capacity` attributes, for the C++ that creates elements with as many.
+///
+/// # Safety
+///
+/// The element must be live, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_reserve_attributes(element: &NodeCell, capacity: usize) {
+    // SAFETY: Guaranteed by the caller.
+    let main_thread = unsafe { main_thread() };
+    // SAFETY: The element is live.
+    let element = unsafe { NodeRef::from_cell(element, &main_thread) };
+    let list = element
+        .element_core()
+        .expect("only an element has attributes")
+        .attribute_list();
+    list.reserve(capacity.saturating_sub(list.as_slice().len()));
+}
+
+/// Sets the value of `element`'s attribute without a namespace whose local name is `local_name`, an interned string,
+/// to the string `value` gives a reference to, which passes to the call, appending the attribute where the element has
+/// none, without handling the change. C++ writes the declarations of an element's inline style to its style attribute
+/// this way, and tells the style engine of it itself.
+///
+/// # Safety
+///
+/// The element must be live, `local_name` the raw word of a live interned string, `value` a reference to a string, and
+/// the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_write_attribute_value_without_change_steps(
+    element: &NodeCell,
+    local_name: usize,
+    value: usize,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The element is live.
+    let element = unsafe { NodeRef::from_cell(element, &main_thread) };
+    // SAFETY: The caller passes its reference to the value.
+    let value = unsafe { ak::Utf16String::from_raw_owned(value) };
+    let core = element.element_core().expect("only an element has attributes");
+    let index = core.attributes().iter().position(|attribute| {
+        let name = attribute.name();
+        name.namespace().is_none() && name.local_name().raw_identity() == local_name
+    });
+    match index {
+        // SAFETY: Nothing borrows the attribute's value.
+        Some(index) => drop(unsafe { core.attribute_list().replace_value(index, value) }),
+        None => {
+            // SAFETY: The caller lends the local name for the call.
+            let name = unsafe { qualified_name::ensure(&mut main_thread, local_name, 0, 0) };
+            append_to_attribute_list(element, name, value);
+        }
+    }
 }
 
 /// Sets the element's classes to the tokens of the value of its class attribute, `value` or null where `value_is_null`

@@ -7,68 +7,69 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/Span.h>
 #include <AK/Utf16String.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/DOM/QualifiedName.h>
+#include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 
-// The attributes of an element, in order, in the same allocation as their count and capacity. C++ alone constructs,
-// changes and destroys them. libweb_rust reads them in place (see Rust/src/dom/element_core.rs), and mirrors this
-// layout, which AttributeList.cpp asserts.
-class AttributeList {
+// The attributes of an element, in order, as ElementCore holds them: a pointer to their count and capacity, which they
+// follow in one allocation, or null for an element that never had an attribute. libweb_rust allocates, changes and
+// frees the list (see Rust/src/dom/element_core.rs), and defines its layout, which AttributeList.cpp asserts. C++ only
+// reads it, and has Rust free it as it destroys the element.
+class WEB_API AttributeList {
     AK_MAKE_NONCOPYABLE(AttributeList);
     AK_MAKE_NONMOVABLE(AttributeList);
-    AK_ALLOC_WITH_KMALLOC;
 
 public:
+    // An attribute, which only libweb_rust constructs, changes and destroys.
     struct Attribute {
+        Attribute() = delete;
+        ~Attribute() = delete;
+
         QualifiedName name;
         Utf16String value;
     };
 
-    static NonnullOwnPtr<AttributeList> create(size_t capacity);
+    AttributeList() = default;
     ~AttributeList();
 
-    // Returns a list with room for one more attribute: this one, or a new one these attributes were moved into.
-    static NonnullOwnPtr<AttributeList> ensure_room_for_one_more(NonnullOwnPtr<AttributeList>);
-    NonnullOwnPtr<AttributeList> moved_into_new_list(size_t capacity);
+    size_t size() const { return m_list ? m_list->size : 0; }
+    bool is_empty() const { return size() == 0; }
+    size_t capacity() const;
 
-    void unchecked_append(QualifiedName, Utf16String value);
-    void remove(size_t index);
-
-    size_t size() const { return m_size; }
-    size_t capacity() const { return m_capacity; }
-    bool is_empty() const { return m_size == 0; }
-
-    Attribute& at(size_t index)
-    {
-        VERIFY(index < m_size);
-        return attributes()[index];
-    }
     Attribute const& at(size_t index) const
     {
-        VERIFY(index < m_size);
+        VERIFY(index < size());
         return attributes()[index];
     }
-    Attribute& last() { return at(m_size - 1); }
 
-    Span<Attribute> span() { return { attributes(), m_size }; }
-    ReadonlySpan<Attribute> span() const { return { attributes(), m_size }; }
-
-private:
-    explicit AttributeList(u32 capacity)
-        : m_capacity(capacity)
+    ReadonlySpan<Attribute> span() const
     {
+        if (!m_list)
+            return {};
+        return { attributes(), m_list->size };
     }
 
-    // The attributes follow the list in its allocation.
-    Attribute* attributes() { return reinterpret_cast<Attribute*>(this + 1); }
-    Attribute const* attributes() const { return reinterpret_cast<Attribute const*>(this + 1); }
+    void const* memory() const { return m_list; }
+    size_t allocation_size() const;
 
-    u32 m_size { 0 };
-    u32 m_capacity { 0 };
+    // The field of the element's NamedNodeMap, which the list has once script asked for the map, or null.
+    GC::Member<NamedNodeMap>* attribute_map_slot() const;
+
+private:
+    struct Header {
+        u32 size;
+        u32 capacity;
+    };
+
+    // The attributes follow the list's header in its allocation.
+    Attribute const* attributes() const { return reinterpret_cast<Attribute const*>(m_list + 1); }
+
+    Header* m_list { nullptr };
 };
 
 }

@@ -114,6 +114,13 @@ unsafe extern "C" fn ladybird_utf16_fly_string_from_utf8(data: *const u8, length
     unsafe { ladybird_utf16_fly_string_from_utf16(units.as_ptr(), units.len()) }
 }
 #[unsafe(no_mangle)]
+unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16_string(raw: usize) -> usize {
+    let units = unsafe { ak::Utf16String::from_raw_borrowed(raw) }
+        .to_utf16()
+        .into_owned();
+    unsafe { ladybird_utf16_fly_string_from_utf16(units.as_ptr(), units.len()) }
+}
+#[unsafe(no_mangle)]
 unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
     // Keep a process-wide test atom table with AK's header layout so worker-parsed
     // names remain alive after the worker exits.

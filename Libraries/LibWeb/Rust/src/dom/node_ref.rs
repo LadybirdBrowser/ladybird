@@ -33,6 +33,10 @@
 
 use core::ptr::NonNull;
 
+use super::attr::ATTR_CORE_OFFSET;
+use super::attr::AttrCore;
+use super::attr::NAMED_NODE_MAP_CORE_OFFSET;
+use super::attr::NamedNodeMapCore;
 use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
 use super::event_target::EventTargetRef;
@@ -281,6 +285,35 @@ impl NodeRef {
         }
         // SAFETY: Every element embeds its core ELEMENT_CORE_OFFSET bytes into its cell, which Element.cpp asserts.
         Some(unsafe { &*self.pinned_cell().byte_add(ELEMENT_CORE_OFFSET).cast::<ElementCore>() })
+    }
+
+    /// The Attr node's core, read for as long as the reference is borrowed, during which nothing may call into C++, or
+    /// none for a node that is no Attr node.
+    #[inline(always)]
+    pub(super) fn attr_core(&self) -> Option<&AttrCore> {
+        if self.class_id() != NodeClassId::Attr {
+            return None;
+        }
+        // SAFETY: Every Attr node embeds its core ATTR_CORE_OFFSET bytes into its cell, which Attr.cpp asserts.
+        Some(unsafe { &*self.pinned_cell().byte_add(ATTR_CORE_OFFSET).cast::<AttrCore>() })
+    }
+
+    /// The core of the element's NamedNodeMap, read for as long as the reference is borrowed, during which nothing may
+    /// call into C++, or none for an element that has no map, or a node that is no element.
+    #[inline(always)]
+    pub(super) fn attribute_map_core(&self) -> Option<&NamedNodeMapCore> {
+        let compressed = self.element_core()?.attribute_list().attribute_map()?.get();
+        // NB: A map is a cell like a node, which a compressed pointer names alike.
+        let map = decompress(NodePointer::from_compressed(compressed));
+        // SAFETY: An element keeps its map alive, which embeds its core NAMED_NODE_MAP_CORE_OFFSET bytes into its cell,
+        //         which NamedNodeMap.cpp asserts.
+        Some(unsafe {
+            &*map
+                .as_ptr()
+                .cast_const()
+                .byte_add(NAMED_NODE_MAP_CORE_OFFSET)
+                .cast::<NamedNodeMapCore>()
+        })
     }
 
     /// The core of a ParentNode, an element, a document or a DocumentFragment, read for as long as the reference is
