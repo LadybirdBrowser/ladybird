@@ -1,0 +1,25 @@
+On every platform but macOS, a plain Page Up/Down in a text control
+moves the cursor by a page in Ladybird, as it does in Blink, whose
+editing_behavior.cc maps the plain VKEY_NEXT and VKEY_PRIOR keys
+to MovePageDown and MovePageUp everywhere except on macOS, where
+Option+Page Down moves instead. Gecko’s ShortcutKeyDefinitions.cpp
+maps VK_PAGE_DOWN to cmd_movePageDown on Windows and Linux and to
+cmd_scrollPageDown on macOS, and WebKitGTK’s KeyBindingTranslator maps
+GDK_KEY_Page_Down to MovePageDown. Run headless on macOS (Chrome 158,
+Firefox 151, WebKit 26.5), all three scrolled a textarea on a plain Page
+Down without moving its caret, and moved the caret on Option+Page Down.
+
+After the move, Ladybird scrolls the control by the same page, so
+the cursor keeps its place in the view. Gecko does too: Run headless,
+Firefox kept the caret on the view’s first row, and on its last
+row. Blink reveals the caret with ScrollAlignment::TopAlways after
+MoveCommands::ModifySelectionWithPageGranularity(), so from the view’s
+first row, it ends the same way. On macOS, Chrome and WebKit center the
+caret’s line after Option+Page Down instead; Ladybird doesn’t.
+
+In a single-line input, a plain Page Up/Down still scrolls the page, as
+in both engines: Gecko’s sInputHandlers in ShortcutKeyDefinitions.cpp
+has no Page Down binding, so the key reaches the browser’s page
+scrolling, and Blink’s MoveCommands::VerticalScrollDistance() returns 0
+for a focused input, which is neither editable itself nor scrollable, so
+MovePageDown isn’t handled.
