@@ -958,12 +958,16 @@ bool AuthenticatorManager::has_platform_passkeys()
     return platform_backend() != nullptr;
 }
 
-Vector<AuthenticatorManager::StoredPasskey> AuthenticatorManager::platform_passkeys()
+Optional<Vector<AuthenticatorManager::StoredPasskey>> AuthenticatorManager::platform_passkeys()
 {
     Vector<StoredPasskey> passkeys;
     if (!platform_backend())
         return passkeys;
-    for (auto const& credential : platform_authenticator().credentials()) {
+    auto& authenticator = platform_authenticator();
+    // NB: An authenticator that could not read the platform cannot say which passkeys there are.
+    if (!m_has_loaded_platform_credentials)
+        return {};
+    for (auto const& credential : authenticator.credentials()) {
         Utf16String account;
         if (credential.user_name.has_value() && !credential.user_name->is_empty())
             account = *credential.user_name;

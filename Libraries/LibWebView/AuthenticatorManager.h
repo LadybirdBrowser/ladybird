@@ -98,7 +98,7 @@ public:
     };
     // Whether this platform has a built-in authenticator that keeps passkeys.
     bool has_platform_passkeys();
-    Vector<StoredPasskey> platform_passkeys();
+    Optional<Vector<StoredPasskey>> platform_passkeys();
     // Whether the passkey is gone, from the platform too.
     bool remove_platform_passkey(StringView id);
 

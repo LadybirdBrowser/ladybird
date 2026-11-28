@@ -24,6 +24,10 @@ const clearBrowsingDataTimeRange = document.querySelector("#clear-browsing-data-
 
 const globalPrivacyControlToggle = document.querySelector("#global-privacy-control-toggle");
 
+const passkeysDescription = document.querySelector("#passkeys-description");
+const passkeysList = document.querySelector("#passkeys-list");
+const passkeysShow = document.querySelector("#passkeys-show");
+
 function loadSettings(settings) {
     if (Object.hasOwn(settings, "globalPrivacyControl")) {
         globalPrivacyControlToggle.checked = settings.globalPrivacyControl;
@@ -111,6 +115,80 @@ clearBrowsingDataRemoveData.addEventListener("click", () => {
     browsingDataSettingsDialog.close();
 });
 
+// NB: The list is loaded only when the user asks for it, as the platform can ask the user before it gives the passkeys.
+passkeysShow.addEventListener("click", () => {
+    ladybird.sendMessage("loadPasskeys");
+});
+
+const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+
+function updatePasskeys(data) {
+    passkeysList.replaceChildren();
+    if (!data.available) {
+        passkeysDescription.textContent = "Ladybird cannot keep passkeys on this device yet.";
+        passkeysShow.disabled = true;
+        return;
+    }
+    // NB: The control stays after a read that failed, so that the user can try again.
+    if (data.failed) {
+        const failure = document.createElement("p");
+        failure.className = "card-group description";
+        failure.textContent = "Ladybird could not read the passkeys on this device. Try again.";
+        passkeysList.appendChild(failure);
+        return;
+    }
+    passkeysShow.hidden = true;
+
+    if (data.passkeys.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "card-group description";
+        empty.textContent = "There are no passkeys in Ladybird.";
+        passkeysList.appendChild(empty);
+        return;
+    }
+
+    for (const passkey of data.passkeys) {
+        const row = document.createElement("div");
+        row.className = "card-group inline-container control-row";
+
+        const label = document.createElement("label");
+        label.textContent = passkey.site;
+        const account = document.createElement("p");
+        account.className = "description";
+        account.textContent = passkey.account || "No account name";
+        label.appendChild(account);
+
+        const dates = [];
+        if (Object.hasOwn(passkey, "created")) {
+            dates.push(`Created ${dateFormatter.format(new Date(passkey.created))}`);
+        }
+        if (Object.hasOwn(passkey, "lastUsed")) {
+            dates.push(`Last used ${dateFormatter.format(new Date(passkey.lastUsed))}`);
+        }
+        if (dates.length > 0) {
+            const usage = document.createElement("p");
+            usage.className = "description";
+            usage.textContent = dates.join(" · ");
+            label.appendChild(usage);
+        }
+
+        const remove = document.createElement("button");
+        remove.className = "secondary-button";
+        remove.textContent = "Remove";
+        const name = passkey.account ? `${passkey.account} on ${passkey.site}` : passkey.site;
+        remove.setAttribute("aria-label", `Remove the passkey for ${name}`);
+        remove.addEventListener("click", () => {
+            if (!window.confirm(`Remove the passkey for ${name}? You can then no longer sign in with it.`)) {
+                return;
+            }
+            ladybird.sendMessage("removePasskey", passkey.id);
+        });
+
+        row.append(label, remove);
+        passkeysList.appendChild(row);
+    }
+}
+
 globalPrivacyControlToggle.addEventListener("change", () => {
     ladybird.sendMessage("setGlobalPrivacyControl", globalPrivacyControlToggle.checked);
 });
@@ -124,5 +202,9 @@ document.addEventListener("WebUIMessage", event => {
         updateBrowsingDataSizes(event.detail.data);
     } else if (event.detail.name === "clearedBrowsingData") {
         estimateBrowsingDataSizes();
+    } else if (event.detail.name === "loadPasskeys") {
+        updatePasskeys(event.detail.data);
+    } else if (event.detail.name === "passkeyRemovalFailed") {
+        window.alert("Ladybird could not remove the passkey. It is still on this device.");
     }
 });
