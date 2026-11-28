@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 3;
+        canvas.height = 2;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "rgb(200, 100, 50)";
+        context.fillRect(0, 0, 3, 1);
+        context.fillRect(0, 1, 1, 1);
+        context.fillStyle = "rgba(200, 100, 50, 0.5)";
+        context.fillRect(1, 1, 1, 1);
+
+        const image = new Image();
+        image.src = canvas.toDataURL("image/png");
+        await image.decode();
+        const decodedCanvas = document.createElement("canvas");
+        decodedCanvas.width = 3;
+        decodedCanvas.height = 2;
+        const decodedContext = decodedCanvas.getContext("2d");
+        decodedContext.drawImage(image, 0, 0);
+
+        for (let y = 0; y < 2; ++y) {
+            for (let x = 0; x < 3; ++x) {
+                const original = Array.from(context.getImageData(x, y, 1, 1).data);
+                const exported = Array.from(decodedContext.getImageData(x, y, 1, 1).data);
+                println(`(${x}, ${y}): canvas ${original}, exported PNG ${exported}`);
+            }
+        }
+    });
+</script>
