@@ -1269,6 +1269,9 @@ pub(crate) struct LayoutNodeArena {
     /// The chunks of rows freed whole since the last publication, whose published rows that publication stops
     /// storing. See [`Self::stop_storing_rows_of_free_chunks`].
     chunks_freed_since_publication: Vec<u32>,
+    /// The chunks of slots that rows were freed in a few at a time since the paint tree was last published, which are
+    /// looked at for having no live row left when it next is.
+    chunks_with_few_rows_freed: Vec<u32>,
     live_count: u32,
     default_scroll_shift_anchors: Vec<DefaultScrollShiftAnchorSlot>,
     text_slots: TextSlots,
@@ -1467,6 +1470,7 @@ impl LayoutNodeArena {
             free_list: ForkVec::default(),
             preallocated_row: None,
             chunks_freed_since_publication: Vec::new(),
+            chunks_with_few_rows_freed: Vec::new(),
             live_count: 0,
             default_scroll_shift_anchors: Vec::new(),
             text_slots: TextSlots::default(),
@@ -1850,15 +1854,29 @@ impl LayoutNodeArena {
     ///               slots are free from then on, and no later build fills more than a few of them. The columns never
     ///               shrink, but a freed row is the default in each, and a column stores nothing for a chunk of those.
     fn stop_storing_rows_of_free_chunks(&mut self, freed: &[NodeSlotId]) {
+        let chunks = freed.iter().map(|slot| slot.slot_index() / SLOTS_PER_CHUNK as u32);
         if freed.len() < SLOTS_PER_CHUNK / 4 {
-            // NB: Too few rows to have emptied a chunk that was mostly live. A chunk they did empty is let go of the
-            //     next time a larger subtree in it is freed, if ever.
+            // OPTIMIZATION: Too few rows to have emptied a chunk that was mostly live, but the last of many such frees
+            //               does empty one, as when a list loses its items one by one. Their chunks are noted, and
+            //               looked at once, when the paint tree is next published.
+            for chunk in chunks {
+                if self.chunks_with_few_rows_freed.last() != Some(&chunk) {
+                    self.chunks_with_few_rows_freed.push(chunk);
+                }
+            }
+            // NB: A subtree's rows can alternate between chunks, and no paint tree may be published for a long while,
+            //     so the notes are kept to one per chunk once they outnumber the chunks twice over.
+            if self.chunks_with_few_rows_freed.len() > 2 * self.chunks.len() {
+                self.chunks_with_few_rows_freed.sort_unstable();
+                self.chunks_with_few_rows_freed.dedup();
+            }
             return;
         }
-        let mut chunks: Vec<u32> = freed
-            .iter()
-            .map(|slot| slot.slot_index() / SLOTS_PER_CHUNK as u32)
-            .collect();
+        let chunks: Vec<u32> = chunks.collect();
+        self.stop_storing_rows_of_chunks_left_free(chunks);
+    }
+
+    fn stop_storing_rows_of_chunks_left_free(&mut self, mut chunks: Vec<u32>) {
         chunks.sort_unstable();
         chunks.dedup();
         for chunk in chunks {
@@ -2040,6 +2058,10 @@ impl LayoutNodeArena {
     pub(crate) fn publish_paint_tree(
         &mut self,
     ) -> crate::cow_column::ColumnSnapshot<super::node_data::PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
+        let chunks_with_few_rows_freed = std::mem::take(&mut self.chunks_with_few_rows_freed);
+        if !chunks_with_few_rows_freed.is_empty() {
+            self.stop_storing_rows_of_chunks_left_free(chunks_with_few_rows_freed);
+        }
         let chunks_freed = std::mem::take(&mut self.chunks_freed_since_publication);
         self.tree_shape.publish(
             &chunks_freed,
