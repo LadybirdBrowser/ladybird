@@ -16,16 +16,22 @@
             }
             internals.mouseDown(50, 50, 1, internals.BUTTON_MIDDLE);
             internals.mouseUp(50, 50, internals.BUTTON_MIDDLE);
-            internals.mouseMove(50, 150);
+            internals.mouseMove(50, 158);
             const before = await frameAt(0);
             const first = await frameAt(20);
             const second = await frameAt(60);
-            println(`20ms at 500px per second: ${first - before}`);
-            println(`40ms at 500px per second: ${second - first}`);
+            println(`20ms with the pointer 108px below the origin: ${first - before}`);
+            println(`40ms with the pointer 108px below the origin: ${second - first}`);
             const afterPause = await frameAt(260);
-            println(`200ms at 500px per second: ${afterPause - second}`);
+            println(`200ms with the pointer 108px below the origin: ${afterPause - second}`);
+            internals.mouseMove(50, 98);
+            const closer = await frameAt(280);
+            println(`20ms with the pointer 48px below the origin: ${closer - afterPause}`);
+            internals.mouseMove(50, 2);
+            const reversed = await frameAt(300);
+            println(`20ms with the pointer 48px above the origin: ${reversed - closer}`);
             internals.mouseMove(50, 50);
-            println(`back at origin: ${await frameAt(280) - afterPause}`);
+            println(`back at origin: ${await frameAt(320) - reversed}`);
         } finally {
             internals.setManualRenderingOpportunities(false);
         }
