@@ -14,12 +14,14 @@ use super::hooks::DomInserter;
 use super::hooks::Inserter;
 use super::hooks::InsertionKind;
 use super::hooks::ParserInserter;
+use super::links;
 use super::node::NodeCell;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNullableNodeRef;
 use super::range::adjust_live_ranges_for_insertion;
 use super::remove::remove_all_children;
+use super::slots::assign_slots_after_linking;
 use super::steps::insertion_steps_do_nothing;
 use super::tree::for_each_shadow_including_inclusive_descendant;
 use super::tree_version::bump_dom_tree_version;
@@ -141,23 +143,25 @@ fn insert_nodes<I: Inserter>(
         // 1. Adopt node into parent’s node document.
         adopt(main_thread, node, parent.document());
 
-        // 2. If child is null, then append node to parent’s children.
-        // 3. Otherwise, insert node into parent’s children before child’s index.
-        // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
-        //    assign a slot for node.
-        // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-        //    signal a slot change for parent.
-        // 6. Run assign slottables for a tree with node’s root.
-        // NB: The callback also records the arrival of the subtree for the style engine, and then calls
-        //     rust_dom_run_insertion_steps() for the walk below, inside a C++ scope that serves the insertion steps of
-        //     the subtree.
-        hooks::insert_node_into_children::<I>(
-            main_thread,
-            parent,
-            node,
-            child,
-            &mut any_node_has_post_connection_steps,
-        );
+        // AD-HOC: A document leaves out a child it does not allow, as DOM::Document::is_child_allowed() says, where
+        //         the parser appends one.
+        if child.is_some() || document_allows_child(parent, node) {
+            // 2. If child is null, then append node to parent’s children.
+            // 3. Otherwise, insert node into parent’s children before child’s index.
+            links::insert_child(main_thread, parent, node, child);
+
+            // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable,
+            //    then assign a slot for node.
+            // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then
+            //    run signal a slot change for parent.
+            // 6. Run assign slottables for a tree with node’s root.
+            assign_slots_after_linking(main_thread, parent, node);
+        }
+
+        // NB: The callback puts node in the C++ state that follows parent's children, records the arrival of the
+        //     subtree for the style engine, and then calls rust_dom_run_insertion_steps() for the walk below, inside a
+        //     C++ scope that serves the insertion steps of the subtree.
+        hooks::inserted_into_children::<I>(main_thread, parent, node, &mut any_node_has_post_connection_steps);
     }
 
     // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
@@ -197,6 +201,31 @@ fn insert_nodes<I: Inserter>(
     }
 
     bump_dom_tree_version(main_thread, parent);
+}
+
+/// Whether `parent` allows `node` as its last child, which every node but a document does for every node it can be
+/// given: a document allows a comment, a processing instruction, and a doctype or an element where it has none yet.
+#[inline(always)]
+fn document_allows_child(parent: NodeRef, node: NodeRef) -> bool {
+    if parent.node_type() != NodeType::DOCUMENT_NODE {
+        return true;
+    }
+    let has_child_of_type = |node_type| {
+        let mut child = parent.first_child();
+        while let Some(current) = child {
+            if current.node_type() == node_type {
+                return true;
+            }
+            child = current.next_sibling();
+        }
+        false
+    };
+    match node.node_type() {
+        NodeType::COMMENT_NODE | NodeType::PROCESSING_INSTRUCTION_NODE => true,
+        NodeType::DOCUMENT_TYPE_NODE => !has_child_of_type(NodeType::DOCUMENT_TYPE_NODE),
+        NodeType::ELEMENT_NODE => !has_child_of_type(NodeType::ELEMENT_NODE),
+        _ => false,
+    }
 }
 
 /// Whether `node` is an li element in the HTML namespace.

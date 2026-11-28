@@ -53,6 +53,11 @@ use super::node_core::PARENT_NODE_CORE_OFFSET;
 use super::node_core::ParentNodeCore;
 use super::node_core::TEXT_CORE_OFFSET;
 use super::node_core::TextCore;
+use super::slots::SHADOW_ROOT_CORE_OFFSET;
+use super::slots::SLOT_CORE_OFFSET;
+use super::slots::ShadowRootCore;
+use super::slots::SlotCore;
+use super::slots::is_slot;
 use crate::stage::MainThread;
 
 /// A node held by code that changes the DOM, valid across tree changes, allocation and script for as long as it is
@@ -109,6 +114,17 @@ impl NodeRef {
     #[inline(always)]
     pub(super) unsafe fn from_cell_unchecked(cell: NonNull<NodeCell>) -> Self {
         Self { cell }
+    }
+
+    /// The node `pointer` names.
+    ///
+    /// # Safety
+    ///
+    /// `pointer` must name a live node, which the caller keeps alive for as long as the reference is held.
+    #[inline(always)]
+    pub(super) unsafe fn from_pointer(pointer: NodePointer) -> Self {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { Self::decode(pointer) }
     }
 
     /// The node a field of a cell that is no node holds, such as the root of a NodeIterator, or none if it is null.
@@ -323,6 +339,35 @@ impl NodeRef {
             }
             _ => None,
         }
+    }
+
+    /// The core of a slot, read for as long as the reference is borrowed, during which nothing may call into C++, or
+    /// none for a node that is no slot.
+    #[inline(always)]
+    pub(super) fn slot_core(&self) -> Option<&SlotCore> {
+        if !is_slot(*self) {
+            return None;
+        }
+        // SAFETY: Every slot is an HTML::HTMLSlotElement, which embeds its core SLOT_CORE_OFFSET bytes into its cell, as
+        //         HTMLSlotElement.cpp asserts.
+        Some(unsafe { &*self.pinned_cell().byte_add(SLOT_CORE_OFFSET).cast::<SlotCore>() })
+    }
+
+    /// The core of a shadow root, read for as long as the reference is borrowed, during which nothing may call into
+    /// C++, or none for a node that is no shadow root.
+    #[inline(always)]
+    pub(super) fn shadow_root_core(&self) -> Option<&ShadowRootCore> {
+        if !self.is_shadow_root() {
+            return None;
+        }
+        // SAFETY: Every shadow root embeds its core SHADOW_ROOT_CORE_OFFSET bytes into its cell, which ShadowRoot.cpp
+        //         asserts.
+        Some(unsafe {
+            &*self
+                .pinned_cell()
+                .byte_add(SHADOW_ROOT_CORE_OFFSET)
+                .cast::<ShadowRootCore>()
+        })
     }
 
     /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps in its core, or none for any other node.

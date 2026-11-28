@@ -20,6 +20,7 @@ public:
     ~RootedNodeList();
 
     RustFFI::RootedNodeListCore const& core() const { return m_core; }
+    ReadonlySpan<GC::Ref<Node>> nodes() const { return { m_core.nodes, m_core.length }; }
 
     virtual void gather_roots(HashMap<GC::Cell*, GC::HeapRoot>&) const override;
 

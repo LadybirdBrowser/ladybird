@@ -11,7 +11,6 @@
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootVector.h>
-#include <LibWeb/DOM/Slot.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -24,14 +23,15 @@ struct AssignedNodesOptions;
 
 namespace Web::HTML {
 
-class HTMLSlotElement final
-    : public HTMLElement
-    , public DOM::Slot {
+// https://dom.spec.whatwg.org/#concept-slot
+class HTMLSlotElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLSlotElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSlotElement);
 
 public:
-    virtual ~HTMLSlotElement() override;
+    // NB: The buffers of the core are freed when the cell is swept, not when it is finalized, as the C++ members that
+    //     held them were, so that the finalizer of another dead cell can still read them.
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~HTMLSlotElement() override;
 
     enum class AssignedNodesFlatten {
         No,
@@ -46,7 +46,12 @@ public:
     using SlottableHandle = Variant<GC::Ref<DOM::Element>, GC::Ref<DOM::Text>>;
     void assign(GC::RootVector<SlottableHandle> nodes);
 
-    ReadonlySpan<DOM::Slottable> manually_assigned_nodes() const { return m_manually_assigned_nodes; }
+    // https://dom.spec.whatwg.org/#slot-assigned-nodes, which libweb_rust keeps in the slot's core. NB: The list is
+    // current only once assign_slottables_if_needed() has brought it up to date.
+    ReadonlySpan<GC::Member<DOM::Node>> assigned_nodes_internal() const { return { m_slot_core.assigned_nodes.items, m_slot_core.assigned_nodes.size }; }
+
+    // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes
+    ReadonlySpan<GC::Member<DOM::Node>> manually_assigned_nodes() const { return { m_slot_core.manually_assigned_nodes.items, m_slot_core.manually_assigned_nodes.size }; }
 
     void assign_slottables_if_needed() const;
 
@@ -55,10 +60,8 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
-
-    // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes
-    Vector<DOM::Slottable> m_manually_assigned_nodes;
+    // NB: The slot's name and its lists of nodes, see Rust/src/dom/slots.rs.
+    DOM::RustFFI::SlotCore m_slot_core {};
 };
 
 }

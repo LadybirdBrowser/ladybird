@@ -14,7 +14,6 @@
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/ElementByIdMap.h>
-#include <LibWeb/DOM/SlotRegistry.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
@@ -32,8 +31,8 @@ public:
 
     ShadowRootMode mode() const { return m_mode; }
 
-    SlotAssignmentMode slot_assignment() const { return m_slot_assignment; }
-    void set_slot_assignment(SlotAssignmentMode slot_assignment) { m_slot_assignment = slot_assignment; }
+    SlotAssignmentMode slot_assignment() const { return static_cast<SlotAssignmentMode>(m_shadow_root_core.slot_assignment); }
+    void set_slot_assignment(SlotAssignmentMode slot_assignment) { m_shadow_root_core.slot_assignment = to_underlying(slot_assignment); }
 
     bool delegates_focus() const { return m_delegates_focus; }
     void set_delegates_focus(bool delegates_focus) { m_delegates_focus = delegates_focus; }
@@ -84,20 +83,8 @@ public:
     AnchorNameMap& anchor_name_map() { return m_anchor_name_map; }
     AnchorNameMap const& anchor_name_map() const { return m_anchor_name_map; }
 
-    void register_slot(HTML::HTMLSlotElement&);
-    void unregister_slot(HTML::HTMLSlotElement&);
-
-    template<typename Callback>
-    void for_each_registered_slot(Callback callback)
-    {
-        if (m_slot_registry)
-            m_slot_registry->for_each_slot(callback);
-    }
-
-    GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16View name) const;
-
-    void set_needs_slot_assignment(HTML::HTMLSlotElement&);
     void assign_slottables_if_needed();
+    void did_start_needing_slot_assignment();
 
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
@@ -113,6 +100,9 @@ public:
 
     HTML::RadioButtonGroupRegistry& ensure_radio_button_group_registry();
 
+    // NB: The buffers of the core are freed when the cell is swept, not when it is finalized, as the C++ members that
+    //     held them were, so that the finalizer of another dead cell can still read them.
+    GC_ALLOW_CELL_DESTRUCTOR virtual ~ShadowRoot() override;
     virtual void finalize() override;
 
     GC::Ptr<Element> retargeted_fullscreen_element() const;
@@ -147,9 +137,11 @@ private:
 
     void calculate_part_element_map();
 
+    // NB: The slot assignment and the slots of the shadow tree, see Rust/src/dom/slots.rs.
+    RustFFI::ShadowRootCore m_shadow_root_core { .slots = {}, .slots_needing_assignment = {}, .slot_assignment = to_underlying(SlotAssignmentMode::Named), .flags = 0 };
+
     // NOTE: The specification doesn't seem to specify a default value for mode. Assuming closed for now.
     ShadowRootMode m_mode { ShadowRootMode::Closed };
-    SlotAssignmentMode m_slot_assignment { SlotAssignmentMode::Named };
     bool m_delegates_focus { false };
     bool m_available_to_element_internals { false };
     bool m_user_agent_internal { false };
@@ -167,9 +159,6 @@ private:
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     AnchorNameMap m_anchor_name_map;
-
-    OwnPtr<SlotRegistry> m_slot_registry;
-    Vector<GC::Ref<HTML::HTMLSlotElement>> m_slots_needing_assignment;
 
     GC::Member<CSS::StyleSheetList> m_style_sheets;
     mutable GC::Member<WebIDL::ObservableArray> m_adopted_style_sheets;

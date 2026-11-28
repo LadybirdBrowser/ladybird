@@ -33,6 +33,7 @@ pub mod range;
 pub mod remove;
 pub mod replace;
 pub mod rooted_nodes;
+pub mod slots;
 mod steps;
 pub mod strings;
 #[cfg(test)]

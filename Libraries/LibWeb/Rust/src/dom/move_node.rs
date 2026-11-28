@@ -21,6 +21,8 @@ use super::pre_insert::is_doctype;
 use super::pre_insert::is_text;
 use super::range::adjust_live_ranges_for_insertion;
 use super::range::live_range_pre_remove_steps;
+use super::slots::assign_slots_after_linking;
+use super::slots::assign_slots_after_unlinking;
 use super::steps::moving_steps_do_nothing;
 use super::traversal::run_node_iterator_pre_remove_steps;
 use super::tree::for_each_shadow_including_inclusive_descendant;
@@ -168,8 +170,10 @@ pub(crate) fn move_node(
     // 16. If node has an inclusive descendant that is a slot:
     //     1. Run assign slottables for a tree with oldParent’s root.
     //     2. Run assign slottables for a tree with node.
+    assign_slots_after_unlinking(main_thread, node, old_parent, old_parent_root);
+
     // 17. Add transient registered observers given node and oldParent.
-    hooks::after_move_unlink(main_thread, scope, node, old_parent, old_parent_root);
+    hooks::after_move_unlink(main_thread, node, old_parent);
 
     // 18. If child is non-null:
     //     1. For each live range whose start node is newParent and start offset is greater than child’s index:
@@ -191,14 +195,16 @@ pub(crate) fn move_node(
     // 21. Otherwise, insert node into newParent’s children before child’s index.
     links::insert_child(main_thread, new_parent, node, child);
 
+    // NB: The callback does what the move does for the C++ state that follows the children of newParent, the style
+    //     engine and layout, see hooks::after_move_link().
+    hooks::after_move_link(main_thread, scope, node, old_parent, old_parent_root, new_parent);
+
     // 22. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
     //     assign a slot for node.
     // 23. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal
     //     a slot change for newParent.
     // 24. Run assign slottables for a tree with node’s root.
-    // NB: The callback also does what the move does for the C++ state that follows the children of newParent, the
-    //     style engine and layout, see hooks::after_move_link().
-    hooks::after_move_link(main_thread, scope, node, old_parent, old_parent_root, new_parent);
+    assign_slots_after_linking(main_thread, new_parent, node);
 
     // 25. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     for_each_shadow_including_inclusive_descendant(node, &mut |inclusive_descendant| {

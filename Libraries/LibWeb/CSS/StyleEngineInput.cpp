@@ -742,7 +742,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
             if (auto* slot = as_if<HTML::HTMLSlotElement>(*element)) {
                 slot->assign_slottables_if_needed();
                 for (auto const& slottable : slot->assigned_nodes_internal()) {
-                    if (auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>(); assigned && (*assigned)->style_node_id() != no_style_node)
+                    if (auto* assigned = as_if<DOM::Element>(*slottable); assigned && assigned->style_node_id() != no_style_node)
                         slottables_identified_earlier.append(*assigned);
                 }
             }
@@ -2042,7 +2042,7 @@ void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)
     Vector<StyleNodeID, 8> identities;
     identities.ensure_capacity(assigned.size());
     for (auto const& slottable : assigned) {
-        auto identity = slottable.visit([](auto const& node) { return node->style_node_id(); });
+        auto identity = slottable->style_node_id();
         if (identity != no_style_node)
             identities.unchecked_append(identity);
     }
@@ -2110,11 +2110,11 @@ static void record_element_disconnecting(DOM::Element& element, StyleEngine::Pre
     if (auto* slot = as_if<HTML::HTMLSlotElement>(element)) {
         slot->assign_slottables_if_needed();
         for (auto const& slottable : slot->assigned_nodes_internal()) {
-            auto const* assigned_element = slottable.get_pointer<GC::Ref<DOM::Element>>();
-            if (!assigned_element || (*assigned_element)->style_node_id() == no_style_node)
+            auto* assigned_element = as_if<DOM::Element>(*slottable);
+            if (!assigned_element || assigned_element->style_node_id() == no_style_node)
                 continue;
-            identify_style_tree_parent_of(**assigned_element, *style_engine);
-            style_engine->record_element_relinked(**assigned_element, no_style_node, assigned_slot_identity_of(**assigned_element));
+            identify_style_tree_parent_of(*assigned_element, *style_engine);
+            style_engine->record_element_relinked(*assigned_element, no_style_node, assigned_slot_identity_of(*assigned_element));
         }
     }
 

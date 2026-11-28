@@ -164,6 +164,7 @@ ffi_entry!(crate::dom::collection::MainThreadFfiEntry);
 ffi_entry!(crate::dom::attributes::MainThreadFfiEntry);
 ffi_entry!(crate::dom::character_data::MainThreadFfiEntry);
 ffi_entry!(crate::dom::queries::MainThreadFfiEntry);
+ffi_entry!(crate::dom::slots::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

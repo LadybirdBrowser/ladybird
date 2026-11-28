@@ -1052,12 +1052,12 @@ static GC::RootVector<GC::Ref<DOM::Element>> focus_navigation_scope(DOM::Node& o
         }
 
         for (auto const& slottable : slot->assigned_nodes_internal()) {
-            auto const* element = slottable.get_pointer<GC::Ref<DOM::Element>>();
+            auto* element = as_if<DOM::Element>(*slottable);
             if (!element)
                 continue;
             scope.append(*element);
             // NB: A shadow host or a slot owns the focus navigation scope of its own descendants.
-            if (!(*element)->is_shadow_host() && !is<HTMLSlotElement>(**element))
+            if (!element->is_shadow_host() && !is<HTMLSlotElement>(*element))
                 append_focus_navigation_scope_descendants(*element, scope);
         }
         return scope;

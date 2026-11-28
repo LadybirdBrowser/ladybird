@@ -6,8 +6,8 @@
 
 //! The table of C++ callbacks through which the DOM algorithms in Rust run a node's virtual hooks, such as its insertion
 //! and removing steps, and the steps of the systems whose state C++ keeps: the selections and highlights of live
-//! ranges, the filters of traversers and collections, slots, mutation records, custom element reactions, the style
-//! engine's records and layout tree updates.
+//! ranges, the filters of traversers and collections, the effects of slot assignments, mutation records, custom element
+//! reactions, the style engine's records and layout tree updates.
 //!
 //! C++ registers the table once, before any node exists. Every wrapper takes the main thread token mutably, so no read
 //! handle lives across a call into C++. The documentation of each wrapper says whether its callback can run script,
@@ -81,10 +81,6 @@ pub struct RemovalFacts {
     pub was_tracked_by_style_engine: bool,
     /// Whether the subtree holds the focused or hovered node, whose state its old ancestors lose.
     pub holds_a_propagating_state_source: bool,
-    /// Whether the removed node has an inclusive descendant that is a slot, in a parent whose root is a shadow root.
-    pub has_descendant_slots: bool,
-    /// Whether the removed node is assigned to a slot.
-    pub is_assigned: bool,
 }
 
 /// What the C++ side of removing all children of a parent keeps across the removals, whose steps that concern only the
@@ -152,8 +148,7 @@ pub struct MoveHooks {
         new_parent: RawNodeRef,
     ),
     /// See [`after_move_unlink`].
-    pub after_unlink:
-        unsafe extern "C" fn(scope: &mut MoveScope, node: RawNodeRef, old_parent: RawNodeRef, old_parent_root: RawNodeRef),
+    pub after_unlink: unsafe extern "C" fn(node: RawNodeRef, old_parent: RawNodeRef),
     /// See [`after_move_link`].
     pub after_link: unsafe extern "C" fn(
         scope: &mut MoveScope,
@@ -182,19 +177,37 @@ pub struct MoveHooks {
     ),
 }
 
+/// The callbacks of slots, which fire only where a slot assignment changes.
+#[repr(C)]
+pub struct SlotHooks {
+    /// See [`assigned_slot_changed`].
+    pub assigned_slot_changed:
+        unsafe extern "C" fn(slottable: RawNodeRef, old_slot: RawNullableNodeRef, new_slot: RawNullableNodeRef),
+    /// See [`slot_changed`].
+    pub slot_changed: unsafe extern "C" fn(slot: RawNodeRef, steps: u8),
+    /// See [`shadow_root_needs_slot_assignment`].
+    pub shadow_root_needs_slot_assignment: unsafe extern "C" fn(shadow_root: RawNodeRef),
+}
+
+// What the slot_changed hook runs, a bit each in its steps byte.
+
+/// Append the slot to its relevant agent's signal slots, and queue a mutation observer microtask.
+/// https://dom.spec.whatwg.org/#signal-a-slot-change
+pub const SLOT_CHANGE_SIGNAL: u8 = 1 << 0;
+/// Publish the slot's assigned nodes to the style engine.
+pub const SLOT_CHANGE_RECORD_ASSIGNED_NODES: u8 = 1 << 1;
+/// Invalidate the layout tree and the style that the slot's assignment changes.
+pub const SLOT_CHANGE_INVALIDATE: u8 = 1 << 2;
+
 /// The callbacks of one kind of insertion, see InsertionKind.
 #[repr(C)]
 pub struct InsertionHooks {
     /// See [`begin_insertion`].
     pub begin_insertion:
         unsafe extern "C" fn(parent: RawNodeRef, node: RawNullableNodeRef, nodes: ak::Span<'_, NodeRef>),
-    /// See [`insert_node_into_children`].
-    pub insert_node_into_children: unsafe extern "C" fn(
-        parent: RawNodeRef,
-        node: RawNodeRef,
-        child: RawNullableNodeRef,
-        any_node_has_post_connection_steps: &mut bool,
-    ),
+    /// See [`inserted_into_children`].
+    pub inserted_into_children:
+        unsafe extern "C" fn(parent: RawNodeRef, node: RawNodeRef, any_node_has_post_connection_steps: &mut bool),
     /// See [`run_insertion_steps`].
     pub run_insertion_steps: unsafe extern "C" fn(node: RawNodeRef) -> bool,
     /// See [`end_insertion`].
@@ -228,9 +241,13 @@ pub struct DomHooks {
         parent: RawNodeRef,
         children_removal: Option<&mut ChildrenRemoval>,
     ) -> RemovalFacts,
-    /// See [`assign_slottables_after_removal`].
-    pub assign_slottables_after_removal:
-        unsafe extern "C" fn(node: RawNodeRef, parent: RawNodeRef, parent_root: RawNodeRef, facts: RemovalFacts),
+    /// See [`after_removal_unlink`].
+    pub after_removal_unlink: unsafe extern "C" fn(
+        node: RawNodeRef,
+        parent: RawNodeRef,
+        old_assigned_slot: RawNullableNodeRef,
+        facts: RemovalFacts,
+    ),
     /// See [`finish_removal`].
     pub finish_removal: unsafe extern "C" fn(
         node: RawNodeRef,
@@ -257,6 +274,8 @@ pub struct DomHooks {
     pub moving: MoveHooks,
     /// The callbacks of cloning a node.
     pub cloning: CloneHooks,
+    /// The callbacks of slots.
+    pub slots: SlotHooks,
     /// See [`live_range_boundary_points_set`].
     pub live_range_boundary_points_set: unsafe extern "C" fn(document: RawNodeRef),
     /// See [`call_node_filter`].
@@ -399,30 +418,22 @@ pub(crate) fn begin_insertion<I: Inserter>(
     unsafe { (insertion_hooks::<I>(main_thread).begin_insertion)(parent, node.into(), ak::Span::new(nodes)) }
 }
 
-/// Steps 7.2 to 7.6 of inserting nodes for `node`, which has been adopted into `parent`'s node document: inserts it
-/// into `parent`'s children before `child`, or appends it if `child` is null, and assigns the slots and slottables that
-/// changes. Then records the arrival of the subtree for the style engine, and runs step 7.7 through
-/// rust_dom_run_insertion_steps(), inside a C++ scope that serves the insertion steps of the subtree.
-///
-/// NB: Node::append_child_impl() leaves out a node that is not allowed as a child of `parent`.
+/// What inserting nodes does for `node` after steps 7.2 to 7.6, which have inserted it into `parent`'s children, or not
+/// where `parent` does not allow it: puts it in the C++ state that follows the children of `parent`,
+/// records the arrival of the subtree for the style engine, and runs step 7.7 through rust_dom_run_insertion_steps(),
+/// inside a C++ scope that serves the insertion steps of the subtree.
 ///
 /// Can run script, allocate and change the tree.
 #[inline]
-pub(crate) fn insert_node_into_children<I: Inserter>(
+pub(crate) fn inserted_into_children<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
     node: NodeRef,
-    child: Option<NodeRef>,
     any_node_has_post_connection_steps: &mut bool,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes.
     unsafe {
-        (insertion_hooks::<I>(main_thread).insert_node_into_children)(
-            parent,
-            node,
-            child.into(),
-            any_node_has_post_connection_steps,
-        );
+        (insertion_hooks::<I>(main_thread).inserted_into_children)(parent, node, any_node_has_post_connection_steps);
     }
 }
 
@@ -507,9 +518,8 @@ pub(crate) fn end_removing_all_children(main_thread: &mut MainThread<'_>, parent
 
 /// The steps of removing `node` from `parent` that come before the node leaves its parent's children, but for the live
 /// range and NodeIterator pre-remove steps: tells the editing history, the document and the page of the removal,
-/// schedules the list item renumbering the removal causes, settles the slot assignments of a shadow
-/// tree the subtree leaves, records the removal for layout and the style engine, and takes the node out of the animation
-/// counts of `parent`.
+/// schedules the list item renumbering the removal causes, records the removal for layout and the style engine, and
+/// takes the node out of the animation counts of `parent`.
 ///
 /// For one of all the children of `parent`, which `children_removal` tracks, the steps that
 /// begin_removing_all_children() ran for every child are left out, and the facts every child shares are read from and
@@ -527,22 +537,22 @@ pub(crate) fn prepare_removal(
     unsafe { (hooks(main_thread).prepare_removal)(node, parent, children_removal) }
 }
 
-/// The steps of removing `node` from `parent`, whose root is `parent_root`, that assign the slottables a removal
-/// changes, after the node has left its parent's children. Then pins the style records of the boxes of a subtree that
-/// was not connected, and takes the state of the focused or hovered node out of the old ancestors of a subtree that
-/// held it.
+/// The steps of removing `node` from `parent` after it has left its parent's children and the slottables have been
+/// assigned: pins the style records of the boxes of a subtree that was not connected, and takes the state of the focused
+/// or hovered node out of the old ancestors of a subtree that held it, which start at `old_assigned_slot`, the slot the
+/// node was assigned to, where it was an element assigned to one.
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
 #[inline]
-pub(crate) fn assign_slottables_after_removal(
+pub(crate) fn after_removal_unlink(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
     parent: NodeRef,
-    parent_root: NodeRef,
+    old_assigned_slot: Option<NodeRef>,
     facts: RemovalFacts,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes.
-    unsafe { (hooks(main_thread).assign_slottables_after_removal)(node, parent, parent_root, facts) }
+    unsafe { (hooks(main_thread).after_removal_unlink)(node, parent, old_assigned_slot.into(), facts) }
 }
 
 /// The last steps of removing `node` from `parent`: adds the transient registered observers, queues the tree mutation
@@ -632,12 +642,10 @@ pub(crate) fn adopt_from_other_document(
 
 /// What moving `node` from `old_parent`, whose root is `old_parent_root`, into `new_parent` does before it runs the
 /// live range pre-remove steps and the NodeIterator pre-remove steps given `node`, steps 9 and 10: tells the page of
-/// the move, consumes the deferred style change events of the document, and keeps in `scope` whether the move affects
-/// the element children of the parents and the `:read-write` state of the elements of a subtree that changes
-/// editability. Then has the style engine take in its pending arrivals, keeps in `scope` where an element was and whether the
-/// subtree holds the focused or hovered node, marks the layout tree of `old_parent`, settles and keeps in `scope` the
-/// slots of the subtree, unregisters the anchor names a subtree that leaves its tree scope registered, and takes `node`
-/// out of the animation counts of `old_parent`.
+/// the move, consumes the deferred style change events of the document, and keeps in `scope` the `:read-write` state
+/// of the elements of a subtree that changes editability. Then has the style engine take in its pending arrivals, keeps in `scope` where an element was and
+/// whether the subtree holds the focused or hovered node, marks the layout tree of `old_parent`, unregisters the anchor
+/// names a subtree that leaves its tree scope registered, and takes `node` out of the animation counts of `old_parent`.
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
@@ -654,29 +662,21 @@ pub(crate) fn begin_move(
     unsafe { (hooks(main_thread).moving.begin_move)(scope, node, old_parent, old_parent_root, new_parent) }
 }
 
-/// Steps 14 to 17 of moving `node`, which has left the children of `old_parent`, whose root is `old_parent_root`:
-/// assigns the slottables and signals the slot changes the removal causes, and adds the
-/// transient registered observers given `node` and `old_parent`.
+/// Step 17 of moving `node`, which has left the children of `old_parent`: adds the transient registered observers
+/// given `node` and `old_parent`.
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
 #[inline]
-pub(crate) fn after_move_unlink(
-    main_thread: &mut MainThread<'_>,
-    scope: &mut MoveScope,
-    node: NodeRef,
-    old_parent: NodeRef,
-    old_parent_root: NodeRef,
-) {
-    // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
-    unsafe { (hooks(main_thread).moving.after_unlink)(scope, node, old_parent, old_parent_root) }
+pub(crate) fn after_move_unlink(main_thread: &mut MainThread<'_>, node: NodeRef, old_parent: NodeRef) {
+    // SAFETY: The callback is called on the main thread with live nodes.
+    unsafe { (hooks(main_thread).moving.after_unlink)(node, old_parent) }
 }
 
-/// Steps 22 to 24 of moving `node`, which has joined the children of `new_parent`, from `old_parent`,
-/// whose root was `old_parent_root`: assigns a slot for `node`, signals the slot change and assigns the slottables the
-/// insertion causes. Before them, puts `node` in the C++ state that follows the children of `new_parent`, records the
-/// move for the style engine and marks the layout tree. After them, refreshes the lookup caches of the document, and
-/// gives the old ancestors of a subtree that holds the focused or hovered node their state back.
+/// What moving `node`, which has joined the children of `new_parent`, from `old_parent`, whose root was
+/// `old_parent_root`, does before steps 22 to 24: puts `node` in the C++ state that follows the children of
+/// `new_parent`, records the move for the style engine, marks the layout tree, refreshes the lookup caches of the
+/// document, and takes the state of the focused or hovered node out of the old ancestors of a subtree that holds it.
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
@@ -906,6 +906,40 @@ pub(crate) fn attach_shadow_root_copy(
         true => Ok(shadow_root_copy.into()),
         false => Err(()),
     }
+}
+
+/// Has `slottable`'s assigned slot go from `old_slot` to `new_slot`, and tells the systems whose state C++ keeps,
+/// the page, the document and the style engine, of the change.
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
+pub(crate) fn assigned_slot_changed(
+    main_thread: &mut MainThread<'_>,
+    slottable: NodeRef,
+    old_slot: Option<NodeRef>,
+    new_slot: Option<NodeRef>,
+) {
+    // SAFETY: The callback is called on the main thread with live nodes.
+    unsafe { (hooks(main_thread).slots.assigned_slot_changed)(slottable, old_slot.into(), new_slot.into()) }
+}
+
+/// Runs the C++ steps for `slot` that `steps` names, see SLOT_CHANGE_*.
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
+pub(crate) fn slot_changed(main_thread: &mut MainThread<'_>, slot: NodeRef, steps: u8) {
+    // SAFETY: The callback is called on the main thread with a live node.
+    unsafe { (hooks(main_thread).slots.slot_changed)(slot, steps) }
+}
+
+/// Has the document of `shadow_root`, a slot of whose tree has just come to need assignment, bring the assigned nodes
+/// of its slots up to date before the style engine next reads them.
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
+pub(crate) fn shadow_root_needs_slot_assignment(main_thread: &mut MainThread<'_>, shadow_root: NodeRef) {
+    // SAFETY: The callback is called on the main thread with a live node.
+    unsafe { (hooks(main_thread).slots.shadow_root_needs_slot_assignment)(shadow_root) }
 }
 
 /// Runs the C++ steps of handling attribute changes, see DomHooks::attribute_changed. The callback can run script.

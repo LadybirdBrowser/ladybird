@@ -499,7 +499,6 @@ class Range;
 class RegisteredObserver;
 class SelectorQuery;
 class ShadowRoot;
-class SlotRegistry;
 class SlottableMixin;
 class StaticNodeList;
 class StaticRange;

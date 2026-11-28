@@ -26,9 +26,6 @@ public:
 
     virtual Node& slottable_as_node() = 0;
 
-    Utf16FlyString const& slottable_name() const; // Not called `name` to distinguish from `Element::name`.
-    void set_slottable_name(Utf16FlyString name);
-
     GC::Ptr<HTML::HTMLSlotElement> assigned_slot();
 
     GC::Ptr<HTML::HTMLSlotElement> assigned_slot_internal() const;
@@ -41,9 +38,6 @@ protected:
     struct RareData {
         void visit_edges(JS::Cell::Visitor&);
 
-        // https://dom.spec.whatwg.org/#slotable-name
-        Utf16FlyString name;
-
         // https://dom.spec.whatwg.org/#slottable-manual-slot-assignment
         GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment;
     };
@@ -53,26 +47,7 @@ protected:
     virtual RareData& ensure_slottable_rare_data() = 0;
 };
 
-enum class OpenFlag {
-    Set,
-    Unset,
-};
-
-enum class SignalSlotChange {
-    No,
-    Yes,
-};
-
 // Defined in HTML/HTMLSlotElement.h.
 inline GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node>);
-
-GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const&, OpenFlag = OpenFlag::Unset);
-GC::RootVector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement>);
-GC::RootVector<Slottable> find_flattened_slottables(GC::Ref<HTML::HTMLSlotElement>);
-void assign_slottables(GC::Ref<HTML::HTMLSlotElement>, SignalSlotChange = SignalSlotChange::Yes);
-void assign_slottables_for_a_tree(GC::Ref<Node>);
-void assign_a_slot(Slottable const&);
-void unassign_a_slot(Node&);
-void signal_a_slot_change(GC::Ref<HTML::HTMLSlotElement>);
 
 }

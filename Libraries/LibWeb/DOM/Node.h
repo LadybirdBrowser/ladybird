@@ -685,22 +685,17 @@ private:
     bool schedule_list_item_renumber_for_removal();
     void report_removal_to_style_engine(Node& parent);
     void update_layout_tree_for_removal(Node& parent);
-    GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots_before_removal(Node& parent_root);
-    bool settle_descendant_slots_before_removal(Node& parent_root);
-    void assign_slottables_after_removal(Node& parent, Node& parent_root, ReadonlySpan<GC::Ref<HTML::HTMLSlotElement>> descendant_slots);
     void add_transient_registered_observers(Node& parent);
     void queue_tree_mutation_record_for_removal(Node& parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling);
 
     void queue_tree_mutation_record(ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
-    void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
-    void insert_node_into_children(GC::Ref<Node>, GC::Ptr<Node> child);
     void append_child_impl(GC::Ref<Node>);
     void prepare_to_unlink_child(Node&);
     void account_for_linked_child(Node&);
 
     void begin_move(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent);
-    void after_move_unlink(MoveScope&, Node& old_parent, Node& old_parent_root);
+    void after_move_unlink(Node& old_parent);
     void after_move_link(MoveScope&, Node& old_parent, Node& old_parent_root, Node& new_parent);
     void end_move(MoveScope&, Node& old_parent, Node& new_parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling, GC::Ptr<Node> new_previous_sibling, GC::Ptr<Node> child);
 
