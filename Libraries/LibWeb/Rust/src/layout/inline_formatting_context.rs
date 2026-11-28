@@ -2859,11 +2859,25 @@ impl<'context> InlineFormattingContext<'context> {
             // NB: The inline boxes around whitespace are on this line whether the whitespace stays there, collapses,
             //     or ends up hanging off the end of the line. Under the line-height quirk, the line builder takes
             //     their line height away unless they have a border or padding at their start or end.
+            // NB: A line that breaks at collapsed white space breaks after the white space it collapses into. The
+            //     inline boxes that end within that white space are on the line before the break, and the ones that go
+            //     on past it are on the line after it, so their struts wait for the line to decide whether it breaks.
+            let collapses_where_line_can_break = item.is_collapsible_whitespace
+                && item.collapses_into_preceding_space(iterator.prepared_content())
+                && self.style(self.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP;
+            let next_line_content = if collapses_where_line_can_break {
+                iterator.next_line_content_node()
+            } else {
+                None
+            };
+            let goes_on_past_item = |box_: Node| {
+                next_line_content.is_some_and(|next| self.pass.is_ancestor(box_, next, self.containing_block))
+            };
+            let strut_start_edges = pending_leading_edges + item.margin_start + item.border_start + item.padding_start;
             if item.is_collapsible_whitespace {
-                line_builder.add_struts_of_inline_boxes_around(
-                    item.node,
-                    pending_leading_edges + item.margin_start + item.border_start + item.padding_start,
-                );
+                line_builder.add_struts_of_inline_boxes_around_where(item.node, strut_start_edges, |box_| {
+                    !collapses_where_line_can_break || !goes_on_past_item(box_)
+                });
             }
             if let Some(offset_in_node) = pending_resume_offset.take()
                 && item.type_ == inline_level_iterator::ItemType::Text
@@ -2926,9 +2940,19 @@ impl<'context> InlineFormattingContext<'context> {
                 if self.style(self.style_source(item.node)).text_wrap_mode() == text_wrap_mode::WRAP {
                     let next_inline_size = iterator.next_inline_run_size(self).unwrap_or_default();
                     if next_inline_size > CssPixels::default() {
+                        // NB: The start edges that the white space leaves for the next item go on its line with it.
+                        let leading_edges =
+                            item_state.leading_margin + item_state.leading_border + item_state.leading_padding;
                         line_builder.prepare_to_append_inline_content();
-                        line_builder.break_if_needed(next_inline_size);
+                        line_builder.break_if_needed(leading_edges + next_inline_size);
                     }
+                }
+                if collapses_where_line_can_break {
+                    line_builder.add_struts_of_inline_boxes_around_where(
+                        item.node,
+                        strut_start_edges,
+                        goes_on_past_item,
+                    );
                 }
                 continue;
             }
