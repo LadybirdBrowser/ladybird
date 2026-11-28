@@ -117,7 +117,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Node) == 88);
+static_assert(sizeof(Node) == 96);
 #endif
 
 // NB: libweb_rust follows the compressed node pointers of the cores with a copy of the heap region base of its own,
@@ -221,6 +221,7 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
 Node::Node(Document& document, NodeType type)
     : EventTarget()
 {
+    set_event_target_core_flag(RustFFI::EVENT_TARGET_IS_NODE);
     m_core.document = &document;
     m_core.root = this;
     m_core.node_type = type;
@@ -969,9 +970,9 @@ void Node::update_layout_tree_for_removal(Node& parent)
 
     // The box leaves the child list of the box its flat-tree parent lays it out in, which the layout tree build plans
     // again: a slotted node's is the slot's, whose own box, or that of its nearest ancestor with one, holds it.
-    if (auto const* slottable = as_if<Element>(*this); slottable && slottable->assigned_slot_internal())
+    if (auto const* slottable = as_if<Element>(*this); slottable && slottable->has_assigned_slot())
         slottable->assigned_slot_internal()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
-    else if (auto const* text = as_if<Text>(*this); text && text->assigned_slot_internal())
+    else if (auto const* text = as_if<Text>(*this); text && text->has_assigned_slot())
         text->assigned_slot_internal()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
     parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
 }
@@ -1042,7 +1043,7 @@ bool Node::settle_descendant_slots_before_removal(Node& parent_root)
 // nothing can tell once the root has left.
 static GC::Ptr<Node> old_flat_tree_parent_for_focus_within(Node& node, Node& parent)
 {
-    if (auto const* element = as_if<Element>(node); element && element->assigned_slot_internal())
+    if (auto const* element = as_if<Element>(node); element && element->has_assigned_slot())
         return element->assigned_slot_internal();
     return parent;
 }
@@ -1805,16 +1806,6 @@ GC::Ptr<Node> Node::editing_host()
 
     // The editing host of node is null if node is neither editable nor an editing host;
     return {};
-}
-
-EventTarget* Node::get_parent(Event const&)
-{
-    // A node’s get the parent algorithm, given an event, returns the node’s assigned slot, if node is assigned;
-    // otherwise node’s parent.
-    if (auto assigned_slot = assigned_slot_for_node(*this))
-        return assigned_slot.ptr();
-
-    return parent();
 }
 
 // The identity the layout arena files this node's layout tree update marks under. Only an element, a text node, the
@@ -4055,7 +4046,7 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
             return true;
         // NB: A child of a shadow host that no slot takes is not in the flat tree, so it generates no box, as if it
         //     were below a display:none element.
-        if (auto parent = ancestor_element->parent_element(); parent && parent->shadow_root() && !ancestor_element->assigned_slot_internal())
+        if (auto parent = ancestor_element->parent_element(); parent && parent->shadow_root() && !ancestor_element->has_assigned_slot())
             return true;
         ancestor = ancestor_element->element_to_inherit_style_from({}).ptr();
     }

@@ -44,9 +44,6 @@ protected:
         // https://dom.spec.whatwg.org/#slotable-name
         Utf16FlyString name;
 
-        // https://dom.spec.whatwg.org/#slotable-assigned-slot
-        GC::Ptr<HTML::HTMLSlotElement> assigned_slot;
-
         // https://dom.spec.whatwg.org/#slottable-manual-slot-assignment
         GC::Ptr<HTML::HTMLSlotElement> manual_slot_assignment;
     };
@@ -66,8 +63,8 @@ enum class SignalSlotChange {
     Yes,
 };
 
-GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node>);
-bool is_an_assigned_slottable(GC::Ref<Node>);
+// Defined in HTML/HTMLSlotElement.h.
+inline GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node>);
 
 GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const&, OpenFlag = OpenFlag::Unset);
 GC::RootVector<Slottable> find_slottables(GC::Ref<HTML::HTMLSlotElement>);

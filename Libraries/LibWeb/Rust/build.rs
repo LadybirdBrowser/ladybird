@@ -2786,9 +2786,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         "NodeCore".to_string(),
         "ParentNodeCore".to_string(),
         "CharacterDataCore".to_string(),
+        "TextCore".to_string(),
         "DocumentFragmentCore".to_string(),
         "DocumentCore".to_string(),
         "ElementCore".to_string(),
+        "EventTargetCore".to_string(),
+        "EventCore".to_string(),
+        "EventHooks".to_string(),
         "InsertionKind".to_string(),
         "RangeCore".to_string(),
         "NodeIteratorCore".to_string(),
@@ -2804,10 +2808,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         //     which MSVC returns through a hidden pointer where Rust expects a pointer back.
         ("RawNodeRef", "Web::DOM::Node*"),
         ("RawNullableNodeRef", "Web::DOM::Node*"),
+        ("RawEventRef", "Web::DOM::Event*"),
+        ("RawEventTargetRef", "Web::DOM::EventTarget*"),
+        ("RawNullableEventTargetRef", "Web::DOM::EventTarget*"),
+        ("RawEventListenerRef", "Web::DOM::DOMEventListener*"),
         ("NodeMember", "GC::Member<Web::DOM::Node>"),
         ("DocumentMember", "GC::Member<Web::DOM::Document>"),
         ("ElementMember", "GC::Member<Web::DOM::Element>"),
         ("ShadowRootMember", "GC::Member<Web::DOM::ShadowRoot>"),
+        ("EventTargetMember", "GC::Member<Web::DOM::EventTarget>"),
+        ("WindowMember", "GC::Member<Web::HTML::Window>"),
+        ("EventCell", "Web::DOM::Event"),
+        ("EventRef", "GC::Ref<Web::DOM::Event>"),
+        ("EventTargetCell", "Web::DOM::EventTarget"),
+        ("EventTargetRef", "GC::Ref<Web::DOM::EventTarget>"),
+        ("NullableEventTargetRef", "GC::Ptr<Web::DOM::EventTarget>"),
         ("NodeType", "Web::DOM::NodeType"),
         ("StyleNodeField", "Web::CSS::StyleNodeID"),
         ("TreeScopeField", "Web::CSS::TreeScopeID"),
@@ -2833,12 +2848,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             .insert(rust_name.to_string(), cpp_name.to_string());
     }
     dom_config.after_includes.get_or_insert_with(String::new).push_str(
-        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }",
+        "\nnamespace Web::DOM { class AbstractRange; class AttributeList; class Document; class Element; class Event; class EventTarget; class Node; class NodeIterator; class ShadowRoot; class TreeWalker; struct MoveScope; }\nnamespace Web::Bindings { class GCAllocatedWrappable; }\nnamespace Web::HTML { class Window; }",
     );
     generate_ffi_header_strict(
         dom_config,
         &[
             manifest_dir.join("src/dom/element_core.rs"),
+            manifest_dir.join("src/dom/dispatch.rs"),
+            manifest_dir.join("src/dom/event.rs"),
+            manifest_dir.join("src/dom/event_target.rs"),
             manifest_dir.join("src/dom/hooks.rs"),
             manifest_dir.join("src/dom/insert.rs"),
             manifest_dir.join("src/dom/links.rs"),

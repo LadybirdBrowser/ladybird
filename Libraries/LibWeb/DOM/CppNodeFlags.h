@@ -15,7 +15,8 @@ namespace Web::DOM {
 struct CppNodeFlags {
     bool has_layout_box : 1 { false };
     bool has_committed_box : 1 { false };
-    // Mirrors the slottable's assigned slot; see SlottableMixin::set_assigned_slot().
+    // OPTIMIZATION: Whether an element or Text node holds an assigned slot in its core, see Node::has_assigned_slot()
+    //               and SlottableMixin::set_assigned_slot().
     bool has_assigned_slot : 1 { false };
     bool inside_blocking_wheel_event_handler : 1 { false };
     bool has_spelling_markers : 1 { false };

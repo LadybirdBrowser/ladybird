@@ -46,6 +46,8 @@ ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
     , m_style_scope(*this)
 {
     m_core.flags |= RustFFI::NODE_IS_SHADOW_ROOT;
+    if (mode == ShadowRootMode::Closed)
+        m_core.flags |= RustFFI::NODE_IS_CLOSED_SHADOW_ROOT;
     document.register_shadow_root({}, *this);
     set_host(&host);
 }
@@ -141,18 +143,6 @@ void ShadowRoot::set_onslotchange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* ShadowRoot::onslotchange()
 {
     return event_handler_attribute(HTML::EventNames::slotchange);
-}
-
-// https://dom.spec.whatwg.org/#ref-for-get-the-parent%E2%91%A6
-EventTarget* ShadowRoot::get_parent(Event const& event)
-{
-    if (!event.composed()) {
-        auto& events_first_invocation_target = as<Node>(*event.path().first().invocation_target);
-        if (&events_first_invocation_target.root() == this)
-            return nullptr;
-    }
-
-    return host();
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-innerhtml

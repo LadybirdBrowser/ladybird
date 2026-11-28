@@ -27,6 +27,7 @@
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
@@ -1868,7 +1869,8 @@ EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() co
     if (!event_target)
         event_target = document->body() ?: &document->root();
     bool has_blocking_keyboard_listeners = false;
-    for (; event_target; event_target = event_target->get_parent(*event)) {
+    auto& origin = *event_target;
+    for (; event_target; event_target = DOM::get_the_parent(*event_target, *event, origin)) {
         snapshot.event_path.append(event_target);
         // NB: A passive listener can't cancel the key's default action, so the compositor scrolls ahead of it. One that
         //     moves focus or adds a blocking listener only changes what the next key does.
@@ -5207,7 +5209,7 @@ bool EventHandler::dispatch_touch_event(PointerState& pointer, DOM::Node& target
     // non-passive listeners for the event.
     if (name.is_one_of(UIEvents::EventNames::touchstart, UIEvents::EventNames::touchmove)) {
         bool has_non_passive_listener = false;
-        for (auto* event_target = static_cast<DOM::EventTarget*>(&target); event_target; event_target = event_target->get_parent(*event)) {
+        for (auto* event_target = static_cast<DOM::EventTarget*>(&target); event_target; event_target = DOM::get_the_parent(*event_target, *event, target)) {
             for (auto const& listener : event_target->event_listener_list_matching(name, {})) {
                 if (!listener->removed() && listener->passive() != true) {
                     has_non_passive_listener = true;

@@ -13,6 +13,7 @@
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/Slot.h>
 #include <LibWeb/DOM/Slottable.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLElement.h>
 
 namespace Web::Bindings {
@@ -59,5 +60,33 @@ private:
     // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes
     Vector<DOM::Slottable> m_manually_assigned_nodes;
 };
+
+}
+
+namespace Web::DOM {
+
+// NB: Only a slot is ever assigned to a slottable.
+inline GC::Ptr<HTML::HTMLSlotElement> Element::assigned_slot_internal() const
+{
+    return static_cast<HTML::HTMLSlotElement*>(assigned_slot_in_core());
+}
+
+inline GC::Ptr<HTML::HTMLSlotElement> Text::assigned_slot_internal() const
+{
+    return static_cast<HTML::HTMLSlotElement*>(assigned_slot_in_core());
+}
+
+// NB: Elements and Text nodes keep their assigned slot in their cores. Ancestor walks ask this of every node they pass,
+//     so it is inline and checks the node's flag before finding the core.
+inline GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node> node)
+{
+    if (!node->has_assigned_slot())
+        return nullptr;
+    if (auto const* element = as_if<Element>(*node))
+        return element->assigned_slot_internal();
+    if (auto const* text = as_if<Text>(*node))
+        return text->assigned_slot_internal();
+    return nullptr;
+}
 
 }

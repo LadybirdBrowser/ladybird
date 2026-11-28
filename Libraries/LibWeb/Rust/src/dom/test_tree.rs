@@ -17,6 +17,8 @@ use std::sync::atomic::Ordering;
 use super::element::Element;
 use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
+use super::event_target::EVENT_TARGET_CORE_OFFSET;
+use super::event_target::EVENT_TARGET_IS_NODE;
 use super::links::append_child_for_test;
 use super::node::Node;
 use super::node::NodeCell;
@@ -33,6 +35,8 @@ use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_core::PARENT_NODE_CORE_OFFSET;
 use super::node_core::ParentNodeCore;
+use super::node_core::TEXT_CORE_OFFSET;
+use super::node_core::TextCore;
 use super::node_ref::NodeRef;
 use super::qualified_name::QualifiedNameField;
 use crate::css::style::tree::StyleNodeID;
@@ -137,7 +141,8 @@ pub(crate) fn node<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType) -> 
     }
 }
 
-/// A new CharacterData node of `node_type` with the data `data`, the root of a tree of its own.
+/// A new CharacterData node of `node_type` with the data `data`, the root of a tree of its own. A Text node has no
+/// assigned slot.
 pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType, data: &str) -> Node<'a> {
     let node = new_node(main_thread, node_type, |_| {}, None);
     // SAFETY: Every node of a test tree is a TestCell, and no reference to this one's character data core exists yet.
@@ -145,6 +150,12 @@ pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: Nod
         (*(node.cell() as *const NodeCell as *mut TestCell)).middle = TestCellMiddle {
             character_data_core: ManuallyDrop::new(MaybeUninit::new(CharacterDataCore::for_test(data))),
         };
+        if matches!(node_type, NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE) {
+            (node.cell() as *const NodeCell as *mut u8)
+                .add(TEXT_CORE_OFFSET)
+                .cast::<TextCore>()
+                .write(TextCore::null_for_test());
+        }
     }
     node
 }
@@ -156,19 +167,46 @@ pub(crate) fn element<'a>(main_thread: &'a MainThread<'_>, core: ElementCore) ->
         .unwrap()
 }
 
-/// A new shadow root of `host`.
+/// A new shadow root of `host`, whose mode is "open".
 pub(crate) fn shadow_root<'a>(main_thread: &'a MainThread<'_>, host: Node<'a>) -> Node<'a> {
-    let shadow_root = new_node(
-        main_thread,
-        NodeType::DOCUMENT_FRAGMENT_NODE,
-        NodeCore::set_is_shadow_root_for_test,
-        None,
-    );
+    attach_shadow_root(main_thread, host, NodeCore::set_is_shadow_root_for_test)
+}
+
+/// A new shadow root of `host`, whose mode is "closed".
+pub(crate) fn closed_shadow_root<'a>(main_thread: &'a MainThread<'_>, host: Node<'a>) -> Node<'a> {
+    attach_shadow_root(main_thread, host, NodeCore::set_is_closed_shadow_root_for_test)
+}
+
+fn attach_shadow_root<'a>(
+    main_thread: &'a MainThread<'_>,
+    host: Node<'a>,
+    initialize: impl FnOnce(&mut NodeCore),
+) -> Node<'a> {
+    let shadow_root = new_node(main_thread, NodeType::DOCUMENT_FRAGMENT_NODE, initialize, None);
     set_host(shadow_root, host);
     if let Some(element) = host.as_element() {
         element.core().set_shadow_root_for_test(Some(pointer_of(shadow_root)));
     }
     shadow_root
+}
+
+/// Assigns `slottable`, an element or a Text node, to `slot`.
+pub(crate) fn set_assigned_slot(slottable: Node<'_>, slot: Node<'_>) {
+    if let Some(element) = slottable.as_element() {
+        element.core().set_assigned_slot_for_test(Some(pointer_of(slot)));
+        return;
+    }
+    assert!(matches!(
+        slottable.node_type(),
+        NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE
+    ));
+    // SAFETY: Every Text node of a test tree has a Text core at this offset.
+    let core = unsafe {
+        &*(slottable.cell() as *const NodeCell as *const u8)
+            .add(TEXT_CORE_OFFSET)
+            .cast::<TextCore>()
+    };
+    core.set_assigned_slot_for_test(Some(pointer_of(slot)));
 }
 
 /// Sets the host of a DocumentFragment node.
@@ -214,8 +252,11 @@ fn new_node<'a>(
             document_core: ManuallyDrop::new(DocumentCore::for_test()),
         },
     };
+    // NB: The core of the node's event target says it is a node.
+    let mut header = [0; NODE_CORE_OFFSET];
+    header[EVENT_TARGET_CORE_OFFSET] = EVENT_TARGET_IS_NODE;
     let cell = cell.write(TestCell {
-        header: [0; NODE_CORE_OFFSET],
+        header,
         core,
         fields: [0; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
         middle: TestCellMiddle {

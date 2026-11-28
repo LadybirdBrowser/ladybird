@@ -11,6 +11,7 @@ use core::cell::Cell;
 use core::mem::offset_of;
 use core::num::NonZeroU32;
 
+use super::event_target::EventTargetMember;
 use super::strings::StringField;
 use super::weak_cells::WeakCellSpan;
 use crate::css::style::tree::StyleNodeID;
@@ -41,14 +42,14 @@ impl NodePointer {
 /// Where a collector that has to know about stores into cells, like a generational or incremental one, will hook in,
 /// as GC::Detail::member_write_barrier() does for the stores C++ makes. It does nothing for now.
 #[inline(always)]
-fn member_write_barrier(_slot: &Cell<u32>, _compressed: u32) {}
+pub(super) fn member_write_barrier(_slot: &Cell<u32>, _compressed: u32) {}
 
 /// Where DOM::Node embeds its core, in bytes from the start of the node's cell, which Node.h asserts.
-pub const NODE_CORE_OFFSET: usize = 32;
+pub const NODE_CORE_OFFSET: usize = 40;
 
 /// Where DOM::DocumentFragment embeds its core, in bytes from the start of the fragment's cell, which
 /// DocumentFragment.cpp asserts.
-pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 104;
+pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 112;
 
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
@@ -89,7 +90,7 @@ impl DocumentMember {
 }
 
 /// Where DOM::CharacterData embeds its core, in bytes from the start of the node's cell, which CharacterData.cpp asserts.
-pub const CHARACTER_DATA_CORE_OFFSET: usize = 88;
+pub const CHARACTER_DATA_CORE_OFFSET: usize = 96;
 
 /// The state of a CharacterData node beyond that of every node, which C++ embeds in DOM::CharacterData as its only
 /// storage of it.
@@ -116,6 +117,38 @@ impl ElementMember {
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
+    }
+}
+
+/// A field that holds a Window or null, laid out as C++'s GC::Member<HTML::Window>, which is what C++ sees it as. A
+/// Window starts with its event target, so it reads as one.
+#[repr(transparent)]
+pub struct WindowMember(EventTargetMember);
+
+impl WindowMember {
+    #[inline(always)]
+    pub fn as_event_target_member(&self) -> &EventTargetMember {
+        &self.0
+    }
+}
+
+/// Where DOM::Text embeds its core, in bytes from the start of the node's cell, which Text.cpp asserts: in the padding
+/// at the end of the cell, so that no Text node grows.
+pub const TEXT_CORE_OFFSET: usize = 132;
+
+/// The state of a Text node beyond that of every CharacterData node, which C++ embeds in DOM::Text as its only storage
+/// of it.
+/// https://dom.spec.whatwg.org/#text
+#[repr(C)]
+pub struct TextCore {
+    assigned_slot: ElementMember,
+}
+
+impl TextCore {
+    /// https://dom.spec.whatwg.org/#slotable-assigned-slot
+    #[inline(always)]
+    pub fn assigned_slot(&self) -> Option<NodePointer> {
+        self.assigned_slot.get()
     }
 }
 
@@ -156,7 +189,7 @@ impl DocumentFragmentCore {
 }
 
 /// Where DOM::Document embeds its core, in bytes from the start of the document's cell, which Document.cpp asserts.
-pub const DOCUMENT_CORE_OFFSET: usize = 112;
+pub const DOCUMENT_CORE_OFFSET: usize = 120;
 
 /// Whether the document may have a node with a blocking wheel event listener, which C++ sets as it adds the first such
 /// listener, and as it adopts a node from a document that may have one. It is never cleared.
@@ -179,6 +212,8 @@ pub const DOCUMENT_HAS_MUTATION_LISTENER: u8 = 1 << 4;
 pub struct DocumentCore {
     /// The DOCUMENT_* flags.
     flags: Cell<u8>,
+    /// The document's Window, which is its relevant global object while it has a browsing context.
+    window: WindowMember,
     /// The live ranges whose start node's node document is the document, as its DOM::WeakCellRegistry of them mirrors
     /// them, see weak_cells.rs.
     /// https://dom.spec.whatwg.org/#concept-live-range
@@ -206,6 +241,12 @@ impl DocumentCore {
     #[inline(always)]
     pub fn flags(&self) -> u8 {
         self.flags.get()
+    }
+
+    /// The document's Window, or none.
+    #[inline(always)]
+    pub fn window(&self) -> &WindowMember {
+        &self.window
     }
 
     #[inline(always)]
@@ -291,7 +332,11 @@ pub const NODE_IS_SHADOW_ROOT: u8 = 1 << 1;
 pub const NODE_IN_EDITABLE_SUBTREE: u8 = 1 << 4;
 /// Whether the node's registered observer list, which C++ keeps, holds any registered observer, transient or not.
 /// https://dom.spec.whatwg.org/#registered-observer-list
-pub const NODE_HAS_REGISTERED_OBSERVERS: u8 = 1 << 6;
+pub const NODE_HAS_REGISTERED_OBSERVERS: u8 = 1 << 2;
+/// Whether the node is a shadow root whose mode is "closed", which is set as the shadow root is made, and never
+/// changes.
+/// https://dom.spec.whatwg.org/#shadowroot-mode
+pub const NODE_IS_CLOSED_SHADOW_ROOT: u8 = 1 << 3;
 
 /// The type of a node, laid out as C++'s DOM::NodeType, which is what C++ sees it as.
 /// https://dom.spec.whatwg.org/#dom-node-nodetype
@@ -389,6 +434,11 @@ impl NodeCore {
     }
 
     #[inline(always)]
+    pub fn is_closed_shadow_root(&self) -> bool {
+        self.has_flag(NODE_IS_CLOSED_SHADOW_ROOT)
+    }
+
+    #[inline(always)]
     pub fn is_in_editable_subtree(&self) -> bool {
         self.has_flag(NODE_IN_EDITABLE_SUBTREE)
     }
@@ -473,7 +523,7 @@ impl NodeCore {
 
 /// Where DOM::ParentNode embeds its core, in bytes from the start of the node's cell, which ParentNode.cpp asserts. Only
 /// an element, a document or a DocumentFragment is a ParentNode.
-pub const PARENT_NODE_CORE_OFFSET: usize = 88;
+pub const PARENT_NODE_CORE_OFFSET: usize = 96;
 
 /// The version counters of the tree a ParentNode heads, which C++ embeds in DOM::ParentNode as its only storage of them.
 /// See tree_version.rs.
@@ -555,6 +605,7 @@ impl DocumentCore {
     pub(crate) fn for_test() -> Self {
         Self {
             flags: Cell::new(0),
+            window: WindowMember(EventTargetMember::null_for_test()),
             live_ranges: WeakCellSpan::empty_for_test(),
             node_iterators: WeakCellSpan::empty_for_test(),
             node_tree_version: Cell::new(0),
@@ -595,6 +646,11 @@ impl NodeCore {
         self.flags.set(self.flags.get() | NODE_IS_SHADOW_ROOT);
     }
 
+    pub(crate) fn set_is_closed_shadow_root_for_test(&mut self) {
+        self.flags
+            .set(self.flags.get() | NODE_IS_SHADOW_ROOT | NODE_IS_CLOSED_SHADOW_ROOT);
+    }
+
     /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own, whose node document is
     /// `document`.
     pub(crate) fn for_test(node_type: NodeType, node: NodePointer, document: NodePointer) -> Self {
@@ -617,6 +673,30 @@ impl NodeCore {
 }
 
 #[cfg(test)]
+impl ElementMember {
+    pub(crate) fn null_for_test() -> Self {
+        Self(Cell::new(0))
+    }
+
+    pub(crate) fn set_for_test(&self, element: Option<NodePointer>) {
+        self.0.set(element.map_or(0, NodePointer::compressed));
+    }
+}
+
+#[cfg(test)]
+impl TextCore {
+    pub(crate) fn null_for_test() -> Self {
+        Self {
+            assigned_slot: ElementMember::null_for_test(),
+        }
+    }
+
+    pub(crate) fn set_assigned_slot_for_test(&self, slot: Option<NodePointer>) {
+        self.assigned_slot.set_for_test(slot);
+    }
+}
+
+#[cfg(test)]
 impl ParentNodeCore {
     pub(crate) fn for_test() -> Self {
         Self {
@@ -635,6 +715,10 @@ const _: () = assert!(size_of::<ShadowRootMember>() == 4 && align_of::<ShadowRoo
 // NB: CharacterData.cpp asserts the same layout of the struct it includes.
 const _: () = assert!(size_of::<CharacterDataCore>() == 8 && align_of::<CharacterDataCore>() == 8);
 const _: () = assert!(offset_of!(CharacterDataCore, data) == 0);
+// NB: Text.cpp asserts the same layout of the struct it includes.
+const _: () = assert!(size_of::<TextCore>() == 4 && align_of::<TextCore>() == 4);
+const _: () = assert!(offset_of!(TextCore, assigned_slot) == 0);
+const _: () = assert!(TEXT_CORE_OFFSET.is_multiple_of(align_of::<TextCore>()));
 // NB: DocumentFragment.cpp asserts the same layout of the struct it includes.
 const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<DocumentFragmentCore>() == 4);
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
@@ -642,6 +726,7 @@ const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) 
 // NB: Document.cpp asserts the same layout of the struct it includes.
 const _: () = assert!(size_of::<DocumentCore>() == 96 && align_of::<DocumentCore>() == 8);
 const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
+const _: () = assert!(offset_of!(DocumentCore, window) == 4);
 const _: () = assert!(offset_of!(DocumentCore, live_ranges) == 8);
 const _: () = assert!(offset_of!(DocumentCore, node_iterators) == 24);
 const _: () = assert!(offset_of!(DocumentCore, node_tree_version) == 40);

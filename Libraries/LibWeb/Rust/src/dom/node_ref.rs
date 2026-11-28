@@ -34,6 +34,7 @@ use core::ptr::NonNull;
 
 use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
+use super::event_target::EventTargetRef;
 use super::node::Node;
 use super::node::NodeCell;
 use super::node::compress;
@@ -49,6 +50,8 @@ use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_core::PARENT_NODE_CORE_OFFSET;
 use super::node_core::ParentNodeCore;
+use super::node_core::TEXT_CORE_OFFSET;
+use super::node_core::TextCore;
 use crate::stage::MainThread;
 
 /// A node held by code that changes the DOM, valid across tree changes, allocation and script for as long as it is
@@ -95,6 +98,16 @@ impl NodeRef {
         Self {
             cell: decompress(pointer),
         }
+    }
+
+    /// The node whose cell starts at `cell`.
+    ///
+    /// # Safety
+    ///
+    /// `cell` must be a live node, which the caller keeps alive for as long as the reference is held.
+    #[inline(always)]
+    pub(super) unsafe fn from_cell_unchecked(cell: NonNull<NodeCell>) -> Self {
+        Self { cell }
     }
 
     /// The node a field of a cell that is no node holds, such as the root of a NodeIterator, or none if it is null.
@@ -175,6 +188,13 @@ impl NodeRef {
     #[inline(always)]
     pub fn is_shadow_root(self) -> bool {
         self.core().is_shadow_root()
+    }
+
+    /// Whether the node is a shadow root whose mode is "closed".
+    /// https://dom.spec.whatwg.org/#shadowroot-mode
+    #[inline(always)]
+    pub fn is_closed_shadow_root(self) -> bool {
+        self.core().is_closed_shadow_root()
     }
 
     /// https://dom.spec.whatwg.org/#connected
@@ -274,11 +294,34 @@ impl NodeRef {
         }
     }
 
+    /// The Window of a document, which DOM::Document keeps in its core, or none.
+    #[inline(always)]
+    pub fn window(self) -> Option<EventTargetRef> {
+        // SAFETY: A document keeps its Window alive.
+        unsafe { EventTargetRef::from_member(self.document_core().window().as_event_target_member()) }
+    }
+
     /// The shadow root of an element, which DOM::Element keeps in its core, or none for any other node.
     /// https://dom.spec.whatwg.org/#concept-element-shadow-root
     #[inline(always)]
     pub fn shadow_root(self) -> Option<NodeRef> {
         Self::follow(self.element_core()?.shadow_root())
+    }
+
+    /// The assigned slot of a slottable, an element or a Text node, which DOM::Element and DOM::Text keep in their
+    /// cores, or none for any other node.
+    /// https://dom.spec.whatwg.org/#slotable-assigned-slot
+    #[inline(always)]
+    pub fn assigned_slot(self) -> Option<NodeRef> {
+        match self.node_type() {
+            NodeType::ELEMENT_NODE => Self::follow(self.element_core()?.assigned_slot()),
+            NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE => {
+                // SAFETY: Every Text node embeds its core TEXT_CORE_OFFSET bytes into its cell, which Text.cpp asserts.
+                let core = unsafe { &*self.pinned_cell().byte_add(TEXT_CORE_OFFSET).cast::<TextCore>() };
+                Self::follow(core.assigned_slot())
+            }
+            _ => None,
+        }
     }
 
     /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps in its core, or none for any other node.

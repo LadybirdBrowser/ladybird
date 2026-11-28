@@ -925,7 +925,7 @@ public:
 
     Utf16String last_modified() const;
 
-    [[nodiscard]] GC::Ptr<HTML::Window> window() const { return m_window; }
+    [[nodiscard]] GC::Ptr<HTML::Window> window() const { return m_document_core.window; }
 
     void set_window(HTML::Window&);
 
@@ -1005,8 +1005,6 @@ public:
 
     void increment_ignore_destructive_writes_counter() { m_ignore_destructive_writes_counter++; }
     void decrement_ignore_destructive_writes_counter() { m_ignore_destructive_writes_counter--; }
-
-    virtual EventTarget* get_parent(Event const&) override;
 
     Utf16String dump_dom_tree_as_json() const;
 
@@ -2048,7 +2046,6 @@ private:
     mutable Optional<String> m_serialized_base_url;
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
-    GC::Ptr<HTML::Window> m_window;
     GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;

@@ -148,6 +148,7 @@ ffi_entry!(crate::painting::stacking_context::dump::MainThreadFfiEntry);
 ffi_entry!(crate::render_state::OwedWorkPayment);
 ffi_entry!(crate::css::dom_selector_matching::MainThreadFfiEntry);
 ffi_entry!(crate::css::style::dom_inputs::MainThreadFfiEntry);
+ffi_entry!(crate::dom::dispatch::MainThreadFfiEntry);
 ffi_entry!(crate::dom::links::MainThreadFfiEntry);
 ffi_entry!(crate::dom::pre_insert::MainThreadFfiEntry);
 ffi_entry!(crate::dom::insert::MainThreadFfiEntry);

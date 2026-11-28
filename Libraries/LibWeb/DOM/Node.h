@@ -355,7 +355,8 @@ public:
     bool child_style_arrivals_wait() const { return m_core.cpp_flags.child_style_arrivals_wait; }
     void set_child_style_arrivals_wait(bool value) { m_core.cpp_flags.child_style_arrivals_wait = value; }
 
-    // Mirrors the slottable's assigned slot; see SlottableMixin::set_assigned_slot().
+    // OPTIMIZATION: Ancestor walks and removals ask this of every node they pass, and almost none are assigned to a slot,
+    //               so a node of any kind answers it without finding the core that holds its assigned slot.
     bool has_assigned_slot() const { return m_core.cpp_flags.has_assigned_slot; }
     void set_has_assigned_slot(Badge<SlottableMixin>, bool value) { m_core.cpp_flags.has_assigned_slot = value; }
 
@@ -454,8 +455,6 @@ public:
     CSS::StyleScope const& style_scope() const { return const_cast<Node*>(this)->style_scope(); }
 
     void set_document(Badge<Document, NamedNodeMap>, Document&);
-
-    virtual EventTarget* get_parent(Event const&) override;
 
     // Whether the node is of class T, or of a class that descends from it, which its class id tells. See
     // DOM/NodeClassId.h.
@@ -743,7 +742,8 @@ constexpr bool node_class_is_listed_under_its_base()
 namespace GC {
 
 // Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and tells libweb_rust whether its
-// class has tree steps of its own, which the class's overrides decide (see Rust/src/dom/steps.rs).
+// class has tree steps of its own (see Rust/src/dom/steps.rs) and activation behavior (see Rust/src/dom/event_target.rs),
+// which the class's overrides decide.
 template<typename T>
 requires(IsBaseOf<Web::DOM::Node, T>)
 struct CellConstructionHook<T> {
@@ -776,6 +776,10 @@ struct CellConstructionHook<T> {
         static_assert(Web::DOM::node_class_is_listed_under_its_base<T>(), "DOM/NodeClasses.json must list each class of nodes under the class it derives from");
         static_cast<Web::Bindings::Wrappable&>(node).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
 
+        // NB: Only a class that overrides has_activation_behavior() can have activation behavior, which the dispatch
+        //     in libweb_rust asks only such a node about (see Rust/src/dom/event_target.rs).
+        if constexpr (!IsSame<decltype(&T::has_activation_behavior), bool (Web::DOM::EventTarget::*)() const>)
+            node.set_event_target_core_flag(Web::DOM::RustFFI::EVENT_TARGET_HAS_ACTIVATION_BEHAVIOR);
         if constexpr (IsBaseOf<Web::DOM::Element, T>) {
             if constexpr (has_own_tree_steps())
                 node.set_has_own_tree_steps();
