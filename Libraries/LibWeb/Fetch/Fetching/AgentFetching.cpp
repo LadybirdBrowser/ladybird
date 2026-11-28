@@ -78,6 +78,10 @@
 
 namespace Web::Fetch::Fetching {
 
+// https://fetch.spec.whatwg.org/#document-accept-header-value
+// The document `Accept` header value is `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`.
+constexpr auto document_accept_header_value = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"sv;
+
 // AD-HOC: Reads one chunk of a response body's readable byte stream and forwards it into another readable byte stream,
 //         running processResponseEndOfBody once the stream has no more chunks. See finish_fetch_response_handover().
 class ResponseBodyForwardingReadRequest final : public Streams::ReadRequest {
