@@ -2923,12 +2923,16 @@ impl<'context> InlineFormattingContext<'context> {
             let can_break_after_previous_overflow_item =
                 std::mem::take(&mut item_state.previous_text_item_allows_overflow_break_after);
             let run_fits_after_previous_whitespace = std::mem::take(&mut item_state.whitespace_measured_next_run);
-            let line_starts_with_whitespace = self
+            // https://drafts.csswg.org/css-text-3/#white-space-phase-2
+            // "A sequence of collapsible spaces at the beginning of a line is removed."
+            let is_at_start_of_line = self
                 .line_data()
                 .line_boxes
                 .last()
-                .is_none_or(|line| line.is_empty_or_ends_in_whitespace() || line.has_block_level_box);
-            if item.is_collapsible_whitespace && line_starts_with_whitespace {
+                .is_none_or(|line| line.fragments.is_empty() || line.has_block_level_box);
+            if item.is_collapsible_whitespace
+                && (item.collapses_into_preceding_space(iterator.prepared_content()) || is_at_start_of_line)
+            {
                 // NB: The whitespace disappears, but the inline boxes that end with it still end on this line.
                 item_state.collapsed_whitespace_node = item.node;
                 item_state.leading_margin += item.margin_start;
@@ -4543,7 +4547,9 @@ impl ContentSizingLines {
         let previous_text_item_breaks_between_graphemes =
             std::mem::take(&mut self.previous_text_item_breaks_between_graphemes);
         let line_is_empty_or_ends_in_whitespace = self.lines.is_empty_or_ends_in_whitespace();
-        if item.is_collapsible_whitespace && line_is_empty_or_ends_in_whitespace {
+        if item.is_collapsible_whitespace
+            && (item.collapses_into_preceding_space(prepared) || !self.lines.has_fragments)
+        {
             self.lines
                 .append_edges_of_collapsed_whitespace(item.margin_end, item.border_end, item.padding_end);
             if self.lines.breaks_before_next_fragment()
