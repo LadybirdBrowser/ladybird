@@ -785,8 +785,10 @@ void CookieJar::TransientStorage::expire_and_purge_cookies_accessed_since(UnixDa
 {
     for (auto& [key, value] : m_cookies) {
         if (value.last_access_time >= since) {
+            // NB: Expire the cookie in place, as inserting into m_cookies while iterating over it may rehash the table.
+            //     Expired cookies need no change notification here, purge_expired_cookies() sends one below.
             value.expiry_time = UnixDateTime::earliest();
-            set_cookie(key, value);
+            m_dirty_cookies.set(key, value);
         }
     }
 
