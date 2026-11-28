@@ -31,6 +31,7 @@ pub mod queries;
 pub mod range;
 pub mod remove;
 pub mod replace;
+pub mod rooted_nodes;
 mod steps;
 pub mod strings;
 #[cfg(test)]

@@ -556,7 +556,7 @@ pub(super) fn adjust_live_ranges_for_split_text(
 /// Steps 6.1 to 6.4 of normalizing, for `current_node`, an exclusive Text node that follows `node`, whose data the
 /// steps have made `length` code units long up to `current_node`'s.
 /// https://dom.spec.whatwg.org/#dom-node-normalize
-fn adjust_live_ranges_for_normalize(
+pub(super) fn adjust_live_ranges_for_normalize(
     main_thread: &MainThread<'_>,
     node: Node<'_>,
     current_node: Node<'_>,
@@ -963,21 +963,6 @@ pub unsafe extern "C" fn rust_dom_range_intersects_node(range: &RangeCell, node:
     // SAFETY: The node is live, and nothing changes the DOM while the token is borrowed.
     let node = unsafe { Node::from_cell(node, &main_thread) };
     intersects_node(&main_thread, range.core(), node)
-}
-
-/// Runs steps 6.1 to 6.4 of normalizing for `current_node`, an exclusive Text node that follows `node`, whose data is
-/// `length` code units long up to `current_node`'s, for DOM::Node.
-///
-/// # Safety
-///
-/// The nodes must be live, and the call must be made on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_live_ranges_normalize(node: &NodeCell, current_node: &NodeCell, length: usize) {
-    // SAFETY: Guaranteed by the caller.
-    let main_thread = unsafe { main_thread() };
-    // SAFETY: The nodes are live, and nothing changes the DOM while the token is borrowed.
-    let [node, current_node] = [node, current_node].map(|cell| unsafe { Node::from_cell(cell, &main_thread) });
-    adjust_live_ranges_for_normalize(&main_thread, node, current_node, length);
 }
 
 #[cfg(test)]

@@ -1,0 +1,4 @@
+Child nodes after normalize() on Text nodes: 3
+Text node 1 data: 1
+Child nodes after normalize() on their parent: 1
+Text node 1 data: 12

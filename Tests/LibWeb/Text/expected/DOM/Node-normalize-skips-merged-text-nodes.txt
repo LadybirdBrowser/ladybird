@@ -1,0 +1,2 @@
+characterData on #text "ab"
+childList on P ""
