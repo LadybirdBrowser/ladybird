@@ -19,7 +19,6 @@
 #include <core/SkSurface.h>
 #include <gpu/ganesh/GrContextOptions.h>
 #include <gpu/ganesh/GrDirectContext.h>
-#include <stdlib.h>
 
 #ifdef USE_DIRECTX
 #    include <AK/Windows.h>
@@ -114,21 +113,11 @@ static void flush_surface(SkiaBackendContext& backend_context, PaintingSurface& 
     context.flush(&surface.sk_surface(), backend_access_for(surface), flush_info);
 }
 
-// Skia submits no more work once the GPU context is lost, as it is after a GPU reset, a driver error, or the device
-// running out of memory. The context can't be recovered in place, so the Compositor exits, and the Browser relaunches
-// it as it does after a crash, painting on the CPU instead if that keeps happening.
-[[noreturn]] static void exit_for_lost_gpu_context()
-{
-    warnln("Compositor: The GPU context was lost, so the Compositor exits to be relaunched");
-    _Exit(1);
-}
-
 void SkiaBackendContext::flush_and_submit(PaintingSurface& surface)
 {
     auto& context = *sk_context();
     flush_surface(*this, surface, {});
-    if (!context.submit(GrSyncCpu::kYes))
-        exit_for_lost_gpu_context();
+    context.submit(GrSyncCpu::kYes);
 
     perform_post_flush_cleanup();
 }
@@ -140,8 +129,7 @@ void SkiaBackendContext::flush_and_submit_async(PaintingSurface& surface, Functi
     flush_info.fFinishedProc = invoke_async_flush_callback;
     flush_info.fFinishedContext = new Function<void()>(move(callback));
     flush_surface(*this, surface, flush_info);
-    if (!context.submit(GrSyncCpu::kNo))
-        exit_for_lost_gpu_context();
+    VERIFY(context.submit(GrSyncCpu::kNo));
 
     perform_post_flush_cleanup();
 }
@@ -153,8 +141,7 @@ void SkiaBackendContext::flush_and_submit_async(Function<void()>&& callback)
     flush_info.fFinishedProc = invoke_async_flush_callback;
     flush_info.fFinishedContext = new Function<void()>(move(callback));
     context.flush(flush_info);
-    if (!context.submit(GrSyncCpu::kNo))
-        exit_for_lost_gpu_context();
+    VERIFY(context.submit(GrSyncCpu::kNo));
 
     perform_post_flush_cleanup();
 }
