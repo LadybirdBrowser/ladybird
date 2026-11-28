@@ -1916,6 +1916,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "libgc_api"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "libgc_api_macros",
+]
+
+[[package]]
+name = "libgc_api_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "libgc_api_test"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "ladybird_allocator",
+ "libgc_api",
+ "rustc-demangle",
+]
+
+[[package]]
 name = "libgc_rust"
 version = "0.1.0"
 dependencies = [

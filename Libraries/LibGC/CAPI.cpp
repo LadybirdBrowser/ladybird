@@ -403,6 +403,11 @@ GCCell** gc_heap_allocator_local_free_list(GCHeap* heap, GCAllocator* allocator)
 #endif
 }
 
+GCHeap* gc_cell_heap(GCCell const* cell)
+{
+    return reinterpret_cast<GCHeap*>(&HeapBlockBase::from_cell(reinterpret_cast<Cell const*>(cell))->heap());
+}
+
 void* gc_cell_heap_context(GCCell const* cell)
 {
     return CAPI::foreign_context(HeapBlockBase::from_cell(reinterpret_cast<Cell const*>(cell))->heap());
@@ -460,6 +465,11 @@ GCWeakImpl* gc_heap_create_weak_impl(GCHeap* heap, GCCell* cell)
     // NB: A weak impl without references is reclaimed by the next weak block sweep.
     impl->ref();
     return as_gc_weak_impl(impl);
+}
+
+GCWeakImpl* gc_cell_create_weak_impl(GCCell* cell)
+{
+    return gc_heap_create_weak_impl(gc_cell_heap(cell), cell);
 }
 
 GCWeakImpl* gc_weak_impl_null(void)

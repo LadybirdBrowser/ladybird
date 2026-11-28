@@ -34,6 +34,10 @@ target_link_libraries(LibGC PRIVATE libgc_rust)
 get_target_property(_libgc_rust_lib libgc_rust IMPORTED_LOCATION)
 set_property(SOURCE BlockAllocator.cpp CAPI.cpp Cell.cpp CellAllocator.cpp Heap.cpp HeapBlock.cpp WeakBlock.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libgc_rust_lib})
 
+# The collector as Rust reaches it, which the Rust crates that define or trace cells depend on. TestLibGC allocates
+# from a heap through it.
+test_rust_crate(MANIFEST_PATH RustAPI/Cargo.toml CRATE_NAME libgc_api)
+
 # The first word of a GC::ForeignCell belongs to its foreign implementation rather than holding a vtable pointer, so
 # UBSan's vptr checks misfire whenever LibGC handles such a cell as a GC::Cell.
 if (ENABLE_UNDEFINED_SANITIZER)

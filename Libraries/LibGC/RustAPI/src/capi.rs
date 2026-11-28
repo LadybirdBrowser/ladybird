@@ -1,0 +1,240 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! Declarations of Libraries/LibGC/CAPI.h, the C interface through which Rust reaches LibGC. Every crate that reaches
+//! the collector does so through these declarations, and mostly through the safer types of the rest of this crate.
+
+use core::ffi::{c_char, c_int, c_void};
+
+/// Mirrors GCCellTypeInfo from Libraries/LibGC/CAPI.h, which LibGC dispatches every per-cell operation through.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct CellTypeInfo {
+    pub cell_size: u32,
+    pub alignment: u32,
+    pub kind: u8,
+    pub visit_edges: unsafe extern "C" fn(cell: *mut c_void, visitor: *mut GCVisitor),
+    pub finalize: Option<unsafe extern "C" fn(cell: *mut c_void)>,
+    pub destroy: Option<unsafe extern "C" fn(cell: *mut c_void)>,
+    pub external_memory_size: Option<unsafe extern "C" fn(cell: *const c_void) -> usize>,
+    pub class_name: Option<unsafe extern "C" fn(cell: *const c_void, length: *mut usize) -> *const c_char>,
+}
+
+/// LibGC's heap, which Rust only ever refers to. It has no size and is not Unpin, so a reference to it claims nothing
+/// about the memory LibGC changes behind it.
+#[repr(C)]
+pub struct GCHeap {
+    _private: [u8; 0],
+    _marker: core::marker::PhantomData<(*mut u8, core::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct GCVisitor {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GCAllocator {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GCMarker {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GCRoot {
+    _private: [u8; 0],
+}
+
+#[repr(C)]
+pub struct GCWeakImpl {
+    _private: [u8; 0],
+}
+
+pub const GC_COLLECTION_TYPE_COLLECT_GARBAGE: i32 = 0;
+pub const GC_COLLECTION_TYPE_COLLECT_EVERYTHING: i32 = 1;
+
+pub const GC_RECORDED_SLOT_VALUE: c_int = 0;
+pub const GC_RECORDED_SLOT_CELL_POINTER: c_int = 1;
+
+#[derive(Default)]
+#[repr(C)]
+pub struct GCLayout {
+    pub cell_state_offset: u32,
+    pub cell_kind_offset: u32,
+    pub min_cell_size: u32,
+    pub max_cell_size: u32,
+    pub max_cell_alignment: u32,
+    pub cell_type_info_size: u32,
+    pub weak_impl_pointer_offset: u32,
+    pub free_cell_next_offset: u32,
+    pub free_cell_link_mask: u32,
+    pub local_cursor_offset: u32,
+    pub local_end_offset: u32,
+    pub local_cell_size_offset: u32,
+    pub heap_allocated_bytes_since_last_gc_offset: u32,
+    pub heap_gc_bytes_threshold_offset: u32,
+    pub heap_total_allocated_bytes_offset: u32,
+    pub block_size: u32,
+    pub block_foreign_type_offset: u32,
+    pub heap_region_offset_mask: u64,
+    pub primitive_storage_cage_offset_mask: u64,
+    pub visitor_marker_offset: u32,
+    pub identity_hash_state_offset: u32,
+    pub identity_hash_hashed: u8,
+    pub identity_hash_moved: u8,
+}
+
+/// The generation of the storage's table entry in the high 32 bits and the entry's index in the low 32 bits.
+pub type GCPrimitiveStorageHandle = u64;
+pub const GC_PRIMITIVE_STORAGE_NULL_HANDLE: GCPrimitiveStorageHandle = 0;
+pub const GC_PRIMITIVE_STORAGE_INVALID_OFFSET: usize = usize::MAX;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct GCPrimitiveStorageLayout {
+    pub offset: usize,
+    pub size: usize,
+    pub capacity: usize,
+}
+
+pub type GCCallback = unsafe extern "C" fn(context: *mut c_void);
+pub type GCGatherRootsCallback = unsafe extern "C" fn(context: *mut c_void, root_visitor: *mut GCVisitor);
+
+unsafe extern "C" {
+    pub safe fn gc_get_layout(layout: &mut GCLayout, layout_size: usize);
+    pub safe fn gc_heap_region_base() -> usize;
+    pub safe fn gc_primitive_storage_cage_base() -> usize;
+
+    pub fn gc_heap_create(
+        gather_roots: GCGatherRootsCallback,
+        context: *mut c_void,
+        become_thread_default: bool,
+    ) -> *mut GCHeap;
+    pub fn gc_heap_destroy(heap: *mut GCHeap);
+    // NB: The functions that take a reference to the heap have no other preconditions.
+    pub safe fn gc_heap_collect_garbage(heap: &GCHeap, collection_type: i32, print_report: bool);
+    // NB: A collection that does not scan the stack may collect or move the cells that only the stack holds.
+    pub fn gc_heap_collect_garbage_without_scanning_the_stack(heap: &GCHeap);
+    pub safe fn gc_heap_moves_everything() -> bool;
+    pub safe fn gc_heap_set_moves_everything_for_testing(heap: &GCHeap, moves_everything: bool);
+    pub safe fn gc_heap_is_collecting_everything(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_is_marking_for_collection(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_is_returning_memory_to_system(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_undefer_gc(heap: &GCHeap);
+    pub safe fn gc_heap_deferral_state(
+        heap: &GCHeap,
+        deferrals: &mut *mut usize,
+        collect_when_deferrals_end: &mut *mut bool,
+    );
+    pub safe fn gc_heap_should_collect_on_every_allocation(heap: &GCHeap) -> bool;
+    pub safe fn gc_heap_set_should_collect_on_every_allocation(heap: &GCHeap, should_collect: bool);
+    pub safe fn gc_heap_set_incremental_sweep_enabled(heap: &GCHeap, enabled: bool);
+    pub fn gc_heap_uproot_cell(heap: *mut GCHeap, cell: *mut c_void);
+    pub safe fn gc_heap_stack_bounds(heap: &GCHeap, base: &mut usize, top: &mut usize);
+    pub fn gc_heap_enqueue_post_gc_task(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
+    pub fn gc_heap_enqueue_post_move_task(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
+    pub fn gc_heap_register_sweep_callback(heap: *mut GCHeap, callback: GCCallback, context: *mut c_void);
+    pub safe fn gc_heap_did_allocate_external_memory(heap: &GCHeap, size: usize);
+    pub safe fn gc_heap_did_free_external_memory(heap: &GCHeap, size: usize);
+
+    pub fn gc_allocator_create(
+        type_info: *const CellTypeInfo,
+        name: *const c_char,
+        name_length: usize,
+        foreign_type: *const c_void,
+    ) -> *mut GCAllocator;
+    pub fn gc_allocator_destroy(allocator: *mut GCAllocator);
+    pub fn gc_allocator_set_traced_on_owner_thread_only(allocator: *mut GCAllocator);
+    pub fn gc_allocator_set_movable(allocator: *mut GCAllocator);
+    pub fn gc_heap_allocate_cell(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut c_void;
+    pub fn gc_heap_allocate_storage_cell(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut c_void;
+    pub fn gc_heap_allocator_local_free_list(heap: *mut GCHeap, allocator: *mut GCAllocator) -> *mut *mut c_void;
+    pub fn gc_cell_heap(cell: *const c_void) -> *mut GCHeap;
+    pub fn gc_cell_heap_context(cell: *const c_void) -> *mut c_void;
+    pub fn gc_cell_type_info(cell: *const c_void) -> *const CellTypeInfo;
+    pub fn gc_cell_is_marked(cell: *const c_void) -> bool;
+    pub fn gc_cell_will_move(cell: *const c_void) -> bool;
+    pub safe fn gc_heap_is_moving_cells(heap: &GCHeap) -> bool;
+    pub fn gc_heap_record_slot(heap: *mut GCHeap, slot: *const c_void, kind: c_int);
+    pub fn gc_cell_identity_hash(cell: *const c_void) -> u32;
+    pub fn gc_marker_visit_cell(marker: *mut GCMarker, cell: *mut c_void);
+    pub fn gc_marker_visit_values(marker: *mut GCMarker, values: *const u64, count: usize);
+    pub fn gc_marker_visit_owned_values(marker: *mut GCMarker, values: *const u64, count: usize);
+    pub fn gc_marker_visit_member(marker: *mut GCMarker, slot: *const u32);
+    pub fn gc_marker_visit_owned_member(marker: *mut GCMarker, slot: *const u32);
+    pub fn gc_marker_visit_owned_cell_pointer(marker: *mut GCMarker, slot: *const usize);
+    pub fn gc_marker_visit_interior_pointer(marker: *mut GCMarker, slot: *const usize, cell: *mut c_void);
+    pub fn gc_marker_visit_self_pointer(marker: *mut GCMarker, slot: *const usize);
+    pub fn gc_marker_pin_cell(marker: *mut GCMarker, cell: *const c_void);
+    pub fn gc_marker_visit_ephemeron_without_pinning(marker: *mut GCMarker, key: *mut c_void, value: *mut c_void);
+
+    pub fn gc_root_create(cell: *mut c_void) -> *mut GCRoot;
+    pub fn gc_root_destroy(root: *mut GCRoot);
+    pub fn gc_root_cell(root: *const GCRoot) -> *mut c_void;
+
+    pub fn gc_heap_create_weak_impl(heap: *mut GCHeap, cell: *mut c_void) -> *mut GCWeakImpl;
+    pub fn gc_cell_create_weak_impl(cell: *mut c_void) -> *mut GCWeakImpl;
+    pub safe fn gc_weak_impl_null() -> *mut GCWeakImpl;
+    pub fn gc_weak_impl_ref(weak_impl: *mut GCWeakImpl);
+    pub fn gc_weak_impl_unref(weak_impl: *mut GCWeakImpl);
+
+    pub fn gc_visitor_visit_cell(visitor: *mut GCVisitor, cell: *mut c_void);
+    pub fn gc_visitor_visit_cells(visitor: *mut GCVisitor, cells: *const *mut c_void, count: usize);
+    pub fn gc_visitor_visit_values(visitor: *mut GCVisitor, values: *const u64, count: usize);
+    pub fn gc_visitor_visit_ephemeron(visitor: *mut GCVisitor, key: *mut c_void, value: *const u64);
+
+    pub fn gc_primitive_storage_allocate(
+        size: usize,
+        zero_fill: bool,
+        out_handle: *mut GCPrimitiveStorageHandle,
+        out_layout: *mut GCPrimitiveStorageLayout,
+    ) -> bool;
+    pub fn gc_primitive_storage_reserve(
+        size: usize,
+        capacity: usize,
+        zero_fill: bool,
+        guard_size: usize,
+        out_handle: *mut GCPrimitiveStorageHandle,
+        out_layout: *mut GCPrimitiveStorageLayout,
+    ) -> bool;
+    pub fn gc_primitive_storage_resize(
+        handle: GCPrimitiveStorageHandle,
+        new_size: usize,
+        zero_fill: bool,
+        out_layout: *mut GCPrimitiveStorageLayout,
+    ) -> bool;
+    pub fn gc_primitive_storage_reserve_capacity(
+        handle: GCPrimitiveStorageHandle,
+        new_capacity: usize,
+        out_layout: *mut GCPrimitiveStorageLayout,
+    ) -> bool;
+    pub fn gc_primitive_storage_resize_and_reserve(
+        handle: GCPrimitiveStorageHandle,
+        new_size: usize,
+        new_capacity: usize,
+        zero_fill: bool,
+        out_layout: *mut GCPrimitiveStorageLayout,
+    ) -> bool;
+    pub fn gc_primitive_storage_free(handle: GCPrimitiveStorageHandle);
+    // NB: LibGC checks the handles it is queried with, so any handle may be queried.
+    pub safe fn gc_primitive_storage_is_valid(handle: GCPrimitiveStorageHandle) -> bool;
+    pub safe fn gc_primitive_storage_offset(handle: GCPrimitiveStorageHandle) -> usize;
+    pub safe fn gc_primitive_storage_size(handle: GCPrimitiveStorageHandle) -> usize;
+    pub safe fn gc_primitive_storage_capacity(handle: GCPrimitiveStorageHandle) -> usize;
+    pub safe fn gc_primitive_storage_committed_size(handle: GCPrimitiveStorageHandle) -> usize;
+    pub fn gc_primitive_storage_data(handle: GCPrimitiveStorageHandle) -> *mut u8;
+}
+
+// On Windows, a variable that a DLL exports is only reachable through the DLL's import table, which the reference has
+// to go through.
+#[cfg_attr(windows, link(name = "lagom-gc", kind = "dylib"))]
+unsafe extern "C" {
+    /// The base NaN-boxed cell values are relative to; zero until gc_heap_region_base() first runs.
+    pub static js_heap_region_base: usize;
+}
