@@ -1,0 +1,7 @@
+Ladybird’s WebDriver clear algorithm now leaves a textarea rendering
+the same empty value that its value IDL attribute reports. The
+other engines’ drivers clear a textarea by setting its value from
+script, so their rendering follows the value setter: geckodriver’s
+clearResettableElement() in interaction.sys.mjs sets el.value to
+the empty string, and the FormElementClear.js automation atom that
+safaridriver uses in WebKit does the same.
