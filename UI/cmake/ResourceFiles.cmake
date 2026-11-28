@@ -87,6 +87,7 @@ if (PDFJS_FOUND)
     file(GLOB PDFJS_BUILD_FILES "${PDFJS_DIR}/build/*.mjs")
     set(_pdfjs_ladybird_dir "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/pdfjs")
     set(PDFJS_WEB_BASE_FILES
+        "${_pdfjs_ladybird_dir}/pdfjs-ladybird-storage.mjs"
         "${_pdfjs_ladybird_dir}/pdfjs-ladybird-transport.mjs"
         "${PDFJS_DIR}/web/viewer.mjs"
         "${PDFJS_DIR}/web/viewer.css"
