@@ -1,0 +1,7 @@
+Ladybird now stops building an SVG filter’s graph once it would pass
+8192 nodes, and applies that filter as if it had no primitives. Neither
+other engine keeps such a chain cheap: Run with canvas filters through
+chains of 12, 16 and 20 feBlend elements with no inputs named, Firefox
+151 took 3, 34 and 559ms, and drew them right. Chrome 158 took 427ms for
+12, 4 seconds for 16 and 60ms for 20, and drew nothing (0,0,0,0) for 16
+and 20. With 40 such elements, both timed out after 30 seconds.
