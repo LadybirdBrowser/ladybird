@@ -2001,6 +2001,43 @@ void Page::sync_media_element_video_sink_ticking(ReadonlySpan<GC::Root<DOM::Docu
     });
 }
 
+void Page::when_compositor_reconnects(Function<void()> callback)
+{
+    if (!m_compositor_lost) {
+        callback();
+        return;
+    }
+    m_waiting_for_compositor_reconnection.append(move(callback));
+}
+
+void Page::did_lose_compositor()
+{
+    m_compositor_lost = true;
+}
+
+void Page::did_reconnect_compositor()
+{
+    m_compositor_lost = false;
+}
+
+void Page::did_finish_reconnecting_compositor()
+{
+    // The relaunched process can be lost too, while the page brings it up to date or while a callback runs, and what
+    // hasn't run by then goes on waiting, ahead of anything queued since.
+    auto callbacks = exchange(m_waiting_for_compositor_reconnection, {});
+    for (size_t i = 0; i < callbacks.size(); ++i) {
+        if (m_compositor_lost) {
+            Vector<Function<void()>> still_waiting;
+            for (; i < callbacks.size(); ++i)
+                still_waiting.append(move(callbacks[i]));
+            still_waiting.extend(move(m_waiting_for_compositor_reconnection));
+            m_waiting_for_compositor_reconnection = move(still_waiting);
+            return;
+        }
+        callbacks[i]();
+    }
+}
+
 void Page::restore_all_media_element_video_sinks()
 {
     for_each_media_element([&](auto& media_element) {

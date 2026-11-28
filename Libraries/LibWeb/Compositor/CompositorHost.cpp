@@ -37,6 +37,11 @@ void CompositorContextHandle::stop_presenting_to_client()
     m_host.stop_presenting_to_client(m_context_id);
 }
 
+bool CompositorContextHandle::has_compositor_connection() const
+{
+    return m_host.compositor_connection();
+}
+
 bool CompositorContextHandle::ready_for_frame()
 {
     m_host.flush_canvas_2d_stream();

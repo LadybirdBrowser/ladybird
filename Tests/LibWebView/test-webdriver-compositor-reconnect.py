@@ -142,6 +142,9 @@ def run_test(webdriver_binary):
             assert len(compositors) == 1, f"Expected one ladybird-gpu, found {len(compositors)}"
             os.kill(compositors[0], signal.SIGKILL)
 
+            # A screenshot asked for while the Compositor is gone waits for the relaunched one, and is taken from it.
+            assert take_screenshot(port, session) == first
+
             deadline = time.monotonic() + webdriver_helpers.EVENT_TIMEOUT_SECONDS
             while True:
                 replacements = [
