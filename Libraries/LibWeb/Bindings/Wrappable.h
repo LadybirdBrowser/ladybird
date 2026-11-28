@@ -21,6 +21,7 @@
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/IntrinsicDefinitions.h>
+#include <LibWeb/DOM/NodeClassId.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -156,6 +157,10 @@ public:
 
     static constexpr size_t main_world_wrapper_offset() { return offsetof(Wrappable, m_main_world_wrapper); }
 
+    // The class of the node this is, or DOM::NodeClassId::NotANode if it is no node. See DOM/NodeClassId.h. It is the
+    // embedder type id of the cell.
+    DOM::NodeClassId node_class_id() const { return static_cast<DOM::NodeClassId>(embedder_type_id()); }
+
 protected:
     Wrappable();
 
@@ -177,6 +182,9 @@ private:
 
     void set_cached_main_world_wrapper(JS::HostObject&);
     void clear_cached_main_world_wrapper(JS::HostObject const&);
+
+    // NB: GC::CellConstructionHook in DOM/Node.h writes the id of a node's class as it constructs the node.
+    void set_node_class_id(DOM::NodeClassId id) { set_embedder_type_id(to_underlying(id)); }
 
     // Main-world preservation intentionally survives document navigation: an
     // adopted node may still be observed through its original wrapper realm,

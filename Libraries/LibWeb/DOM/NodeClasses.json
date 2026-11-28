@@ -1,0 +1,183 @@
+{
+    "DOM::Node": {
+        "DOM::Attr": {},
+        "DOM::CharacterData": {
+            "DOM::Comment": {},
+            "DOM::ProcessingInstruction": {},
+            "DOM::Text": {
+                "DOM::CDATASection": {}
+            }
+        },
+        "DOM::DocumentType": {},
+        "DOM::ParentNode": {
+            "DOM::Document": {
+                "HTML::HTMLDocument": {},
+                "DOM::XMLDocument": {}
+            },
+            "DOM::DocumentFragment": {
+                "DOM::ShadowRoot": {}
+            },
+            "DOM::Element": {
+                "HTML::HTMLElement": {
+                    "HTML::HTMLAnchorElement": {},
+                    "HTML::HTMLAreaElement": {},
+                    "HTML::HTMLBRElement": {},
+                    "HTML::HTMLBaseElement": {},
+                    "HTML::HTMLBodyElement": {},
+                    "HTML::HTMLButtonElement": {},
+                    "HTML::HTMLCanvasElement": {},
+                    "HTML::HTMLDListElement": {},
+                    "HTML::HTMLDataElement": {},
+                    "HTML::HTMLDataListElement": {},
+                    "HTML::HTMLDetailsElement": {},
+                    "HTML::HTMLDialogElement": {},
+                    "HTML::HTMLDirectoryElement": {},
+                    "HTML::HTMLDivElement": {},
+                    "HTML::HTMLFieldSetElement": {},
+                    "HTML::HTMLFontElement": {},
+                    "HTML::HTMLFormElement": {},
+                    "HTML::HTMLFrameSetElement": {},
+                    "HTML::HTMLHRElement": {},
+                    "HTML::HTMLHeadElement": {},
+                    "HTML::HTMLHeadingElement": {},
+                    "HTML::HTMLHtmlElement": {},
+                    "HTML::HTMLImageElement": {},
+                    "HTML::HTMLInputElement": {},
+                    "HTML::HTMLLIElement": {},
+                    "HTML::HTMLLabelElement": {},
+                    "HTML::HTMLLegendElement": {},
+                    "HTML::HTMLLinkElement": {},
+                    "HTML::HTMLMapElement": {},
+                    "HTML::HTMLMarqueeElement": {},
+                    "HTML::HTMLMediaElement": {
+                        "HTML::HTMLAudioElement": {},
+                        "HTML::HTMLVideoElement": {}
+                    },
+                    "HTML::HTMLMenuElement": {},
+                    "HTML::HTMLMetaElement": {},
+                    "HTML::HTMLMeterElement": {},
+                    "HTML::HTMLModElement": {},
+                    "HTML::HTMLOListElement": {},
+                    "HTML::HTMLOptGroupElement": {},
+                    "HTML::HTMLOptionElement": {},
+                    "HTML::HTMLOutputElement": {},
+                    "HTML::HTMLParagraphElement": {},
+                    "HTML::HTMLParamElement": {},
+                    "HTML::HTMLPictureElement": {},
+                    "HTML::HTMLPreElement": {},
+                    "HTML::HTMLProgressElement": {},
+                    "HTML::HTMLQuoteElement": {},
+                    "HTML::HTMLScriptElement": {},
+                    "HTML::HTMLSelectElement": {},
+                    "HTML::HTMLSelectedContentElement": {},
+                    "HTML::HTMLSlotElement": {},
+                    "HTML::HTMLSourceElement": {},
+                    "HTML::HTMLSpanElement": {},
+                    "HTML::HTMLStyleElement": {},
+                    "HTML::HTMLSummaryElement": {},
+                    "HTML::HTMLTableCaptionElement": {},
+                    "HTML::HTMLTableCellElement": {},
+                    "HTML::HTMLTableColElement": {},
+                    "HTML::HTMLTableElement": {},
+                    "HTML::HTMLTableRowElement": {},
+                    "HTML::HTMLTableSectionElement": {},
+                    "HTML::HTMLTemplateElement": {},
+                    "HTML::HTMLTextAreaElement": {},
+                    "HTML::HTMLTimeElement": {},
+                    "HTML::HTMLTitleElement": {},
+                    "HTML::HTMLTrackElement": {},
+                    "HTML::HTMLUListElement": {},
+                    "HTML::HTMLUnknownElement": {},
+                    "HTML::NavigableContainer": {
+                        "HTML::HTMLEmbedElement": {},
+                        "HTML::HTMLFrameElement": {},
+                        "HTML::HTMLIFrameElement": {},
+                        "HTML::HTMLObjectElement": {}
+                    }
+                },
+                "MathML::MathMLElement": {
+                    "MathML::MathMLAnchorElement": {},
+                    "MathML::MathMLMiElement": {},
+                    "MathML::MathMLMspaceElement": {}
+                },
+                "SVG::SVGElement": {
+                    "SVG::SVGAnimationElement": {
+                        "SVG::SVGAnimateElement": {},
+                        "SVG::SVGAnimateMotionElement": {},
+                        "SVG::SVGSetElement": {}
+                    },
+                    "SVG::SVGComponentTransferFunctionElement": {
+                        "SVG::SVGFEFuncAElement": {},
+                        "SVG::SVGFEFuncBElement": {},
+                        "SVG::SVGFEFuncGElement": {},
+                        "SVG::SVGFEFuncRElement": {}
+                    },
+                    "SVG::SVGDescElement": {},
+                    "SVG::SVGFEBlendElement": {},
+                    "SVG::SVGFEColorMatrixElement": {},
+                    "SVG::SVGFEComponentTransferElement": {},
+                    "SVG::SVGFECompositeElement": {},
+                    "SVG::SVGFEConvolveMatrixElement": {},
+                    "SVG::SVGFEDiffuseLightingElement": {},
+                    "SVG::SVGFEDisplacementMapElement": {},
+                    "SVG::SVGFEDistantLightElement": {},
+                    "SVG::SVGFEDropShadowElement": {},
+                    "SVG::SVGFEFloodElement": {},
+                    "SVG::SVGFEGaussianBlurElement": {},
+                    "SVG::SVGFEImageElement": {},
+                    "SVG::SVGFEMergeElement": {},
+                    "SVG::SVGFEMergeNodeElement": {},
+                    "SVG::SVGFEMorphologyElement": {},
+                    "SVG::SVGFEOffsetElement": {},
+                    "SVG::SVGFEPointLightElement": {},
+                    "SVG::SVGFESpecularLightingElement": {},
+                    "SVG::SVGFESpotLightElement": {},
+                    "SVG::SVGFETurbulenceElement": {},
+                    "SVG::SVGFilterElement": {},
+                    "SVG::SVGGradientElement": {
+                        "SVG::SVGLinearGradientElement": {},
+                        "SVG::SVGRadialGradientElement": {}
+                    },
+                    "SVG::SVGGraphicsElement": {
+                        "SVG::SVGAElement": {},
+                        "SVG::SVGClipPathElement": {},
+                        "SVG::SVGDefsElement": {},
+                        "SVG::SVGForeignObjectElement": {},
+                        "SVG::SVGGElement": {},
+                        "SVG::SVGGeometryElement": {
+                            "SVG::SVGCircleElement": {},
+                            "SVG::SVGEllipseElement": {},
+                            "SVG::SVGLineElement": {},
+                            "SVG::SVGPathElement": {},
+                            "SVG::SVGPolygonElement": {},
+                            "SVG::SVGPolylineElement": {},
+                            "SVG::SVGRectElement": {}
+                        },
+                        "SVG::SVGImageElement": {},
+                        "SVG::SVGMaskElement": {},
+                        "SVG::SVGSVGElement": {},
+                        "SVG::SVGSwitchElement": {},
+                        "SVG::SVGSymbolElement": {},
+                        "SVG::SVGTextContentElement": {
+                            "SVG::SVGTextPathElement": {},
+                            "SVG::SVGTextPositioningElement": {
+                                "SVG::SVGTSpanElement": {},
+                                "SVG::SVGTextElement": {}
+                            }
+                        },
+                        "SVG::SVGUseElement": {},
+                        "SVG::SVGViewElement": {}
+                    },
+                    "SVG::SVGMPathElement": {},
+                    "SVG::SVGMarkerElement": {},
+                    "SVG::SVGMetadataElement": {},
+                    "SVG::SVGPatternElement": {},
+                    "SVG::SVGScriptElement": {},
+                    "SVG::SVGStopElement": {},
+                    "SVG::SVGStyleElement": {},
+                    "SVG::SVGTitleElement": {}
+                }
+            }
+        }
+    }
+}
