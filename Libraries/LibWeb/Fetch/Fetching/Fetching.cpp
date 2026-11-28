@@ -1213,10 +1213,10 @@ static StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(Requ
     //    creation URL’s origin.
     auto origin = environment.visit(
         [](Empty) -> URL::Origin { VERIFY_NOT_REACHED(); },
-        [](NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const> const& environment) {
-            return environment->kind.visit(
-                [](Infrastructure::ReservedClientContext::SettingsObject const& settings_object) { return settings_object.origin; },
-                [&](Infrastructure::ReservedClientContext::Environment const&) { return environment->creation_url.origin(); });
+        [](NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const> const& reserved_client) {
+            return reserved_client->kind.visit(
+                [](Infrastructure::SettingsObjectContext const& settings_object) { return settings_object.origin; },
+                [&](Infrastructure::ReservedClientContext::Environment const&) { return reserved_client->environment.creation_url.origin(); });
         },
         [](NonnullRefPtr<Infrastructure::ClientContextSnapshot const> const& settings) { return settings->origin; });
 
@@ -1745,7 +1745,7 @@ NonnullRefPtr<PendingResponse> scheme_fetch(Infrastructure::FetchParams const& f
             // AD-HOC: The client's snapshot holds what the next step reads from global.
             auto request_environment_creation_url = request_environment.visit(
                 [](Empty) -> URL::URL { VERIFY_NOT_REACHED(); },
-                [](auto const& environment) { return environment->creation_url; });
+                [](auto const& snapshot) { return snapshot->environment.creation_url; });
 
             // 2. If all of the following conditions are true:
             if (
@@ -3183,9 +3183,9 @@ NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_
     load_request.set_network_isolation_key(Infrastructure::determine_the_network_partition_key(*request));
 
     if (auto const& reserved_client = request->reserved_client_snapshot())
-        load_request.set_top_level_creation_url(reserved_client->top_level_creation_url);
+        load_request.set_top_level_creation_url(reserved_client->environment.top_level_creation_url);
     else if (auto const& client = request->client_snapshot())
-        load_request.set_top_level_creation_url(client->top_level_creation_url);
+        load_request.set_top_level_creation_url(client->environment.top_level_creation_url);
 
     if (auto const* body = request->body().get_pointer<Infrastructure::FetchBody>()) {
         if (auto const& source = body->source(); source.has_value())

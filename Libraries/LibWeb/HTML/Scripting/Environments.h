@@ -24,6 +24,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/ServiceWorker/Registration.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironment.h>
 #include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 namespace Web::HTML {
@@ -67,6 +68,8 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#environment-discarding-steps
     virtual void discard_environment() { }
+
+    [[nodiscard]] SerializedEnvironment serialized_environment() const;
 
 protected:
     Environment() = default;

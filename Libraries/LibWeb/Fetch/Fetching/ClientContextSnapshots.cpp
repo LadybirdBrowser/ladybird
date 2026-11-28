@@ -6,6 +6,7 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -61,16 +62,16 @@ Infrastructure::Request::ClientType request_client(HTML::FetchClient const& fetc
 
 // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
 // NB: The steps of the "client" case that read environment, for a client another process hosts.
-static Optional<URL::URL> referrer_source_of_client(HTML::SerializedEnvironmentSettingsObject const& environment)
+static Optional<URL::URL> referrer_source_of_client(HTML::SerializedEnvironmentSettingsObject const& settings)
 {
     // 2. If environment’s global object is a Window object, then
-    if (auto const* window = environment.global.get_pointer<HTML::SerializedWindow>()) {
+    if (auto const* window = settings.global.get_pointer<HTML::SerializedWindow>()) {
         // 1. Let document be the associated Document of environment’s global object.
         auto const& document = window->associated_document;
 
         // 2. If document’s origin is an opaque origin, return no referrer.
         // NB: document's origin is environment's origin.
-        if (environment.origin.is_opaque())
+        if (settings.origin.is_opaque())
             return {};
 
         // FIXME: 3. While document is an iframe srcdoc document, let document be document’s browsing context’s
@@ -81,7 +82,7 @@ static Optional<URL::URL> referrer_source_of_client(HTML::SerializedEnvironmentS
     }
 
     // 3. Otherwise, let referrerSource be environment’s creation URL.
-    return environment.creation_url;
+    return settings.environment.creation_url;
 }
 
 // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
@@ -131,9 +132,7 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
     return make_ref_counted<Infrastructure::ClientContextSnapshot>(Context {
         .origin = client.origin(),
         .site_for_cookies = move(site_for_cookies),
-        .creation_url = client.creation_url,
-        .top_level_creation_url = client.top_level_creation_url,
-        .top_level_origin = client.top_level_origin,
+        .environment = client.serialized_environment(),
         .global_kind = global_kind,
         .is_window_of_a_top_level_navigable = navigable && navigable->is_top_level_traversable() ? Context::IsWindowOfATopLevelNavigable::Yes : Context::IsWindowOfATopLevelNavigable::No,
         .has_cross_site_ancestor = client.has_cross_site_ancestor() ? Infrastructure::HasCrossSiteAncestor::Yes : Infrastructure::HasCrossSiteAncestor::No,
@@ -164,9 +163,7 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
     return make_ref_counted<Infrastructure::ClientContextSnapshot>(Context {
         .origin = settings.origin,
         .site_for_cookies = window ? window->associated_document.site_for_cookies : settings.global.get<HTML::SerializedWorkerGlobalScope>().site_for_cookies,
-        .creation_url = settings.creation_url,
-        .top_level_creation_url = settings.top_level_creation_url,
-        .top_level_origin = settings.top_level_origin,
+        .environment = settings.environment,
         .global_kind = window ? Context::GlobalKind::Window : Context::GlobalKind::Worker,
         .is_window_of_a_top_level_navigable = window && window->navigable_is_top_level ? Context::IsWindowOfATopLevelNavigable::Yes : Context::IsWindowOfATopLevelNavigable::No,
         .has_cross_site_ancestor = settings.has_cross_site_ancestor ? Infrastructure::HasCrossSiteAncestor::Yes : Infrastructure::HasCrossSiteAncestor::No,
@@ -182,16 +179,23 @@ NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_conte
     });
 }
 
-static Variant<Infrastructure::ReservedClientContext::Environment, Infrastructure::ReservedClientContext::SettingsObject> reserved_client_kind(HTML::Environment const& reserved_client)
+static Optional<Infrastructure::SettingsObjectContext> settings_object_context(HTML::Environment const& environment)
+{
+    auto const* settings_object = as_if<HTML::EnvironmentSettingsObject>(environment);
+    if (!settings_object)
+        return {};
+    return Infrastructure::SettingsObjectContext {
+        .origin = settings_object->origin(),
+        .has_cross_site_ancestor = settings_object->has_cross_site_ancestor() ? Infrastructure::HasCrossSiteAncestor::Yes : Infrastructure::HasCrossSiteAncestor::No,
+    };
+}
+
+static Variant<Infrastructure::ReservedClientContext::Environment, Infrastructure::SettingsObjectContext> reserved_client_kind(HTML::Environment const& reserved_client)
 {
     using Context = Infrastructure::ReservedClientContext;
 
-    if (auto const* settings_object = as_if<HTML::EnvironmentSettingsObject>(reserved_client)) {
-        return Context::SettingsObject {
-            .origin = settings_object->origin(),
-            .has_cross_site_ancestor = settings_object->has_cross_site_ancestor() ? Infrastructure::HasCrossSiteAncestor::Yes : Infrastructure::HasCrossSiteAncestor::No,
-        };
-    }
+    if (auto context = settings_object_context(reserved_client); context.has_value())
+        return context.release_value();
 
     Context::Environment environment;
     auto const& target_browsing_context = reserved_client.target_browsing_context;
@@ -215,12 +219,23 @@ NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const> snapshot_rese
     using Context = Infrastructure::ReservedClientContext;
 
     return make_ref_counted<Infrastructure::ReservedClientContextSnapshot>(Context {
-        .creation_url = reserved_client.creation_url,
-        .top_level_creation_url = reserved_client.top_level_creation_url,
-        .top_level_origin = reserved_client.top_level_origin,
+        .environment = reserved_client.serialized_environment(),
         .is_secure_context = HTML::is_secure_context(reserved_client) ? Context::IsSecureContext::Yes : Context::IsSecureContext::No,
         .kind = reserved_client_kind(reserved_client),
     });
+}
+
+// https://fetch.spec.whatwg.org/#determine-the-network-partition-key
+Optional<Infrastructure::NetworkPartitionKey> determine_the_network_partition_key(HTML::Environment const& environment)
+{
+    return Infrastructure::determine_the_network_partition_key(environment.serialized_environment(), settings_object_context(environment));
+}
+
+// https://fetch.spec.whatwg.org/#environment-default-user-agent-value
+String environment_default_user_agent_value(LoaderConfig const& loader_config, HTML::EnvironmentSettingsObject const& environment)
+{
+    // FIXME: Honor WebDriver BiDi emulated User-Agent.
+    return Infrastructure::default_user_agent_value(loader_config, environment.serialized_environment(), environment.origin());
 }
 
 }

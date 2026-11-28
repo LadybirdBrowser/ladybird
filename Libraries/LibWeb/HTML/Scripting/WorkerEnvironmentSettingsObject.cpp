@@ -57,7 +57,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     // 6. If worker global scope is a DedicatedWorkerGlobalScope object, then set settings object's top-level origin to
     //    outside settings's top-level origin.
     if (is<DedicatedWorkerGlobalScope>(*worker)) {
-        settings_object->top_level_origin = outside_settings.top_level_origin;
+        settings_object->top_level_origin = outside_settings.environment.top_level_origin;
     }
     // 7. Otherwise, set settings object's top-level origin to an implementation-defined value.
     else {
@@ -66,7 +66,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
         //
         //        See Client-Side Storage Partitioning for the latest on properly defining this.
         //        https://privacycg.github.io/storage-partitioning/
-        settings_object->top_level_origin = outside_settings.top_level_origin;
+        settings_object->top_level_origin = outside_settings.environment.top_level_origin;
     }
 
     // 8. Set realm's [[HostDefined]] field to settings object.

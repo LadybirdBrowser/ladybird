@@ -725,6 +725,15 @@ bool is_non_secure_context(Environment const& environment)
     return !is_secure_context(environment);
 }
 
+SerializedEnvironment Environment::serialized_environment() const
+{
+    return SerializedEnvironment {
+        .creation_url = creation_url,
+        .top_level_creation_url = top_level_creation_url,
+        .top_level_origin = top_level_origin,
+    };
+}
+
 SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 {
     auto serialized_global = [this]() -> SerializedGlobal {
@@ -757,9 +766,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 
     return SerializedEnvironmentSettingsObject {
         .id = this->id,
-        .creation_url = this->creation_url,
-        .top_level_creation_url = this->top_level_creation_url,
-        .top_level_origin = this->top_level_origin,
+        .environment = serialized_environment(),
         .api_base_url = api_base_url(),
         .origin = origin(),
         .has_cross_site_ancestor = has_cross_site_ancestor(),

@@ -399,9 +399,11 @@ static Web::HTML::SerializedEnvironmentSettingsObject outside_settings(URL::URL 
 {
     return {
         .id = Web::HTML::EnvironmentId::generate(),
-        .creation_url = url,
-        .top_level_creation_url = url,
-        .top_level_origin = url.origin(),
+        .environment = {
+            .creation_url = url,
+            .top_level_creation_url = url,
+            .top_level_origin = url.origin(),
+        },
         .api_base_url = url,
         .origin = url.origin(),
         .has_cross_site_ancestor = false,

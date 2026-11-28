@@ -69,6 +69,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Fetching/NetworkBodyPump.h>
 #include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
@@ -1471,7 +1472,7 @@ WebIDL::ExceptionOr<bool> Internals::has_cookie_for_url(Utf16String const& url, 
     if (has_cookie({}))
         return true;
 
-    auto partition_key = Fetch::Infrastructure::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
+    auto partition_key = Fetch::Fetching::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
     return partition_key.has_value() && has_cookie(HTTP::Cookie::PartitionContext { partition_key->top_level_site, partition_key->has_cross_site_ancestor });
 }
 
@@ -1495,7 +1496,7 @@ bool Internals::compiled_script_cache_contains(Utf16String const& url)
     if (!parsed_url.has_value())
         return false;
 
-    auto key = Fetch::Infrastructure::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
+    auto key = Fetch::Fetching::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
     auto partition = key.has_value() ? key->disk_cache_partition() : OptionalNone {};
     if (!partition.has_value())
         return false;
@@ -1921,7 +1922,7 @@ GC::Ref<WebIDL::Promise> Internals::is_known_hsts_host(Utf16String const& domain
         return promise;
     }
 
-    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
+    auto network_isolation_key = Fetch::Fetching::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
     ResourceLoader::the().look_up_known_hsts_host(network_isolation_key, domain_utf8, [realm = GC::make_root(realm), promise = GC::make_root(promise)](bool is_known_hsts_host) {
         HTML::TemporaryExecutionContext execution_context { *realm };
         WebIDL::resolve_promise(*realm, *promise, JS::Value(is_known_hsts_host));

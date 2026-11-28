@@ -14,6 +14,7 @@
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
+#include <LibWebCommon/HTML/Scripting/SerializedEnvironment.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/MixedContent/ProhibitsMixedSecurityContexts.h>
 
@@ -54,9 +55,7 @@ using SerializedGlobal = Variant<SerializedWindow, SerializedWorkerGlobalScope>;
 
 struct SerializedEnvironmentSettingsObject {
     EnvironmentId id;
-    URL::URL creation_url;
-    Optional<URL::URL> top_level_creation_url;
-    Optional<URL::Origin> top_level_origin;
+    SerializedEnvironment environment;
 
     URL::URL api_base_url;
     URL::Origin origin;

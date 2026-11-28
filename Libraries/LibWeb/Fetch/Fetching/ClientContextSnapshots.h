@@ -11,8 +11,10 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/ClientContextSnapshot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/FetchClient.h>
+#include <LibWebCommon/Forward.h>
 
 namespace Web::Fetch::Fetching {
 
@@ -29,5 +31,8 @@ namespace Web::Fetch::Fetching {
 [[nodiscard]] WEB_API NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_context(HTML::EnvironmentSettingsObject&);
 [[nodiscard]] WEB_API NonnullRefPtr<Infrastructure::ClientContextSnapshot const> snapshot_client_context(HTML::RemoteEnvironmentSettings const&);
 [[nodiscard]] WEB_API NonnullRefPtr<Infrastructure::ReservedClientContextSnapshot const> snapshot_reserved_client_context(HTML::Environment const&);
+
+[[nodiscard]] WEB_API Optional<Infrastructure::NetworkPartitionKey> determine_the_network_partition_key(HTML::Environment const&);
+[[nodiscard]] String environment_default_user_agent_value(LoaderConfig const&, HTML::EnvironmentSettingsObject const&);
 
 }
