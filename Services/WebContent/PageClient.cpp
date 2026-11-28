@@ -1282,7 +1282,7 @@ void PageClient::page_did_change_accessibility_tree()
     schedule_accessibility_tree_update();
 }
 
-void PageClient::schedule_accessibility_tree_update()
+void PageClient::schedule_accessibility_tree_update(AccessibilityUpdateDelay delay)
 {
     if (!page().accessibility_interested())
         return;
@@ -1301,8 +1301,32 @@ void PageClient::schedule_accessibility_tree_update()
     // the AT 200 ms after the first of them, and a steadily mutating page gets a fresh tree every 200 ms — the way
     // Gecko (NotificationController::ScheduleProcessing), WebKit (AXObjectCache::deferElementAddedOrRemoved starts
     // m_performCacheUpdateTimer only while it's inactive) and Blink (AXObjectCacheImpl::ScheduleAXUpdate) coalesce.
-    if (!m_accessibility_update_timer->is_active())
-        m_accessibility_update_timer->start();
+    //
+    // OPTIMIZATION: A publish walks the whole tree, so on a huge document it can take longer than the interval, and a
+    //               document that keeps changing (one the parser is still streaming in, e.g.) would then spend nearly
+    //               all its time publishing. So the wait is at least three times as long as the last publish took,
+    //               which keeps publishing to a quarter of the time at most. How long a publish takes depends on its
+    //               document, so a newly navigated-to document starts again from the shortest wait.
+    static constexpr auto MINIMUM_INTERVAL = AK::Duration::from_milliseconds(200);
+
+    // But the AT waits for what its own action changed, so that update comes after the shortest wait, even if a longer
+    // one is already running.
+    if (delay == AccessibilityUpdateDelay::Minimum) {
+        if (!m_accessibility_update_timer->is_active() || m_accessibility_update_timer->interval() > MINIMUM_INTERVAL)
+            m_accessibility_update_timer->restart(MINIMUM_INTERVAL);
+        return;
+    }
+
+    auto last_publish = AK::Duration::zero();
+    if (page().has_local_traversable()) {
+        if (auto document = page().local_traversable()->active_document(); document && document->unique_id() == m_last_accessibility_publish_document_id)
+            last_publish = m_last_accessibility_publish_duration;
+    }
+    auto interval = max(MINIMUM_INTERVAL, last_publish + last_publish + last_publish);
+    // A wait already running is kept, unless it's longer than the document's own: one a slow document armed before the
+    // page navigated away from it.
+    if (!m_accessibility_update_timer->is_active() || m_accessibility_update_timer->interval() > interval)
+        m_accessibility_update_timer->restart(interval);
 }
 
 void PageClient::publish_accessibility_tree(bool whole_tree_requested)
@@ -1315,6 +1339,13 @@ void PageClient::publish_accessibility_tree(bool whole_tree_requested)
     if (!document)
         return;
     document->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+
+    // Only the tree's own cost sets the wait before the next update, not the layout the page would do anyway.
+    auto start_time = MonotonicTime::now();
+    ScopeGuard record_duration = [&] {
+        m_last_accessibility_publish_duration = MonotonicTime::now() - start_time;
+        m_last_accessibility_publish_document_id = document->unique_id();
+    };
 
     auto change = document->build_accessibility_tree_change(m_accessibility_change_tracker, whole_tree_requested);
     if (change.is_whole_tree) {
