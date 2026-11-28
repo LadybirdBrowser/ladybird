@@ -131,8 +131,7 @@ void post_to_worker_threads(void (*function)())
 {
     MutexLocker locker(worker_threads().mutex);
     for (auto& reference : worker_threads().event_loops) {
-        if (auto event_loop = reference->take(); event_loop.is_alive())
-            event_loop->deferred_invoke([function] { function(); });
+        reference->deferred_invoke([function] { function(); });
     }
 }
 

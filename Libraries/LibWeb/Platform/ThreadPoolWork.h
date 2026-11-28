@@ -39,10 +39,7 @@ void run_on_thread_pool(Work work, Function<void(Result)> on_complete)
         GC::forbid_heap_access_on_this_thread();
         Result result = work();
 
-        auto origin_event_loop = event_loop->take();
-        if (!origin_event_loop.is_alive())
-            return;
-        origin_event_loop->deferred_invoke([completion_id, result = move(result)]() mutable {
+        event_loop->deferred_invoke([completion_id, result = move(result)]() mutable {
             if (auto completion = take_thread_pool_completion(completion_id))
                 completion(&result);
         });

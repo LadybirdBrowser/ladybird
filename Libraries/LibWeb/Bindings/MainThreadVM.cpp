@@ -186,11 +186,9 @@ static void install_async_wait_hooks(JS::VM& vm)
     hooks.wake = [](void* context, JS::AsyncWaitQueue const* queue) {
         auto reference = make<AsyncWaitQueueReference>(queue);
         auto& weak_loop = static_cast<AsyncWaitEventLoop*>(context)->loop;
-        if (auto loop = weak_loop->take()) {
-            loop->deferred_invoke([reference = move(reference)] {
-                JS::VM::dispatch_async_wait_queue(reference->queue);
-            });
-        }
+        weak_loop->deferred_invoke([reference = move(reference)] {
+            JS::VM::dispatch_async_wait_queue(reference->queue);
+        });
     };
     hooks.destroy = [](void* context) {
         delete static_cast<AsyncWaitEventLoop*>(context);

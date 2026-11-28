@@ -72,10 +72,7 @@ BodyStreamWakeSink::BodyStreamWakeSink(BodyStreamWakeToken registry_token)
 
 void BodyStreamWakeSink::wake(Engine::WakeTicket ticket)
 {
-    auto loop = m_loop->take();
-    if (!loop)
-        return;
-    loop->deferred_invoke([token = m_registry_token, ticket] {
+    m_loop->deferred_invoke([token = m_registry_token, ticket] {
         BodyStreamWakeRegistry::the().notify(token, ticket);
     });
 }

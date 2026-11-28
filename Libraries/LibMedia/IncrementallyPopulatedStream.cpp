@@ -258,10 +258,7 @@ void IncrementallyPopulatedStream::dispatch_data_request_while_locked(Optional<u
 {
     if (!m_callback_event_loop)
         return;
-    auto event_loop = m_callback_event_loop->take();
-    if (!event_loop)
-        return;
-    event_loop->deferred_invoke([stream = NonnullRefPtr(*this), position] {
+    m_callback_event_loop->deferred_invoke([stream = NonnullRefPtr(*this), position] {
         if (stream->m_data_request_callback)
             stream->m_data_request_callback(position);
     });

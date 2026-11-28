@@ -457,10 +457,7 @@ void NavigationLoader::read_local_file_for_response()
         };
         auto local_file = read_local_file();
 
-        auto origin_event_loop = event_loop->take();
-        if (!origin_event_loop.is_alive())
-            return;
-        origin_event_loop->deferred_invoke([weak_this = move(weak_this), local_file = move(local_file)] mutable {
+        event_loop->deferred_invoke([weak_this = move(weak_this), local_file = move(local_file)] mutable {
             if (auto* loader = weak_this.ptr())
                 loader->did_read_local_file_for_response(move(local_file));
         });

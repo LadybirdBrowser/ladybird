@@ -345,10 +345,7 @@ void ReportSubmission::solve_proof(ByteString token, u64 expected_work)
             main_thread_event_loop = Core::EventLoop::current_weak(), attempt = m_attempt, token = move(token),
             expected_work]() mutable -> intptr_t {
             auto nonce = solve_challenge(token, expected_work, cancelled);
-            auto event_loop = main_thread_event_loop->take();
-            if (!event_loop)
-                return 0;
-            event_loop->deferred_invoke(
+            main_thread_event_loop->deferred_invoke(
                 [weak_this = move(weak_this), attempt, token = move(token), nonce]() mutable {
                     auto self = weak_this.strong_ref();
                     if (!self || self->m_attempt != attempt || self->m_proof_cancelled.load())

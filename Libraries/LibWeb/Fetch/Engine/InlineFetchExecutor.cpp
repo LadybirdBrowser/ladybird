@@ -20,11 +20,7 @@ InlineFetchExecutor::InlineFetchExecutor(FetchExecutorServices services, Nonnull
 
 bool InlineFetchExecutor::post_task(Function<void()> task)
 {
-    auto loop = services().event_loop->take();
-    if (!loop)
-        return false;
-    loop->deferred_invoke(move(task));
-    return true;
+    return services().event_loop->deferred_invoke(move(task));
 }
 
 }
