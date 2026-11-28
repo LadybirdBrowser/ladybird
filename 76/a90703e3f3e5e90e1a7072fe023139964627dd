@@ -1,0 +1,16 @@
+Ladybird’s macOS menu bar now has a Window menu, registered as
+NSApp.windowsMenu, as Chrome and Firefox register theirs: Chrome’s
+main_menu_builder.mm builds a Window menu whose Minimize and Zoom
+items use performMiniaturize: and performZoom:, and sets it as
+NSApp.windowsMenu, and Gecko’s nsMenuX.mm sets NSApp.windowsMenu
+to the native menu of its XUL Window menu. Safari has a Window menu
+too. Qt 6.11’s QCocoaMenuBar::insertWindowMenu() registers a hidden
+"QtWindowMenu" placeholder only when no Windows menu is registered yet.
+
+Run in a macOS 26.6.2 Tart VM, with the window shrunk to 600x400 first,
+fn+Control+F filled the screen, fn+Control+C centered the window,
+and Window > Fill filled it; the 2026.47.8 release did none of those.
+Command+M minimized the window with the page focused. AppKit lists its
+commands above Minimize and Zoom here, since those items run Qt actions
+rather than performMiniaturize: and performZoom:; in TextEdit, whose
+items use those selectors, AppKit lists them below.
