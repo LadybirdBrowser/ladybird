@@ -102,8 +102,16 @@ void HTMLTableElement::apply_presentational_hints(Vector<CSS::StyleProperty>& pr
             return;
         }
         if (name == HTML::AttributeNames::cellspacing) {
-            if (auto parsed_value = parse_dimension_value(value))
-                properties.append({ .property_id = CSS::PropertyID::BorderSpacing, .value = parsed_value.release_nonnull() });
+            // https://html.spec.whatwg.org/multipage/rendering.html#tables-2
+            // The table element's cellspacing attribute maps to the pixel length property 'border-spacing' on the element.
+            // https://html.spec.whatwg.org/multipage/rendering.html#maps-to-the-pixel-length-property
+            // When the text below says that an attribute attribute on an element element maps to the pixel length
+            // property (or properties) properties, it means that if element has an attribute attribute set, and parsing
+            // that attribute's value using the rules for parsing non-negative integers doesn't generate an error, then
+            // the user agent is expected to use the parsed value as a pixel length for a presentational hint for
+            // properties.
+            if (auto spacing = parse_non_negative_integer(value); spacing.has_value())
+                properties.append({ .property_id = CSS::PropertyID::BorderSpacing, .value = CSS::LengthStyleValue::create(CSS::Length::make_px(*spacing)) });
             return;
         }
         if (name == HTML::AttributeNames::border) {

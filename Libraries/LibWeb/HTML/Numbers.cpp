@@ -100,8 +100,13 @@ static Optional<StringType> parse_non_negative_integer_digits_impl(StringType st
         return {};
 
     // 4. If value is less than zero, return an error.
-    if (code_unit_length(*optional_integer_digits) > 1 && code_unit_at(*optional_integer_digits, 0) == '-' && code_unit_at(*optional_integer_digits, 1) != '0')
-        return {};
+    // NB: A minus sign makes the value negative unless every digit after it is zero, as in "-0" or "-00".
+    if (code_unit_at(*optional_integer_digits, 0) == '-') {
+        for (size_t i = 1; i < code_unit_length(*optional_integer_digits); ++i) {
+            if (code_unit_at(*optional_integer_digits, i) != '0')
+                return {};
+        }
+    }
 
     // 5. Return value.
     // NOTE: Integer conversion is performed by the caller.

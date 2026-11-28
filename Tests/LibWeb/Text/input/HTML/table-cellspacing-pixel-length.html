@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        // The cellspacing attribute maps to the pixel length property border-spacing: Its value is parsed as a
+        // non-negative integer, and only one that parses sets border-spacing.
+        for (const value of ["10%", "10", "10.7", "-3", "abc", " 7px", "0", "3em", "+4", "  12  "]) {
+            const table = document.createElement("table");
+            table.setAttribute("cellspacing", value);
+            table.innerHTML = "<tr><td>x</td></tr>";
+            document.getElementById("host").append(table);
+            println(`${JSON.stringify(value)}: ${getComputedStyle(table).borderSpacing}`);
+        }
+    });
+</script>

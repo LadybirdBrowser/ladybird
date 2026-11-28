@@ -1,0 +1,7 @@
+"-03": colSpan=1 rowSpan=1 border-spacing=2px
+"-01": colSpan=1 rowSpan=1 border-spacing=2px
+"-10": colSpan=1 rowSpan=1 border-spacing=2px
+"-0": colSpan=1 rowSpan=0 border-spacing=0px
+"-00": colSpan=1 rowSpan=0 border-spacing=0px
+"-0x": colSpan=1 rowSpan=0 border-spacing=0px
+"03": colSpan=3 rowSpan=3 border-spacing=3px
