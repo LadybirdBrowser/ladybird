@@ -35,6 +35,10 @@ struct PopulatedDocument {
     NonnullRefPtr<CanonicalDocument> document;
     // The origin of a document the hosting process creates for inline content in place of the response.
     Optional<URL::Origin> inline_content_origin {};
+    // The origin of the PDF viewer, if the hosting process may show the response in it.
+    Optional<URL::Origin> pdf_viewer_origin {};
+    // Whether the UI process accepted the hosting process's report of an origin of its own for the document.
+    bool reported_an_origin_of_its_own { false };
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-2

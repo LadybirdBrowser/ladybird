@@ -72,6 +72,8 @@ struct NavigationPopulationResult {
     Optional<HTTP::Cookie::SameSiteStatus> navigation_same_site_status {};
     // The origin the UI process gives a document created for inline content in place of the response.
     Optional<URL::Origin> inline_content_origin {};
+    // The origin the UI process gives the PDF viewer, if the process creating the document shows the response in it.
+    Optional<URL::Origin> pdf_viewer_origin {};
     Optional<CrossProcessId> document_id {};
 };
 
