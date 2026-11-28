@@ -66,5 +66,5 @@ ErrorOr<Web::WebDriver::Response> IPC::decode(Decoder& decoder)
     }
     }
 
-    VERIFY_NOT_REACHED();
+    return Error::from_string_literal("IPC decode: Invalid WebDriver response type");
 }

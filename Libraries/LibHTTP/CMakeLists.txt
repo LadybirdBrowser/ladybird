@@ -22,5 +22,7 @@ set(SOURCES
 include(hsts_preload)
 list(APPEND SOURCES ${HSTS_PRELOAD_SOURCES})
 
+compile_ipc(Cookie/Cookie.ipc Cookie/CookieCodecs.h)
+
 ladybird_lib(LibHTTP http)
 target_link_libraries(LibHTTP PRIVATE LibCore LibCrypto LibDatabase LibFileSystem LibIPC LibRegex LibTextCodec LibUnicode LibURL)

@@ -3950,7 +3950,7 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentPage::did_request
     // NB: Only WebDriver reads cookies like HTTP does, for the top-level documents it drives.
     Optional<HTTP::Cookie::PartitionContext> partition_context;
     auto same_site_context = HTTP::Cookie::SameSiteContext::same_site();
-    if (source == HTTP::Cookie::Source::NonHttp) {
+    if (source != HTTP::Cookie::Source::Http) {
         partition_context = cookie_partition_context_for(*this, environment_id, url);
         if (!partition_context.has_value())
             return HTTP::Cookie::VersionedCookie {};
@@ -3959,7 +3959,7 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentPage::did_request
 
     HTTP::Cookie::VersionedCookie cookie;
     cookie.cookie = client().session().cookie_jar->get_cookie(url, source, partition_context, same_site_context);
-    if (source == HTTP::Cookie::Source::NonHttp)
+    if (source != HTTP::Cookie::Source::Http)
         cookie.cookie_version = view().document_cookie_version(url);
     return cookie;
 }
