@@ -33,7 +33,7 @@ public:
     Optional<float> author_path_length() const;
 
 protected:
-    SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name);
+    explicit SVGGeometryElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 

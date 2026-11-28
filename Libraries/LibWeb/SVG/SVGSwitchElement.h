@@ -13,7 +13,6 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/struct.html#SwitchElement
 class SVGSwitchElement final : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGSwitchElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGSwitchElement);
 
 public:
     virtual ~SVGSwitchElement() override;
@@ -21,7 +20,7 @@ public:
     virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
-    SVGSwitchElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGSwitchElement(DOM::RustMadePrefix);
 };
 
 }

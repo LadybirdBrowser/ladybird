@@ -18,14 +18,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLOListElement);
-
-HTMLOListElement::HTMLOListElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLOListElement::HTMLOListElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLOListElement::~HTMLOListElement() = default;
 
 // https://html.spec.whatwg.org/multipage/grouping-content.html#dom-ol-start
 WebIDL::Long HTMLOListElement::start()

@@ -70,6 +70,10 @@ typedef struct GCCellTypeInfo {
     void (*destroy)(GCCell*);
     size_t (*external_memory_size)(GCCell const*);
     char const* (*class_name)(GCCell const*, size_t* length);
+    // Whether a cell of a type whose allocator lets it be traced on any thread must be traced on the thread that owns
+    // its heap. Asked before the collector traces the cell on another thread, while every cell is live or dead as the
+    // collection found it, so it may only read the cell.
+    bool (*traced_on_owner_thread)(GCCell const*);
 } GCCellTypeInfo;
 
 // Everything a foreign implementation of cells needs to agree on with this build of LibGC.

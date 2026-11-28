@@ -17,6 +17,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <LibGC/DeferGC.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Bindings/Node.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -145,6 +146,29 @@ enum class SetNeedsLayoutTreeUpdateReason {
 };
 
 [[nodiscard]] Utf16View to_string(SetNeedsLayoutTreeUpdateReason);
+
+// What the constructors of the classes of nodes whose objects libweb_rust defines (see Rust/src/dom/node_objects.rs)
+// take: C++ only ever constructs a probe of such a class, from which it reads the vtable pointers that Rust writes into
+// every object of the class.
+struct VtableProbe { };
+
+// What the constructors take that construct an element over the prefix libweb_rust made for it (see
+// Rust/src/dom/element_objects.rs): libweb_rust allocated the element, made the part of it that the prefix of its
+// layout class lays out, and C++ constructs the members that come after that, its payload, in place. The constructors
+// of the classes of the prefix leave what libweb_rust owns as it is, and give C++'s own members in the prefix the
+// values libweb_rust gave them.
+struct RustMadePrefix { };
+
+// The C++ half of the elements whose objects libweb_rust defines (see DOM/ElementObjects.cpp), which the shells of
+// their classes befriend.
+struct RustElementObjectHooks;
+
+// Whether T is the C++ shell of a class of nodes whose objects libweb_rust defines whole, as RustObject: it adds no
+// member to the object Rust lays out, has no allocator of its own, so that C++ cannot allocate one, and no destructor
+// that C++ can call, as Rust destroys every one.
+template<typename T, typename RustObject>
+inline constexpr bool is_shell_of_rust_object = sizeof(T) == sizeof(RustObject) && alignof(T) == alignof(RustObject)
+    && !requires { requires IsSame<typename T::gc_allocator_marker, T>; } && !IsDestructible<T>;
 
 class WEB_API Node : public EventTarget
     , public TreeNode<Node> {
@@ -636,7 +660,8 @@ protected:
         size_t collections_by_tag_name_sweep_size { 0 };
     };
 
-    Node(Document&, NodeType);
+    explicit Node(VtableProbe);
+    explicit Node(RustMadePrefix);
 
     void set_document(Document&);
 
@@ -651,7 +676,10 @@ protected:
 
     // The tree state of the node, whose layout libweb_rust defines (see Rust/src/dom/node_core.rs), which reads it in
     // place.
-    RustFFI::NodeCore m_core {};
+    // NB: In a union, so that Node(RustMadePrefix) can leave it as libweb_rust made it.
+    union {
+        RustFFI::NodeCore m_core;
+    };
 
     void set_core_flag(u8 flag, bool value) { m_core.flags = static_cast<u8>(value ? (m_core.flags | flag) : (m_core.flags & ~flag)); }
     // Which narrower rebuilds the layout tree update marks collected so far still permit.
@@ -678,6 +706,13 @@ protected:
 private:
     friend class TreeNode<Node>;
     friend class RustDOMHooks;
+    friend struct RustNodeObjectHooks;
+    friend struct RustElementObjectHooks;
+
+    // Visits the cells the members in the opaque slots of the node's prefixes hold (see Rust/src/dom/prefix.rs), for
+    // libweb_rust, which traces the rest of the nodes whose objects it defines.
+    void visit_cxx_slot_edges(Cell::Visitor&);
+
     RustFFI::NodeCore& tree_node_links() { return m_core; }
     RustFFI::NodeCore const& tree_node_links() const { return m_core; }
 
@@ -714,9 +749,52 @@ static_assert(Bindings::Wrappable::main_world_wrapper_offset() >= sizeof(JS::Cel
 
 namespace GC {
 
-// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and works out for
-// DOM/NodeClassSteps.cpp which steps its class has (see Rust/src/dom/node_class.rs), which the class's overrides decide.
-// Every cell class befriends it, so it can name the overrides a class keeps private.
+// The size of a class C without the padding at its end, which is where the Itanium C++ ABI places what follows an object
+// of C as a base class or as a [[no_unique_address]] member: the size that Clang's __datasizeof gives, which other
+// compilers lack. The Microsoft C++ ABI places nothing in the tail padding of a base class, so there it is the size of C.
+template<typename C>
+consteval size_t size_without_tail_padding()
+{
+#if defined(AK_OS_WINDOWS)
+    return sizeof(C);
+#else
+    if constexpr (__is_abstract(C)) {
+        struct Probe : C {
+            char after;
+        };
+        return offsetof(Probe, after);
+    } else {
+        struct Probe {
+            NO_UNIQUE_ADDRESS C object;
+            char after;
+        };
+        return offsetof(Probe, after);
+    }
+#endif
+}
+
+#if defined(AK_OS_WINDOWS)
+namespace Detail {
+
+struct TailPaddingProbeBase {
+    virtual ~TailPaddingProbeBase() = default;
+    u64 word;
+    u8 byte;
+};
+
+struct TailPaddingProbe : TailPaddingProbeBase {
+    u8 after;
+};
+
+// NB: A member of a derived class comes after all of its base class, so size_without_tail_padding() is the size.
+static_assert(offsetof(TailPaddingProbe, after) == sizeof(TailPaddingProbeBase));
+
+}
+#endif
+
+// Constructs the payload of a node whose prefix libweb_rust made, with the id of its class (see DOM/NodeClassId.h), and
+// works out for DOM/NodeClassSteps.cpp which steps its class has (see Rust/src/dom/node_class.rs), which the class's
+// overrides decide. Every cell class befriends it, so it can name the overrides a class keeps private.
 template<typename T>
 requires(IsBaseOf<Web::DOM::Node, T>)
 struct CellConstructionHook<T> {
@@ -757,11 +835,72 @@ struct CellConstructionHook<T> {
         return steps;
     }
 
-    static void did_construct(T& node)
+    // Whether T adds nothing to L, the class whose prefix lays it out, that C++ runs as it makes, traces, clones,
+    // finalizes or measures a node: no member, and no override of the functions that do so. libweb_rust can then make
+    // a node of T as one of L, see Rust/src/dom/element_objects.rs. Every cell class befriends this, so the check can
+    // name the overrides a class keeps private. NB: C++ can place a member of T in the padding at the end of L, where
+    //     it leaves the size alone, so the sizes without that padding are compared as well.
+    template<typename L>
+    static constexpr bool adds_nothing_to()
+    {
+        static_assert(IsBaseOf<L, T>);
+        constexpr bool keeps_initialize_element = [] {
+            if constexpr (IsBaseOf<Web::DOM::Element, L>)
+                return IsSame<decltype(&T::initialize_element), decltype(&L::initialize_element)>;
+            else
+                return true;
+        }();
+        return sizeof(T) == sizeof(L) && size_without_tail_padding<T>() == size_without_tail_padding<L>() && alignof(T) == alignof(L)
+            && IsSame<decltype(&T::visit_edges), decltype(&L::visit_edges)>
+            && IsSame<decltype(&T::finalize), decltype(&L::finalize)>
+            && IsSame<decltype(&T::external_memory_size), decltype(&L::external_memory_size)>
+            && IsSame<decltype(&T::initialize), decltype(&L::initialize)>
+            && keeps_initialize_element
+            && IsSame<decltype(&T::cloned), decltype(&L::cloned)>;
+    }
+
+    // The RustFFI::NODE_OBJECT_* bits of T, a class of nodes with a payload after the prefix of L, its layout class:
+    // which of the functions that trace, measure and finalize a node T or a class between L and T overrides, which
+    // libweb_rust then calls for every node of T. NB: C++ cannot tell whether the members of T beyond L are trivially
+    //     destructible while the destructor of L is virtual, so the destructor of every node with a payload runs.
+    template<typename L>
+    static constexpr u32 payload_flags()
+    {
+        static_assert(IsBaseOf<L, T> && !adds_nothing_to<L>());
+        using namespace Web::DOM::RustFFI;
+        u32 flags = NODE_OBJECT_HAS_PAYLOAD;
+        if (!IsSame<decltype(&T::visit_edges), decltype(&L::visit_edges)>)
+            flags |= NODE_OBJECT_PAYLOAD_HAS_EDGES;
+        if (!IsSame<decltype(&T::external_memory_size), decltype(&L::external_memory_size)>)
+            flags |= NODE_OBJECT_PAYLOAD_HAS_EXTERNAL_MEMORY;
+        if (!IsSame<decltype(&T::finalize), decltype(&L::finalize)>)
+            flags |= NODE_OBJECT_PAYLOAD_NEEDS_FINALIZE;
+        return flags;
+    }
+
+    // Whether the constructor that makes a node of T over the prefix libweb_rust made is one C++ can call here.
+    static constexpr bool constructs_over_rust_made_prefix = requires(void* storage) { ::new (storage) T(Web::DOM::RustMadePrefix {}); };
+
+    // Constructs the payload of `node`, a new node of T whose prefix libweb_rust made (see Web::DOM::RustMadePrefix),
+    // with the constructor that takes the prefix and `args`, as Heap::allocate() constructs a cell: with collections
+    // deferred until the constructor is done, so that none traces a payload half made.
+    template<typename... Args>
+    static T& construct_payload(Web::DOM::Node& node, Args&&... args)
+    {
+        static_assert(T::cell_kind_for_class == CellKind::Other, "libweb_rust makes a node a cell of GC::CellKind::Other");
+        // NB: libweb_rust wrote the id of T's class into the prefix, see NodeClassTraits<T>::id. DOM/NodeClassSteps.cpp
+        //     checks that DOM/NodeClasses.json has T under the class it derives from.
+        static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
+        DeferGC defer_gc { node.heap() };
+        return *::new (static_cast<void*>(&node)) T(Web::DOM::RustMadePrefix {}, forward<Args>(args)...);
+    }
+
+    // Gives `probe`, a probe of T that C++ constructed (see Web::DOM::VtableProbe), the id of its class, which
+    // libweb_rust checks.
+    static void give_class_id_to_probe(T& probe)
     {
         static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
-        // NB: DOM/NodeClassSteps.cpp checks that the list has T under the class it derives from.
-        static_cast<Web::Bindings::Wrappable&>(node).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
+        static_cast<Web::Bindings::Wrappable&>(probe).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
     }
 };
 

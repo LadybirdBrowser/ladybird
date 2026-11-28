@@ -13,8 +13,8 @@
 
 namespace Web::SVG {
 
-SVGComponentTransferFunctionElement::SVGComponentTransferFunctionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, move(qualified_name))
+SVGComponentTransferFunctionElement::SVGComponentTransferFunctionElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

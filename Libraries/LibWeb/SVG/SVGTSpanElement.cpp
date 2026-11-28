@@ -11,10 +11,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGTSpanElement);
-
-SVGTSpanElement::SVGTSpanElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGTextPositioningElement(document, move(qualified_name))
+SVGTSpanElement::SVGTSpanElement(DOM::RustMadePrefix prefix)
+    : SVGTextPositioningElement(prefix)
 {
 }
 

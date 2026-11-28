@@ -17,6 +17,9 @@ namespace JS {
 class JS_API Cell : public GC::Cell {
     GC_CELL(Cell, GC::Cell);
 
+protected:
+    using GC::Cell::Cell;
+
 public:
     MUST_UPCALL virtual void initialize(Realm&);
 

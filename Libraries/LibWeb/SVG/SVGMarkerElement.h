@@ -18,7 +18,6 @@ class SVGMarkerElement final
     : public SVGElement
     , public SVGFitToViewBox {
     WEB_WRAPPABLE(SVGMarkerElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGMarkerElement);
 
 public:
     static constexpr u16 SVG_MARKERUNITS_UNKNOWN = 0;
@@ -52,7 +51,7 @@ public:
     void set_orient_to_angle(GC::Ref<SVGAngle>);
 
 private:
-    SVGMarkerElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGMarkerElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;

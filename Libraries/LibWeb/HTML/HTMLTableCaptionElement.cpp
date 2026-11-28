@@ -10,14 +10,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLTableCaptionElement);
-
-HTMLTableCaptionElement::HTMLTableCaptionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLTableCaptionElement::HTMLTableCaptionElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLTableCaptionElement::~HTMLTableCaptionElement() = default;
 
 bool HTMLTableCaptionElement::is_presentational_hint(Utf16FlyString const& name) const
 {

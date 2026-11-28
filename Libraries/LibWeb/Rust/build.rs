@@ -2569,7 +2569,12 @@ struct NodeClass {
     parent: Option<usize>,
     /// The index of the last class in the list that descends from this one, or this one's if none does.
     last_descendant: usize,
+    /// Whether the class is a class of elements, whose objects libweb_rust defines (see src/dom/element_objects.rs).
+    rust_owned: bool,
 }
+
+/// The classes whose prefixes lay out the elements whose objects libweb_rust defines.
+const ELEMENT_LAYOUT_CLASSES: [&str; 3] = ["Element", "HTMLElement", "MathMLElement"];
 
 fn collect_node_classes(
     classes: &serde_json::Map<String, serde_json::Value>,
@@ -2589,12 +2594,14 @@ fn collect_node_classes(
         let subclasses = subclasses
             .as_object()
             .ok_or_else(|| format!("the subclasses of {qualified_name} in DOM/NodeClasses.json are no JSON object"))?;
+        let rust_owned = name == "Element" || parent.is_some_and(|parent: usize| list[parent].rust_owned);
         let index = list.len();
         list.push(NodeClass {
             namespace: namespace.to_string(),
             name: name.to_string(),
             parent,
             last_descendant: index,
+            rust_owned,
         });
         collect_node_classes(subclasses, Some(index), list)?;
         list[index].last_descendant = list.len() - 1;
@@ -2642,6 +2649,50 @@ fn generate_node_classes(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<
     for class in &classes {
         write!(rust, ", {}", id(class.last_descendant))?;
     }
+    rust.push_str("];\n\n");
+
+    // NB: The layout class of a class whose objects libweb_rust defines is the nearest of the layout classes it is.
+    let layout_of = |mut index: usize| loop {
+        if ELEMENT_LAYOUT_CLASSES.contains(&classes[index].name.as_str()) {
+            return classes[index].name.as_str();
+        }
+        index = classes[index]
+            .parent
+            .expect("a class whose objects Rust defines is an element");
+    };
+    let rust_owned: Vec<usize> = (0..classes.len()).filter(|&index| classes[index].rust_owned).collect();
+    if rust_owned.len() >= usize::from(u8::MAX) {
+        return Err("DOM/NodeClasses.json lists too many classes of elements".into());
+    }
+    writeln!(
+        rust,
+        "/// The classes of elements whose objects Rust defines (see element_objects.rs), in the order of their ids, each\n\
+         /// with its layout class, the nearest of DOM::Element, HTML::HTMLElement and MathML::MathMLElement it is, and its\n\
+         /// name.\n\
+         pub const RUST_OWNED_ELEMENT_CLASSES: [(NodeClassId, NodeClassId, &str); {}] = [",
+        rust_owned.len()
+    )?;
+    for &index in &rust_owned {
+        writeln!(
+            rust,
+            "    (NodeClassId::{}, NodeClassId::{}, \"{}\"),",
+            classes[index].name,
+            layout_of(index),
+            classes[index].name
+        )?;
+    }
+    rust.push_str("];\n\n");
+    rust.push_str(
+        "/// The index of each class in RUST_OWNED_ELEMENT_CLASSES by the class's id, or u8::MAX for a class whose objects\n\
+         /// Rust does not define.\n\
+         pub const RUST_OWNED_ELEMENT_CLASS_INDICES: [u8; NODE_CLASS_ID_COUNT] = [u8::MAX",
+    );
+    for index in 0..classes.len() {
+        match rust_owned.iter().position(|&owned| owned == index) {
+            Some(position) => write!(rust, ", {position}")?,
+            None => rust.push_str(", u8::MAX"),
+        }
+    }
     rust.push_str("];\n");
     std::fs::write(out_dir.join("node_classes_generated.rs"), rust)?;
 
@@ -2677,6 +2728,13 @@ fn generate_node_classes(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<
     }
     cpp.push_str("// Calls X with each class, in the order of the ids.\n#define ENUMERATE_NODE_CLASSES(X)");
     for class in &classes {
+        write!(cpp, " \\\n    X(Web::{}::{})", class.namespace, class.name)?;
+    }
+    cpp.push_str(
+        "\n\n// Calls X with each class of elements whose objects libweb_rust defines, in the order of the ids, which is that of\n\
+         // RUST_OWNED_ELEMENT_CLASSES in libweb_rust.\n#define ENUMERATE_RUST_OWNED_ELEMENT_CLASSES(X)",
+    );
+    for class in classes.iter().filter(|class| class.rust_owned) {
         write!(cpp, " \\\n    X(Web::{}::{})", class.namespace, class.name)?;
     }
     cpp.push_str("\n\n}\n");
@@ -2810,6 +2868,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut dom_config = base_config.clone();
     dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
     dom_config.includes = vec![
+        "AK/Utf16FlyString.h".to_string(),
         "AK/Utf16String.h".to_string(),
         "LibGC/CAPI.h".to_string(),
         "LibGC/Member.h".to_string(),
@@ -2828,6 +2887,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ParentNodeCore".to_string(),
         "CharacterDataCore".to_string(),
         "TextCore".to_string(),
+        "ProcessingInstructionCore".to_string(),
+        "DocumentTypeCore".to_string(),
         "DocumentFragmentCore".to_string(),
         "DocumentCore".to_string(),
         "ElementCore".to_string(),
@@ -2846,7 +2907,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         "DocumentPrefix".to_string(),
         "ElementPrefix".to_string(),
         "HTMLElementPrefix".to_string(),
+        "MathMLElementPrefix".to_string(),
         "HTMLSlotElementPrefix".to_string(),
+        "TextObject".to_string(),
+        "CDATASectionObject".to_string(),
+        "CommentObject".to_string(),
+        "ProcessingInstructionObject".to_string(),
+        "DocumentTypeObject".to_string(),
+        "AttrObject".to_string(),
+        "DocumentFragmentObject".to_string(),
+        "ShadowRootObject".to_string(),
+        "DocumentObject".to_string(),
+        "NodeObjectHooks".to_string(),
+        "ElementObject".to_string(),
+        "HTMLElementObject".to_string(),
+        "MathMLElementObject".to_string(),
+        "ElementClassVtables".to_string(),
+        "NodeClassFacts".to_string(),
+        "ElementObjectHooks".to_string(),
         "EventListenerList".to_string(),
         "EventCore".to_string(),
         "EventHooks".to_string(),
@@ -2904,6 +2982,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("ClassNamesField", "Web::DOM::ClassNames"),
         ("AttributeListField", "Web::DOM::AttributeList"),
         ("StringField", "AK::Utf16String"),
+        ("FlyStringField", "AK::Utf16FlyString"),
         ("MoveScope", "Web::DOM::MoveScope"),
         ("CloneScope", "Web::DOM::CloneScope"),
         ("RangeCell", "Web::DOM::AbstractRange"),
@@ -2929,6 +3008,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         dom_config,
         &[
             manifest_dir.join("src/dom/element_core.rs"),
+            manifest_dir.join("src/dom/element_objects.rs"),
             manifest_dir.join("src/dom/attr.rs"),
             manifest_dir.join("src/dom/attributes.rs"),
             manifest_dir.join("src/dom/character_data.rs"),
@@ -2943,6 +3023,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/move_node.rs"),
             manifest_dir.join("src/dom/node_class.rs"),
             manifest_dir.join("src/dom/node_core.rs"),
+            manifest_dir.join("src/dom/node_objects.rs"),
             manifest_dir.join("src/dom/node_ref.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
             manifest_dir.join("src/dom/prefix.rs"),

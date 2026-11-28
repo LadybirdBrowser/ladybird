@@ -26,8 +26,8 @@
 
 namespace Web::SVG {
 
-SVGAnimationElement::SVGAnimationElement(DOM::Document& document, DOM::QualifiedName name)
-    : SVGElement(document, name)
+SVGAnimationElement::SVGAnimationElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

@@ -14,16 +14,15 @@ namespace Web::HTML {
 
 class WEB_API HTMLOptGroupElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLOptGroupElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLOptGroupElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLOptGroupElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-optgroup
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::group; }
 
 private:
-    HTMLOptGroupElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLOptGroupElement(DOM::VtableProbe);
+    virtual ~HTMLOptGroupElement() override = default;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 };

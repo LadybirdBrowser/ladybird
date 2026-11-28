@@ -16,7 +16,6 @@ namespace Web::HTML {
 
 class HTMLDialogElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLDialogElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLDialogElement);
 
 public:
     virtual ~HTMLDialogElement() override;
@@ -55,7 +54,7 @@ public:
     void command_steps(DOM::Element&, Utf16View) override;
 
 private:
-    HTMLDialogElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLDialogElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void inserted() override;

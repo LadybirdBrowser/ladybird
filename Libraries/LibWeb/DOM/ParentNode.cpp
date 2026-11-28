@@ -24,10 +24,9 @@
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(ParentNode);
-
-ParentNode::ParentNode(Document& document, NodeType type)
-    : Node(document, type)
+ParentNode::ParentNode(VtableProbe probe)
+    : Node(probe)
+    , m_parent_node_core {}
 {
     // NB: libweb_rust reads a ParentNode as the ParentNodePrefix it starts with.
     static_assert(sizeof(ParentNode) == sizeof(RustFFI::ParentNodePrefix));
@@ -36,6 +35,11 @@ ParentNode::ParentNode(Document& document, NodeType type)
     // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
     //     its tail padding, where only the Itanium ABI could.
     static_assert(offsetof(ParentNode, m_parent_node_core) >= sizeof(Node));
+}
+
+ParentNode::ParentNode(RustMadePrefix prefix)
+    : Node(prefix)
+{
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector

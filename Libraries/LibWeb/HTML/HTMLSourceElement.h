@@ -12,13 +12,11 @@ namespace Web::HTML {
 
 class HTMLSourceElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLSourceElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLSourceElement);
-
-public:
-    virtual ~HTMLSourceElement() override;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    HTMLSourceElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLSourceElement(DOM::VtableProbe);
+    virtual ~HTMLSourceElement() override = default;
 
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;

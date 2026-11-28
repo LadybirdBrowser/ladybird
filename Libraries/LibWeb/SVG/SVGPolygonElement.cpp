@@ -11,10 +11,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGPolygonElement);
-
-SVGPolygonElement::SVGPolygonElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGeometryElement(document, qualified_name)
+SVGPolygonElement::SVGPolygonElement(DOM::RustMadePrefix prefix)
+    : SVGGeometryElement(prefix)
 {
 }
 

@@ -18,7 +18,6 @@ class SVGAElement final
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes>
     , public HTML::HyperlinkElementUtils {
     WEB_WRAPPABLE(SVGAElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGAElement);
 
 public:
     virtual ~SVGAElement() override;
@@ -32,7 +31,7 @@ public:
     virtual CSS::ElementBoxKind box_kind() const override;
 
 private:
-    SVGAElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGAElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^DOM::Element

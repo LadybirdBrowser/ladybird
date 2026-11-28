@@ -9,10 +9,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFETurbulenceElement);
-
-SVGFETurbulenceElement::SVGFETurbulenceElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, move(qualified_name))
+SVGFETurbulenceElement::SVGFETurbulenceElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

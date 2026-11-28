@@ -13,14 +13,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLMarqueeElement);
-
-HTMLMarqueeElement::HTMLMarqueeElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLMarqueeElement::HTMLMarqueeElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLMarqueeElement::~HTMLMarqueeElement() = default;
 
 bool HTMLMarqueeElement::is_presentational_hint(Utf16FlyString const& name) const
 {

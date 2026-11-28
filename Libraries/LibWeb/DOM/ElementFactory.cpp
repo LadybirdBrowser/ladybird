@@ -163,8 +163,11 @@ namespace Web::DOM {
 template<typename ElementType>
 static GC::Ref<ElementType> create_element_on_heap(Document& document, QualifiedName qualified_name)
 {
-    auto element = GC::Heap::the().allocate<ElementType>(document, move(qualified_name));
-    static_cast<Element&>(*element).initialize_element();
+    auto element = allocate_element<ElementType>(document, qualified_name);
+    // NB: A class whose objects libweb_rust makes whole keeps the initialize_element() of DOM::Element, which does
+    //     nothing, see GC::CellConstructionHook::adds_nothing_to().
+    if constexpr (element_class_has_payload<ElementType>)
+        static_cast<Element&>(*element).initialize_element();
     return element;
 }
 

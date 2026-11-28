@@ -19,7 +19,6 @@ class SVGUseElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_WRAPPABLE(SVGUseElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGUseElement);
 
 public:
     virtual ~SVGUseElement() override = default;
@@ -50,7 +49,7 @@ public:
     GC::Ptr<SVGElement> instance_root() const;
 
 private:
-    SVGUseElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGUseElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;

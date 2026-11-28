@@ -13,16 +13,15 @@ namespace Web::HTML {
 
 class HTMLHRElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLHRElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLHRElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLHRElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-hr
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::separator; }
 
 private:
-    HTMLHRElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLHRElement(DOM::VtableProbe);
+    virtual ~HTMLHRElement() override = default;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

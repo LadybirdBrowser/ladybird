@@ -20,7 +20,6 @@ class WEB_API HTMLIFrameElement final
 
     WEB_WRAPPABLE(HTMLIFrameElement, NavigableContainer);
     LAZY_LOADING_ELEMENT(HTMLIFrameElement);
-    GC_DECLARE_ALLOCATOR(HTMLIFrameElement);
 
 public:
     virtual ~HTMLIFrameElement() override;
@@ -56,7 +55,7 @@ public:
     bool iframe_fullscreen_flag() const { return m_iframe_fullscreen_flag; }
 
 private:
-    HTMLIFrameElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLIFrameElement(DOM::RustMadePrefix);
 
     // ^DOM::Node
 

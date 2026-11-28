@@ -12,13 +12,11 @@ namespace Web::HTML {
 
 class HTMLPictureElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLPictureElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLPictureElement);
-
-public:
-    virtual ~HTMLPictureElement() override;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    HTMLPictureElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLPictureElement(DOM::VtableProbe);
+    virtual ~HTMLPictureElement() override = default;
 };
 
 }

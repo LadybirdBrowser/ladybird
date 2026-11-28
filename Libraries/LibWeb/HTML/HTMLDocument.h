@@ -16,7 +16,6 @@ namespace Web::HTML {
 //       https://github.com/whatwg/dom/issues/221
 class WEB_API HTMLDocument final : public DOM::Document {
     WEB_WRAPPABLE(HTMLDocument, DOM::Document);
-    GC_DECLARE_ALLOCATOR(HTMLDocument);
 
 public:
     virtual ~HTMLDocument() override;
@@ -24,7 +23,7 @@ public:
     [[nodiscard]] static GC::Ref<HTMLDocument> create(Page&, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const& url = URL::about_blank());
 
 private:
-    HTMLDocument(Page&, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const&);
+    HTMLDocument(DOM::RustMadePrefix, Page&, GC::Ref<DOM::EventTarget> relevant_global_event_target, URL::URL const&);
 };
 
 }

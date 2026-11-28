@@ -17,7 +17,6 @@ class MathMLAnchorElement final
     : public MathMLElement
     , public HTML::HTMLHyperlinkElementUtils {
     WEB_WRAPPABLE(MathMLAnchorElement, MathMLElement);
-    GC_DECLARE_ALLOCATOR(MathMLAnchorElement);
 
 public:
     virtual ~MathMLAnchorElement() override;
@@ -28,7 +27,7 @@ public:
     virtual bool is_focusable() const override;
 
 private:
-    MathMLAnchorElement(DOM::Document&, DOM::QualifiedName);
+    explicit MathMLAnchorElement(DOM::RustMadePrefix);
 
     // ^DOM::EventTarget
     virtual bool has_activation_behavior() const override;

@@ -37,7 +37,7 @@ public:
     GC::Ref<SVGAnimatedNumberList> rotate();
 
 protected:
-    SVGTextPositioningElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGTextPositioningElement(DOM::RustMadePrefix);
     virtual void visit_edges(Visitor&) override;
 
 private:

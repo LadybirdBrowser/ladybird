@@ -93,17 +93,15 @@ void HTMLImageElement::record_box_kind()
         set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLImageElementUpdateTheImageData);
 }
 
-GC_DEFINE_ALLOCATOR(HTMLImageElement);
-
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name)
 {
     return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
 }
 
-HTMLImageElement::HTMLImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLImageElement::HTMLImageElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
-    document.register_viewport_client(*this);
+    document().register_viewport_client(*this);
 }
 
 HTMLImageElement::~HTMLImageElement() = default;

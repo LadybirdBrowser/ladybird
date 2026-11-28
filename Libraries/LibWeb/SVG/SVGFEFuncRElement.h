@@ -14,13 +14,12 @@ namespace Web::SVG {
 // https://www.w3.org/TR/filter-effects-1/#InterfaceSVGFEFuncRElement
 class SVGFEFuncRElement final : public SVGComponentTransferFunctionElement {
     WEB_WRAPPABLE(SVGFEFuncRElement, SVGComponentTransferFunctionElement);
-    GC_DECLARE_ALLOCATOR(SVGFEFuncRElement);
 
 public:
     virtual ~SVGFEFuncRElement() override = default;
 
 private:
-    SVGFEFuncRElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEFuncRElement(DOM::RustMadePrefix);
 };
 
 }

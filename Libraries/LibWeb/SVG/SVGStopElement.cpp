@@ -12,10 +12,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGStopElement);
-
-SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGStopElement::SVGStopElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

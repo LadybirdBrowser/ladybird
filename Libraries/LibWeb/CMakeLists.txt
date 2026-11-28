@@ -203,6 +203,7 @@ set(SOURCES
     DOM/EditingHostManager.cpp
     DOM/Element.cpp
     DOM/ElementFactory.cpp
+    DOM/ElementObjects.cpp
     DOM/Event.cpp
     DOM/EventDispatcher.cpp
     DOM/EventTarget.cpp
@@ -220,6 +221,7 @@ set(SOURCES
     DOM/NodeIdentity.cpp
     DOM/NodeIterator.cpp
     DOM/NodeList.cpp
+    DOM/NodeObjects.cpp
     DOM/NodeOperations.cpp
     DOM/ParentNode.cpp
     DOM/Position.cpp
@@ -482,7 +484,6 @@ set(SOURCES
     HTML/HTMLTitleElement.cpp
     HTML/HTMLTrackElement.cpp
     HTML/HTMLUListElement.cpp
-    HTML/HTMLUnknownElement.cpp
     HTML/HTMLVideoElement.cpp
     HTML/HyperlinkElementUtils.cpp
     HTML/ImageBitmap.cpp
@@ -997,6 +998,15 @@ target_compile_definitions(LibWeb PRIVATE LibJS_EXPORTS)
 target_link_libraries(LibWeb PUBLIC LibCompositing LibWebCommon LibJSHeaders)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCrypto LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibAudio LibMedia LibMediaClient LibXML LibURL LibRequests LibGC LibImageDecoderClient LibThreading LibWebRTCClient)
+
+# libweb_rust writes the prefix of a node, and the id of its class in the cell header, before C++ constructs the node
+# over them with a constructor that leaves them as they are (see DOM::RustMadePrefix and GC::Cell's
+# EmbedderTypeIdIsWritten). GCC's lifetime dead store elimination takes an object's storage to hold nothing before its
+# constructor runs, and so may write over what such a constructor does not initialize, as it did when it merged the
+# stores of the cell header into one that cleared the class id.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(LibWeb PRIVATE -fno-lifetime-dse)
+endif()
 
 # The library's Rust code: the bindings crate, which depends on the LibJS runtime and on libweb_rust, so that one archive
 # holds all three and the runtime is in the process once. The runtime's features are LibJS's.

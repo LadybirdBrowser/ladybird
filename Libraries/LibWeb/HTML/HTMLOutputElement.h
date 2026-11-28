@@ -18,7 +18,6 @@ namespace Web::HTML {
 class HTMLOutputElement final
     : public HTMLElement {
     WEB_WRAPPABLE(HTMLOutputElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLOutputElement);
 
 public:
     virtual ~HTMLOutputElement() override;
@@ -61,7 +60,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::status; }
 
 private:
-    HTMLOutputElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLOutputElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
     virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;

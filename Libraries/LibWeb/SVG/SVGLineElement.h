@@ -12,7 +12,6 @@ namespace Web::SVG {
 
 class SVGLineElement final : public SVGGeometryElement {
     WEB_WRAPPABLE(SVGLineElement, SVGGeometryElement);
-    GC_DECLARE_ALLOCATOR(SVGLineElement);
 
 public:
     virtual ~SVGLineElement() override = default;
@@ -38,7 +37,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y2, Vertical, SVGLengthValue::number(0));
 
 private:
-    SVGLineElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGLineElement(DOM::RustMadePrefix);
 
     Optional<NumberPercentage> m_x1;
     Optional<NumberPercentage> m_y1;

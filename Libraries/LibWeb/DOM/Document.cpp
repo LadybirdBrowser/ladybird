@@ -480,8 +480,6 @@ static CSS::ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
-GC_DEFINE_ALLOCATOR(Document);
-
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
 WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, Utf16FlyString content_type, HTML::NavigationParams const& navigation_params)
 {
@@ -856,7 +854,7 @@ bool Document::browsing_context_group_has_multiple_contexts() const
 
 GC::Ref<Document> Document::create(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url)
 {
-    auto document = GC::Heap::the().allocate<Document>(page, relevant_global_event_target, url);
+    auto document = allocate_document<Document>(page, relevant_global_event_target, url);
     document->initialize_document();
     return document;
 }
@@ -871,13 +869,14 @@ GC::Ref<Document> Document::create_for_constructor(JS::Object& relevant_global_o
 
 GC::Ref<Document> Document::create_for_fragment_parsing(Page& page, GC::Ref<EventTarget> relevant_global_event_target)
 {
-    auto document = GC::Heap::the().allocate<Document>(page, relevant_global_event_target, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
+    auto document = allocate_document<Document>(page, relevant_global_event_target, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
     document->initialize_document();
     return document;
 }
 
-Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
-    : ParentNode(*this, NodeType::DOCUMENT_NODE)
+// NB: libweb_rust made the prefix of the document, which is connected, and is its own node document.
+Document::Document(RustMadePrefix prefix, Page& page, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
+    : ParentNode(prefix)
     , m_page(page)
     , m_font_computer(GC::Heap::the().allocate<CSS::FontComputer>(*this))
     , m_url(url)
@@ -900,6 +899,11 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     // NB: libweb_rust reads a document as the DocumentPrefix it starts with.
     static_assert(offsetof(Document, m_document_core) == offsetof(RustFFI::DocumentPrefix, core));
     static_assert(offsetof(Document, m_page) == sizeof(RustFFI::DocumentPrefix));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Document, m_document_core) >= sizeof(ParentNode));
+    static_assert(alignof(Document) == alignof(RustFFI::DocumentObject));
     RustFFI::rust_dom_start_tree_versions_of_document(this);
     update_has_mutation_listener();
 }
@@ -910,7 +914,6 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 Document::~Document()
 {
     Animations::RustFFI::animations_document_animations_destroy(m_animations);
-    RustFFI::rust_dom_id_map_destroy(&m_document_core.ids);
 }
 
 void Document::create_style_computer()
@@ -11916,6 +11919,12 @@ GC::Ptr<HTML::CustomElementRegistry> Document::custom_element_registry() const
 }
 
 // https://dom.spec.whatwg.org/#effective-global-custom-element-registry
+void Document::set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry)
+{
+    m_custom_element_registry = custom_element_registry;
+    m_document_core.custom_element_registry_is_global = HTML::is_a_global_custom_element_registry(custom_element_registry);
+}
+
 GC::Ptr<HTML::CustomElementRegistry> Document::effective_global_custom_element_registry() const
 {
     // A document document’s effective global custom element registry is:

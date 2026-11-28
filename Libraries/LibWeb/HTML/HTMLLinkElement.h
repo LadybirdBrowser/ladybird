@@ -27,7 +27,6 @@ namespace Web::HTML {
 
 class WEB_API HTMLLinkElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLLinkElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLLinkElement);
 
 public:
     virtual ~HTMLLinkElement() override;
@@ -160,7 +159,7 @@ private:
         Fetch::Infrastructure::Request::Priority fetch_priority { Fetch::Infrastructure::Request::Priority::Auto };
     };
 
-    HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLLinkElement(DOM::RustMadePrefix);
 
     GC::Ptr<DOM::DOMTokenList> m_blocking;
     virtual void visit_edges(Cell::Visitor&) override;

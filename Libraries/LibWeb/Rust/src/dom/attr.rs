@@ -26,6 +26,8 @@ use libgc_api::Trace;
 use super::attributes;
 use super::node::NodeCell;
 use super::node_core::ElementMember;
+use super::node_core::NodePointer;
+use super::node_objects;
 use super::node_ref::NodeRef;
 use super::qualified_name::QualifiedNameField;
 use super::qualified_name::QualifiedNameImpl;
@@ -51,9 +53,38 @@ pub struct AttrCore {
 }
 
 impl AttrCore {
+    /// The core of a new Attr node named `name`, with the value `value` and the element `owner_element`, whose
+    /// references pass to it.
+    #[inline(always)]
+    pub(super) fn new(
+        name: NonNull<QualifiedNameImpl>,
+        value: ak::Utf16String,
+        owner_element: Option<NodePointer>,
+    ) -> Self {
+        Self {
+            qualified_name: QualifiedNameField::from_owned(name),
+            value: StringField::from_owned(value),
+            owner_element: ElementMember::new(owner_element),
+        }
+    }
+
     #[inline(always)]
     pub fn qualified_name(&self) -> &QualifiedNameField {
         &self.qualified_name
+    }
+
+    /// Drops the name and the value of the core, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn release(&self, main_thread: &mut MainThread<'_>) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            drop(self.value.take());
+            attributes::release_qualified_name(main_thread, self.qualified_name.take());
+        }
     }
 }
 
@@ -81,7 +112,7 @@ fn same_namespace_and_local_name(a: &QualifiedNameImpl, b: &QualifiedNameImpl) -
 
 /// The value of the Attr node whose core is `core`.
 /// https://dom.spec.whatwg.org/#concept-attribute-value
-fn attr_value(main_thread: &mut MainThread<'_>, core: &AttrCore) -> ak::Utf16String {
+pub(super) fn attr_value(main_thread: &mut MainThread<'_>, core: &AttrCore) -> ak::Utf16String {
     let Some(element) = core.owner_element.get() else {
         return core.value.to_utf16_string();
     };
@@ -277,19 +308,41 @@ pub unsafe extern "C" fn rust_dom_replace_attribute_node(
     replace_attribute_node(&mut main_thread, element, old_attr, new_attr, index);
 }
 
-/// Has the NamedNodeMap whose core is `map` hold the Attr node `attr`, which it made for an attribute of its element.
+/// The Attr node that the NamedNodeMap whose core is `map`, of `element`, holds for `element`'s attribute named
+/// `name`, which it makes first where it holds none, for DOM::NamedNodeMap.
 ///
 /// # Safety
 ///
-/// `map` must be the core of a live NamedNodeMap, `attr` a live Attr node whose element is the map's, and the call must
-/// be made on the main thread.
+/// `map` must be the core of the live NamedNodeMap of `element`, a live element that has an attribute named `name`,
+/// and the call must be made on the main thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_named_node_map_append_attribute_node(map: &NamedNodeMapCore, attr: &NodeCell) {
+pub unsafe extern "C" fn rust_dom_named_node_map_ensure_attribute_node(
+    map: &NamedNodeMapCore,
+    element: &NodeCell,
+    name: &QualifiedNameImpl,
+) -> NonNull<NodeCell> {
     // SAFETY: Guaranteed by the caller.
-    let main_thread = unsafe { main_thread() };
-    // SAFETY: The node is live.
-    let attr = unsafe { NodeRef::from_cell(attr, &main_thread) };
-    map.attribute_nodes.push(attr);
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The element is live.
+    let element = unsafe { NodeRef::from_cell(element, &main_thread) };
+    let nodes = &map.attribute_nodes;
+    for index in 0..nodes.len() {
+        let attr = nodes.get(index);
+        let core = attr.attr_core().expect("a NamedNodeMap holds Attr nodes");
+        if same_namespace_and_local_name(core.qualified_name.parts(), name) {
+            return NonNull::from(attr.cell());
+        }
+    }
+    // NB: The new node's value is the attribute's, which it reads from the element while it has one.
+    let attr = node_objects::create_attr(
+        &mut main_thread,
+        element.document(),
+        attributes::hold_qualified_name(name),
+        ak::Utf16String::default(),
+        Some(element.pointer()),
+    );
+    nodes.push(attr);
+    NonNull::from(attr.cell())
 }
 
 /// Gives the attribute list of `element` a field for the element's NamedNodeMap, and answers it, laid out as a

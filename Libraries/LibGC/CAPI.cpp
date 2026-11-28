@@ -29,6 +29,7 @@ static_assert(offsetof(GCCellTypeInfo, finalize) == offsetof(CellTypeInfo, final
 static_assert(offsetof(GCCellTypeInfo, destroy) == offsetof(CellTypeInfo, destroy));
 static_assert(offsetof(GCCellTypeInfo, external_memory_size) == offsetof(CellTypeInfo, external_memory_size));
 static_assert(offsetof(GCCellTypeInfo, class_name) == offsetof(CellTypeInfo, class_name));
+static_assert(offsetof(GCCellTypeInfo, traced_on_owner_thread) == offsetof(CellTypeInfo, traced_on_owner_thread));
 static_assert(sizeof(CellKind) == sizeof(uint8_t));
 
 static_assert(GC_CELL_KIND_OTHER == to_underlying(CellKind::Other));

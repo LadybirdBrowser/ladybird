@@ -94,10 +94,21 @@ impl WeakElement {
 }
 
 impl IdMapField {
-    #[cfg(test)]
-    pub(crate) const fn empty_for_test() -> Self {
+    /// A field that holds no map, as a tree scope with no element with an ID has.
+    #[inline(always)]
+    pub(super) const fn empty() -> Self {
         Self {
             map: Cell::new(core::ptr::null_mut()),
+        }
+    }
+
+    /// Frees the map, if any, and releases the elements in it, as LibGC destroys the tree scope whose field this is.
+    pub(super) fn release(&self, _main_thread: &mut MainThread<'_>) {
+        let map = self.map.replace(core::ptr::null_mut());
+        if !map.is_null() {
+            // SAFETY: The map was allocated as a Box, and nothing else holds it. Dropping it releases its weak
+            //         references, which the caller's main thread may do.
+            drop(unsafe { Box::from_raw(map) });
         }
     }
 
@@ -521,22 +532,4 @@ pub unsafe extern "C" fn rust_dom_has_element_with_id(root: &NodeCell, id: usize
     id_map_of(&root)
         .map()
         .is_some_and(|map| map.find(hash, units).is_some())
-}
-
-/// Frees the map of a document or shadow root, and releases the elements in it, as C++ destroys the tree scope.
-///
-/// # Safety
-///
-/// The field must be that of a tree scope that is being destroyed, nothing may read it after, and the call must be made
-/// on the main thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_id_map_destroy(field: &IdMapField) {
-    // SAFETY: Guaranteed by the caller. Releasing the weak references needs the main thread, which owns the heap.
-    let _main_thread = unsafe { main_thread() };
-    let map = field.map.replace(core::ptr::null_mut());
-    if map.is_null() {
-        return;
-    }
-    // SAFETY: The map was allocated as a Box, and nothing else holds it. Dropping it releases its weak references.
-    drop(unsafe { Box::from_raw(map) });
 }

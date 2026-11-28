@@ -21,14 +21,15 @@ namespace Web::DOM {
 
 struct AdoptedStyleSheetsAccess;
 
+// NB: libweb_rust allocates, traces and destroys every shadow root, and makes the prefix of each, over which C++
+//     constructs the rest, see Rust/src/dom/node_objects.rs.
 class WEB_API ShadowRoot final : public DocumentFragment {
     WEB_WRAPPABLE(ShadowRoot, DocumentFragment);
-    GC_DECLARE_ALLOCATOR(ShadowRoot);
 
 public:
     [[nodiscard]] static GC::Ref<ShadowRoot> create(Document&, Element& host, ShadowRootMode);
 
-    ShadowRootMode mode() const { return m_mode; }
+    ShadowRootMode mode() const { return (m_core.flags & RustFFI::NODE_IS_CLOSED_SHADOW_ROOT) ? ShadowRootMode::Closed : ShadowRootMode::Open; }
 
     SlotAssignmentMode slot_assignment() const { return static_cast<SlotAssignmentMode>(m_shadow_root_core.slot_assignment); }
     void set_slot_assignment(SlotAssignmentMode slot_assignment) { m_shadow_root_core.slot_assignment = to_underlying(slot_assignment); }
@@ -127,18 +128,19 @@ private:
 
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
-    ShadowRoot(Document&, Element& host, ShadowRootMode);
+    explicit ShadowRoot(RustMadePrefix);
 
     // ^Node
     virtual void adopted_from(Document&) override;
 
     void calculate_part_element_map();
 
-    // NB: The slot assignment and the slots of the shadow tree, see Rust/src/dom/slots.rs.
-    RustFFI::ShadowRootCore m_shadow_root_core { .slots = {}, .slots_needing_assignment = {}, .slot_assignment = to_underlying(SlotAssignmentMode::Named), .flags = 0, .ids = {} };
+    // NB: The slot assignment and the slots of the shadow tree, see Rust/src/dom/slots.rs. In a union, so that
+    //     ShadowRoot(RustMadePrefix, ...) can leave it as libweb_rust made it, and libweb_rust releases what it holds.
+    union {
+        RustFFI::ShadowRootCore m_shadow_root_core;
+    };
 
-    // NOTE: The specification doesn't seem to specify a default value for mode. Assuming closed for now.
-    ShadowRootMode m_mode { ShadowRootMode::Closed };
     bool m_delegates_focus { false };
     bool m_available_to_element_internals { false };
     bool m_user_agent_internal { false };

@@ -48,6 +48,12 @@ impl NodeClassId {
         ladybird_dom_node_class_steps[self.index()]
     }
 
+    /// What C++ works out of the class for Rust, which defines its objects.
+    #[inline(always)]
+    pub fn facts(self) -> NodeClassFacts {
+        ladybird_dom_node_class_facts[self.index()]
+    }
+
     /// The class id of the event target whose cell starts at `cell`.
     ///
     /// # Safety
@@ -105,6 +111,44 @@ static ladybird_dom_node_class_steps: [u8; NODE_CLASS_ID_COUNT] = {
         | NODE_CLASS_HAS_ACTIVATION_BEHAVIOR;
     steps
 };
+
+/// What Rust needs to know of a class of nodes, whose objects it defines, which C++ works out from the class as it
+/// compiles, see DOM/NodeObjects.cpp. Rust lays out an object of the class as the object of its layout class, which
+/// node_objects.rs and element_objects.rs define. A class that adds members to its layout class, or overrides what C++
+/// runs as it traces, finalizes or measures a node, has a payload after that object: the members of the classes from
+/// the layout class down, which C++ constructs in place over the prefix Rust made (see DOM::RustMadePrefix), and the
+/// vtable pointers C++ writes as it does.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct NodeClassFacts {
+    /// The size of a node of the class, its payload included.
+    pub cell_size: u32,
+    /// The NODE_OBJECT_* bits of the class.
+    pub flags: u32,
+}
+
+/// Whether a node of the class has a payload after the object of its layout class, which C++ constructs over the
+/// prefix Rust made, and destroys.
+pub const NODE_OBJECT_HAS_PAYLOAD: u32 = 1 << 0;
+/// Whether the payload holds cells, which only the visit_edges() of the class visits.
+pub const NODE_OBJECT_PAYLOAD_HAS_EDGES: u32 = 1 << 1;
+/// Whether the payload holds memory outside the heap, which only the external_memory_size() of the class measures.
+pub const NODE_OBJECT_PAYLOAD_HAS_EXTERNAL_MEMORY: u32 = 1 << 2;
+/// Whether the class finalizes its payload, in a finalize() of its own.
+pub const NODE_OBJECT_PAYLOAD_NEEDS_FINALIZE: u32 = 1 << 3;
+
+#[cfg(not(test))]
+#[allow(non_upper_case_globals, reason = "the table is named as in C++")]
+unsafe extern "C" {
+    /// The facts of each class of nodes, by class id, which DOM/NodeObjects.cpp defines.
+    safe static ladybird_dom_node_class_facts: [NodeClassFacts; NODE_CLASS_ID_COUNT];
+}
+
+/// The unit tests make no objects of these classes.
+#[cfg(test)]
+#[allow(non_upper_case_globals, reason = "the table is named as in C++")]
+static ladybird_dom_node_class_facts: [NodeClassFacts; NODE_CLASS_ID_COUNT] =
+    [NodeClassFacts { cell_size: 0, flags: 0 }; NODE_CLASS_ID_COUNT];
 
 const _: () = assert!(size_of::<NodeClassId>() == 2 && align_of::<NodeClassId>() == 2);
 

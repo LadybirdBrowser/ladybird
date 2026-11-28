@@ -185,6 +185,7 @@ impl EcmaScriptRegex {
     }
 
     /// Get the i-th match from find_all results.
+    #[inline]
     pub fn find_all_match(&self, index: i32) -> MatchPair {
         let find_all_buffer = self.find_all_buffer.borrow();
         let index = index as usize;

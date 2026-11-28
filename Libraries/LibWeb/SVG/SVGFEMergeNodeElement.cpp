@@ -9,10 +9,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEMergeNodeElement);
-
-SVGFEMergeNodeElement::SVGFEMergeNodeElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEMergeNodeElement::SVGFEMergeNodeElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

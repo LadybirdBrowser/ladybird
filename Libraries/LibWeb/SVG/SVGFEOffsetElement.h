@@ -18,7 +18,6 @@ class SVGFEOffsetElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEOffsetElement> {
     WEB_WRAPPABLE(SVGFEOffsetElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEOffsetElement);
 
 public:
     virtual ~SVGFEOffsetElement() override = default;
@@ -28,7 +27,7 @@ public:
     GC::Ref<SVGAnimatedNumber> dy();
 
 private:
-    SVGFEOffsetElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEOffsetElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

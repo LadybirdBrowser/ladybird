@@ -15,7 +15,6 @@ namespace Web::SVG {
 class SVGMaskElement final : public SVGGraphicsElement {
 
     WEB_WRAPPABLE(SVGMaskElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGMaskElement);
 
 public:
     virtual ~SVGMaskElement() override;
@@ -56,7 +55,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(height, Vertical, SVGLengthValue::percentage(120));
 
 private:
-    SVGMaskElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGMaskElement(DOM::RustMadePrefix);
 
     Optional<MaskContentUnits> m_mask_content_units = {};
     Optional<MaskUnits> m_mask_units = {};

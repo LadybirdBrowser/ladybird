@@ -20,7 +20,6 @@ class HTMLScriptElement final
     : public HTMLElement
     , public HTMLOrSVGScriptElement {
     WEB_WRAPPABLE(HTMLScriptElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLScriptElement);
 
 public:
     virtual ~HTMLScriptElement() override;
@@ -58,7 +57,7 @@ protected:
     virtual bool is_implicitly_potentially_render_blocking() const override;
 
 private:
-    HTMLScriptElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLScriptElement(DOM::RustMadePrefix);
 
     GC::Ptr<DOM::DOMTokenList> m_blocking;
 

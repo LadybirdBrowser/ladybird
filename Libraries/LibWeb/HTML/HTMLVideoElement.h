@@ -24,7 +24,6 @@ struct VideoFrame {
 
 class HTMLVideoElement final : public HTMLMediaElement {
     WEB_WRAPPABLE(HTMLVideoElement, HTMLMediaElement);
-    GC_DECLARE_ALLOCATOR(HTMLVideoElement);
 
 public:
     virtual ~HTMLVideoElement() override;
@@ -84,7 +83,7 @@ public:
     void set_onleavepictureinpicture(WebIDL::CallbackType*);
 
 private:
-    HTMLVideoElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLVideoElement(DOM::RustMadePrefix);
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;

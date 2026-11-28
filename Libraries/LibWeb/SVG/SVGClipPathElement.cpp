@@ -11,10 +11,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGClipPathElement);
-
-SVGClipPathElement::SVGClipPathElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGraphicsElement(document, move(qualified_name))
+SVGClipPathElement::SVGClipPathElement(DOM::RustMadePrefix prefix)
+    : SVGGraphicsElement(prefix)
 {
 }
 

@@ -12,7 +12,6 @@ namespace Web::HTML {
 
 class HTMLAudioElement final : public HTMLMediaElement {
     WEB_WRAPPABLE(HTMLAudioElement, HTMLMediaElement);
-    GC_DECLARE_ALLOCATOR(HTMLAudioElement);
 
 public:
     virtual ~HTMLAudioElement() override;
@@ -20,7 +19,7 @@ public:
     bool should_paint() const;
 
 private:
-    HTMLAudioElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLAudioElement(DOM::RustMadePrefix);
     virtual CSS::ElementBoxKind box_kind() const override;
 };
 

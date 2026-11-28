@@ -67,7 +67,6 @@ private:
     Element const& associated_element() const { return *m_element; }
 
     void remove_attribute_at_index(size_t attribute_index);
-    GC::Ptr<Attr> find_attribute_node(QualifiedName const&) const;
     GC::Ref<Attr> ensure_attribute_node(QualifiedName const&) const;
 
     ReadonlySpan<GC::Member<Node>> attribute_nodes() const { return { m_core.attribute_nodes.items, m_core.attribute_nodes.size }; }

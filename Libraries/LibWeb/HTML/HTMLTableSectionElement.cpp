@@ -20,10 +20,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLTableSectionElement);
-
-HTMLTableSectionElement::HTMLTableSectionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLTableSectionElement::HTMLTableSectionElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

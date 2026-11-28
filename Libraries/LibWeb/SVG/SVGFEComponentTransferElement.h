@@ -17,7 +17,6 @@ class SVGFEComponentTransferElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEComponentTransferElement> {
     WEB_WRAPPABLE(SVGFEComponentTransferElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEComponentTransferElement);
 
 public:
     virtual ~SVGFEComponentTransferElement() override = default;
@@ -25,7 +24,7 @@ public:
     GC::Ref<SVGAnimatedString> in1();
 
 private:
-    SVGFEComponentTransferElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEComponentTransferElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

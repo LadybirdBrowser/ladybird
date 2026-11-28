@@ -15,8 +15,8 @@
 
 namespace Web::SVG {
 
-SVGGradientElement::SVGGradientElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, move(qualified_name))
+SVGGradientElement::SVGGradientElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

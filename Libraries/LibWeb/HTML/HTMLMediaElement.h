@@ -237,7 +237,7 @@ public:
     virtual void update_representation() { }
 
 protected:
-    HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLMediaElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void finalize() override;

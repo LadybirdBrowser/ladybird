@@ -20,7 +20,6 @@ class HTMLObjectElement final
     : public NavigableContainer
     , public Layout::ImageProvider {
     WEB_WRAPPABLE(HTMLObjectElement, NavigableContainer)
-    GC_DECLARE_ALLOCATOR(HTMLObjectElement);
 
     enum class Representation {
         Unknown,
@@ -63,7 +62,7 @@ public:
     virtual void adopted_from(DOM::Document&) override;
 
 private:
-    HTMLObjectElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLObjectElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
 

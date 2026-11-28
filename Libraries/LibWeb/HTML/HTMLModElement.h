@@ -13,15 +13,14 @@ namespace Web::HTML {
 
 class HTMLModElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLModElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLModElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLModElement() override;
-
     virtual Optional<ARIA::Role> default_role() const override;
 
 private:
-    HTMLModElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLModElement(DOM::VtableProbe);
+    virtual ~HTMLModElement() override = default;
 };
 
 }

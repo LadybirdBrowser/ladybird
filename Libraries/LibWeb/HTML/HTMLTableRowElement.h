@@ -13,7 +13,6 @@ namespace Web::HTML {
 
 class HTMLTableRowElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTableRowElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTableRowElement);
 
 public:
     virtual ~HTMLTableRowElement() override;
@@ -29,7 +28,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::row; }
 
 private:
-    HTMLTableRowElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTableRowElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;

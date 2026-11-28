@@ -10,15 +10,18 @@
 
 namespace Web::HTML {
 
+// NB: libweb_rust defines, allocates and destroys every HTMLUnknownElement, see Rust/src/dom/element_objects.rs.
 class HTMLUnknownElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLUnknownElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLUnknownElement);
-
-public:
-    virtual ~HTMLUnknownElement() override;
 
 private:
-    HTMLUnknownElement(DOM::Document&, DOM::QualifiedName);
+    friend struct DOM::RustElementObjectHooks;
+
+    explicit HTMLUnknownElement(DOM::VtableProbe probe)
+        : HTMLElement(probe)
+    {
+    }
+    virtual ~HTMLUnknownElement() override = default;
 };
 
 }

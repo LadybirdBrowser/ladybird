@@ -14,11 +14,9 @@ namespace Web::HTML {
 
 class WEB_API HTMLHtmlElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLHtmlElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLHtmlElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLHtmlElement() override;
-
     // Being the document's body is one of the facts a layout row is built with, and which child is the body moves
     // with this element's children. Called wherever they move.
     void publish_body_construction_facts();
@@ -27,7 +25,8 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::document; }
 
 private:
-    HTMLHtmlElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLHtmlElement(DOM::VtableProbe);
+    virtual ~HTMLHtmlElement() override = default;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 };
 

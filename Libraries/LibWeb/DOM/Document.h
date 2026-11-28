@@ -354,11 +354,12 @@ struct PendingFullscreenEvent {
     void visit_edges(GC::Cell::Visitor&) const;
 };
 
+// NB: libweb_rust allocates, traces and destroys every document, and makes the prefix of each, over which C++
+//     constructs the rest, see Rust/src/dom/node_objects.rs.
 class WEB_API Document
     : public ParentNode
     , public HTML::GlobalEventHandlers {
     WEB_WRAPPABLE(Document, ParentNode);
-    GC_DECLARE_ALLOCATOR(Document);
 
 public:
     enum class Type {
@@ -1899,7 +1900,7 @@ public:
     bool tree_references_id_from_aria(Node const& root, Utf16FlyString const& id) const;
 
     GC::Ptr<HTML::CustomElementRegistry> custom_element_registry() const;
-    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> custom_element_registry) { m_custom_element_registry = custom_element_registry; }
+    void set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry>);
     GC::Ptr<HTML::CustomElementRegistry> effective_global_custom_element_registry() const;
 
     void upgrade_particular_elements(GC::Ref<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>, Utf16FlyString local_name, Optional<Utf16FlyString> name = {});
@@ -1915,8 +1916,18 @@ public:
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Document(Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
+    Document(RustMadePrefix, Page&, GC::Ref<EventTarget> relevant_global_event_target, URL::URL const&, TemporaryDocumentForFragmentParsing = TemporaryDocumentForFragmentParsing::No);
     void initialize_document();
+
+    // A new document of the class T, whose node document is itself, with the relevant global object
+    // `relevant_global_event_target`. libweb_rust allocates it and makes its prefix, over which C++ constructs the
+    // payload of T with `args`.
+    template<typename T, typename... Args>
+    static GC::Ref<T> allocate_document(Page& page, GC::Ref<EventTarget> relevant_global_event_target, Args&&... args)
+    {
+        auto& document = *RustFFI::rust_dom_create_document(NodeClassTraits<T>::id, relevant_global_event_target.ptr());
+        return GC::CellConstructionHook<T>::construct_payload(document, page, relevant_global_event_target, forward<Args>(args)...);
+    }
 
 private:
     bool script_edits_for_the_user() const;
@@ -2033,7 +2044,11 @@ private:
 
     // The state of the document that libweb_rust's DOM algorithms read, whose layout libweb_rust defines (see
     // Rust/src/dom/node_core.rs), which reads it in place.
-    RustFFI::DocumentCore m_document_core {};
+    // NB: In a union, so that Document(RustMadePrefix, ...) can leave it as libweb_rust made it, and libweb_rust
+    //     releases what it holds.
+    union {
+        RustFFI::DocumentCore m_document_core;
+    };
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;

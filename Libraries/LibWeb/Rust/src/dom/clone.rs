@@ -8,9 +8,10 @@
 //! https://dom.spec.whatwg.org/#concept-node-clone
 //!
 //! Rust runs "clone a node": it walks the subtree, copies the attributes of each element, and appends each copy to the
-//! copy of its parent. C++ makes each copy, which is "clone a single node" but for the attributes, runs the cloning
-//! steps of other specifications, and attaches a shadow root to the copy of a shadow host, through the clone hooks,
-//! which keep the document, the fallback registry and a thrown exception in a DOM::CloneScope.
+//! copy of its parent. It makes the copy of a node of a class whose objects it defines itself, see node_objects.rs. C++
+//! makes every other copy, which is "clone a single node" but for the attributes, runs the cloning steps of other
+//! specifications, and attaches a shadow root to the copy of a shadow host, through the clone hooks, which keep the
+//! document, the fallback registry and a thrown exception in a DOM::CloneScope.
 //!
 //! The spec clones the descendants by recursing into each child, and into the children of each clonable shadow root.
 //! The walk here clones them in the same order, and runs the same steps for each, without recursing, so neither a deep
@@ -19,10 +20,12 @@
 //! recursion does when the call for it returns.
 
 use super::attributes::copy_attributes;
+use super::element_objects;
 use super::hooks;
 use super::hooks::CloneScope;
 use super::node::NodeCell;
 use super::node_core::NodeType;
+use super::node_objects;
 use super::node_ref::NodeRef;
 use super::node_ref::NullableNodeRef;
 use super::node_ref::RawNullableNodeRef;
@@ -34,6 +37,13 @@ use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
+/// What every step of one clone works with: the C++ scope of the clone, and the document it clones into, which is the
+/// scope's.
+struct Cloning<'a> {
+    scope: &'a mut CloneScope,
+    document: NodeRef,
+}
+
 /// Why cloning a node threw.
 enum CloneError {
     /// A step that C++ runs threw, and the scope of the clone holds the exception.
@@ -42,13 +52,14 @@ enum CloneError {
     Append(PreInsertValidity),
 }
 
-/// "Clone a node" given `node`, the document of `scope`, `subtree`, `parent`, and the fallback registry of `scope` where
-/// `uses_fallback_registry` says so, or null. `copies` holds the nodes whose children the walk clones and their copies,
-/// above the nodes it holds as the call starts, which it holds again as it returns where nothing throws.
+/// "Clone a node" given `node`, `document`, which is the document of `scope`, `subtree`, `parent`, and the fallback
+/// registry of `scope` where `uses_fallback_registry` says so, or null. `copies` holds the nodes whose children the walk
+/// clones and their copies, above the nodes it holds as the call starts, which it holds again as it returns where
+/// nothing throws.
 /// https://dom.spec.whatwg.org/#concept-node-clone
 fn clone_a_node(
     main_thread: &mut MainThread<'_>,
-    scope: &mut CloneScope,
+    cloning: &mut Cloning<'_>,
     node: NodeRef,
     subtree: bool,
     parent: Option<NodeRef>,
@@ -66,13 +77,21 @@ fn clone_a_node(
     // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree as
     //    parameters.
     // 4. If parent is non-null, then append copy to parent.
-    let copy = clone_and_append(main_thread, scope, node, subtree, parent, uses_fallback_registry)?;
+    let copy = clone_and_append(main_thread, cloning, node, subtree, parent, uses_fallback_registry)?;
 
     // 5. If subtree is true, then for each child of node's children, in tree order: clone a node given child with
     //    document set to document, subtree set to subtree, parent set to copy, and fallbackRegistry set to
     //    fallbackRegistry.
     // 6. If node is an element, node is a shadow host, and node's shadow root's clonable is true: ...
-    clone_children_and_shadow_roots(main_thread, scope, node, copy, subtree, uses_fallback_registry, copies)?;
+    clone_children_and_shadow_roots(
+        main_thread,
+        cloning,
+        node,
+        copy,
+        subtree,
+        uses_fallback_registry,
+        copies,
+    )?;
 
     // 7. Return copy.
     Ok(copy)
@@ -82,16 +101,30 @@ fn clone_a_node(
 #[inline(always)]
 fn clone_and_append(
     main_thread: &mut MainThread<'_>,
-    scope: &mut CloneScope,
+    cloning: &mut Cloning<'_>,
     node: NodeRef,
     subtree: bool,
     parent: Option<NodeRef>,
     uses_fallback_registry: bool,
 ) -> Result<NodeRef, CloneError> {
     // 2. Let copy be the result of cloning a single node given node, document, and fallbackRegistry.
-    // NB: The callback runs step 3 too for a node that is no element, whose copy has no attributes to copy first.
-    let copy =
-        hooks::clone_single_node(main_thread, scope, node, uses_fallback_registry, subtree).ok_or(CloneError::Threw)?;
+    // NB: Rust makes the copy of a node of a class whose objects it defines, which has no cloning steps for step 3.
+    //     The callback makes any other copy, and runs step 3 too for a node that is no element, whose copy has no
+    //     attributes to copy first.
+    // NB: Rust also makes the copy of an element of such a class that holds nothing the cloning steps of other
+    //     specifications copy, and they then have nothing to do.
+    let mut runs_cloning_steps = true;
+    let copy = match node_objects::clone_single_node(main_thread, cloning.document, node) {
+        Some(copy) => copy,
+        None => match element_objects::clone_element(main_thread, cloning.document, node, uses_fallback_registry) {
+            Some(copy) => {
+                runs_cloning_steps = false;
+                copy
+            }
+            None => hooks::clone_single_node(main_thread, cloning.scope, node, uses_fallback_registry, subtree)
+                .ok_or(CloneError::Threw)?,
+        },
+    };
     if node.is_element() {
         // https://dom.spec.whatwg.org/#clone-a-single-node
         // 2.5. For each attribute of node's attribute list:
@@ -101,7 +134,7 @@ fn clone_and_append(
 
         // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and
         //    subtree as parameters.
-        if !hooks::run_element_cloning_steps(main_thread, scope, node, copy, subtree) {
+        if runs_cloning_steps && !hooks::run_element_cloning_steps(main_thread, cloning.scope, node, copy, subtree) {
             return Err(CloneError::Threw);
         }
     }
@@ -147,7 +180,7 @@ struct CloneFrame {
 /// descendants, in the same order, with subtree set to true.
 fn clone_children_and_shadow_roots(
     main_thread: &mut MainThread<'_>,
-    scope: &mut CloneScope,
+    cloning: &mut Cloning<'_>,
     node: NodeRef,
     copy: NodeRef,
     subtree: bool,
@@ -173,7 +206,7 @@ fn clone_children_and_shadow_roots(
         if let Some(current) = child {
             let current_copy = clone_and_append(
                 main_thread,
-                scope,
+                cloning,
                 current,
                 true,
                 Some(copies.last()),
@@ -210,8 +243,9 @@ fn clone_children_and_shadow_roots(
             //    5. Set copy's shadow root's declarative to node's shadow root's declarative.
             //    6. Set copy's shadow root's keep custom element registry null to node's shadow root's keep custom
             //       element registry null.
-            if let Some(shadow_root_copy) = hooks::attach_shadow_root_copy(main_thread, scope, parent, parent_copy)
-                .map_err(|()| CloneError::Threw)?
+            if let Some(shadow_root_copy) =
+                hooks::attach_shadow_root_copy(main_thread, cloning.scope, parent, parent_copy)
+                    .map_err(|()| CloneError::Threw)?
             {
                 // 7. For each child of node's shadow root's children, in tree order: clone a node given child with
                 //    document set to document, subtree set to true, and parent set to copy's shadow root.
@@ -238,11 +272,11 @@ fn clone_children_and_shadow_roots(
     }
 }
 
-/// "Clone a node" given `node` with the document and the fallback registry of `scope`, `subtree` and `parent`, for
-/// DOM::Node. `copies` is the core of an empty DOM::RootedNodeList that the caller makes for the call. Sets `copy` to
-/// the copy and answers PreInsertValidity::Valid where nothing throws. Answers which DOMException to throw where
-/// appending a copy throws, and leaves `copy` null where a step that C++ runs throws, whose exception `scope` then
-/// holds.
+/// "Clone a node" given `node`, `document`, which is the document of `scope`, `subtree`, `parent`, and the fallback
+/// registry of `scope`, which `has_fallback_registry` says is non-null, for DOM::Node. `copies` is the core of an empty
+/// DOM::RootedNodeList that the caller makes for the call. Sets `copy` to the copy and answers PreInsertValidity::Valid
+/// where nothing throws. Answers which DOMException to throw where appending a copy throws, and leaves `copy` null
+/// where a step that C++ runs throws, whose exception `scope` then holds.
 /// https://dom.spec.whatwg.org/#concept-node-clone
 ///
 /// # Safety
@@ -252,9 +286,11 @@ fn clone_children_and_shadow_roots(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_dom_clone_a_node(
     node: &NodeCell,
+    document: &NodeCell,
     subtree: bool,
     parent: RawNullableNodeRef,
     scope: &mut CloneScope,
+    has_fallback_registry: bool,
     copies: &RootedNodeListCore,
     copy: &mut NullableNodeRef,
 ) -> PreInsertValidity {
@@ -262,9 +298,19 @@ pub unsafe extern "C" fn rust_dom_clone_a_node(
     let mut main_thread = unsafe { main_thread() };
     // SAFETY: The node is live.
     let node = unsafe { NodeRef::from_cell(node, &main_thread) };
+    // SAFETY: The document is live.
+    let document = unsafe { NodeRef::from_cell(document, &main_thread) };
     // SAFETY: The list lives for the call, and only this code uses it.
     let mut copies = unsafe { RootedNodes::from_core(copies) };
-    match clone_a_node(&mut main_thread, scope, node, subtree, parent.into(), true, &mut copies) {
+    match clone_a_node(
+        &mut main_thread,
+        &mut Cloning { scope, document },
+        node,
+        subtree,
+        parent.into(),
+        has_fallback_registry,
+        &mut copies,
+    ) {
         Ok(node_copy) => {
             *copy = Some(node_copy).into();
             PreInsertValidity::Valid

@@ -214,6 +214,7 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(EventTarget);
 
 EventTarget::EventTarget()
+    : m_event_target_core {}
 {
     // NB: libweb_rust reads an event target as the EventTargetPrefix it starts with, and finds the target's event
     //     listener list at the start of the data the prefix points to.
@@ -241,6 +242,11 @@ ReadonlySpan<GC::Member<DOMEventListener>> EventTarget::event_listeners() const
     return { m_data->event_listener_list.items, m_data->event_listener_list.size };
 }
 
+EventTarget::EventTarget(RustMadePrefix)
+    : GCAllocatedWrappable(EmbedderTypeIdIsWritten {})
+{
+}
+
 EventTarget::~EventTarget() = default;
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-eventtarget
@@ -257,6 +263,12 @@ void EventTarget::visit_edges(Cell::Visitor& visitor)
     // NB: libweb_rust traces the fields it defines of a target that is no node, see Rust/src/dom/trace.rs. Every node
     //     is an object libweb_rust defines, which traces them before it calls this.
     RustFFI::rust_dom_trace_event_target(this, reinterpret_cast<GCVisitor*>(&visitor));
+    if (m_data)
+        visit_data_edges(visitor);
+}
+
+void EventTarget::visit_data_edges(Cell::Visitor& visitor)
+{
     if (auto const* data = m_data.ptr())
         visitor.visit(data->event_handler_map);
 }

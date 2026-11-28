@@ -11,22 +11,24 @@
 
 namespace Web::DOM {
 
+// NB: libweb_rust defines, allocates and destroys every ProcessingInstruction, see Rust/src/dom/node_objects.rs.
 class ProcessingInstruction final : public CharacterData {
     WEB_WRAPPABLE(ProcessingInstruction, CharacterData);
-    GC_DECLARE_ALLOCATOR(ProcessingInstruction);
 
 public:
     [[nodiscard]] static GC::Ref<ProcessingInstruction> create(Document&, Utf16String data, Utf16FlyString const& target);
-    virtual ~ProcessingInstruction() override = default;
 
-    virtual Utf16FlyString node_name() const override { return m_target; }
+    virtual Utf16FlyString node_name() const override { return target(); }
 
-    Utf16FlyString const& target() const { return m_target; }
+    Utf16FlyString const& target() const { return m_processing_instruction_core.target; }
 
 private:
-    ProcessingInstruction(Document&, Utf16String data, Utf16FlyString const& target);
+    friend struct RustNodeObjectHooks;
 
-    Utf16FlyString m_target;
+    explicit ProcessingInstruction(VtableProbe);
+    virtual ~ProcessingInstruction() override = default;
+
+    RustFFI::ProcessingInstructionCore m_processing_instruction_core;
 };
 
 }

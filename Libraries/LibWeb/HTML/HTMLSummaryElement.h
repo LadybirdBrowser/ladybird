@@ -13,11 +13,9 @@ namespace Web::HTML {
 
 class HTMLSummaryElement final : public HTMLElement {
     WEB_NON_IDL_WRAPPABLE(HTMLSummaryElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLSummaryElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLSummaryElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-details
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::button; }
 
@@ -28,7 +26,8 @@ public:
     virtual bool is_focusable() const override;
 
 private:
-    HTMLSummaryElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLSummaryElement(DOM::VtableProbe);
+    virtual ~HTMLSummaryElement() override = default;
 };
 
 }

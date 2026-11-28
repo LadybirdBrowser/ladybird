@@ -11,14 +11,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLUListElement);
-
-HTMLUListElement::HTMLUListElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLUListElement::HTMLUListElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLUListElement::~HTMLUListElement() = default;
 
 bool HTMLUListElement::is_presentational_hint(Utf16FlyString const& name) const
 {

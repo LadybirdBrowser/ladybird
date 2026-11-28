@@ -14,16 +14,15 @@
 
 namespace Web::DOM {
 
+// NB: libweb_rust defines, allocates and destroys every DocumentFragment that is no shadow root, see
+//     Rust/src/dom/node_objects.rs.
 class WEB_API DocumentFragment
     : public ParentNode {
     WEB_WRAPPABLE(DocumentFragment, ParentNode);
-    GC_DECLARE_ALLOCATOR(DocumentFragment);
 
 public:
     [[nodiscard]] static GC::Ref<DocumentFragment> create(Document&);
     [[nodiscard]] static GC::Ref<DocumentFragment> create_for_constructor(JS::Object&);
-
-    virtual ~DocumentFragment() override = default;
 
     virtual Utf16FlyString node_name() const override { return "#document-fragment"_utf16_fly_string; }
 
@@ -33,9 +32,17 @@ public:
     void set_host(Element*);
 
 protected:
-    explicit DocumentFragment(Document& document);
+    explicit DocumentFragment(VtableProbe);
+    explicit DocumentFragment(RustMadePrefix);
+    virtual ~DocumentFragment() override = default;
 
-    RustFFI::DocumentFragmentCore m_document_fragment_core;
+    // NB: In a union, so that DocumentFragment(RustMadePrefix) can leave it as libweb_rust made it.
+    union {
+        RustFFI::DocumentFragmentCore m_document_fragment_core;
+    };
+
+private:
+    friend struct RustNodeObjectHooks;
 };
 
 }

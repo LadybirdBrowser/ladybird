@@ -18,7 +18,6 @@ namespace Web::HTML {
 
 class HTMLLabelElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLLabelElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLLabelElement);
 
 public:
     virtual ~HTMLLabelElement() override;
@@ -33,7 +32,7 @@ public:
 private:
     friend struct DOM::RustEventHooks;
 
-    HTMLLabelElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLLabelElement(DOM::RustMadePrefix);
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;

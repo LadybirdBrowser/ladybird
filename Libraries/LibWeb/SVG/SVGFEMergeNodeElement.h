@@ -14,7 +14,6 @@ namespace Web::SVG {
 // https://www.w3.org/TR/filter-effects-1/#svgfemergenodeelement
 class SVGFEMergeNodeElement final : public SVGElement {
     WEB_WRAPPABLE(SVGFEMergeNodeElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEMergeNodeElement);
 
 public:
     virtual ~SVGFEMergeNodeElement() override = default;
@@ -22,7 +21,7 @@ public:
     GC::Ref<SVGAnimatedString> in1();
 
 private:
-    SVGFEMergeNodeElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEMergeNodeElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

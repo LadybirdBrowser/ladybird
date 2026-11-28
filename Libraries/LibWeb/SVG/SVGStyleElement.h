@@ -15,7 +15,6 @@ class SVGStyleElement final
     : public SVGElement
     , public DOM::StyleElementBase {
     WEB_WRAPPABLE(SVGStyleElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGStyleElement);
 
 public:
     virtual ~SVGStyleElement() override;
@@ -28,7 +27,7 @@ public:
     virtual bool contributes_a_script_blocking_style_sheet() const final;
 
 private:
-    SVGStyleElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGStyleElement(DOM::RustMadePrefix);
 
     // ^DOM::Node
 

@@ -239,8 +239,8 @@ static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16F
     return DOM::Event::create(event_name, event_time_stamp_for_element(element));
 }
 
-HTMLMediaElement::HTMLMediaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLMediaElement::HTMLMediaElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

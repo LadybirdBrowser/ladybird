@@ -24,8 +24,8 @@
 
 namespace Web::SVG {
 
-SVGGeometryElement::SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGGraphicsElement(document, move(qualified_name))
+SVGGeometryElement::SVGGeometryElement(DOM::RustMadePrefix prefix)
+    : SVGGraphicsElement(prefix)
 {
 }
 

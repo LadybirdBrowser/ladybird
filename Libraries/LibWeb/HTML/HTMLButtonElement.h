@@ -23,7 +23,6 @@ class HTMLButtonElement final
     : public HTMLElement
     , public PopoverTargetAttributes {
     WEB_WRAPPABLE(HTMLButtonElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLButtonElement);
 
 public:
     virtual ~HTMLButtonElement() override;
@@ -90,7 +89,7 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    HTMLButtonElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLButtonElement(DOM::RustMadePrefix);
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;

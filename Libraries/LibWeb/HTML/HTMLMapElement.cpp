@@ -13,10 +13,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLMapElement);
-
-HTMLMapElement::HTMLMapElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLMapElement::HTMLMapElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

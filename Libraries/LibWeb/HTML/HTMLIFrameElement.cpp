@@ -34,10 +34,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLIFrameElement);
-
-HTMLIFrameElement::HTMLIFrameElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : NavigableContainer(document, move(qualified_name))
+HTMLIFrameElement::HTMLIFrameElement(DOM::RustMadePrefix prefix)
+    : NavigableContainer(prefix)
 {
 }
 

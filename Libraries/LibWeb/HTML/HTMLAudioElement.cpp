@@ -13,10 +13,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLAudioElement);
-
-HTMLAudioElement::HTMLAudioElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLMediaElement(document, move(qualified_name))
+HTMLAudioElement::HTMLAudioElement(DOM::RustMadePrefix prefix)
+    : HTMLMediaElement(prefix)
 {
 }
 

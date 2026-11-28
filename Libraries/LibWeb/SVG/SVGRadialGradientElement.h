@@ -12,7 +12,6 @@ namespace Web::SVG {
 
 class SVGRadialGradientElement : public SVGGradientElement {
     WEB_WRAPPABLE(SVGRadialGradientElement, SVGGradientElement);
-    GC_DECLARE_ALLOCATOR(SVGRadialGradientElement);
 
 public:
     virtual ~SVGRadialGradientElement() override = default;
@@ -40,7 +39,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(r, Unspecified, SVGLengthValue::percentage(50));
 
 protected:
-    SVGRadialGradientElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGRadialGradientElement(DOM::RustMadePrefix);
 
 private:
     GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const

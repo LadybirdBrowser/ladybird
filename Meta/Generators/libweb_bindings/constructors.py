@@ -310,7 +310,9 @@ def write_html_constructor_steps(
         // 3. Set element's namespace to the HTML namespace.
         // 4. Set element's namespace prefix to null.
         // 5. Set element's local name to definition's local name.
-        auto element = realm.create<{fully_qualified_name_for_interface(interface)}>(window.associated_document(), DOM::QualifiedName {{ definition->local_name(), {{}}, Namespace::HTML }});
+        // NB: Every class of elements keeps JS::Cell::initialize(), which does nothing, see
+        //     RustElementObjectHooks::is_payload_class() in DOM/ElementObjects.cpp.
+        auto element = DOM::allocate_element<{fully_qualified_name_for_interface(interface)}>(window.associated_document(), DOM::QualifiedName {{ definition->local_name(), {{}}, Namespace::HTML }});
 
         auto wrapper = wrap(host_defined_wrapper_world(realm), realm, element);
 

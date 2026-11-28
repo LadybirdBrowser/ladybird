@@ -13,7 +13,6 @@ namespace Web::HTML {
 
 class HTMLTableCellElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTableCellElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTableCellElement);
 
 public:
     virtual ~HTMLTableCellElement() override;
@@ -34,7 +33,7 @@ public:
 private:
     WebIDL::UnsignedLong m_last_col_span { 1 };
     WebIDL::UnsignedLong m_last_row_span { 1 };
-    HTMLTableCellElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTableCellElement(DOM::RustMadePrefix);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

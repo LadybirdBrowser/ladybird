@@ -14,7 +14,6 @@ namespace Web::HTML {
 
 class HTMLProgressElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLProgressElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLProgressElement);
 
 public:
     virtual ~HTMLProgressElement() override;
@@ -41,7 +40,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::progressbar; }
 
 private:
-    HTMLProgressElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLProgressElement(DOM::RustMadePrefix);
 
     // ^DOM::Node
     virtual void visit_edges(Cell::Visitor&) override;

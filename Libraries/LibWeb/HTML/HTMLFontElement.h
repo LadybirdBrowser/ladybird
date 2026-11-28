@@ -12,18 +12,17 @@ namespace Web::HTML {
 
 class HTMLFontElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLFontElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLFontElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLFontElement() override;
-
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
     static Optional<CSS::Keyword> parse_legacy_font_size(Utf16View);
 
 private:
-    HTMLFontElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLFontElement(DOM::VtableProbe);
+    virtual ~HTMLFontElement() override = default;
 };
 
 }

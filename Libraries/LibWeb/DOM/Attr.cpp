@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -14,30 +13,21 @@
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(Attr);
+static_assert(is_shell_of_rust_object<Attr, RustFFI::AttrObject>);
 
 GC::Ref<Attr> Attr::create(Document& document, Utf16FlyString local_name, Utf16String value, GC::Ptr<Element> owner_element)
 {
-    return GC::Heap::the().allocate<Attr>(document, QualifiedName(move(local_name), Optional<Utf16FlyString> {}, Optional<Utf16FlyString> {}), move(value), owner_element);
+    return create(document, QualifiedName(move(local_name), Optional<Utf16FlyString> {}, Optional<Utf16FlyString> {}), move(value), owner_element);
 }
 
-GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Utf16String value, GC::Ptr<Element> owner_element)
+GC::Ref<Attr> Attr::create(Document& document, QualifiedName const& qualified_name, Utf16String value, GC::Ptr<Element> owner_element)
 {
-    return GC::Heap::the().allocate<Attr>(document, move(qualified_name), move(value), owner_element);
+    return static_cast<Attr&>(*RustFFI::rust_dom_create_attr(&document, qualified_name.identity(), move(value).into_raw(), owner_element.ptr()));
 }
 
-GC::Ref<Attr> Attr::clone(Document& document) const
-{
-    return GC::Heap::the().allocate<Attr>(document, m_attr_core.qualified_name, value(), nullptr);
-}
-
-Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, GC::Ptr<Element> owner_element)
-    : Node(document, NodeType::ATTRIBUTE_NODE)
-    , m_attr_core {
-        .qualified_name = move(qualified_name),
-        .value = move(value),
-        .owner_element = owner_element,
-    }
+Attr::Attr(VtableProbe probe)
+    : Node(probe)
+    , m_attr_core { .qualified_name = QualifiedName(probe), .value = {}, .owner_element = {} }
 {
     // NB: libweb_rust reads an Attr node as the AttrPrefix it starts with.
     static_assert(sizeof(Attr) == sizeof(RustFFI::AttrPrefix));

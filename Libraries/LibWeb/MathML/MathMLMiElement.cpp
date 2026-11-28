@@ -13,10 +13,8 @@
 
 namespace Web::MathML {
 
-GC_DEFINE_ALLOCATOR(MathMLMiElement);
-
-MathMLMiElement::MathMLMiElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : MathMLElement(document, move(qualified_name))
+MathMLMiElement::MathMLMiElement(DOM::VtableProbe probe)
+    : MathMLElement(probe)
 {
 }
 

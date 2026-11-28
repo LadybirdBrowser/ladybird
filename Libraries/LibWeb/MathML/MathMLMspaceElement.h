@@ -12,13 +12,11 @@ namespace Web::MathML {
 
 class MathMLMspaceElement final : public MathMLElement {
     WEB_NON_IDL_WRAPPABLE(MathMLMspaceElement, MathMLElement);
-    GC_DECLARE_ALLOCATOR(MathMLMspaceElement);
-
-public:
-    virtual ~MathMLMspaceElement() override = default;
+    friend struct DOM::RustElementObjectHooks;
 
 private:
-    MathMLMspaceElement(DOM::Document&, DOM::QualifiedName);
+    explicit MathMLMspaceElement(DOM::VtableProbe);
+    virtual ~MathMLMspaceElement() override = default;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

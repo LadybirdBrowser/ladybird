@@ -11,6 +11,8 @@
 //! state C++ keeps, mutation records, the editing history, the children changed steps of the node's parent, and the
 //! style and layout of the node's text, C++ does in one callback, which Rust skips where it has nothing to do.
 
+use core::ptr::NonNull;
+
 use super::hooks;
 use super::hooks::CHARACTER_DATA_DATA_CHANGED;
 use super::hooks::CHARACTER_DATA_NOTIFY_EDITING_HISTORY;
@@ -22,6 +24,7 @@ use super::node::NodeCell;
 use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
 use super::node_core::DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT;
 use super::node_core::NodeType;
+use super::node_objects::create_text;
 use super::node_ref::NodeRef;
 use super::queries::concatenated_data;
 use super::queries::is_text;
@@ -32,6 +35,7 @@ use super::remove::remove;
 use super::rooted_nodes::RootedNodeListCore;
 use super::rooted_nodes::RootedNodes;
 use super::strings::BorrowedString;
+use super::strings::StringField;
 use super::strings::raw_strings_equal;
 use crate::stage::MainThread;
 use ak::Utf16StringUnits;
@@ -252,12 +256,20 @@ pub unsafe extern "C" fn rust_dom_substring_data(node: &NodeCell, offset: usize,
         return 0;
     }
 
+    substring_of_data(data, offset, count).into_raw()
+}
+
+/// Steps 3 and 4 of "substring data" of the data `data` with `offset`, which is at most its length, and `count`.
+/// https://dom.spec.whatwg.org/#concept-cd-substring
+fn substring_of_data(data: &StringField, offset: usize, count: usize) -> ak::Utf16String {
+    let units = data.units();
+    let length = units_length(&units);
     // 3. If offset + count is greater than length, return a string whose value is the code units from the offsetth
     //    code unit to the end of node's data, and then return.
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in
     //    node's data.
     let end = offset + count.min(length - offset);
-    let substring = match units {
+    match units {
         // OPTIMIZATION: The whole data is the data's own string.
         _ if offset == 0 && end == length => data.to_utf16_string(),
         Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => {
@@ -265,27 +277,33 @@ pub unsafe extern "C" fn rust_dom_substring_data(node: &NodeCell, offset: usize,
             ak::Utf16String::from_latin1_concatenation(piece.len(), piece.is_ascii(), [piece])
         }
         Utf16StringUnits::Utf16(units) => ak::Utf16String::from_utf16(&units[offset..end]),
-    };
-    substring.into_raw()
+    }
 }
 
-/// Runs steps 6 to 8 of splitting the Text node `node` at `offset`, which the caller checked against its length, with
-/// `new_node`, the new Text node of step 5, which the caller roots. Gives back false where step 8 throws an
-/// IndexSizeError, as it does where inserting the new node ran script that shortened the node's data.
+/// Runs steps 3 to 9 of splitting the Text node `node` at `offset`, which the caller checked against its length. Gives
+/// back the new node, or null where step 8 throws an IndexSizeError, as it does where inserting the new node ran script
+/// that shortened the node's data.
 /// https://dom.spec.whatwg.org/#concept-text-split
 ///
 /// # Safety
 ///
-/// The nodes must be live Text nodes, and the call must be made on the main thread.
+/// The node must be a live Text node, and the call must be made on the main thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_split_text(node: &NodeCell, new_node: &NodeCell, offset: usize) -> bool {
+pub unsafe extern "C" fn rust_dom_split_text(node: &NodeCell, offset: usize) -> Option<NonNull<NodeCell>> {
     // SAFETY: Guaranteed by the caller.
     let mut main_thread = unsafe { main_thread() };
-    // SAFETY: The nodes are live.
-    let [node, new_node] = [node, new_node].map(|cell| unsafe { NodeRef::from_cell(cell, &main_thread) });
+    // SAFETY: The node is live.
+    let node = unsafe { NodeRef::from_cell(node, &main_thread) };
 
     // 3. Let count be length minus offset.
-    let count = units_length(&node.read(&main_thread).data().units()) - offset;
+    let data = node.read(&main_thread).data();
+    let count = units_length(&data.units()) - offset;
+
+    // 4. Let new data be the result of substringing data with node node, offset offset, and count count.
+    let new_data = substring_of_data(data, offset, count);
+
+    // 5. Let new node be a new Text node, with the same node document as node. Set new node's data to new data.
+    let new_node = create_text(&mut main_thread, node.document(), new_data);
 
     // 6. Let parent be node's parent.
     // 7. If parent is not null, then:
@@ -318,14 +336,19 @@ pub unsafe extern "C" fn rust_dom_split_text(node: &NodeCell, new_node: &NodeCel
     }
 
     // 8. Replace data with node node, offset offset, count count, and data the empty string.
-    replace_data(
+    if !replace_data(
         &mut main_thread,
         node,
         offset,
         count,
         Utf16StringUnits::Ascii(&[]),
         None,
-    )
+    ) {
+        return None;
+    }
+
+    // 9. Return new node.
+    Some(NonNull::from(new_node.cell()))
 }
 
 /// Whether `node` is an exclusive Text node, a Text node that is not a CDATASection node.

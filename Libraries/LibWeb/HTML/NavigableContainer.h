@@ -65,7 +65,7 @@ public:
     bool stats_displayed() const { return m_reported_stats_displayed.value_or(false); }
 
 protected:
-    NavigableContainer(DOM::Document&, DOM::QualifiedName);
+    explicit NavigableContainer(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&) override;

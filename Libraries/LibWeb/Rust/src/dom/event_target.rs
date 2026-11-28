@@ -268,16 +268,19 @@ impl EventTargetMember {
     }
 }
 
-#[cfg(test)]
 impl EventTargetMember {
-    pub(crate) fn null_for_test() -> Self {
+    /// A field that holds null, as GC::Member's default constructor makes it.
+    #[inline(always)]
+    pub(super) fn null() -> Self {
         Self(Cell::new(0))
     }
 }
 
-#[cfg(test)]
 impl EventTargetCore {
-    pub(crate) fn null_for_test() -> Self {
+    /// The core of a node as it is made: one without flags, which only targets that are no nodes have, and without
+    /// listeners.
+    #[inline(always)]
+    pub(super) fn for_new_node() -> Self {
         Self {
             flags: Cell::new(0),
             capture_listener_types: Cell::new(0),
@@ -286,10 +289,22 @@ impl EventTargetCore {
     }
 }
 
-#[cfg(test)]
 impl EventTargetDataField {
-    pub(crate) fn null_for_test() -> Self {
+    /// The field of a target that has never needed its data, which holds a null OwnPtr.
+    #[inline(always)]
+    pub(super) fn null() -> Self {
         Self(UnsafeCell::new(core::ptr::null()))
+    }
+
+    /// Whether the target has never needed its data.
+    ///
+    /// # Safety
+    ///
+    /// The field must be that of a live event target, which C++ does not give data during the call.
+    #[inline(always)]
+    pub(super) unsafe fn is_null(&self) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { (*self.0.get()).is_null() }
     }
 }
 

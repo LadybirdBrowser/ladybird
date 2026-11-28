@@ -54,15 +54,13 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLLinkElement);
-
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name)
 {
     return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
 }
 
-HTMLLinkElement::HTMLLinkElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLLinkElement::HTMLLinkElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

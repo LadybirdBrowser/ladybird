@@ -32,7 +32,6 @@ namespace Web::HTML {
 
 class HTMLFormElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLFormElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLFormElement);
 
 public:
     virtual ~HTMLFormElement() override;
@@ -121,7 +120,7 @@ public:
     void associated_element_submit_button_state_changed(Badge<FormAssociatedElement>, HTMLElement&);
 
 private:
-    HTMLFormElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLFormElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void inserted() override;

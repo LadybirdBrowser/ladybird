@@ -17,7 +17,6 @@ class SVGFEDiffuseLightingElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEDiffuseLightingElement> {
     WEB_WRAPPABLE(SVGFEDiffuseLightingElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEDiffuseLightingElement);
 
 public:
     virtual ~SVGFEDiffuseLightingElement() override = default;
@@ -29,7 +28,7 @@ public:
     GC::Ref<SVGAnimatedNumber> kernel_unit_length_y();
 
 private:
-    SVGFEDiffuseLightingElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEDiffuseLightingElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

@@ -15,7 +15,6 @@ class SVGPolylineElement final
     : public SVGGeometryElement
     , public SVGAnimatedPoints {
     WEB_WRAPPABLE(SVGPolylineElement, SVGGeometryElement);
-    GC_DECLARE_ALLOCATOR(SVGPolylineElement);
 
 public:
     virtual ~SVGPolylineElement() override = default;
@@ -26,7 +25,7 @@ public:
     ReadonlySpan<Gfx::FloatPoint> points() const { return m_points; }
 
 private:
-    SVGPolylineElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGPolylineElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

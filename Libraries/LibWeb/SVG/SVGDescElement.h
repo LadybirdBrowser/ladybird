@@ -12,10 +12,9 @@ namespace Web::SVG {
 
 class SVGDescElement final : public SVGElement {
     WEB_WRAPPABLE(SVGDescElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGDescElement);
 
 private:
-    SVGDescElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGDescElement(DOM::RustMadePrefix);
     virtual CSS::ElementBoxKind box_kind() const override;
 };
 

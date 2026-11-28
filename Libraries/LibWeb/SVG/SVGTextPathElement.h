@@ -17,7 +17,6 @@ class SVGTextPathElement
     : public SVGTextContentElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_WRAPPABLE(SVGTextPathElement, SVGTextContentElement);
-    GC_DECLARE_ALLOCATOR(SVGTextPathElement);
 
 public:
     virtual CSS::ElementBoxKind box_kind() const override;
@@ -42,7 +41,7 @@ public:
     GC::Ref<SVGAnimatedEnumeration> spacing();
 
 protected:
-    SVGTextPathElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGTextPathElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 

@@ -52,15 +52,10 @@ SlottableMixin::RareData& Text::ensure_slottable_rare_data()
     return static_cast<RareData&>(ensure_rare_data());
 }
 
-GC_DEFINE_ALLOCATOR(Text);
+static_assert(is_shell_of_rust_object<Text, RustFFI::TextObject>);
 
-Text::Text(Document& document, Utf16String data)
-    : CharacterData(document, NodeType::TEXT_NODE, move(data))
-{
-}
-
-Text::Text(Document& document, NodeType type, Utf16String data)
-    : CharacterData(document, type, move(data))
+Text::Text(VtableProbe probe)
+    : CharacterData(probe)
 {
     // NB: libweb_rust reads a Text node as the TextPrefix it starts with.
     static_assert(sizeof(Text) == sizeof(RustFFI::TextPrefix));
@@ -73,7 +68,7 @@ Text::Text(Document& document, NodeType type, Utf16String data)
 
 GC::Ref<Text> Text::create(Document& document, Utf16String data)
 {
-    return GC::Heap::the().allocate<Text>(document, move(data));
+    return static_cast<Text&>(*RustFFI::rust_dom_create_text(&document, move(data).into_raw()));
 }
 
 GC::Ref<Text> Text::create_for_constructor(JS::Object& relevant_global_object, Utf16String data)
@@ -102,23 +97,17 @@ WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
         return WebIDL::IndexSizeError::create("Split offset is greater than length"_utf16);
 
     // 3. Let count be length minus offset.
-    auto count = length - offset;
-
     // 4. Let new data be the result of substringing data with node node, offset offset, and count count.
-    auto new_data = TRY(substring_data(offset, count));
-
     // 5. Let new node be a new Text node, with the same node document as node. Set new node’s data to new data.
-    auto new_node = create(document(), new_data);
-
     // 6. Let parent be node’s parent.
     // 7. If parent is not null, then:
     // 8. Replace data with node node, offset offset, count count, and data the empty string.
-    // NB: libweb_rust runs these steps, see Rust/src/dom/character_data.rs.
-    if (!RustFFI::rust_dom_split_text(this, new_node.ptr(), offset))
-        return WebIDL::IndexSizeError::create("Replacement offset out of range."_utf16);
-
     // 9. Return new node.
-    return new_node;
+    // NB: libweb_rust runs these steps, see Rust/src/dom/character_data.rs.
+    GC::Ptr<Text> new_node = static_cast<Text*>(RustFFI::rust_dom_split_text(this, offset));
+    if (!new_node)
+        return WebIDL::IndexSizeError::create("Replacement offset out of range."_utf16);
+    return GC::Ref { *new_node };
 }
 
 // https://dom.spec.whatwg.org/#dom-text-wholetext

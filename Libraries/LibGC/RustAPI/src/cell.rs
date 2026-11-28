@@ -84,6 +84,7 @@ pub const fn type_info_of<T: RustCell>(finalize: Option<unsafe extern "C" fn(cel
         },
         external_memory_size: None,
         class_name: Some(class_name::<T>),
+        traced_on_owner_thread: None,
     }
 }
 

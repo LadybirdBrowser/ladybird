@@ -145,6 +145,7 @@ TEST_CASE(a_foreign_type_has_the_same_pool_in_every_heap)
         .destroy = nullptr,
         .external_memory_size = nullptr,
         .class_name = nullptr,
+        .traced_on_owner_thread = nullptr,
     };
     static GCCellTypeInfo const large_cell_info { [] {
         auto info = small_cell_info;

@@ -16,7 +16,6 @@ class SVGFEDisplacementMapElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEDisplacementMapElement> {
     WEB_WRAPPABLE(SVGFEDisplacementMapElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEDisplacementMapElement);
 
 public:
     enum class ChannelSelector {
@@ -36,7 +35,7 @@ public:
     GC::Ref<SVGAnimatedEnumeration> y_channel_selector();
 
 private:
-    SVGFEDisplacementMapElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEDisplacementMapElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

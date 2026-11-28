@@ -51,7 +51,7 @@ public:
     void dispatch_pending_time_event(Animations::RustFFI::FfiPendingAnimationEvent const&);
 
 protected:
-    SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGAnimationElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;

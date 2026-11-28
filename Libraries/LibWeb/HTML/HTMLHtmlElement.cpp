@@ -14,14 +14,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLHtmlElement);
-
-HTMLHtmlElement::HTMLHtmlElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLHtmlElement::HTMLHtmlElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLHtmlElement::~HTMLHtmlElement() = default;
 
 void HTMLHtmlElement::children_changed(ChildrenChangedMetadata const& metadata)
 {

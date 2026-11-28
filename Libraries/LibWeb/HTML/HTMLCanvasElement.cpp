@@ -49,16 +49,14 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLCanvasElement);
-
 static HashMap<Compositing::CanvasId, UniqueNodeID>& placeholder_canvas_elements()
 {
     static NeverDestroyed<HashMap<Compositing::CanvasId, UniqueNodeID>> elements;
     return *elements;
 }
 
-HTMLCanvasElement::HTMLCanvasElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLCanvasElement::HTMLCanvasElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

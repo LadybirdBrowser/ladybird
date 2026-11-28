@@ -13,7 +13,6 @@ namespace Web::HTML {
 
 class HTMLBaseElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLBaseElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLBaseElement);
 
 public:
     virtual ~HTMLBaseElement() override;
@@ -28,7 +27,7 @@ public:
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
 private:
-    HTMLBaseElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLBaseElement(DOM::RustMadePrefix);
 
     // https://html.spec.whatwg.org/multipage/semantics.html#frozen-base-url
     // A base element that is the first base element with an href content attribute in a document tree has a frozen base URL.

@@ -10,8 +10,6 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLSummaryElement);
-
 // AD-HOC: The spec defines the association between a summary element and it's details element only for author defined
 //         summary elements (i.e. the first summary element child of a details element) but we want the same behavior
 //         to apply to the default summary - the spec doesn't specify how to do this so we piggy back on the existing
@@ -35,8 +33,8 @@ static GC::Ptr<HTMLDetailsElement> associated_details_element(HTMLSummaryElement
     return nullptr;
 }
 
-HTMLSummaryElement::HTMLSummaryElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLSummaryElement::HTMLSummaryElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
 
@@ -86,7 +84,5 @@ bool HTMLSummaryElement::is_focusable() const
     return (Base::is_focusable() || is_summary_for_its_parent_details())
         && meets_focusable_area_rendering_requirements();
 }
-
-HTMLSummaryElement::~HTMLSummaryElement() = default;
 
 }

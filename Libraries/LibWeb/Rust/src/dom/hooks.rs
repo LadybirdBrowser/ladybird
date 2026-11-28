@@ -313,9 +313,9 @@ pub struct DomHooks {
         data_length: usize,
         steps: u8,
     ),
-    /// Whether the nodes `a` and `b`, two doctypes, processing instructions or Attr nodes, have equal state of the
-    /// kind the "equals" algorithm compares for their interface. Runs no script.
-    pub node_state_equals: unsafe extern "C" fn(a: RawNodeRef, b: RawNodeRef) -> bool,
+    /// Whether the Attr nodes `a` and `b` have equal state of the kind the "equals" algorithm compares for Attr. Runs no
+    /// script.
+    pub attr_state_equals: unsafe extern "C" fn(a: RawNodeRef, b: RawNodeRef) -> bool,
     /// The range of the document's selection, or null. Runs no script.
     pub selection_range: unsafe extern "C" fn(document: RawNodeRef) -> Option<NonNull<RangeCell>>,
 }
@@ -957,10 +957,9 @@ pub(crate) fn selection_range(main_thread: &mut MainThread<'_>, document: NodeRe
     unsafe { (hooks(main_thread).selection_range)(document) }
 }
 
-/// Whether the doctypes, processing instructions or Attr nodes `a` and `b` have equal state, see
-/// DomHooks::node_state_equals.
+/// Whether the Attr nodes `a` and `b` have equal state, see DomHooks::attr_state_equals.
 #[inline]
-pub(crate) fn node_state_equals(main_thread: &mut MainThread<'_>, a: NodeRef, b: NodeRef) -> bool {
+pub(crate) fn attr_state_equals(main_thread: &mut MainThread<'_>, a: NodeRef, b: NodeRef) -> bool {
     // SAFETY: The callback is called on the main thread with live nodes.
-    unsafe { (hooks(main_thread).node_state_equals)(a, b) }
+    unsafe { (hooks(main_thread).attr_state_equals)(a, b) }
 }

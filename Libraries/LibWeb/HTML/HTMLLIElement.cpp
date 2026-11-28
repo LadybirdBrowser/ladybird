@@ -16,14 +16,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLLIElement);
-
-HTMLLIElement::HTMLLIElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLLIElement::HTMLLIElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLLIElement::~HTMLLIElement() = default;
 
 void HTMLLIElement::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {

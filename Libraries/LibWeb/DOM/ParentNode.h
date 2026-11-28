@@ -15,7 +15,6 @@ class RootedNodeList;
 
 class WEB_API ParentNode : public Node {
     WEB_NON_IDL_WRAPPABLE(ParentNode, Node);
-    GC_DECLARE_ALLOCATOR(ParentNode);
 
 public:
     template<typename F>
@@ -45,7 +44,8 @@ public:
     GC::Ptr<Element> get_element_by_id(Utf16View id) const;
 
 protected:
-    ParentNode(Document& document, NodeType type);
+    explicit ParentNode(VtableProbe);
+    explicit ParentNode(RustMadePrefix);
 
 private:
     friend class Node;
@@ -54,7 +54,10 @@ private:
 
     // The counters behind Node::dom_tree_version() and Node::character_data_version(), for the tree rooted here, whose
     // layout libweb_rust defines (see Rust/src/dom/tree_version.rs), which reads and moves them in place.
-    RustFFI::ParentNodeCore m_parent_node_core {};
+    // NB: In a union, so that ParentNode(RustMadePrefix) can leave it as libweb_rust made it.
+    union {
+        RustFFI::ParentNodeCore m_parent_node_core;
+    };
 };
 
 enum class InTreeOrder : u8 {

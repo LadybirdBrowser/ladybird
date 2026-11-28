@@ -303,8 +303,6 @@ Element::PseudoElementData const* Element::pseudo_element_data() const
     return rare_data ? rare_data->pseudo_element_data.ptr() : nullptr;
 }
 
-GC_DEFINE_ALLOCATOR(Element);
-
 static void invalidate_content_blocker_style_if_needed(Element& element)
 {
     if (!element.is_connected())
@@ -332,10 +330,10 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
     }
 }
 
-Element::Element(Document& document, DOM::QualifiedName qualified_name)
-    : ParentNode(document, NodeType::ELEMENT_NODE)
+Element::Element(VtableProbe probe)
+    : ParentNode(probe)
     , m_element_core {
-        .qualified_name = move(qualified_name),
+        .qualified_name = QualifiedName(probe),
         .id = {},
         .classes = {},
         .attributes = {},
@@ -349,6 +347,14 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .child_index_of_type = 0,
         .assigned_slot = {},
     }
+{
+}
+
+// NB: Leaves the core of the element as libweb_rust made it. The default member initializers give the other members the
+//     values libweb_rust gave them, which for an element of a class with a payload include the custom element state
+//     "undefined".
+Element::Element(RustMadePrefix prefix)
+    : ParentNode(prefix)
 {
     // NB: libweb_rust reads an element as the ElementPrefix it starts with.
     static_assert(sizeof(Element) == sizeof(RustFFI::ElementPrefix));
@@ -367,7 +373,10 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
     static_assert(offsetof(Element, m_element_core) >= sizeof(ParentNode));
 }
 
-Element::~Element() = default;
+Element::~Element()
+{
+    m_element_core.~ElementCore();
+}
 
 void Element::finalize()
 {
@@ -4728,7 +4737,7 @@ void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinitio
 
 GC::Ptr<HTML::CustomElementRegistry> Element::custom_element_registry() const
 {
-    if (m_uses_document_global_custom_element_registry)
+    if (has_element_core_flag(RustFFI::ELEMENT_USES_DOCUMENT_GLOBAL_CUSTOM_ELEMENT_REGISTRY))
         return document().effective_global_custom_element_registry();
     auto const* rare_data = element_rare_data();
     return rare_data ? rare_data->custom_element_registry : nullptr;
@@ -4737,13 +4746,13 @@ GC::Ptr<HTML::CustomElementRegistry> Element::custom_element_registry() const
 void Element::set_custom_element_registry(GC::Ptr<HTML::CustomElementRegistry> registry)
 {
     if (HTML::is_a_global_custom_element_registry(registry) && registry == document().custom_element_registry()) {
-        m_uses_document_global_custom_element_registry = true;
+        set_element_core_flag(RustFFI::ELEMENT_USES_DOCUMENT_GLOBAL_CUSTOM_ELEMENT_REGISTRY, true);
         if (auto* rare_data = element_rare_data())
             rare_data->custom_element_registry = nullptr;
         return;
     }
 
-    m_uses_document_global_custom_element_registry = false;
+    set_element_core_flag(RustFFI::ELEMENT_USES_DOCUMENT_GLOBAL_CUSTOM_ELEMENT_REGISTRY, false);
     if (!registry) {
         if (auto* rare_data = element_rare_data())
             rare_data->custom_element_registry = nullptr;

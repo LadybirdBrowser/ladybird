@@ -15,6 +15,11 @@
 //! typed as what C++ keeps there instead. A level whose class has no subclass with a prefix of its own ends with its
 //! last Rust field, and the C++ members of the class follow it.
 //!
+//! For the classes whose objects Rust defines whole (see node_objects.rs and element_objects.rs), Rust writes each slot
+//! of a new node as the C++ constructors would, and C++ visits, finalizes and destroys what the slots hold through
+//! hooks. For an element, Rust compares the slots with what they start out as, so that it only calls a hook when C++
+//! has something to do.
+//!
 //! | Prefix | Slot | What C++ keeps there | What would let Rust own it |
 //! |---|---|---|---|
 //! | WrappablePrefix | vtable | GC::Cell's vtable pointer | Rust defining the object, with C++ as a payload |
@@ -35,7 +40,6 @@
 //! | ElementPrefix | animation_subtree_style_generation | DOM::Element::m_animation_subtree_style_generation, a u64 | the animation bookkeeping in Rust |
 //! | ElementPrefix | published_presentational_hint_properties | DOM::Element::m_published_presentational_hint_properties, a Vector<CSS::StyleProperty> | presentational hints in Rust |
 //! | ElementPrefix | style_flags | DOM::Element's one-bit flags, from m_initial_style_features_pending to m_style_attribute_awaits_content_security_policy_check | flags Rust reads, in the core |
-//! | ElementPrefix | custom_element_state | DOM::Element::m_custom_element_state, a CustomElementState | the custom element state in the core |
 //! | ElementPrefix | inline_style | DOM::Element::m_inline_style, a GC::Member<CSS::CSSStyleProperties> | the GC API crate |
 //! | ElementPrefix | lang_value | DOM::Element::m_lang_value, an Optional<Utf16String> | the lang value in the core |
 //! | HTMLElementPrefix | global_event_handlers_vtable | the vtable pointer of HTML::HTMLElement's HTML::GlobalEventHandlers base | GlobalEventHandlers without virtual functions |
@@ -44,6 +48,7 @@
 //! | HTMLElementPrefix | click_in_progress | HTML::HTMLElement::m_click_in_progress, a bool | HTMLElement's state in Rust |
 //! | HTMLElementPrefix | popover_visibility_state | HTML::HTMLElement::m_popover_visibility_state, a PopoverVisibilityState | the popover state in Rust |
 //! | HTMLElementPrefix | popover_showing_or_hiding | HTML::HTMLElement::m_popover_showing_or_hiding, a bool | the popover state in Rust |
+//! | MathMLElementPrefix | global_event_handlers_vtable | the vtable pointer of MathML::MathMLElement's HTML::GlobalEventHandlers base | GlobalEventHandlers without virtual functions |
 //! | DocumentPrefix | global_event_handlers_vtable | the vtable pointer of DOM::Document's HTML::GlobalEventHandlers base | GlobalEventHandlers without virtual functions |
 //!
 //! Each level starts after all of the level above it, padding included, which is where #[repr(C)] places a nested
@@ -53,11 +58,13 @@
 //! their own: WrappablePrefix covers the cell's header, whose last bytes GC::Cell keeps for the embedder, which keeps
 //! the wrapper preservation flags and the class id there, and GCAllocatedWrappable has no fields.
 
+use core::cell::Cell;
 use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use core::mem::offset_of;
 
 use libgc_api::Trace;
+use libgc_api::cell::{CELL_KIND_OTHER, CELL_STATE_LIVE};
 use libgc_api::layout::CELL_IDENTITY_HASH_STATE_OFFSET;
 
 use super::attr::AttrCore;
@@ -69,6 +76,8 @@ use super::node_core::CharacterDataCore;
 use super::node_core::DocumentCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::NodeCore;
+use super::node_core::NodePointer;
+use super::node_core::NodeType;
 use super::node_core::ParentNodeCore;
 use super::node_core::TextCore;
 use super::slots::ShadowRootCore;
@@ -86,8 +95,9 @@ pub(super) unsafe fn prefix_of<'a, P, T>(cell: *const T) -> &'a P {
     unsafe { &*cell.cast::<P>() }
 }
 
-/// A C++ member inside a prefix, as `N` units of `T`, which give it the member's size and alignment. Rust never reads
-/// or writes it, and C++ changes it behind shared references to the prefix.
+/// A C++ member inside a prefix, as `N` units of `T`, which give it the member's size and alignment. Rust never writes it
+/// once the object exists, and only reads it to compare it with what it starts out as. C++ changes it behind shared
+/// references to the prefix.
 #[repr(transparent)]
 pub struct OpaqueCxx<T, const N: usize>(UnsafeCell<MaybeUninit<[T; N]>>);
 
@@ -95,6 +105,29 @@ pub struct OpaqueCxx<T, const N: usize>(UnsafeCell<MaybeUninit<[T; N]>>);
 unsafe impl<T, const N: usize> Trace for OpaqueCxx<T, N> {
     #[inline(always)]
     fn trace(&self, _: &mut libgc_api::Visitor<'_>) {}
+}
+
+impl<T, const N: usize> OpaqueCxx<T, N> {
+    /// A slot that holds `units`, which is how the C++ member it stands for starts out in an object Rust makes.
+    #[inline(always)]
+    pub(super) const fn new(units: [T; N]) -> Self {
+        Self(UnsafeCell::new(MaybeUninit::new(units)))
+    }
+}
+
+impl<T: Copy + PartialEq, const N: usize> OpaqueCxx<T, N> {
+    /// Whether the slot holds `units`, which is what the C++ member it stands for starts out as, as C++ left it.
+    ///
+    /// # Safety
+    ///
+    /// The slot must be one of a live object, whose C++ constructor initialized it, and which C++ does not change during
+    /// the call.
+    #[inline(always)]
+    pub(super) unsafe fn holds(&self, units: [T; N]) -> bool {
+        // SAFETY: Guaranteed by the caller. Every member these slots stand for is plain data in every bit pattern C++
+        //         leaves in it.
+        unsafe { (*self.0.get()).assume_init_read() == units }
+    }
 }
 
 #[cfg(test)]
@@ -112,7 +145,8 @@ pub struct WrappablePrefix {
     vtable: OpaqueCxx<u64, 1>,
     cell_header: OpaqueCxx<u8, 3>,
     preservation_flags: OpaqueCxx<u8, 1>,
-    /// The class of the node this is, or NodeClassId::NotANode, which C++ writes as it constructs the object.
+    /// The class of the node this is, which Rust writes as it makes the prefix of the node, or NodeClassId::NotANode,
+    /// which C++ writes as it constructs an event target that is no node.
     class_id: NodeClassId,
     main_world_wrapper: OpaqueCxx<u64, 1>,
 }
@@ -219,7 +253,10 @@ pub struct ElementPrefix {
     animation_subtree_style_generation: OpaqueCxx<u64, 1>,
     published_presentational_hint_properties: OpaqueCxx<u64, 3>,
     style_flags: OpaqueCxx<u8, 3>,
-    custom_element_state: OpaqueCxx<u8, 1>,
+    /// DOM::Element::m_custom_element_state, a CustomElementState, which C++ keeps as the element's custom element state
+    /// changes, and which Rust reads and writes as it clones an element.
+    /// https://dom.spec.whatwg.org/#concept-element-custom-element-state
+    pub(super) custom_element_state: Cell<u8>,
     inline_style: OpaqueCxx<u32, 1>,
     lang_value: OpaqueCxx<u64, 1>,
 }
@@ -237,12 +274,337 @@ pub struct HTMLElementPrefix {
     popover_showing_or_hiding: OpaqueCxx<u8, 1>,
 }
 
+/// The start of every MathML::MathMLElement.
+#[derive(Trace)]
+#[repr(C)]
+pub struct MathMLElementPrefix {
+    pub(super) element: ElementPrefix,
+    global_event_handlers_vtable: OpaqueCxx<u64, 1>,
+}
+
 /// The start of every HTML::HTMLSlotElement.
 #[derive(Trace)]
 #[repr(C)]
 pub struct HTMLSlotElementPrefix {
     pub(super) html_element: HTMLElementPrefix,
     pub(super) core: SlotCore,
+}
+
+/// What C++ writes into a node it constructs that Rust has to write into a node it makes: the vtable pointers of the
+/// node's class, and the pointer to the shared null GC::WeakImpl that every null GC::Weak holds.
+#[derive(Clone, Copy)]
+pub(super) struct CxxWords {
+    pub(super) vtable: u64,
+    pub(super) null_weak_impl: u64,
+}
+
+impl NodePrefix {
+    /// The prefix of `node`, a new node of the class `class_id` and of `node_type`, that is no document, and whose node
+    /// document is `document`, as the constructors of DOM::Node and the classes it derives from make it.
+    #[inline(always)]
+    pub(super) fn new(
+        words: CxxWords,
+        class_id: NodeClassId,
+        node_type: NodeType,
+        node: NodePointer,
+        document: NodePointer,
+    ) -> Self {
+        Self {
+            event_target: EventTargetPrefix {
+                wrappable: WrappablePrefix {
+                    vtable: OpaqueCxx::new([words.vtable]),
+                    // NB: A cell whose identity was never hashed, which is live and of GC::CellKind::Other.
+                    cell_header: OpaqueCxx::new([0, CELL_STATE_LIVE, CELL_KIND_OTHER]),
+                    preservation_flags: OpaqueCxx::new([0]),
+                    class_id,
+                    // NB: A GC::Weak that is null.
+                    main_world_wrapper: OpaqueCxx::new([words.null_weak_impl]),
+                },
+                core: EventTargetCore::for_new_node(),
+                data: EventTargetDataField::null(),
+            },
+            core: NodeCore::new(node_type, node, document),
+            associated_animation_count_in_subtree: OpaqueCxx::new([0]),
+            node_directory_slot: OpaqueCxx::new([0]),
+            // NB: A null OwnPtr.
+            rare_data: OpaqueCxx::new([0]),
+        }
+    }
+}
+
+impl ParentNodePrefix {
+    /// The prefix of a new ParentNode that starts with `node`, as the constructor of DOM::ParentNode makes it.
+    #[inline(always)]
+    pub(super) fn new(node: NodePrefix) -> Self {
+        Self {
+            node,
+            core: ParentNodeCore::new(),
+        }
+    }
+}
+
+/// The custom element state that C++ gives a new element, CustomElementState::Undefined.
+pub(super) const CUSTOM_ELEMENT_STATE_UNDEFINED: u8 = 0;
+/// CustomElementState::Uncustomized.
+pub(super) const CUSTOM_ELEMENT_STATE_UNCUSTOMIZED: u8 = 2;
+/// The state that C++ gives the contenteditable attribute of a new HTML element, ContentEditableState::Inherit.
+const CONTENT_EDITABLE_STATE_INHERIT: u8 = 3;
+
+impl ElementPrefix {
+    /// The prefix of a new element that starts with `parent_node` and has the core `core`, as the constructor of
+    /// DOM::Element makes it, whose SlottableMixin, ARIA::ARIAMixin and Animations::Animatable bases C++ gives the
+    /// vtable pointers `slottable_mixin_vtable`, `aria_mixin_vtable` and `animatable_vtable`.
+    #[inline(always)]
+    pub(super) fn new(
+        parent_node: ParentNodePrefix,
+        slottable_mixin_vtable: u64,
+        aria_mixin_vtable: u64,
+        animatable_vtable: u64,
+        core: ElementCore,
+    ) -> Self {
+        Self {
+            parent_node,
+            slottable_mixin_vtable: OpaqueCxx::new([slottable_mixin_vtable]),
+            aria_mixin_vtable: OpaqueCxx::new([aria_mixin_vtable]),
+            animatable_vtable: OpaqueCxx::new([animatable_vtable]),
+            // NB: Null pointers, an empty CSS::InstalledStyle, generations of 0, an empty Vector, clear flags, a null
+            //     GC::Member and an empty Optional, as DOM::Element's default member initializers make them, which
+            //     holds_new_slots() checks against an element C++ constructs.
+            animations: OpaqueCxx::new([0]),
+            core,
+            inline_declarations: OpaqueCxx::new([0]),
+            installed_style: OpaqueCxx::new([0]),
+            animation_style_generation: OpaqueCxx::new([0]),
+            animation_subtree_style_generation: OpaqueCxx::new([0]),
+            published_presentational_hint_properties: OpaqueCxx::new([0; 3]),
+            style_flags: OpaqueCxx::new([0; 3]),
+            custom_element_state: Cell::new(CUSTOM_ELEMENT_STATE_UNDEFINED),
+            inline_style: OpaqueCxx::new([0]),
+            lang_value: OpaqueCxx::new([0]),
+        }
+    }
+
+    /// Whether the slots of DOM::Element in the prefix hold what new() writes into them, for C++ to check that new()
+    /// makes an element as its constructor does.
+    ///
+    /// # Safety
+    ///
+    /// The prefix must be that of an element C++ constructed, which it does not change during the call.
+    pub(super) unsafe fn holds_new_slots(
+        &self,
+        slottable_mixin_vtable: u64,
+        aria_mixin_vtable: u64,
+        animatable_vtable: u64,
+    ) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            self.slottable_mixin_vtable.holds([slottable_mixin_vtable])
+                && self.aria_mixin_vtable.holds([aria_mixin_vtable])
+                && self.animatable_vtable.holds([animatable_vtable])
+                && self.animations.holds([0])
+                && self.inline_declarations.holds([0])
+                && self.installed_style.holds([0])
+                && self.animation_style_generation.holds([0])
+                && self.animation_subtree_style_generation.holds([0])
+                && self.published_presentational_hint_properties.holds([0; 3])
+                && self.style_flags.holds([0; 3])
+                && self.custom_element_state.get() == CUSTOM_ELEMENT_STATE_UNDEFINED
+                && self.inline_style.holds([0])
+                && self.lang_value.holds([0])
+        }
+    }
+
+    /// Whether C++ keeps cells in the slots of the element, which only it can visit: a preserved wrapper, the event
+    /// handlers of its event target data, its rare data, its animations or the CSSOM object of its style attribute.
+    ///
+    /// # Safety
+    ///
+    /// The prefix must be that of a live element, which C++ does not change during the call.
+    #[inline(always)]
+    pub(super) unsafe fn has_cxx_edges(&self) -> bool {
+        let node = &self.parent_node.node;
+        let event_target = &node.event_target;
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            !event_target.wrappable.preservation_flags.holds([0])
+                || !event_target.data.is_null()
+                || !node.rare_data.holds([0])
+                || !self.animations.holds([0])
+                || !self.inline_style.holds([0])
+        }
+    }
+
+    /// Whether C++ keeps memory outside the heap in the slots of the element, which only it can measure: its event
+    /// target data, its rare data or the declarations of its style attribute.
+    ///
+    /// # Safety
+    ///
+    /// As for has_cxx_edges().
+    #[inline(always)]
+    pub(super) unsafe fn has_cxx_external_memory(&self) -> bool {
+        let node = &self.parent_node.node;
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            !node.event_target.data.is_null() || !node.rare_data.holds([0]) || !self.inline_declarations.holds([0])
+        }
+    }
+
+    /// Whether DOM::Element::finalize() has anything to do for the dead element: preserved wrappers outside the main
+    /// world to forget, a node directory slot to free, the declarations of its style attribute or its animations to
+    /// destroy.
+    ///
+    /// # Safety
+    ///
+    /// As for has_cxx_edges().
+    #[inline(always)]
+    pub(super) unsafe fn needs_cxx_finalize(&self) -> bool {
+        let node = &self.parent_node.node;
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            !node.event_target.wrappable.preservation_flags.holds([0])
+                || !node.node_directory_slot.holds([0])
+                || !self.inline_declarations.holds([0])
+                || !self.animations.holds([0])
+        }
+    }
+
+    /// Whether a C++ member in the slots of the finalized element holds anything its destructor has to release: a weak
+    /// reference to its wrapper, its event target data, its rare data, its animations, its installed style, its
+    /// presentational hints or its lang value. `null_weak_impl` is what a null GC::Weak holds.
+    ///
+    /// # Safety
+    ///
+    /// As for has_cxx_edges().
+    #[inline(always)]
+    pub(super) unsafe fn needs_cxx_destroy(&self, null_weak_impl: u64) -> bool {
+        let node = &self.parent_node.node;
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            !node.event_target.wrappable.main_world_wrapper.holds([null_weak_impl])
+                || !node.event_target.data.is_null()
+                || !node.rare_data.holds([0])
+                || !self.animations.holds([0])
+                || !self.installed_style.holds([0])
+                || !self.published_presentational_hint_properties.holds([0; 3])
+                || !self.lang_value.holds([0])
+        }
+    }
+
+    /// Whether the element has rare data, which C++ keeps.
+    ///
+    /// # Safety
+    ///
+    /// As for has_cxx_edges().
+    #[inline(always)]
+    pub(super) unsafe fn has_rare_data(&self) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { !self.parent_node.node.rare_data.holds([0]) }
+    }
+
+    /// Whether the element's style attribute has declarations, or a CSSOM object of them, which C++ keeps.
+    ///
+    /// # Safety
+    ///
+    /// As for has_cxx_edges().
+    #[inline(always)]
+    pub(super) unsafe fn has_inline_style(&self) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { !self.inline_declarations.holds([0]) || !self.inline_style.holds([0]) }
+    }
+}
+
+impl HTMLElementPrefix {
+    /// The prefix of a new HTML element that starts with `element`, as the constructor of HTML::HTMLElement makes it,
+    /// whose HTML::GlobalEventHandlers and HTML::FormAssociatedElement bases C++ gives the vtable pointers
+    /// `global_event_handlers_vtable` and `form_associated_element_vtable`.
+    #[inline(always)]
+    pub(super) fn new(
+        element: ElementPrefix,
+        global_event_handlers_vtable: u64,
+        form_associated_element_vtable: u64,
+    ) -> Self {
+        Self {
+            element,
+            global_event_handlers_vtable: OpaqueCxx::new([global_event_handlers_vtable]),
+            form_associated_element_vtable: OpaqueCxx::new([form_associated_element_vtable]),
+            content_editable_state: OpaqueCxx::new([CONTENT_EDITABLE_STATE_INHERIT]),
+            click_in_progress: OpaqueCxx::new([0]),
+            popover_visibility_state: OpaqueCxx::new([0]),
+            popover_showing_or_hiding: OpaqueCxx::new([0]),
+        }
+    }
+
+    /// Whether the slots of HTML::HTMLElement in the prefix hold what new() writes into them, see
+    /// ElementPrefix::holds_new_slots().
+    ///
+    /// # Safety
+    ///
+    /// The prefix must be that of an HTML element C++ constructed, which it does not change during the call.
+    pub(super) unsafe fn holds_new_slots(
+        &self,
+        global_event_handlers_vtable: u64,
+        form_associated_element_vtable: u64,
+    ) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            self.global_event_handlers_vtable.holds([global_event_handlers_vtable])
+                && self
+                    .form_associated_element_vtable
+                    .holds([form_associated_element_vtable])
+                && self.content_editable_state.holds([CONTENT_EDITABLE_STATE_INHERIT])
+                && self.click_in_progress.holds([0])
+                && self.popover_visibility_state.holds([0])
+                && self.popover_showing_or_hiding.holds([0])
+        }
+    }
+}
+
+impl MathMLElementPrefix {
+    /// The prefix of a new MathML element that starts with `element`, as the constructor of MathML::MathMLElement makes
+    /// it, whose HTML::GlobalEventHandlers base C++ gives the vtable pointer `global_event_handlers_vtable`.
+    #[inline(always)]
+    pub(super) fn new(element: ElementPrefix, global_event_handlers_vtable: u64) -> Self {
+        Self {
+            element,
+            global_event_handlers_vtable: OpaqueCxx::new([global_event_handlers_vtable]),
+        }
+    }
+
+    /// Whether the slot of MathML::MathMLElement in the prefix holds what new() writes into it, see
+    /// ElementPrefix::holds_new_slots().
+    ///
+    /// # Safety
+    ///
+    /// The prefix must be that of a MathML element C++ constructed, which it does not change during the call.
+    pub(super) unsafe fn holds_new_slots(&self, global_event_handlers_vtable: u64) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { self.global_event_handlers_vtable.holds([global_event_handlers_vtable]) }
+    }
+}
+
+impl DocumentPrefix {
+    /// The prefix of a new document that starts with `parent_node`, as the constructor of DOM::Document makes it, which
+    /// writes the vtable pointer of its HTML::GlobalEventHandlers base.
+    #[inline(always)]
+    pub(super) fn new(parent_node: ParentNodePrefix) -> Self {
+        Self {
+            parent_node,
+            global_event_handlers_vtable: OpaqueCxx::new([0]),
+            core: DocumentCore::new(),
+        }
+    }
+}
+
+impl TextPrefix {
+    /// The prefix of a new Text node, whose SlottableMixin base C++ gives the vtable pointer `slottable_mixin_vtable`.
+    #[inline(always)]
+    pub(super) fn new(character_data: CharacterDataPrefix, slottable_mixin_vtable: u64) -> Self {
+        Self {
+            character_data,
+            slottable_mixin_vtable: OpaqueCxx::new([slottable_mixin_vtable]),
+            core: TextCore::new(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -263,8 +625,8 @@ impl EventTargetPrefix {
     pub(crate) fn for_test(class_id: NodeClassId) -> Self {
         Self {
             wrappable: WrappablePrefix::for_test(class_id),
-            core: EventTargetCore::null_for_test(),
-            data: EventTargetDataField::null_for_test(),
+            core: EventTargetCore::for_new_node(),
+            data: EventTargetDataField::null(),
         }
     }
 }
@@ -320,7 +682,7 @@ impl ElementPrefix {
             animation_subtree_style_generation: OpaqueCxx::zeroed_for_test(),
             published_presentational_hint_properties: OpaqueCxx::zeroed_for_test(),
             style_flags: OpaqueCxx::zeroed_for_test(),
-            custom_element_state: OpaqueCxx::zeroed_for_test(),
+            custom_element_state: Cell::new(0),
             inline_style: OpaqueCxx::zeroed_for_test(),
             lang_value: OpaqueCxx::zeroed_for_test(),
         }
@@ -389,3 +751,6 @@ const _: () = assert!(
         && offset_of!(HTMLElementPrefix, popover_showing_or_hiding) == 315
 );
 const _: () = assert!(size_of::<HTMLSlotElementPrefix>() == 368 && offset_of!(HTMLSlotElementPrefix, core) == 320);
+const _: () = assert!(
+    size_of::<MathMLElementPrefix>() == 304 && offset_of!(MathMLElementPrefix, global_event_handlers_vtable) == 296
+);

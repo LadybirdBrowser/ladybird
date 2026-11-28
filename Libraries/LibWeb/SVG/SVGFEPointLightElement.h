@@ -15,7 +15,6 @@ namespace Web::SVG {
 class SVGFEPointLightElement final
     : public SVGElement {
     WEB_WRAPPABLE(SVGFEPointLightElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEPointLightElement);
 
 public:
     virtual ~SVGFEPointLightElement() override = default;
@@ -25,7 +24,7 @@ public:
     GC::Ref<SVGAnimatedNumber> z();
 
 private:
-    SVGFEPointLightElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEPointLightElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedNumber> m_x;

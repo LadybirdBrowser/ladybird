@@ -15,7 +15,6 @@ namespace Web::HTML {
 
 class WEB_API HTMLDataListElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLDataListElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLDataListElement);
 
 public:
     virtual ~HTMLDataListElement() override;
@@ -27,7 +26,7 @@ public:
     void notify_inputs_using_this_as_suggestions_source();
 
 private:
-    HTMLDataListElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLDataListElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void inserted() override;

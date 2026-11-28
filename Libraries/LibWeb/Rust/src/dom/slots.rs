@@ -83,13 +83,19 @@ const _: () = assert!(offset_of!(NodeListField, size) == 8);
 const _: () = assert!(offset_of!(NodeListField, capacity) == 12);
 
 impl NodeListField {
-    #[cfg(test)]
-    pub(crate) const fn new_for_test() -> Self {
+    /// A list that holds no nodes, and no buffer.
+    #[inline(always)]
+    pub(super) const fn new() -> Self {
         Self {
             items: Cell::new(core::ptr::null_mut()),
             size: Cell::new(0),
             capacity: Cell::new(0),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn new_for_test() -> Self {
+        Self::new()
     }
 
     #[inline(always)]
@@ -289,16 +295,35 @@ pub struct ShadowRootCore {
 }
 
 impl ShadowRootCore {
+    /// The core of a new shadow root, whose shadow tree has no slots, and whose slot assignment is "named", as the
+    /// constructor of DOM::ShadowRoot makes it.
+    #[inline(always)]
+    pub(super) const fn new() -> Self {
+        Self {
+            slots: NodeListField::new(),
+            slots_needing_assignment: NodeListField::new(),
+            slot_assignment: Cell::new(SLOT_ASSIGNMENT_NAMED),
+            flags: Cell::new(0),
+            ids: IdMapField::empty(),
+        }
+    }
+
     /// The core of a shadow root of a test tree, whose shadow tree has no slots, and whose slot assignment is "named".
     #[cfg(test)]
     pub(crate) const fn empty_for_test() -> Self {
-        Self {
-            slots: NodeListField::new_for_test(),
-            slots_needing_assignment: NodeListField::new_for_test(),
-            slot_assignment: Cell::new(SLOT_ASSIGNMENT_NAMED),
-            flags: Cell::new(0),
-            ids: IdMapField::empty_for_test(),
-        }
+        Self::new()
+    }
+
+    /// Frees the buffers of the core's lists of slots, and its map of elements by ID, as LibGC destroys the shadow
+    /// root.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a shadow root that is being destroyed, and nothing may read it after.
+    pub(super) unsafe fn release(&self, main_thread: &mut MainThread<'_>) {
+        self.slots.free();
+        self.slots_needing_assignment.free();
+        self.ids.release(main_thread);
     }
 
     #[inline(always)]
@@ -1058,17 +1083,6 @@ pub unsafe extern "C" fn rust_dom_slot_set_manually_assigned_nodes(slot: &NodeCe
 pub unsafe extern "C" fn rust_dom_slot_core_destroy(core: &SlotCore) {
     core.assigned_nodes.free();
     core.manually_assigned_nodes.free();
-}
-
-/// Frees the buffers of a shadow root's core, as C++ destroys the shadow root.
-///
-/// # Safety
-///
-/// The core must be that of a shadow root that is being destroyed, and nothing may read it after.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_dom_shadow_root_core_destroy(core: &ShadowRootCore) {
-    core.slots.free();
-    core.slots_needing_assignment.free();
 }
 
 #[cfg(test)]

@@ -14,7 +14,6 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-selectedcontent-element
 class HTMLSelectedContentElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLSelectedContentElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLSelectedContentElement);
 
 public:
     virtual ~HTMLSelectedContentElement() override;
@@ -29,7 +28,7 @@ public:
     void set_disabled(bool disabled) { m_disabled = disabled; }
 
 private:
-    HTMLSelectedContentElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLSelectedContentElement(DOM::RustMadePrefix);
 
     virtual void post_connection() override;
     virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;

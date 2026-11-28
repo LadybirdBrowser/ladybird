@@ -16,7 +16,6 @@ class SVGFEGaussianBlurElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEGaussianBlurElement> {
     WEB_WRAPPABLE(SVGFEGaussianBlurElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEGaussianBlurElement);
 
 public:
     static constexpr u16 SVG_EDGEMODE_UNKNOWN = 0;
@@ -34,7 +33,7 @@ public:
     void set_std_deviation(float std_deviation_x, float std_deviation_y);
 
 private:
-    SVGFEGaussianBlurElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEGaussianBlurElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<SVGAnimatedString> m_in1;

@@ -21,7 +21,6 @@ class SVGImageElement final
     , public Layout::ImageProvider
     , public HTML::DecodedImageData::Client {
     WEB_WRAPPABLE(SVGImageElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGImageElement);
 
 public:
     virtual ~SVGImageElement() override;
@@ -51,7 +50,7 @@ public:
     virtual SVG::PreserveAspectRatio preserve_aspect_ratio() const override;
 
 protected:
-    SVGImageElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGImageElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 

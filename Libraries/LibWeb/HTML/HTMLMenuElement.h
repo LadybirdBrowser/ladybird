@@ -13,16 +13,15 @@ namespace Web::HTML {
 
 class HTMLMenuElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLMenuElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLMenuElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLMenuElement() override;
-
     // https://www.w3.org/TR/html-aria/#el-menu
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::list; }
 
 private:
-    HTMLMenuElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLMenuElement(DOM::VtableProbe);
+    virtual ~HTMLMenuElement() override = default;
 };
 
 }

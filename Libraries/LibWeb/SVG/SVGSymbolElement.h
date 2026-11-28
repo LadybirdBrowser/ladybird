@@ -14,7 +14,6 @@ namespace Web::SVG {
 class SVGSymbolElement final : public SVGGraphicsElement
     , public SVGFitToViewBox {
     WEB_WRAPPABLE(SVGSymbolElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGSymbolElement);
 
 public:
     virtual ~SVGSymbolElement() override = default;
@@ -22,7 +21,7 @@ public:
     virtual SVGFitToViewBox const* fit_to_view_box() const override { return this; }
 
 private:
-    SVGSymbolElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGSymbolElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;

@@ -28,11 +28,8 @@ class WEB_API AK_COMPACT_EMPTY_BASES CharacterData
     , public ChildNode<CharacterData>
     , public NonDocumentTypeChildNode<CharacterData> {
     WEB_WRAPPABLE(CharacterData, Node);
-    GC_DECLARE_ALLOCATOR(CharacterData);
 
 public:
-    virtual ~CharacterData() override;
-
     Utf16String const& data() const { return m_character_data_core.data; }
     void set_data(Utf16View const&);
     void set_data(Utf16String const&);
@@ -60,7 +57,9 @@ protected:
         OwnPtr<Unicode::Segmenter> word_segmenter;
     };
 
-    CharacterData(Document&, NodeType, Utf16String);
+    // NB: libweb_rust defines, allocates and destroys every CharacterData node, see Rust/src/dom/node_objects.rs.
+    explicit CharacterData(VtableProbe);
+    virtual ~CharacterData() override = default;
 
     virtual OwnPtr<Node::RareData> create_rare_data() const override;
     RareData& ensure_character_data_rare_data() const;

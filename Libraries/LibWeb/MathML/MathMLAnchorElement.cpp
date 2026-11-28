@@ -11,10 +11,8 @@
 
 namespace Web::MathML {
 
-GC_DEFINE_ALLOCATOR(MathMLAnchorElement);
-
-MathMLAnchorElement::MathMLAnchorElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : MathMLElement(document, move(qualified_name))
+MathMLAnchorElement::MathMLAnchorElement(DOM::RustMadePrefix prefix)
+    : MathMLElement(prefix)
 {
 }
 

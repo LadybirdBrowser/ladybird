@@ -14,7 +14,6 @@ namespace Web::SVG {
 
 class SVGClipPathElement final : public SVGGraphicsElement {
     WEB_WRAPPABLE(SVGClipPathElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGClipPathElement);
 
 public:
     virtual ~SVGClipPathElement();
@@ -39,7 +38,7 @@ public:
     GC::Ref<SVGAnimatedEnumeration> clip_path_units_for_bindings();
 
 private:
-    SVGClipPathElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGClipPathElement(DOM::RustMadePrefix);
 
     Optional<ClipPathUnits> m_clip_path_units = {};
 };

@@ -599,7 +599,7 @@ pub unsafe extern "C" fn rust_dom_lookup_prefix(node: &NodeCell, namespace_uri: 
     }
 }
 
-/// Whether `a` equals `b`, but for the state of doctypes, processing instructions and Attr nodes, which C++ compares.
+/// Whether `a` equals `b`, but for the state of Attr nodes, which C++ compares.
 /// https://dom.spec.whatwg.org/#concept-node-equals
 fn equals(main_thread: &mut MainThread<'_>, a: NodeRef, b: NodeRef) -> bool {
     if a == b {
@@ -652,11 +652,32 @@ fn equals(main_thread: &mut MainThread<'_>, a: NodeRef, b: NodeRef) -> bool {
             return false;
         }
         // DocumentType: Its name, public ID, and system ID.
+        NodeType::DOCUMENT_TYPE_NODE => {
+            let a_core = a.document_type_core().expect("the node is a doctype");
+            let b_core = b.document_type_core().expect("the node is a doctype");
+            if a_core.name().raw_identity() != b_core.name().raw_identity()
+                || !units_equal(a_core.public_id().units(), b_core.public_id().units())
+                || !units_equal(a_core.system_id().units(), b_core.system_id().units())
+            {
+                return false;
+            }
+        }
         // ProcessingInstruction: Its target and data.
+        NodeType::PROCESSING_INSTRUCTION_NODE => {
+            let a_core = a
+                .processing_instruction_core()
+                .expect("the node is a processing instruction");
+            let b_core = b
+                .processing_instruction_core()
+                .expect("the node is a processing instruction");
+            if a_core.target().raw_identity() != b_core.target().raw_identity()
+                || !units_equal(a.read(main_thread).data().units(), b.read(main_thread).data().units())
+            {
+                return false;
+            }
+        }
         // Attr: Its namespace, local name, and value.
-        NodeType::DOCUMENT_TYPE_NODE | NodeType::PROCESSING_INSTRUCTION_NODE | NodeType::ATTRIBUTE_NODE
-            if !hooks::node_state_equals(main_thread, a, b) =>
-        {
+        NodeType::ATTRIBUTE_NODE if !hooks::attr_state_equals(main_thread, a, b) => {
             return false;
         }
         _ => {}

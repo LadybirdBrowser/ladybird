@@ -4,22 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentType.h>
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(DocumentType);
+static_assert(is_shell_of_rust_object<DocumentType, RustFFI::DocumentTypeObject>);
 
 GC::Ref<DocumentType> DocumentType::create(Document& document)
 {
-    return GC::Heap::the().allocate<DocumentType>(document);
+    return static_cast<DocumentType&>(*RustFFI::rust_dom_create_document_type(&document));
 }
 
-DocumentType::DocumentType(Document& document)
-    : Node(document, NodeType::DOCUMENT_TYPE_NODE)
+DocumentType::DocumentType(VtableProbe probe)
+    : Node(probe)
 {
+    static_assert(offsetof(DocumentType, m_document_type_core) == offsetof(RustFFI::DocumentTypeObject, core));
 }
 
 // https://dom.spec.whatwg.org/#valid-doctype-name

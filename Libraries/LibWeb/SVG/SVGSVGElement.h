@@ -26,7 +26,6 @@ namespace Web::SVG {
 class SVGSVGElement final : public SVGGraphicsElement
     , public SVGFitToViewBox {
     WEB_WRAPPABLE(SVGSVGElement, SVGGraphicsElement);
-    GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:
     virtual CSS::ElementBoxKind box_kind() const override;
@@ -105,7 +104,7 @@ public:
     static Optional<CSSPixelFraction> view_box_natural_aspect_ratio(SVGSVGElement const&);
 
 private:
-    SVGSVGElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGSVGElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Visitor&) override;

@@ -219,8 +219,9 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
     return directory[index].node.ptr().ptr();
 }
 
-Node::Node(Document& document, NodeType type)
+Node::Node(VtableProbe)
     : EventTarget()
+    , m_core {}
 {
     // NB: libweb_rust reads a node as the NodePrefix it starts with.
     static_assert(sizeof(Node) == sizeof(RustFFI::NodePrefix));
@@ -229,13 +230,20 @@ Node::Node(Document& document, NodeType type)
     static_assert(offsetof(Node, m_node_directory_slot) == offsetof(RustFFI::NodePrefix, node_directory_slot));
     static_assert(offsetof(Node, m_rare_data) == offsetof(RustFFI::NodePrefix, rare_data));
 
-    m_core.document = &document;
-    m_core.root = this;
-    m_core.node_type = type;
-    // NB: A child list's generation is never 0, which is what an element that remembers no child index holds.
-    m_core.child_index_generation = 1;
-    // A Document is its own shadow-including root, so it is always connected.
-    set_is_connected(type == NodeType::DOCUMENT_NODE);
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Node, m_core) >= sizeof(EventTarget));
+    // NB: The fields of the cores are of the C++ types libweb_rust names its field types as, see Rust/build.rs, which
+    //     are laid out as those.
+    static_assert(sizeof(GC::Member<Node>) == 4 && alignof(GC::Member<Node>) == 4);
+    static_assert(sizeof(NodeType) == 2 && alignof(NodeType) == 2);
+    static_assert(sizeof(CSS::StyleNodeID) == 4 && alignof(CSS::StyleNodeID) == 4);
+    static_assert(sizeof(CSS::TreeScopeID) == 4 && alignof(CSS::TreeScopeID) == 4);
+}
+
+Node::Node(RustMadePrefix prefix)
+    : EventTarget(prefix)
+{
 }
 
 Node::~Node() = default;
@@ -336,6 +344,14 @@ void Node::set_webdriver_node_id(String node_id) const
 void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    if (m_rare_data)
+        m_rare_data->visit_edges(visitor);
+}
+
+void Node::visit_cxx_slot_edges(Cell::Visitor& visitor)
+{
+    visit_preserved_wrapper_edges(visitor);
+    visit_data_edges(visitor);
     if (m_rare_data)
         m_rare_data->visit_edges(visitor);
 }
@@ -966,7 +982,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
     CloneScope scope { .document = *document, .fallback_registry = fallback_registry, .exception = {} };
     RootedNodeList copies;
     GC::Ptr<Node> copy;
-    TRY(throw_if_not_valid(RustFFI::rust_dom_clone_a_node(this, subtree, parent.ptr(), &scope, &copies.core(), &copy)));
+    TRY(throw_if_not_valid(RustFFI::rust_dom_clone_a_node(this, document.ptr(), subtree, parent.ptr(), &scope, fallback_registry != nullptr, &copies.core(), &copy)));
     if (!copy)
         return scope.exception.release_value();
     return GC::Ref { *copy };
@@ -1141,7 +1157,8 @@ void Node::end_move(MoveScope& scope, Node& old_parent, Node& new_parent, GC::Pt
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
-// NB: This leaves out the attributes of an element, which libweb_rust copies, see Rust/src/dom/clone.rs.
+// NB: This leaves out the attributes of an element, which libweb_rust copies, see Rust/src/dom/clone.rs, and the nodes
+//     whose objects libweb_rust defines, which it copies itself, see Rust/src/dom/node_objects.rs.
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, GC::Ptr<HTML::CustomElementRegistry> fallback_registry) const
 {
     // To clone a single node given a node node, document document, and null or a CustomElementRegistry object fallbackRegistry:
@@ -1212,50 +1229,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document, G
                 document_copy->set_custom_element_registry(registry);
 
             copy = move(document_copy);
-        } else if (is_document_type()) {
-            // -> DocumentType
-            auto& document_type = as<DocumentType>(*this);
-            auto document_type_copy = DocumentType::create(document);
-
-            // Set copy’s name, public ID, and system ID to those of node.
-            document_type_copy->set_name(document_type.name());
-            document_type_copy->set_public_id(document_type.public_id());
-            document_type_copy->set_system_id(document_type.system_id());
-            copy = move(document_type_copy);
-        } else if (is_attribute()) {
-            // -> Attr
-            // Set copy’s namespace, namespace prefix, local name, and value to those of node.
-            auto& attr = as<Attr>(*this);
-            copy = attr.clone(document);
-        } else if (is_text()) {
-            // -> Text
-            auto& text = as<Text>(*this);
-
-            // Set copy’s data to that of node.
-            copy = [&]() -> GC::Ref<Text> {
-                switch (type()) {
-                case NodeType::TEXT_NODE:
-                    return Text::create(document, text.data());
-                case NodeType::CDATA_SECTION_NODE:
-                    return CDATASection::create(document, text.data());
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-            }();
-        } else if (is_comment()) {
-            // -> Comment
-            auto& comment = as<Comment>(*this);
-
-            // Set copy’s data to that of node.
-            auto comment_copy = Comment::create(document, comment.data());
-            copy = move(comment_copy);
-        } else if (is<ProcessingInstruction>(this)) {
-            // -> ProcessingInstruction
-            auto& processing_instruction = as<ProcessingInstruction>(*this);
-
-            // Set copy’s target and data to those of node.
-            auto processing_instruction_copy = ProcessingInstruction::create(document, processing_instruction.data(), processing_instruction.target());
-            copy = move(processing_instruction_copy);
         }
         // -> Otherwise
         //    Do nothing.
@@ -2342,43 +2315,21 @@ bool Node::is_equal_node(GC::Ptr<Node const> other_node) const
     if (!other_node)
         return false;
 
-    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs, and asks node_state_equals() below of the
-    //     nodes whose state has no core.
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs, and asks attr_state_equals() below of Attr
+    //     nodes, whose state it does not read.
     return RustFFI::rust_dom_is_equal_node(this, other_node.ptr());
 }
 
-// The part of "equals" for the state of a doctype, a processing instruction or an Attr node, whose interfaces the nodes
-// `a` and `b` both implement.
+// The part of "equals" for the state of the Attr nodes `a` and `b`.
 // https://dom.spec.whatwg.org/#concept-node-equals
-static bool node_state_equals(Node* a, Node* b)
+static bool attr_state_equals(Node* a, Node* b)
 {
-    switch (a->node_type()) {
-    case (u16)NodeType::DOCUMENT_TYPE_NODE: {
-        // Its name, public ID, and system ID.
-        auto& this_doctype = as<DocumentType>(*a);
-        auto& other_doctype = as<DocumentType>(*b);
-        return this_doctype.name() == other_doctype.name()
-            && this_doctype.public_id() == other_doctype.public_id()
-            && this_doctype.system_id() == other_doctype.system_id();
-    }
-    case (u16)NodeType::ATTRIBUTE_NODE: {
-        // Its namespace, local name, and value.
-        auto& this_attr = as<Attr>(*a);
-        auto& other_attr = as<Attr>(*b);
-        return this_attr.namespace_uri() == other_attr.namespace_uri()
-            && this_attr.local_name() == other_attr.local_name()
-            && this_attr.value() == other_attr.value();
-    }
-    case (u16)NodeType::PROCESSING_INSTRUCTION_NODE: {
-        // Its target and data.
-        auto& this_processing_instruction = as<ProcessingInstruction>(*a);
-        auto& other_processing_instruction = as<ProcessingInstruction>(*b);
-        return this_processing_instruction.target() == other_processing_instruction.target()
-            && this_processing_instruction.data() == other_processing_instruction.data();
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    // Its namespace, local name, and value.
+    auto& this_attr = as<Attr>(*a);
+    auto& other_attr = as<Attr>(*b);
+    return this_attr.namespace_uri() == other_attr.namespace_uri()
+        && this_attr.local_name() == other_attr.local_name()
+        && this_attr.value() == other_attr.value();
 }
 
 Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
@@ -4083,7 +4034,7 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     .attribute_changed = RustAttributeHooks::attribute_changed,
     .synchronize_style_attribute = RustAttributeHooks::synchronize_style_attribute,
     .character_data_replaced = RustCharacterDataHooks::character_data_replaced,
-    .node_state_equals = node_state_equals,
+    .attr_state_equals = attr_state_equals,
     .selection_range = RustCharacterDataHooks::selection_range,
 };
 

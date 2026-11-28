@@ -13,11 +13,9 @@ namespace Web::HTML {
 
 class HTMLTableCaptionElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTableCaptionElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTableCaptionElement);
+    friend struct DOM::RustElementObjectHooks;
 
 public:
-    virtual ~HTMLTableCaptionElement() override;
-
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 
@@ -25,7 +23,8 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::caption; }
 
 private:
-    HTMLTableCaptionElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTableCaptionElement(DOM::VtableProbe);
+    virtual ~HTMLTableCaptionElement() override = default;
 };
 
 }

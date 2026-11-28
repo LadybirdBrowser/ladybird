@@ -10,14 +10,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLParagraphElement);
-
-HTMLParagraphElement::HTMLParagraphElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLParagraphElement::HTMLParagraphElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLParagraphElement::~HTMLParagraphElement() = default;
 
 bool HTMLParagraphElement::is_presentational_hint(Utf16FlyString const& name) const
 {

@@ -15,10 +15,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLAnchorElement);
-
-HTMLAnchorElement::HTMLAnchorElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLAnchorElement::HTMLAnchorElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

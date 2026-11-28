@@ -24,7 +24,6 @@ class WEB_API HTMLSelectElement final
     : public HTMLElement
     , public AutocompleteElement {
     WEB_WRAPPABLE(HTMLSelectElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLSelectElement);
     AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLSelectElement);
 
 public:
@@ -151,7 +150,7 @@ public:
 private:
     friend class HTMLOptionElement;
 
-    HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLSelectElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     // ^DOM::Element

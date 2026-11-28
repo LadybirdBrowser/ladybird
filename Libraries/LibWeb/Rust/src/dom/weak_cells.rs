@@ -108,12 +108,16 @@ impl WeakCellRegistryField {
     }
 }
 
-#[cfg(test)]
 impl WeakCellRegistryField {
-    pub(crate) fn empty_for_test() -> Self {
+    /// The field of a document that has registered no cell of the set.
+    #[inline(always)]
+    pub(super) fn empty() -> Self {
         Self(Cell::new(core::ptr::null()))
     }
+}
 
+#[cfg(test)]
+impl WeakCellRegistryField {
     /// Mirrors `entries`, which live for the rest of the process, as C++ does.
     pub(crate) fn set_for_test(&self, entries: &'static [*const c_void]) {
         let span = Box::leak(Box::new(WeakCellSpan {

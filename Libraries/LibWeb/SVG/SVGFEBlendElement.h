@@ -18,7 +18,6 @@ class SVGFEBlendElement final
     : public SVGElement
     , public SVGFilterPrimitiveStandardAttributes<SVGFEBlendElement> {
     WEB_WRAPPABLE(SVGFEBlendElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGFEBlendElement);
 
 public:
     static constexpr u16 SVG_FEBLEND_MODE_UNKNOWN = 0;
@@ -48,7 +47,7 @@ public:
     GC::Ref<SVGAnimatedEnumeration> mode_for_bindings();
 
 private:
-    SVGFEBlendElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGFEBlendElement(DOM::RustMadePrefix);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value, Optional<Utf16FlyString> const& namespace_) override;

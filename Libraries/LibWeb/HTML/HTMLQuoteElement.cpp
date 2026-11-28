@@ -10,14 +10,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLQuoteElement);
-
-HTMLQuoteElement::HTMLQuoteElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLQuoteElement::HTMLQuoteElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLQuoteElement::~HTMLQuoteElement() = default;
 
 Optional<ARIA::Role> HTMLQuoteElement::default_role() const
 {

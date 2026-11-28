@@ -10,10 +10,8 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLTemplateElement);
-
-HTMLTemplateElement::HTMLTemplateElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLTemplateElement::HTMLTemplateElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

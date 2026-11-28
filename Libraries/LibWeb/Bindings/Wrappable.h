@@ -167,6 +167,7 @@ public:
 
 protected:
     Wrappable();
+    explicit Wrappable(EmbedderTypeIdIsWritten);
 
     [[nodiscard]] GC::Ptr<JS::HostObject> cached_main_world_wrapper() const;
     [[nodiscard]] GC::Ptr<JS::HostObject> cached_main_world_wrapper(WrapperWorld const&) const;
@@ -187,7 +188,8 @@ private:
     void set_cached_main_world_wrapper(JS::HostObject&);
     void clear_cached_main_world_wrapper(JS::HostObject const&);
 
-    // NB: GC::CellConstructionHook in DOM/Node.h writes the id of a node's class as it constructs the node.
+    // NB: libweb_rust writes the id of a node's class before C++ constructs the node, see DOM::RustMadePrefix. Only
+    //     GC::CellConstructionHook in DOM/Node.h writes it, into the probes of element classes.
     void set_node_class_id(DOM::NodeClassId id) { set_embedder_type_id(to_underlying(id)); }
 
     // Main-world preservation intentionally survives document navigation: an
@@ -210,16 +212,23 @@ public:
 
 protected:
     GCAllocatedWrappable() = default;
+    explicit GCAllocatedWrappable(EmbedderTypeIdIsWritten tag)
+        : Wrappable(tag)
+    {
+    }
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
+
+    // Visits the wrappers the object preserves.
+    void visit_preserved_wrapper_edges(GC::Cell::Visitor&);
 
 private:
     friend class WrapperWorld;
     friend WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
     friend WEB_API bool wrapper_is_preserved(JS::HostObject const&);
 
-    // NB: The preservation flags are the embedder flags of the cell.
+    // NB: The preservation flags are the embedder flags of the cell, where libweb_rust reads them.
     enum PreservationFlag : u8 {
         MainWorldWrapperIsPreserved = 1 << 0,
         HasNonMainWorldPreservedWrappers = 1 << 1,

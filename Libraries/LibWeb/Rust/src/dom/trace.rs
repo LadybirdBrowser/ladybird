@@ -23,10 +23,7 @@ use super::collection::CollectionCore;
 use super::event::EventCore;
 use super::node::heap_region_base;
 use super::node_class::NodeClassId;
-use super::prefix::{
-    AttrPrefix, CharacterDataPrefix, DocumentFragmentPrefix, DocumentPrefix, ElementPrefix, EventTargetPrefix,
-    HTMLSlotElementPrefix, NodePrefix, ShadowRootPrefix, TextPrefix,
-};
+use super::prefix::EventTargetPrefix;
 use super::range::RangeCore;
 use super::traversal::{NodeIteratorCore, TreeWalkerCore};
 
@@ -83,8 +80,9 @@ macro_rules! fields_without_cells {
 pub(super) use fields_without_cells;
 pub(super) use member_fields;
 
-/// Traces the fields Rust defines of the event target `cell`: those of its EventTargetPrefix, and of every prefix of a
-/// node class that it starts with.
+/// Traces the fields Rust defines of the event target `cell` that is no node: those of its EventTargetPrefix. Every
+/// node is an object Rust defines, whose trace traces its prefixes before it calls into the C++ visit_edges() that calls
+/// this, see element_objects.rs and node_objects.rs.
 ///
 /// # Safety
 ///
@@ -92,35 +90,10 @@ pub(super) use member_fields;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_dom_trace_event_target(cell: *const c_void, visitor: *mut GCVisitor) {
     // SAFETY: Guaranteed by the caller.
-    let mut visitor = unsafe { Visitor::from_raw(visitor) };
-    // SAFETY: Guaranteed by the caller.
     let class_id = unsafe { NodeClassId::of_cell(cell) };
-    // SAFETY: Every event target starts with the prefix of the most derived class of nodes it is of, which the C++
-    //         of each class asserts.
-    unsafe {
-        if class_id == NodeClassId::NotANode {
-            trace_as::<EventTargetPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::Element) {
-            if class_id.is_a(NodeClassId::HTMLSlotElement) {
-                trace_as::<HTMLSlotElementPrefix>(cell, &mut visitor);
-            } else {
-                trace_as::<ElementPrefix>(cell, &mut visitor);
-            }
-        } else if class_id.is_a(NodeClassId::Text) {
-            trace_as::<TextPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::CharacterData) {
-            trace_as::<CharacterDataPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::Document) {
-            trace_as::<DocumentPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::ShadowRoot) {
-            trace_as::<ShadowRootPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::DocumentFragment) {
-            trace_as::<DocumentFragmentPrefix>(cell, &mut visitor);
-        } else if class_id.is_a(NodeClassId::Attr) {
-            trace_as::<AttrPrefix>(cell, &mut visitor);
-        } else {
-            trace_as::<NodePrefix>(cell, &mut visitor);
-        }
+    if class_id == NodeClassId::NotANode {
+        // SAFETY: Guaranteed by the caller; every event target starts with its EventTargetPrefix.
+        unsafe { trace_as::<EventTargetPrefix>(cell, &mut Visitor::from_raw(visitor)) };
     }
 }
 
@@ -217,6 +190,7 @@ mod tests {
     use super::*;
     use crate::dom::node::Node;
     use crate::dom::node_core::NodeType;
+    use crate::dom::prefix::{ElementPrefix, NodePrefix, ShadowRootPrefix, TextPrefix};
     use crate::dom::test_tree::{append_child, node, set_assigned_slot, shadow_root};
     use crate::stage::MainThread;
 
@@ -224,8 +198,20 @@ mod tests {
     fn traced(node: Node<'_>) -> Vec<usize> {
         let mut recording = RecordingVisitor::new();
         let visitor = recording.raw();
+        let cell = core::ptr::from_ref(node.cell()).cast::<c_void>();
         // SAFETY: The node is live, and the visitor outlives the call.
-        unsafe { rust_dom_trace_event_target(core::ptr::from_ref(node.cell()).cast(), visitor) };
+        unsafe {
+            let mut visitor = Visitor::from_raw(visitor);
+            if node.is_element() {
+                trace_as::<ElementPrefix>(cell, &mut visitor);
+            } else if node.class_id() == NodeClassId::ShadowRoot {
+                trace_as::<ShadowRootPrefix>(cell, &mut visitor);
+            } else if node.class_id().is_a(NodeClassId::Text) {
+                trace_as::<TextPrefix>(cell, &mut visitor);
+            } else {
+                trace_as::<NodePrefix>(cell, &mut visitor);
+            }
+        }
         recording.take_visited()
     }
 

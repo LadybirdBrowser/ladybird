@@ -56,10 +56,8 @@ extern "C" {
 void web_html_form_element_submittable_elements(JSObject* form, void* elements, void (*on_element)(void*, DOM::Element*));
 }
 
-GC_DEFINE_ALLOCATOR(HTMLFormElement);
-
-HTMLFormElement::HTMLFormElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLFormElement::HTMLFormElement(DOM::RustMadePrefix prefix)
+    : HTMLElement(prefix)
 {
 }
 

@@ -415,10 +415,21 @@ public:
     ALWAYS_INLINE CellTypeInfo const& type_info() const { return HeapBlockBase::from_cell(this)->type_info(); }
 
 protected:
-    Cell() = default;
+    Cell()
+        : m_embedder_type_id(0)
+    {
+    }
+
+    // For a cell whose embedder type id was written into its memory before it is constructed, which this constructor
+    // leaves as it is, so that the id is valid throughout the construction of the cell. GCC takes the memory of an
+    // object to hold nothing until its constructor runs, and may write over the id, so code that constructs cells this
+    // way must be built with -fno-lifetime-dse.
+    struct EmbedderTypeIdIsWritten { };
+    explicit Cell(EmbedderTypeIdIsWritten) { }
 
     // The last bytes of the header belong to the embedder, which can keep flags of a cell and an id of its type there,
-    // where every C++ ABI lays them out alike. LibGC never reads them. Both are 0 in a new cell.
+    // where every C++ ABI lays them out alike. LibGC never reads them. Both are 0 in a new cell, unless the embedder
+    // wrote the type id before constructing it.
     u8 embedder_flags() const { return m_embedder_flags; }
     void set_embedder_flags(u8 flags) { m_embedder_flags = flags; }
     u16 embedder_type_id() const { return m_embedder_type_id; }
@@ -439,7 +450,7 @@ private:
     State m_state { State::Live };
     CellKind m_cell_kind { CellKind::Other };
     u8 m_embedder_flags { 0 };
-    u16 m_embedder_type_id { 0 };
+    u16 m_embedder_type_id;
 };
 
 // A cell whose type is implemented outside of C++ and allocated through LibGC/CAPI.h, such as a cell of the Rust

@@ -9,10 +9,8 @@
 
 namespace Web::SVG {
 
-GC_DEFINE_ALLOCATOR(SVGFEPointLightElement);
-
-SVGFEPointLightElement::SVGFEPointLightElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : SVGElement(document, qualified_name)
+SVGFEPointLightElement::SVGFEPointLightElement(DOM::RustMadePrefix prefix)
+    : SVGElement(prefix)
 {
 }
 

@@ -44,11 +44,15 @@ use super::node::compress;
 use super::node::decompress;
 use super::node_class::NodeClassId;
 use super::node_core::DocumentCore;
+use super::node_core::DocumentTypeCore;
 use super::node_core::NodeCore;
 use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::node_core::ParentNodeCore;
+use super::node_core::ProcessingInstructionCore;
+use super::node_objects::DocumentTypeObject;
+use super::node_objects::ProcessingInstructionObject;
 use super::prefix::AttrPrefix;
 use super::prefix::DocumentFragmentPrefix;
 use super::prefix::DocumentPrefix;
@@ -295,6 +299,28 @@ impl NodeRef {
         }
         // SAFETY: Every Attr node starts with an AttrPrefix, which Attr.cpp asserts.
         Some(&unsafe { prefix_of::<AttrPrefix, _>(self.pinned_cell()) }.core)
+    }
+
+    /// The processing instruction's core, read for as long as the reference is borrowed, during which nothing may call
+    /// into C++, or none for a node that is no processing instruction.
+    #[inline(always)]
+    pub(super) fn processing_instruction_core(&self) -> Option<&ProcessingInstructionCore> {
+        if self.class_id() != NodeClassId::ProcessingInstruction {
+            return None;
+        }
+        // SAFETY: Rust makes every processing instruction as a ProcessingInstructionObject.
+        Some(&unsafe { prefix_of::<ProcessingInstructionObject, _>(self.pinned_cell()) }.core)
+    }
+
+    /// The doctype's core, read for as long as the reference is borrowed, during which nothing may call into C++, or
+    /// none for a node that is no doctype.
+    #[inline(always)]
+    pub(super) fn document_type_core(&self) -> Option<&DocumentTypeCore> {
+        if self.class_id() != NodeClassId::DocumentType {
+            return None;
+        }
+        // SAFETY: Rust makes every doctype as a DocumentTypeObject.
+        Some(&unsafe { prefix_of::<DocumentTypeObject, _>(self.pinned_cell()) }.core)
     }
 
     /// The core of the element's NamedNodeMap, read for as long as the reference is borrowed, during which nothing may

@@ -28,7 +28,6 @@ class SVGPatternElement
     , public SVGFitToViewBox
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_WRAPPABLE(SVGPatternElement, SVGElement);
-    GC_DECLARE_ALLOCATOR(SVGPatternElement);
 
 public:
     virtual ~SVGPatternElement() override = default;
@@ -76,7 +75,7 @@ public:
     virtual CSS::ElementBoxKind box_kind() const override { return CSS::ElementBoxKind::NoBox; }
 
 protected:
-    SVGPatternElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGPatternElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;

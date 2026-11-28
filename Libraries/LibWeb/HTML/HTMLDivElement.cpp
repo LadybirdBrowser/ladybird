@@ -10,14 +10,10 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLDivElement);
-
-HTMLDivElement::HTMLDivElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : HTMLElement(document, move(qualified_name))
+HTMLDivElement::HTMLDivElement(DOM::VtableProbe probe)
+    : HTMLElement(probe)
 {
 }
-
-HTMLDivElement::~HTMLDivElement() = default;
 
 bool HTMLDivElement::is_presentational_hint(Utf16FlyString const& name) const
 {

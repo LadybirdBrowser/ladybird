@@ -19,8 +19,9 @@ namespace Web::DOM {
 // or of a class that descends from it, is whether its class id is in T's range.
 //
 // A node keeps the id of the class it was constructed as in the header of its cell (see Bindings::Wrappable), where C++
-// and libweb_rust (see Rust/src/dom/node_class.rs) read it. GC::CellConstructionHook in DOM/Node.h writes it, and fails
-// to compile for a class of nodes the file does not list. DOM/NodeClassSteps.cpp fails to compile where the file lists
+// and libweb_rust (see Rust/src/dom/node_class.rs) read it. libweb_rust writes it before C++ constructs the node, so
+// that it is valid throughout the construction. GC::CellConstructionHook in DOM/Node.h fails to compile for a class of
+// nodes the file does not list. DOM/NodeClassSteps.cpp fails to compile where the file lists
 // a class under another class than the one it derives from.
 // An event target that is no node has NodeClassId::NotANode.
 

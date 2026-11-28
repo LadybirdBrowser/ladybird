@@ -45,15 +45,13 @@
 
 namespace Web::HTML {
 
-GC_DEFINE_ALLOCATOR(HTMLObjectElement);
-
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name)
 {
     return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));
 }
 
-HTMLObjectElement::HTMLObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
-    : NavigableContainer(document, move(qualified_name))
+HTMLObjectElement::HTMLObjectElement(DOM::RustMadePrefix prefix)
+    : NavigableContainer(prefix)
 {
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:potentially-delays-the-load-event
     set_potentially_delays_the_load_event(true);

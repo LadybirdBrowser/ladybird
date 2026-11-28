@@ -12,7 +12,6 @@ namespace Web::SVG {
 
 class SVGCircleElement final : public SVGGeometryElement {
     WEB_WRAPPABLE(SVGCircleElement, SVGGeometryElement);
-    GC_DECLARE_ALLOCATOR(SVGCircleElement);
 
 public:
     virtual ~SVGCircleElement() override = default;
@@ -31,7 +30,7 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(r, Unspecified, SVGLengthValue::number(0));
 
 private:
-    SVGCircleElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGCircleElement(DOM::RustMadePrefix);
 };
 
 }

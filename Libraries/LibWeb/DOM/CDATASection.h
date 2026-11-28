@@ -6,24 +6,25 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
 #include <LibWeb/DOM/Text.h>
 
 namespace Web::DOM {
 
+// NB: libweb_rust defines, allocates and destroys every CDATASection, see Rust/src/dom/node_objects.rs.
 class CDATASection final : public Text {
     WEB_WRAPPABLE(CDATASection, Text);
-    GC_DECLARE_ALLOCATOR(CDATASection);
 
 public:
     [[nodiscard]] static GC::Ref<CDATASection> create(Document&, Utf16String data);
-    virtual ~CDATASection() override;
 
     // ^Node
     virtual Utf16FlyString node_name() const override { return "#cdata-section"_utf16_fly_string; }
 
 private:
-    CDATASection(Document&, Utf16String);
+    friend struct RustNodeObjectHooks;
+
+    explicit CDATASection(VtableProbe);
+    virtual ~CDATASection() override = default;
 };
 
 }

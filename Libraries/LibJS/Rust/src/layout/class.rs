@@ -20,6 +20,7 @@ pub struct CellTypeInfoLayout {
     pub destroy: *const c_void,
     pub external_memory_size: *const c_void,
     pub class_name: *const c_void,
+    pub traced_on_owner_thread: *const c_void,
 }
 
 /// Mirrors gc::class::Class up to the class it extends.

@@ -15,10 +15,12 @@ use libgc_api::member::write_barrier;
 
 use super::event_target::EventTargetMember;
 use super::id_map::IdMapField;
+use super::strings::FlyStringField;
 use super::strings::StringField;
 use super::weak_cells::WeakCellRegistryField;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
+use crate::stage::MainThread;
 
 super::trace::member_fields!(NodeMember, DocumentMember, ElementMember, ShadowRootMember);
 super::trace::fields_without_cells!(TreeScopeField, StyleNodeField, CppNodeFlags, NodeType);
@@ -93,10 +95,121 @@ pub struct CharacterDataCore {
 }
 
 impl CharacterDataCore {
+    /// The core of a new node whose data is `data`, which passes to it.
+    #[inline(always)]
+    pub(super) fn new(data: ak::Utf16String) -> Self {
+        Self {
+            data: StringField::from_owned(data),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-cd-data
     #[inline(always)]
     pub fn data(&self) -> &StringField {
         &self.data
+    }
+
+    /// The data's string, whose reference passes to the caller, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn take_data(&self) -> ak::Utf16String {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { self.data.take() }
+    }
+}
+
+/// The state of a ProcessingInstruction node beyond that of every CharacterData node, which Rust lays out at the end of
+/// the node and C++ embeds in DOM::ProcessingInstruction.
+/// https://dom.spec.whatwg.org/#interface-processinginstruction
+#[derive(Trace)]
+#[repr(C)]
+pub struct ProcessingInstructionCore {
+    /// https://dom.spec.whatwg.org/#concept-pi-target
+    target: FlyStringField,
+}
+
+impl ProcessingInstructionCore {
+    /// The core of a new node whose target is `target`, which passes to it.
+    #[inline(always)]
+    pub(super) fn new(target: ak::Utf16FlyString) -> Self {
+        Self {
+            target: FlyStringField::from_owned(target),
+        }
+    }
+
+    #[inline(always)]
+    pub fn target(&self) -> &FlyStringField {
+        &self.target
+    }
+
+    /// Drops the strings of the core, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn release(&self) {
+        // SAFETY: Guaranteed by the caller.
+        drop(unsafe { self.target.take() });
+    }
+}
+
+/// The state of a DocumentType node beyond that of every node, which Rust lays out at the end of the node and C++ embeds
+/// in DOM::DocumentType.
+/// https://dom.spec.whatwg.org/#interface-documenttype
+#[derive(Trace)]
+#[repr(C)]
+pub struct DocumentTypeCore {
+    /// https://dom.spec.whatwg.org/#concept-doctype-name
+    name: FlyStringField,
+    /// https://dom.spec.whatwg.org/#concept-doctype-publicid
+    public_id: StringField,
+    /// https://dom.spec.whatwg.org/#concept-doctype-systemid
+    system_id: StringField,
+}
+
+impl DocumentTypeCore {
+    /// The core of a new doctype with the strings given, whose references pass to it.
+    #[inline(always)]
+    pub(super) fn new(name: ak::Utf16FlyString, public_id: ak::Utf16String, system_id: ak::Utf16String) -> Self {
+        Self {
+            name: FlyStringField::from_owned(name),
+            public_id: StringField::from_owned(public_id),
+            system_id: StringField::from_owned(system_id),
+        }
+    }
+
+    #[inline(always)]
+    pub fn name(&self) -> &FlyStringField {
+        &self.name
+    }
+
+    #[inline(always)]
+    pub fn public_id(&self) -> &StringField {
+        &self.public_id
+    }
+
+    #[inline(always)]
+    pub fn system_id(&self) -> &StringField {
+        &self.system_id
+    }
+
+    /// Drops the strings of the core, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn release(&self) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            drop(self.name.take());
+            drop(self.public_id.take());
+            drop(self.system_id.take());
+        }
     }
 }
 
@@ -106,6 +219,12 @@ impl CharacterDataCore {
 pub struct ElementMember(Cell<u32>);
 
 impl ElementMember {
+    /// A field that holds `element`, or null, as GC::Member's constructor makes it, which takes no write barrier.
+    #[inline(always)]
+    pub(super) fn new(element: Option<NodePointer>) -> Self {
+        Self(Cell::new(element.map_or(0, NodePointer::compressed)))
+    }
+
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
@@ -151,6 +270,16 @@ pub struct TextCore {
 pub const TEXT_NO_MAX_LENGTH: u32 = u32::MAX;
 
 impl TextCore {
+    /// The core of a new Text node: one without an assigned slot, a maximum length, or a password to hold.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            assigned_slot: ElementMember(Cell::new(0)),
+            max_length: Cell::new(TEXT_NO_MAX_LENGTH),
+            is_password_input: Cell::new(false),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#slotable-assigned-slot
     #[inline(always)]
     pub fn assigned_slot(&self) -> Option<NodePointer> {
@@ -164,6 +293,12 @@ impl TextCore {
 pub struct ShadowRootMember(Cell<u32>);
 
 impl ShadowRootMember {
+    /// A field that holds null, as GC::Member's default constructor makes it.
+    #[inline(always)]
+    pub(super) fn null() -> Self {
+        Self(Cell::new(0))
+    }
+
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
@@ -183,6 +318,25 @@ pub struct DocumentFragmentCore {
 }
 
 impl DocumentFragmentCore {
+    /// The core of a new DocumentFragment, which has no host, and the tree scope number 0, as the constructor of
+    /// DOM::DocumentFragment makes it.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            host: ElementMember(Cell::new(0)),
+            style_engine_tree_scope: TreeScopeField(Cell::new(0)),
+        }
+    }
+
+    /// The core of a new shadow root, whose host is `host`, and whose tree scope C++ numbers as it needs one.
+    #[inline(always)]
+    pub(super) fn with_host(host: NodePointer) -> Self {
+        Self {
+            host: ElementMember(Cell::new(host.compressed())),
+            style_engine_tree_scope: TreeScopeField(Cell::new(0)),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-documentfragment-host
     #[inline(always)]
     pub fn host(&self) -> Option<NodePointer> {
@@ -226,6 +380,10 @@ pub const DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT: u8 
 pub struct DocumentCore {
     /// The DOCUMENT_* flags.
     flags: Cell<u8>,
+    /// Whether the document's custom element registry is a global custom element registry, which C++ keeps as it sets
+    /// the registry. Whether a registry is scoped never changes, so this changes only with the registry.
+    /// https://html.spec.whatwg.org/multipage/custom-elements.html#is-a-global-custom-element-registry
+    custom_element_registry_is_global: Cell<bool>,
     /// The document's Window, which is its relevant global object while it has a browsing context.
     window: WindowMember,
     /// The live ranges whose start node's node document is the document, as its DOM::WeakCellRegistry of them mirrors
@@ -259,10 +417,44 @@ pub struct DocumentCore {
 pub const COLLECTION_ATTRIBUTE_TYPE_COUNT: usize = 5;
 
 impl DocumentCore {
+    /// The core of a new document, which has no flags, Window, live ranges, NodeIterators or elements with IDs, and
+    /// whose tree versions rust_dom_start_tree_versions_of_document() starts, as the constructor of DOM::Document makes
+    /// it.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            flags: Cell::new(0),
+            custom_element_registry_is_global: Cell::new(false),
+            window: WindowMember(EventTargetMember::null()),
+            live_ranges: WeakCellRegistryField::empty(),
+            node_iterators: WeakCellRegistryField::empty(),
+            node_tree_version: Cell::new(0),
+            element_tree_version: Cell::new(0),
+            collection_attribute_versions: Default::default(),
+            element_tree_positions_dom_tree_version: Cell::new(0),
+            ids: IdMapField::empty(),
+        }
+    }
+
+    /// Releases the document's map of elements by ID, as LibGC destroys the document.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a document that is being destroyed, and nothing may read the map after.
+    pub(super) unsafe fn release(&self, main_thread: &mut MainThread<'_>) {
+        self.ids.release(main_thread);
+    }
+
     /// The DOCUMENT_* flags.
     #[inline(always)]
     pub fn flags(&self) -> u8 {
         self.flags.get()
+    }
+
+    /// Whether the document's custom element registry is a global custom element registry.
+    #[inline(always)]
+    pub(super) fn custom_element_registry_is_global(&self) -> bool {
+        self.custom_element_registry_is_global.get()
     }
 
     /// The elements of the document tree by their IDs.
@@ -558,6 +750,15 @@ pub struct ParentNodeCore {
 }
 
 impl ParentNodeCore {
+    /// The core of a new ParentNode, whose children never changed.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            dom_tree_version: Cell::new(0),
+            character_data_version: Cell::new(0),
+        }
+    }
+
     #[inline(always)]
     pub fn dom_tree_version(&self) -> u64 {
         self.dom_tree_version.get()
@@ -627,17 +828,7 @@ impl DocumentFragmentCore {
 #[cfg(test)]
 impl DocumentCore {
     pub(crate) fn for_test() -> Self {
-        Self {
-            flags: Cell::new(0),
-            window: WindowMember(EventTargetMember::null_for_test()),
-            live_ranges: WeakCellRegistryField::empty_for_test(),
-            node_iterators: WeakCellRegistryField::empty_for_test(),
-            node_tree_version: Cell::new(0),
-            element_tree_version: Cell::new(0),
-            collection_attribute_versions: Default::default(),
-            element_tree_positions_dom_tree_version: Cell::new(0),
-            ids: IdMapField::empty_for_test(),
-        }
+        Self::new()
     }
 
     pub(crate) fn set_flags_for_test(&self, flags: u8) {
@@ -675,6 +866,15 @@ impl NodeCore {
     /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own, whose node document is
     /// `document`.
     pub(crate) fn for_test(node_type: NodeType, node: NodePointer, document: NodePointer) -> Self {
+        Self::new(node_type, node, document)
+    }
+}
+
+impl NodeCore {
+    /// The core of `node`, a new node of `node_type` that is no document: the root of a tree of its own, which is not
+    /// connected, and whose node document is `document`.
+    #[inline(always)]
+    pub(super) fn new(node_type: NodeType, node: NodePointer, document: NodePointer) -> Self {
         let member = |node: Option<NodePointer>| NodeMember(Cell::new(node.map_or(0, NodePointer::compressed)));
         Self {
             parent: member(None),
@@ -690,6 +890,13 @@ impl NodeCore {
             cpp_flags: CppNodeFlags(Cell::new(0)),
             child_index_generation: Cell::new(1),
         }
+    }
+
+    /// Sets the NODE_* flags `flags` of a new node, as the constructors of the classes of nodes that start out with them
+    /// set them: a closed shadow root says so, and a document is connected.
+    #[inline(always)]
+    pub(super) fn set_initial_flags(&self, flags: u8) {
+        self.flags.set(self.flags.get() | flags);
     }
 }
 

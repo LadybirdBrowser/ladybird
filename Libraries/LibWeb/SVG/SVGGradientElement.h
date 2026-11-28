@@ -48,7 +48,7 @@ public:
     GC::Ref<SVGAnimatedTransformList> gradient_transform_for_bindings();
 
 protected:
-    SVGGradientElement(DOM::Document&, DOM::QualifiedName);
+    explicit SVGGradientElement(DOM::RustMadePrefix);
 
     Layout::RustFFI::FfiSvgGradientDescription base_paint_server_description(Layout::RustFFI::FfiSvgGradientKind) const;
     virtual void visit_edges(Cell::Visitor&) override;

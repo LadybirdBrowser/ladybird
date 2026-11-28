@@ -17,7 +17,6 @@ namespace Web::HTML {
 
 class HTMLTableElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTableElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTableElement);
 
 public:
     virtual ~HTMLTableElement() override;
@@ -52,7 +51,7 @@ public:
     [[nodiscard]] Optional<u32> cellpadding() const;
 
 private:
-    HTMLTableElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTableElement(DOM::RustMadePrefix);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

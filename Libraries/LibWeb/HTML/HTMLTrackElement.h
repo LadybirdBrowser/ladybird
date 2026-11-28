@@ -15,7 +15,6 @@ namespace Web::HTML {
 
 class HTMLTrackElement final : public HTMLElement {
     WEB_WRAPPABLE(HTMLTrackElement, HTMLElement);
-    GC_DECLARE_ALLOCATOR(HTMLTrackElement);
 
 public:
     static constexpr size_t track_offset() { return offsetof(HTMLTrackElement, m_track); }
@@ -26,7 +25,7 @@ public:
     GC::Ref<TextTrack> track() { return *m_track; }
 
 private:
-    HTMLTrackElement(DOM::Document&, DOM::QualifiedName);
+    explicit HTMLTrackElement(DOM::RustMadePrefix);
 
     virtual void initialize_element() override;
     virtual void visit_edges(Cell::Visitor&) override;
