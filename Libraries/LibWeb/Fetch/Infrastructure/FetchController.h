@@ -129,6 +129,7 @@ public:
     [[nodiscard]] Engine::FetchExecutor& started_fetch_executor() const;
 
     void stop_fetch();
+    void stop_request();
     void set_stop_steps(GC::Ref<GC::Function<void()>> stop_steps) { m_stop_steps = stop_steps; }
 
     void queue_fetch_task(GC::Ref<GC::Function<void()>>);
@@ -138,8 +139,6 @@ private:
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual void finalize() override;
-
-    void stop_request();
 
     WeakPtr<FetchControllerRegistry> m_registry;
     FetchControllerToken m_token;

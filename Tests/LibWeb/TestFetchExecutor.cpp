@@ -58,7 +58,8 @@ private:
 // The engines these tests run never reach main fetch's upgrade step.
 class UnusedKnownHSTSHostProvider final : public KnownHSTSHostProvider {
 public:
-    virtual bool is_known_hsts_host(Web::Fetch::Infrastructure::FetchControllerToken, String const&) override { VERIFY_NOT_REACHED(); }
+    virtual Optional<bool> known_answer(String const&) const override { VERIFY_NOT_REACHED(); }
+    virtual void look_up(Web::Fetch::Infrastructure::FetchParams const&, String const&, Function<void(bool)>) override { VERIFY_NOT_REACHED(); }
 };
 
 FetchExecutorServices services_for_current_thread()

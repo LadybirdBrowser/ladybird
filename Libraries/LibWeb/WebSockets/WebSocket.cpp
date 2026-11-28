@@ -214,9 +214,10 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
         return Error::from_string_literal("WebSocket connection was blocked");
     }
 
-    Fetch::Fetching::upgrade_request_to_https_for_known_hsts_host_if_appropriate(*request, [&](String const& host) {
-        return ResourceLoader::is_known_hsts_host(Bindings::principal_host_defined_page(client.realm()), host);
-    });
+    if (auto host = Fetch::Fetching::host_to_match_against_known_hsts_hosts(*request); host.has_value()) {
+        if (ResourceLoader::is_known_hsts_host(Bindings::principal_host_defined_page(client.realm()), *host))
+            Fetch::Fetching::upgrade_request_to_https(*request);
+    }
 
     if (m_ready_state != Requests::WebSocket::ReadyState::Connecting)
         return Error::from_string_literal("The WebSocket was closed before it connected");

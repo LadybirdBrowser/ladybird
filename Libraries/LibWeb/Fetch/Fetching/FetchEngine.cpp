@@ -10,6 +10,7 @@
 #include <LibWeb/Fetch/Fetching/FetchEngine.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 
@@ -88,14 +89,21 @@ void FetchEngine::handle_command(Engine::EngineCommand command)
         [](Engine::Command::AdoptNetworkTransport const&) { VERIFY_NOT_REACHED(); });
 }
 
-// Looks a host up through the page of the fetch's controller, on the agent that started the fetch.
-class PageKnownHSTSHostProvider final : public Engine::KnownHSTSHostProvider {
+class ResourceLoaderKnownHSTSHostProvider final : public Engine::KnownHSTSHostProvider {
 public:
-    virtual bool is_known_hsts_host(Infrastructure::FetchControllerToken controller_token, String const& host) override
+    virtual Optional<bool> known_answer(String const& host) const override
     {
-        auto controller = HTML::surrounding_agent().fetch_controller_registry.find(controller_token);
-        VERIFY(controller);
-        return ResourceLoader::is_known_hsts_host(controller->page(), host);
+        if (ResourceLoader::is_preloaded_hsts_host(host))
+            return true;
+        if (!ResourceLoader::is_initialized())
+            return false;
+        return {};
+    }
+
+    virtual void look_up(Infrastructure::FetchParams const& fetch_params, String const& host, Function<void(bool is_known)> on_answer) override
+    {
+        auto network_isolation_key = Infrastructure::determine_the_network_partition_key(fetch_params.request());
+        ResourceLoader::the().look_up_known_hsts_host(network_isolation_key, host, move(on_answer));
     }
 };
 
@@ -103,7 +111,7 @@ NonnullRefPtr<Engine::FetchExecutor> create_inline_fetch_executor(NonnullRefPtr<
 {
     Engine::FetchExecutorServices services {
         .event_loop = Core::EventLoop::current_weak(),
-        .known_hsts_host_provider = make_ref_counted<PageKnownHSTSHostProvider>(),
+        .known_hsts_host_provider = make_ref_counted<ResourceLoaderKnownHSTSHostProvider>(),
     };
     return Engine::InlineFetchExecutor::create(move(services), make<FetchEngine>(move(network_activity_observers), make<Engine::FetchEngineRecords::Agent>()));
 }

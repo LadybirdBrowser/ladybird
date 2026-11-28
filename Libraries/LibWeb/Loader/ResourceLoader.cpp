@@ -9,6 +9,7 @@
 #include <AK/Debug.h>
 #include <AK/NeverDestroyed.h>
 #include <LibCore/Directory.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Resource.h>
 #include <LibCore/System.h>
 #include <LibGC/Function.h>
@@ -238,10 +239,25 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
 // https://www.rfc-editor.org/rfc/rfc6797#section-8.2
 bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
 {
-    if (HTTP::HSTSPreloadData::the().is_known_preloaded_hsts_host(host.to_ascii_lowercase()))
+    if (is_preloaded_hsts_host(host))
         return true;
 
     return page.client().page_did_is_known_hsts_host(host);
+}
+
+bool ResourceLoader::is_preloaded_hsts_host(String const& host)
+{
+    return HTTP::HSTSPreloadData::the().is_known_preloaded_hsts_host(host.to_ascii_lowercase());
+}
+
+void ResourceLoader::look_up_known_hsts_host(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, String const& host, Function<void(bool is_known)> on_answer)
+{
+    auto request_client = request_client_for(network_isolation_key);
+    if (!request_client) {
+        Core::deferred_invoke([on_answer = move(on_answer)] { on_answer(true); });
+        return;
+    }
+    request_client->look_up_known_hsts_host(host, move(on_answer));
 }
 
 static void log_request_start(LoadRequest const& request)
