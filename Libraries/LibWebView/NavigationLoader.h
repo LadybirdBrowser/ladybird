@@ -132,6 +132,7 @@ private:
     void did_read_local_file_for_response(ErrorOr<LocalFile>);
 
     void determine_the_origin_of_the_response();
+    bool response_may_be_shown_in_the_pdf_viewer() const;
     bool reported_urls_match_the_response_url(URL::URL const&) const;
     bool reports_an_http_response_of_its_own() const;
     void did_acquire(bool succeeded);

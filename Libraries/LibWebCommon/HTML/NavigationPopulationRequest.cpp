@@ -249,6 +249,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationPopulationResult con
     TRY(encoder.encode(result.resource_cleared));
     TRY(encoder.encode(result.navigation_same_site_status));
     TRY(encoder.encode(result.inline_content_origin));
+    TRY(encoder.encode(result.pdf_viewer_origin));
     TRY(encoder.encode(result.document_id));
     return {};
 }
@@ -265,6 +266,7 @@ ErrorOr<Web::HTML::NavigationPopulationResult> decode(Decoder& decoder)
         .resource_cleared = TRY(decoder.decode<bool>()),
         .navigation_same_site_status = TRY(decoder.decode<Optional<HTTP::Cookie::SameSiteStatus>>()),
         .inline_content_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
+        .pdf_viewer_origin = TRY(decoder.decode<Optional<URL::Origin>>()),
         .document_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
     };
 }

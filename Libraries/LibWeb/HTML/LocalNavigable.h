@@ -847,6 +847,7 @@ public:
     bool resource_cleared = false;
     Optional<HTTP::Cookie::SameSiteStatus> navigation_same_site_status;
     Optional<URL::Origin> inline_content_origin;
+    Optional<URL::Origin> pdf_viewer_origin;
     Optional<CrossProcessId> document_id;
 
     void apply_to(NonnullRefPtr<SessionHistoryEntry> entry);
