@@ -30,8 +30,6 @@ public:
 
     virtual void set_being_activated(bool) override;
 
-    virtual bool is_html_label_element() const override { return true; }
-
 private:
     friend class DOM::EventDispatcher;
 
@@ -44,12 +42,5 @@ private:
 
     bool m_click_in_progress { false };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLLabelElement>() const { return is_html_label_element(); }
 
 }

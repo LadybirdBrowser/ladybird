@@ -31,8 +31,6 @@ protected:
     SVGScriptElement(DOM::Document&, DOM::QualifiedName);
 
 private:
-    virtual bool is_svg_script_element() const final { return true; }
-
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
@@ -49,12 +47,5 @@ private:
     virtual bool has_nomodule_attribute() const override { return false; }
     virtual HTML::ScriptElementFetchAttributes fetch_attributes() const override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGScriptElement>() const { return is_svg_script_element(); }
 
 }

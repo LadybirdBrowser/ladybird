@@ -62,8 +62,6 @@ protected:
 private:
     virtual void finalize() override;
 
-    virtual bool is_svg_image_element() const override { return true; }
-
     virtual CSS::ElementBoxKind box_kind() const override;
     virtual void decoded_image_data_did_update() override;
     virtual bool decoded_image_data_may_be_rendered() const override { return has_layout_box(); }
@@ -75,12 +73,5 @@ private:
     u64 m_current_fetch_id { 0 };
     GC::Ptr<SVGAnimatedPreserveAspectRatio> m_preserve_aspect_ratio;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGImageElement>() const { return is_svg_image_element(); }
 
 }

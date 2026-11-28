@@ -21,17 +21,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-menu
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::list; }
 
-    virtual bool is_html_menu_element() const override { return true; }
-
 private:
     HTMLMenuElement(DOM::Document&, DOM::QualifiedName);
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<Web::HTML::HTMLMenuElement>() const { return is_html_menu_element(); }
 
 }

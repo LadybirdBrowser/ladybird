@@ -167,7 +167,6 @@ private:
     virtual void adopted_from(DOM::Document&) override;
 
     // ^DOM::Node
-    virtual bool is_html_link_element() const override { return true; }
 
     // ^HTMLElement
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;

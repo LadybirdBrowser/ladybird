@@ -21,7 +21,8 @@ private:                                                                        
         return take_lazy_load_resumption_steps_internal();                                               \
     }                                                                                                    \
                                                                                                          \
-    virtual bool is_lazy_loading() const override { return true; }
+    static_assert(IsOneOf<ElementClass, HTMLImageElement, HTMLIFrameElement>,                            \
+        "DOM::Node::is_lazy_loading() must answer true for every lazy-loading element class")
 
 enum class LazyLoading {
     Lazy,

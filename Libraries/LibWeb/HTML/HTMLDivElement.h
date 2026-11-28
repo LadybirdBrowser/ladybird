@@ -21,8 +21,6 @@ public:
     // https://www.w3.org/TR/html-aria/#el-div
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::generic; }
 
-    virtual bool is_html_div_element() const override { return true; }
-
 protected:
     HTMLDivElement(DOM::Document&, DOM::QualifiedName);
 
@@ -30,12 +28,5 @@ private:
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLDivElement>() const { return is_html_div_element(); }
 
 }

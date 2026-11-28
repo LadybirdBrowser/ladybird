@@ -94,7 +94,6 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
-    virtual bool is_html_video_element() const override { return true; }
     virtual bool is_shown_elsewhere() const override;
     virtual HTMLMediaElement& media_element_for_controls() override;
 
@@ -132,12 +131,5 @@ private:
     // https://wicg.github.io/video-rvfc/#last-presented-frame-identifier
     u64 m_last_presented_frame_identifier { 0 };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLVideoElement>() const { return is_html_video_element(); }
 
 }

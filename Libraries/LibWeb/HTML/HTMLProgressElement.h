@@ -44,7 +44,6 @@ private:
     HTMLProgressElement(DOM::Document&, DOM::QualifiedName);
 
     // ^DOM::Node
-    virtual bool is_html_progress_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void computed_properties_changed() override;
@@ -58,12 +57,5 @@ private:
     GC::Ptr<DOM::Element> m_progress_bar_element;
     GC::Ptr<DOM::Element> m_progress_value_element;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLProgressElement>() const { return is_html_progress_element(); }
 
 }

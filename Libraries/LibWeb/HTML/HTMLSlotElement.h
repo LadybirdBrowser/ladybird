@@ -52,7 +52,6 @@ public:
 private:
     HTMLSlotElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_slot_element() const override { return true; }
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
@@ -60,12 +59,5 @@ private:
     // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes
     Vector<DOM::Slottable> m_manually_assigned_nodes;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLSlotElement>() const { return is_html_slot_element(); }
 
 }

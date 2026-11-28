@@ -19,16 +19,7 @@ public:
     virtual ~SVGPathElement() override = default;
 
 private:
-    virtual bool is_svg_path_element() const final { return true; }
-
     SVGPathElement(DOM::Document&, DOM::QualifiedName);
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGPathElement>() const { return is_svg_path_element(); }
 
 }

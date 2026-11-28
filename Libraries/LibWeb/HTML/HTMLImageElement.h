@@ -144,8 +144,6 @@ private:
 
     void update_the_image_data_impl(bool restart_the_animations, bool maybe_omit_events, u64 update_the_image_data_count);
 
-    virtual bool is_html_image_element() const override { return true; }
-
     virtual void initialize_element() override;
     virtual void finalize() override;
 
@@ -233,12 +231,5 @@ private:
 };
 
 void update_the_source_set(DOM::Element&);
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLImageElement>() const { return is_html_image_element(); }
 
 }

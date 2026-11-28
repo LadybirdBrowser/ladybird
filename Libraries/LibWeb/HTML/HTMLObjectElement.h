@@ -65,8 +65,6 @@ public:
 private:
     HTMLObjectElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_object_element() const override { return true; }
-
     virtual void initialize_element() override;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
@@ -113,12 +111,5 @@ private:
     HashTable<u64> m_pending_resource_fetches;
     u64 m_last_resource_fetch_id { 0 };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLObjectElement>() const { return is_html_object_element(); }
 
 }

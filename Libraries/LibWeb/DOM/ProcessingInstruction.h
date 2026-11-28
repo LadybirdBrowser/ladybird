@@ -29,7 +29,4 @@ private:
     Utf16FlyString m_target;
 };
 
-template<>
-inline bool Node::fast_is<ProcessingInstruction>() const { return node_type() == (u16)NodeType::PROCESSING_INSTRUCTION_NODE; }
-
 }

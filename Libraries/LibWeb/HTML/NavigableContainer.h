@@ -84,8 +84,6 @@ protected:
     void set_potentially_delays_the_load_event(bool value);
 
 private:
-    virtual bool is_navigable_container() const override { return true; }
-
     virtual void finalize() override;
 
     static void finish_destroying_the_child_navigable(Navigable&);
@@ -106,12 +104,5 @@ private:
     void report_used_color_scheme(CSS::PreferredColorScheme);
     CSS::PreferredColorScheme m_used_color_scheme { CSS::PreferredColorScheme::Light };
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::NavigableContainer>() const { return is_navigable_container(); }
 
 }

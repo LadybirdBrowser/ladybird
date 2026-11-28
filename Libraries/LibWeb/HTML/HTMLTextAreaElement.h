@@ -158,7 +158,6 @@ private:
 
     virtual EventResult handle_return_key(Utf16FlyString const& ui_input_type) override;
 
-    virtual bool is_html_textarea_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
     virtual CSS::ElementBoxKind box_kind() const override;
 
@@ -195,12 +194,5 @@ private:
     // NB: A missing value means that no uncommitted user edit remains.
     Optional<Utf16String> m_value_before_first_user_edit;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLTextAreaElement>() const { return is_html_textarea_element(); }
 
 }

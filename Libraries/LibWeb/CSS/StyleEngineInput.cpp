@@ -1804,8 +1804,10 @@ static u32 kind_style_adjustment_facts(DOM::Element const& element)
         facts |= ElementStyleAdjustmentFact::IsSvgElement;
         set(is<SVG::SVGGraphicsElement>(element), ElementStyleAdjustmentFact::IsSvgGraphicsElement);
         set(is<SVG::SVGSwitchElement>(element), ElementStyleAdjustmentFact::IsSvgSwitchElement);
-        set(element.is_svg_container(), ElementStyleAdjustmentFact::IsSvgContainer);
-        set(element.requires_svg_container(), ElementStyleAdjustmentFact::RequiresSvgContainer);
+        // NB: An <svg> element is the container every other SVG element requires.
+        auto is_svg_svg_element = element.is_svg_svg_element();
+        set(is_svg_svg_element, ElementStyleAdjustmentFact::IsSvgContainer);
+        set(!is_svg_svg_element, ElementStyleAdjustmentFact::RequiresSvgContainer);
         set(element.is_svg_foreign_object_element(), ElementStyleAdjustmentFact::IsSvgForeignObjectElement);
         set(is<SVG::SVGMaskElement>(element), ElementStyleAdjustmentFact::IsSvgMaskElement);
         set(is<SVG::SVGClipPathElement>(element), ElementStyleAdjustmentFact::IsSvgClipPathElement);

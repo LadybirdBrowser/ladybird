@@ -21,17 +21,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-span
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::generic; }
 
-    virtual bool is_html_span_element() const override { return true; }
-
 private:
     HTMLSpanElement(DOM::Document&, DOM::QualifiedName);
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLSpanElement>() const { return is_html_span_element(); }
 
 }

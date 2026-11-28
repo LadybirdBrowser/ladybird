@@ -172,45 +172,25 @@ public:
     bool is_comment() const { return type() == NodeType::COMMENT_NODE; }
     bool is_character_data() const { return first_is_one_of(type(), NodeType::TEXT_NODE, NodeType::COMMENT_NODE, NodeType::CDATA_SECTION_NODE, NodeType::PROCESSING_INSTRUCTION_NODE); }
     bool is_document_fragment() const { return type() == NodeType::DOCUMENT_FRAGMENT_NODE; }
-    bool is_parent_node() const { return is_element() || is_document() || is_document_fragment(); }
     bool is_slottable() const { return is_element() || is_text() || is_cdata_section(); }
     bool is_attribute() const { return type() == NodeType::ATTRIBUTE_NODE; }
     bool is_cdata_section() const { return type() == NodeType::CDATA_SECTION_NODE; }
-    virtual bool is_shadow_root() const { return false; }
+    bool is_shadow_root() const { return fast_is<ShadowRoot>(); }
 
-    virtual bool requires_svg_container() const { return false; }
-    virtual bool is_svg_container() const { return false; }
-    virtual bool is_svg_element() const { return false; }
-    virtual bool is_svg_graphics_element() const { return false; }
-    virtual bool is_svg_mask_element() const { return false; }
-    virtual bool is_svg_script_element() const { return false; }
-    virtual bool is_svg_style_element() const { return false; }
-    virtual bool is_svg_svg_element() const { return false; }
-    virtual bool is_svg_switch_element() const { return false; }
-    virtual bool is_svg_symbol_element() const { return false; }
-    virtual bool is_svg_use_element() const { return false; }
-    virtual bool is_svg_view_element() const { return false; }
-    virtual bool is_svg_a_element() const { return false; }
-    virtual bool is_svg_g_element() const { return false; }
-    virtual bool is_svg_foreign_object_element() const { return false; }
-    virtual bool is_svg_gradient_element() const { return false; }
-    virtual bool is_svg_pattern_element() const { return false; }
-    virtual bool is_svg_clip_path_element() const { return false; }
-    virtual bool is_svg_image_element() const { return false; }
-    virtual bool is_svg_text_content_element() const { return false; }
-    virtual bool is_svg_path_element() const { return false; }
-    virtual bool is_svg_rect_element() const { return false; }
-    virtual bool is_svg_circle_element() const { return false; }
-    virtual bool is_svg_ellipse_element() const { return false; }
-    virtual bool is_svg_polyline_element() const { return false; }
-    virtual bool is_svg_polygon_element() const { return false; }
-    virtual bool is_svg_line_element() const { return false; }
-    virtual bool is_svg_text_positioning_element() const { return false; }
-    virtual bool is_svg_text_element() const { return false; }
-    virtual bool is_svg_text_path_element() const { return false; }
-    virtual bool is_svg_geometry_element() const { return false; }
-    virtual bool is_svg_filter_element() const { return false; }
-    virtual bool is_mathml_anchor_element() const { return false; }
+    bool is_svg_element() const { return fast_is<SVG::SVGElement>(); }
+    bool is_svg_graphics_element() const { return fast_is<SVG::SVGGraphicsElement>(); }
+    bool is_svg_mask_element() const { return fast_is<SVG::SVGMaskElement>(); }
+    bool is_svg_script_element() const { return fast_is<SVG::SVGScriptElement>(); }
+    bool is_svg_style_element() const { return fast_is<SVG::SVGStyleElement>(); }
+    bool is_svg_svg_element() const { return fast_is<SVG::SVGSVGElement>(); }
+    bool is_svg_a_element() const { return fast_is<SVG::SVGAElement>(); }
+    bool is_svg_foreign_object_element() const { return fast_is<SVG::SVGForeignObjectElement>(); }
+    bool is_svg_gradient_element() const { return fast_is<SVG::SVGGradientElement>(); }
+    bool is_svg_pattern_element() const { return fast_is<SVG::SVGPatternElement>(); }
+    bool is_svg_clip_path_element() const { return fast_is<SVG::SVGClipPathElement>(); }
+    bool is_svg_geometry_element() const { return fast_is<SVG::SVGGeometryElement>(); }
+    bool is_svg_filter_element() const { return fast_is<SVG::SVGFilterElement>(); }
+    bool is_mathml_anchor_element() const { return fast_is<MathML::MathMLAnchorElement>(); }
 
     bool in_a_document_tree() const;
 
@@ -233,60 +213,33 @@ public:
     void recompute_editable_subtree_flags_and_repaint();
     // Brings the editing-host and empty-text stamps of the boxes in the subtree to the nodes' editability.
 
-    virtual bool is_html_element() const { return false; }
-    virtual bool is_html_html_element() const { return false; }
-    virtual bool is_html_anchor_element() const { return false; }
-    virtual bool is_html_area_element() const { return false; }
-    virtual bool is_html_base_element() const { return false; }
-    virtual bool is_html_body_element() const { return false; }
-    virtual bool is_html_head_element() const { return false; }
-    virtual bool is_html_heading_element() const { return false; }
-    virtual bool is_html_input_element() const { return false; }
-    virtual bool is_html_label_element() const { return false; }
-    virtual bool is_html_link_element() const { return false; }
-    virtual bool is_html_media_element() const { return false; }
-    virtual bool is_html_optgroup_element() const { return false; }
-    virtual bool is_html_option_element() const { return false; }
-    virtual bool is_html_progress_element() const { return false; }
-    virtual bool is_html_script_element() const { return false; }
-    virtual bool is_html_select_element() const { return false; }
-    virtual bool is_html_style_element() const { return false; }
-    virtual bool is_html_template_element() const { return false; }
-    virtual bool is_html_table_element() const { return false; }
-    virtual bool is_html_table_section_element() const { return false; }
-    virtual bool is_html_table_row_element() const { return false; }
-    virtual bool is_html_table_cell_element() const { return false; }
-    virtual bool is_html_table_col_element() const { return false; }
-    virtual bool is_html_title_element() const { return false; }
-    virtual bool is_html_br_element() const { return false; }
-    virtual bool is_html_button_element() const { return false; }
-    virtual bool is_html_details_element() const { return false; }
-    virtual bool is_html_dialog_element() const { return false; }
-    virtual bool is_html_slot_element() const { return false; }
-    virtual bool is_html_embed_element() const { return false; }
-    virtual bool is_html_object_element() const { return false; }
-    virtual bool is_html_canvas_element() const { return false; }
-    virtual bool is_html_form_element() const { return false; }
-    virtual bool is_html_image_element() const { return false; }
-    virtual bool is_html_video_element() const { return false; }
-    virtual bool is_html_iframe_element() const { return false; }
-    virtual bool is_html_div_element() const { return false; }
-    virtual bool is_html_span_element() const { return false; }
-    virtual bool is_html_textarea_element() const { return false; }
-    virtual bool is_html_frameset_element() const { return false; }
-    virtual bool is_html_fieldset_element() const { return false; }
-    virtual bool is_html_data_list_element() const { return false; }
-    virtual bool is_html_meter_element() const { return false; }
-    virtual bool is_html_li_element() const { return false; }
-    virtual bool is_html_menu_element() const { return false; }
-    virtual bool is_html_olist_element() const { return false; }
-    virtual bool is_html_ulist_element() const { return false; }
+    bool is_html_element() const { return fast_is<HTML::HTMLElement>(); }
+    bool is_html_html_element() const { return fast_is<HTML::HTMLHtmlElement>(); }
+    bool is_html_anchor_element() const { return fast_is<HTML::HTMLAnchorElement>(); }
+    bool is_html_area_element() const { return fast_is<HTML::HTMLAreaElement>(); }
+    bool is_html_body_element() const { return fast_is<HTML::HTMLBodyElement>(); }
+    bool is_html_input_element() const { return fast_is<HTML::HTMLInputElement>(); }
+    bool is_html_link_element() const { return fast_is<HTML::HTMLLinkElement>(); }
+    bool is_html_media_element() const { return fast_is<HTML::HTMLMediaElement>(); }
+    bool is_html_script_element() const { return fast_is<HTML::HTMLScriptElement>(); }
+    bool is_html_style_element() const { return fast_is<HTML::HTMLStyleElement>(); }
+    bool is_html_template_element() const { return fast_is<HTML::HTMLTemplateElement>(); }
+    bool is_html_details_element() const { return fast_is<HTML::HTMLDetailsElement>(); }
+    bool is_html_slot_element() const { return fast_is<HTML::HTMLSlotElement>(); }
+    bool is_html_iframe_element() const { return fast_is<HTML::HTMLIFrameElement>(); }
+    bool is_html_textarea_element() const { return fast_is<HTML::HTMLTextAreaElement>(); }
+    bool is_html_frameset_element() const { return fast_is<HTML::HTMLFrameSetElement>(); }
+    bool is_html_li_element() const { return fast_is<HTML::HTMLLIElement>(); }
+    bool is_html_menu_element() const { return fast_is<HTML::HTMLMenuElement>(); }
+    bool is_html_olist_element() const { return fast_is<HTML::HTMLOListElement>(); }
+    bool is_html_ulist_element() const { return fast_is<HTML::HTMLUListElement>(); }
     ALWAYS_INLINE bool is_html_ol_ul_menu_element() const
     {
         return is_html_olist_element() || is_html_ulist_element() || is_html_menu_element();
     }
-    virtual bool is_navigable_container() const { return false; }
-    virtual bool is_lazy_loading() const { return false; }
+    bool is_navigable_container() const { return fast_is<HTML::NavigableContainer>(); }
+    // NB: HTML::LazyLoadingElement asserts that these are its only classes.
+    bool is_lazy_loading() const { return fast_is<HTML::HTMLImageElement>() || fast_is<HTML::HTMLIFrameElement>(); }
 
     WebIDL::ExceptionOr<GC::Ref<Node>> pre_insert(GC::Ref<Node>, GC::Ptr<Node>);
     WebIDL::ExceptionOr<GC::Ref<Node>> pre_remove(GC::Ref<Node>);
@@ -511,7 +464,17 @@ public:
 
     virtual EventTarget* get_parent(Event const&) override;
 
+    // Whether the node is of class T, or of a class that descends from it, which its class id tells. See
+    // DOM/NodeClassId.h.
     template<typename T>
+    requires(HasNodeClassId<T>)
+    bool fast_is() const
+    {
+        return node_class_id_is_a<T>(node_class_id());
+    }
+    // NB: A class of nodes that is no class of its own, such as a mixin, specializes this.
+    template<typename T>
+    requires(!HasNodeClassId<T>)
     bool fast_is() const = delete;
 
     template<typename T>

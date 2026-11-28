@@ -123,7 +123,6 @@ public:
 private:
     HTMLFormElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_form_element() const override { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void inserted() override;
 
@@ -184,12 +183,5 @@ private:
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLFormElement>() const { return is_html_form_element(); }
 
 }

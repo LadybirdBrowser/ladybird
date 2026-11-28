@@ -24,8 +24,6 @@ public:
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return hyperlink_element_utils_extract_an_origin(); }
 
-    virtual bool is_mathml_anchor_element() const override { return true; }
-
     // ^EventTarget
     virtual bool is_focusable() const override;
 
@@ -44,12 +42,5 @@ private:
     virtual DOM::Element& hyperlink_element_utils_element() override { return *this; }
     virtual DOM::Element const& hyperlink_element_utils_element() const override { return *this; }
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<MathML::MathMLAnchorElement>() const { return is_mathml_anchor_element(); }
 
 }

@@ -124,7 +124,11 @@ public:
     requires(IsBaseOf<Wrappable, T> && requires { T::s_interface_name; })
     bool fast_is() const
     {
-        return implements_interface(T::s_interface_name);
+        // NB: The class id of a node tells its class without a virtual call. See DOM/NodeClassId.h.
+        if constexpr (DOM::HasNodeClassId<T>)
+            return DOM::node_class_id_is_a<T>(node_class_id());
+        else
+            return implements_interface(T::s_interface_name);
     }
 
     template<typename T>

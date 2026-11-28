@@ -25,20 +25,11 @@ public:
     WebIDL::Long start();
     void set_start(WebIDL::Long start);
 
-    virtual bool is_html_olist_element() const override { return true; }
-
 private:
     HTMLOListElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<Web::HTML::HTMLOListElement>() const { return is_html_olist_element(); }
 
 }

@@ -255,7 +255,6 @@ private:
 
     class ActiveVideoSink;
     struct RemoteFetchData;
-    virtual bool is_html_media_element() const final { return true; }
 
     struct EntireResource { };
     struct UntilEnd {
@@ -533,10 +532,3 @@ private:
 GC_UNTRACED_CAPTURE(Web::HTML::HTMLMediaElement::EntireResource);
 
 GC_UNTRACED_CAPTURE(Web::HTML::HTMLMediaElement::UntilEnd);
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLMediaElement>() const { return is_html_media_element(); }
-
-}

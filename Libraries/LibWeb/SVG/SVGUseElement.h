@@ -60,8 +60,6 @@ private:
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
-    virtual bool is_svg_use_element() const override { return true; }
-
     virtual CSS::ElementBoxKind box_kind() const override;
 
     virtual bool needs_preparation_for_style_computation() const override { return m_reclone_pending; }
@@ -102,12 +100,5 @@ private:
 public:
     using DocumentUseElementList = IntrusiveList<&SVGUseElement::m_list_node>;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGUseElement>() const { return is_svg_use_element(); }
 
 }

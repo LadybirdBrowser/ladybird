@@ -32,7 +32,6 @@ public:
 private:
     HTMLTableSectionElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_table_section_element() const override { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
@@ -40,12 +39,5 @@ private:
 
     GC::Ptr<DOM::HTMLCollection> mutable m_rows;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLTableSectionElement>() const { return is_html_table_section_element(); }
 
 }

@@ -61,7 +61,4 @@ private:
     GC::Member<Element> m_owner_element;
 };
 
-template<>
-inline bool Node::fast_is<Attr>() const { return is_attribute(); }
-
 }

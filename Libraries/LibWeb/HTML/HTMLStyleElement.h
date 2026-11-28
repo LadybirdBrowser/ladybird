@@ -38,7 +38,6 @@ private:
     GC::Ptr<DOM::DOMTokenList> m_blocking;
 
     // ^DOM::Node
-    virtual bool is_html_style_element() const override { return true; }
 
     // ^DOM::StyleElementBase
     virtual Element& as_element() override { return *this; }
@@ -47,12 +46,5 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLStyleElement>() const { return is_html_style_element(); }
 
 }

@@ -54,16 +54,7 @@ private:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
 
-    virtual bool is_html_fieldset_element() const override { return true; }
-
     GC::Ptr<DOM::HTMLCollection> m_elements;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLFieldSetElement>() const { return is_html_fieldset_element(); }
 
 }

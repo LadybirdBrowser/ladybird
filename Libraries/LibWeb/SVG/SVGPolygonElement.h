@@ -26,8 +26,6 @@ public:
     ReadonlySpan<Gfx::FloatPoint> points() const { return m_points; }
 
 private:
-    virtual bool is_svg_polygon_element() const final { return true; }
-
     SVGPolygonElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void visit_edges(Cell::Visitor&) override;
@@ -37,12 +35,5 @@ private:
 
     Vector<Gfx::FloatPoint> m_points;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGPolygonElement>() const { return is_svg_polygon_element(); }
 
 }

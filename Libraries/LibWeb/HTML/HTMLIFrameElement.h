@@ -59,7 +59,6 @@ private:
     HTMLIFrameElement(DOM::Document&, DOM::QualifiedName);
 
     // ^DOM::Node
-    virtual bool is_html_iframe_element() const override { return true; }
 
     // ^DOM::Element
     virtual void post_connection() override;
@@ -97,12 +96,5 @@ private:
 WEB_API void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);
 
 ReferrerPolicy::ReferrerPolicy determine_iframe_element_referrer_policy(GC::Ptr<DOM::Element> embedder);
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLIFrameElement>() const { return is_html_iframe_element(); }
 
 }

@@ -32,8 +32,6 @@ class WEB_API SVGElement
     GC_DECLARE_ALLOCATOR(SVGElement);
 
 public:
-    virtual bool requires_svg_container() const override { return true; }
-
     virtual CSS::ElementBoxKind box_kind() const override;
 
     // ^EventTarget
@@ -99,8 +97,6 @@ private:
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(Utf16FlyString const&) override { return *this; }
 
-    virtual bool is_svg_element() const final { return true; }
-
     Vector<CSS::StyleProperty> const& presentation_attribute_style() const;
     void update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
     void publish_presentation_attribute_style();
@@ -124,12 +120,5 @@ private:
     // boxes are not attached under this element's own layout position.
     Vector<GC::Weak<DOM::Element>> m_resource_box_referencing_elements;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<SVG::SVGElement>() const { return is_svg_element(); }
 
 }

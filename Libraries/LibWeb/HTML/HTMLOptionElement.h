@@ -59,7 +59,6 @@ private:
 
     HTMLOptionElement(DOM::Document&, DOM::QualifiedName);
 
-    virtual bool is_html_option_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
@@ -92,12 +91,5 @@ private:
     // The text in this option's row in its select's label sizer, which sizes the select to fit its widest option.
     GC::Ptr<DOM::Text> m_label_sizer_text;
 };
-
-}
-
-namespace Web::DOM {
-
-template<>
-inline bool Node::fast_is<HTML::HTMLOptionElement>() const { return is_html_option_element(); }
 
 }
