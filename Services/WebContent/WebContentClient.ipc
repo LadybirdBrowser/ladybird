@@ -199,8 +199,6 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_update_cookie(HTTP::Cookie::Cookie cookie) =|
     did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url) =|
 
-    did_is_known_hsts_host(String domain) => (bool result)
-
     did_lose_request_server_connection(Optional<Utf16String> top_level_site) => (Optional<IPC::TransportHandle> handle)
     request_media_server_connection() => (Optional<IPC::TransportHandle> handle)
     request_audio_server_connection() => (Optional<IPC::TransportHandle> handle)

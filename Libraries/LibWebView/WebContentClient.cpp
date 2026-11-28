@@ -1031,11 +1031,6 @@ void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
     }
 }
 
-Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_known_hsts_host(String domain)
-{
-    return m_session->hsts_store->is_known_hsts_host(domain);
-}
-
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection(Optional<Utf16String> top_level_site)
 {
     bool navigation_authorized = false;

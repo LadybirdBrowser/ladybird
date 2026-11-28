@@ -236,15 +236,6 @@ static ByteString sanitized_url_for_logging(URL::URL const& url)
     return url.to_byte_string();
 }
 
-// https://www.rfc-editor.org/rfc/rfc6797#section-8.2
-bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
-{
-    if (is_preloaded_hsts_host(host))
-        return true;
-
-    return page.client().page_did_is_known_hsts_host(host);
-}
-
 bool ResourceLoader::is_preloaded_hsts_host(String const& host)
 {
     return HTTP::HSTSPreloadData::the().is_known_preloaded_hsts_host(host.to_ascii_lowercase());

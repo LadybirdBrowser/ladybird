@@ -203,12 +203,6 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
         async_handle_file_return(0, file.release_value(), request_id);
 }
 
-Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
-{
-    auto session = m_session.strong_ref();
-    return session ? session->hsts_store->is_known_hsts_host(domain) : true;
-}
-
 Messages::WebWorkerClient::RequestMediaServerConnectionResponse WebWorkerClient::request_media_server_connection()
 {
     auto connection = connect_new_media_server_client(m_media_server_client, child_id(), is_private(), [weak_self = make_weak_ptr<WebWorkerClient>()]() -> ErrorOr<IPC::TransportHandle> {

@@ -99,14 +99,6 @@ Optional<Web::Permissions::PermissionSnapshot> PageHost::page_did_request_permis
     return response->take_snapshot();
 }
 
-bool PageHost::page_did_is_known_hsts_host(String const& domain)
-{
-    auto response = m_client.send_sync_but_allow_failure<Messages::WebWorkerClient::DidIsKnownHstsHost>(domain);
-    if (!response)
-        return true;
-    return response->result();
-}
-
 // NB: The sync requests below fail once the worker is terminated or loses its connection, and the empty answers they
 //     fall back to grant nothing.
 HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const& url, HTTP::Cookie::Source source)
