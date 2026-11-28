@@ -14,6 +14,7 @@ use core::ptr::NonNull;
 use std::rc::Rc;
 
 use ak::{Span, Utf16FlyString, Utf16String};
+use libgfx_rust::IntPoint;
 use libjs_rust::api::{Gc, Realm, Utf16View, Vm};
 
 use crate::bindings::conversions::CppInterface;
@@ -27,6 +28,8 @@ unsafe extern "C" {
     fn web_drag_data_store_create_file_entry(file_name: Utf16String, realm: Gc<Realm>) -> NonNull<c_void>;
     fn web_drag_data_store_delete_byte_buffer(owner: NonNull<NativeByteBuffer>);
     fn web_drag_data_store_encode_file_data(bytes: Span<'_, u8>, result: &mut Base64Result);
+    fn web_drag_data_store_generate_drag_image(element: NonNull<c_void>) -> *mut NativeDragImage;
+    fn web_drag_data_store_delete_drag_image(image: NonNull<NativeDragImage>);
 }
 
 #[repr(C)]
@@ -57,6 +60,28 @@ impl Drop for NativeFileBytes {
     fn drop(&mut self) {
         // SAFETY: C++ transfers ownership of the buffer to this value.
         unsafe { web_drag_data_store_delete_byte_buffer(self.owner) };
+    }
+}
+
+#[repr(C)]
+pub(super) struct NativeDragImage {
+    _opaque: [u8; 0],
+}
+
+pub(super) struct DragImage(NonNull<NativeDragImage>);
+
+impl DragImage {
+    pub(super) fn generate_from(element: CppInterface) -> Option<Self> {
+        // SAFETY: The wrapper is a live Element, and LibWeb hands over an image that it allocated with new, or null.
+        NonNull::new(unsafe { web_drag_data_store_generate_drag_image(element.wrapper().as_non_null().cast()) })
+            .map(Self)
+    }
+}
+
+impl Drop for DragImage {
+    fn drop(&mut self) {
+        // SAFETY: LibWeb transferred ownership of the image to this value.
+        unsafe { web_drag_data_store_delete_drag_image(self.0) };
     }
 }
 
@@ -116,6 +141,10 @@ pub(crate) struct DragDataStore {
     mode: Cell<Mode>,
     // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-allowed-effects-state
     allowed_effects_state: RefCell<Utf16FlyString>,
+    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-bitmap
+    bitmap: RefCell<Option<DragImage>>,
+    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-hot-spot-coordinate
+    hot_spot_coordinate: Cell<Option<IntPoint>>,
 }
 
 impl DragDataStore {
@@ -124,6 +153,8 @@ impl DragDataStore {
             item_list: RefCell::default(),
             mode: Cell::new(Mode::Protected),
             allowed_effects_state: RefCell::new(Utf16FlyString::from_utf8("uninitialized")),
+            bitmap: RefCell::default(),
+            hot_spot_coordinate: Cell::default(),
         })
     }
 
@@ -141,6 +172,14 @@ impl DragDataStore {
 
     pub(super) fn set_allowed_effects_state(&self, state: Utf16FlyString) {
         *self.allowed_effects_state.borrow_mut() = state;
+    }
+
+    pub(super) fn set_bitmap(&self, bitmap: Option<DragImage>) {
+        *self.bitmap.borrow_mut() = bitmap;
+    }
+
+    pub(super) fn set_hot_spot_coordinate(&self, coordinate: IntPoint) {
+        self.hot_spot_coordinate.set(Some(coordinate));
     }
 
     pub(super) fn len(&self) -> usize {
@@ -249,6 +288,23 @@ impl Drop for OwnedDragDataStore {
 }
 
 #[repr(C)]
+pub(super) struct DragImageView {
+    image: *const NativeDragImage,
+    hot_spot_x: i32,
+    hot_spot_y: i32,
+}
+
+impl DragImageView {
+    fn of(image: Option<&DragImage>, hot_spot: IntPoint) -> Self {
+        Self {
+            image: image.map_or(core::ptr::null(), |image| image.0.as_ptr()),
+            hot_spot_x: hot_spot.x,
+            hot_spot_y: hot_spot.y,
+        }
+    }
+}
+
+#[repr(C)]
 pub(super) struct DragDataStoreItemView {
     type_string: usize,
     data: usize,
@@ -326,4 +382,12 @@ pub(super) extern "C" fn web_rust_drag_data_store_add_file(
         FileBytes::Native(data),
         name.to_utf16_string(),
     );
+}
+
+#[unsafe(no_mangle)]
+pub(super) extern "C" fn web_rust_drag_data_store_bitmap(store: &DragDataStore) -> DragImageView {
+    DragImageView::of(
+        store.bitmap.borrow().as_ref(),
+        store.hot_spot_coordinate.get().unwrap_or_default(),
+    )
 }

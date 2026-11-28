@@ -11,12 +11,13 @@ use core::cell::{self, Cell, RefCell};
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
+use libgfx_rust::IntPoint;
 use libjs_rust::api::{GcRefCell, Must, Object, Trace, Utf16View, Value, Vm};
 
 use super::data_transfer_item::DataTransferItem;
 use super::data_transfer_item_list::DataTransferItemList;
-use super::drag_data_store::{DragDataStore, Mode};
-use crate::bindings::conversions::{ToJs, frozen_array_to_js, sequence_to_js};
+use super::drag_data_store::{DragDataStore, DragImage, Mode};
+use crate::bindings::conversions::{CppInterface, ToJs, frozen_array_to_js, sequence_to_js};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::setlike::WorldEntries;
 use crate::bindings::{CallContext, WebIdlResult};
@@ -36,6 +37,8 @@ pub(crate) struct DataTransfer {
     #[gc(untraced)]
     types: RefCell<Vec<Utf16String>>,
     types_arrays: WorldEntries<Object>,
+    #[gc(untraced)]
+    was_constructed: Cell<bool>,
 }
 
 impl Wrappable for DataTransfer {}
@@ -51,6 +54,7 @@ impl DataTransfer {
             item_list: GcRefCell::new(Vec::with_capacity(count)),
             types: RefCell::default(),
             types_arrays: WorldEntries::default(),
+            was_constructed: Cell::new(false),
         });
 
         for index in 0..count {
@@ -69,7 +73,9 @@ impl DataTransfer {
 
         // 3. Set the dropEffect and effectAllowed to "none".
         // NB: create() sets both to "none".
-        Ok(Self::create(cx.vm(), store))
+        let transfer = Self::create(cx.vm(), store);
+        transfer.was_constructed.set(true);
+        Ok(transfer)
     }
 
     // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-dropeffect
@@ -141,6 +147,34 @@ impl DataTransfer {
             this.items.set(Some(items));
             items
         }))
+    }
+
+    // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-setdragimage
+    pub(crate) fn set_drag_image(&self, _: &mut CallContext, image: CppInterface, x: i32, y: i32) -> WebIdlResult<()> {
+        // 1. If the DataTransfer object is no longer associated with a drag data store, return. Nothing happens.
+        let store = self.store.borrow();
+        let Some(store) = store.as_ref() else {
+            return Ok(());
+        };
+
+        // 2. If the drag data store's mode is not the read/write mode, return. Nothing happens.
+        if store.mode() != Mode::ReadWrite {
+            return Ok(());
+        }
+
+        // OPTIMIZATION: Nothing reads the bitmap of a DataTransfer that a script constructed, which starts no drag.
+        if self.was_constructed.get() {
+            return Ok(());
+        }
+
+        // 3. If image is an img element, then set the drag data store bitmap to the element's image (at its natural
+        //    size); otherwise, set the drag data store bitmap to an image generated from the given element (the exact
+        //    mechanism for doing so is not currently specified).
+        store.set_bitmap(DragImage::generate_from(image));
+
+        // 4. Set the drag data store hot spot coordinate to the given x, y coordinate.
+        store.set_hot_spot_coordinate(IntPoint { x, y });
+        Ok(())
     }
 
     pub(super) fn drop_effect_value(&self) -> Utf16FlyString {

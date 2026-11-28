@@ -11,10 +11,25 @@
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/kmalloc.h>
+#include <LibGfx/DecodedImageFrame.h>
+#include <LibWebCommon/PixelUnits.h>
 
 namespace Web::HTML {
 
 struct RustDragDataStore;
+
+struct DragImage {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Optional<Gfx::DecodedImageFrame> frame;
+    CSSPixelSize size;
+};
+
+struct DragFeedback {
+    DragImage image;
+    CSSPixelPoint hot_spot;
+};
 
 class DragDataStore final : public RefCounted<DragDataStore> {
 public:
@@ -42,6 +57,8 @@ public:
     bool has_text_item() const;
 
     void set_mode(Mode);
+
+    Optional<DragFeedback> bitmap() const;
 
     RustDragDataStore const* rust_store() const { return m_store; }
 
