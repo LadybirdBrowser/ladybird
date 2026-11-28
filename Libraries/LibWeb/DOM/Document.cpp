@@ -962,6 +962,7 @@ bool Document::is_running_update_layout() const
 void Document::finalize()
 {
     stop_compositor_animation_timers();
+    cancel_active_refresh();
     if (m_layout_node_arena)
         m_layout_node_arena->stop_reporting_box_presence({});
     tear_down_layout_tree();
@@ -6409,6 +6410,7 @@ void Document::destroy()
 
     m_page->notifications_document_destroyed(*this);
     stop_compositor_animation_timers();
+    cancel_active_refresh();
 
     // AD-HOC: Notify document observers that this document became inactive.
     //         This handles iframe-removal destruction, which doesn't otherwise go through
@@ -8002,6 +8004,11 @@ void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::H
     if (m_will_declaratively_refresh)
         return;
 
+    // AD-HOC: A destroyed document never refreshes. A script that holds on to it can still insert a meta element into
+    //         it, and nothing would stop a timer started now until the document is collected.
+    if (m_has_been_destroyed)
+        return;
+
     // 2. Let position point at the first code point of input.
     Utf16GenericLexer lexer(input);
 
@@ -8159,6 +8166,14 @@ void Document::shared_declarative_refresh_steps(Utf16View input, GC::Ptr<HTML::H
     if (meta_element && m_completely_loaded_time.has_value()) {
         m_active_refresh_timer->start();
     }
+}
+
+void Document::cancel_active_refresh()
+{
+    if (!m_active_refresh_timer)
+        return;
+    m_active_refresh_timer->stop();
+    m_active_refresh_timer = nullptr;
 }
 
 Painting::DocumentPaintState& Document::paint_state()
