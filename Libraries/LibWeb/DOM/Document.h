@@ -1905,6 +1905,8 @@ protected:
 private:
     bool script_edits_for_the_user() const;
 
+    void cancel_active_refresh();
+
     bool update_is_fully_active() const;
     bool compute_is_fully_active() const;
 
