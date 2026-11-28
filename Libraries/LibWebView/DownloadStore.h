@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -30,8 +31,8 @@ struct WEBVIEW_API DownloadRecord {
     String url;
     String display_url;
 
-    String destination;
-    String temporary_destination;
+    ByteString destination;
+    ByteString temporary_destination;
     i64 total_size { 0 };
     Optional<String> etag;
     Optional<String> last_modified;
