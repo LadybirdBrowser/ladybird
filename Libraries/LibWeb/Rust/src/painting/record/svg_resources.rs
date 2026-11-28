@@ -203,6 +203,28 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let device_scale = self.inputs.device_pixels_per_css_pixel as f32;
         content_units_transform_in_recorded_space.values[4] *= device_scale;
         content_units_transform_in_recorded_space.values[5] *= device_scale;
+        let mut target_to_enclosing_space = target_to_enclosing_space;
+        if self
+            .source
+            .node_kind_if_live(target)
+            .is_some_and(|kind| !crate::painting::style_queries::kind_is_svg_element_box(kind))
+        {
+            // A CSS box records in absolute layout pixels.
+            let origin = crate::painting::paintable_geometry::absolute_border_box_rect(self.source, target).location();
+            target_to_enclosing_space = multiply_affine(
+                target_to_enclosing_space,
+                AffineTransform {
+                    values: [
+                        1.0,
+                        0.0,
+                        0.0,
+                        1.0,
+                        origin.x.to_float() * device_scale,
+                        origin.y.to_float() * device_scale,
+                    ],
+                },
+            );
+        }
         let root_transform = multiply_affine(target_to_enclosing_space, content_units_transform_in_recorded_space);
         // A mask's output is coverage rather than color anyone sees, and a luminance mask's lightness is its alpha,
         // so force-dark stays out of it. Patterns keep it: they render as page content.
@@ -357,10 +379,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         self.recorder.set_accumulated_visual_context(walk.enclosing_context);
 
-        let effects_group = facts
-            .effects_data()
-            .map(|effects| (self.recorder.begin_isolated_group(), effects));
-
         let mut to_enclosing_space = parent_to_enclosing_space;
         if include_element_transform && let Some(transform) = facts.transform {
             to_enclosing_space = multiply_affine(
@@ -368,6 +386,23 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 affine_of_matrix(transform.matrix_including_origin()),
             );
         }
+
+        let clip_path_depth = self.recorder.ambient_inline_clip_depth();
+        if let Some((path, _, winding_rule)) = &facts.clip_path
+            && !self
+                .source
+                .node_kind_if_live(svg_box)
+                .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
+        {
+            self.recorder
+                .push_ambient_inline_clips(&[PendingInlineClip::intersecting_path(
+                    &path.copy_transformed(to_enclosing_space.values),
+                    *winding_rule,
+                )]);
+        }
+        let effects_group = facts
+            .effects_data()
+            .map(|effects| (self.recorder.begin_isolated_group(), effects));
 
         let mut mask_groups: Vec<(OpenRecorderGroup, MaskData, usize)> = Vec::new();
         for mask in facts
@@ -464,6 +499,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 },
             );
         }
+        self.recorder.truncate_ambient_inline_clips(clip_path_depth);
     }
 
     fn paint_svg_box_own_content_inside_resource(

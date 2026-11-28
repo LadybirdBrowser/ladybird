@@ -150,14 +150,24 @@ impl<'a> ViewportMapping<'a> {
         space: ViewportSpace,
     ) -> Option<CssPixelRect> {
         let overflow_clip = node_values::overflow_clip_rect(arena, node);
-        let clip_path_bounds =
-            basic_shapes::compute_basic_shape_clip_path_data(arena, node, 1.0).map(|(_, bounds, _)| {
+        let clip_path_bounds = basic_shapes::compute_basic_shape_clip_path_data(arena, node, 1.0)
+            .map(|(_, bounds, _)| {
                 CssPixelRect::new(
                     CssPixels::from_integer(bounds.x.into()),
                     CssPixels::from_integer(bounds.y.into()),
                     CssPixels::from_integer(bounds.width.into()),
                     CssPixels::from_integer(bounds.height.into()),
                 )
+            })
+            .or_else(|| {
+                let style = arena.node_style_if_live(node)?;
+                if !style_queries::clip_path_is_url(style.mask()) {
+                    return None;
+                }
+                let area = crate::painting::svg_masking::css_box_clip_path_mask_area(arena, node)?;
+                Some(area.translated_by(
+                    crate::painting::paintable_geometry::absolute_border_box_rect(arena, node).location(),
+                ))
             });
         let clip = match (overflow_clip, clip_path_bounds) {
             (Some(overflow_clip), Some(clip_path_bounds)) => overflow_clip.intersected(clip_path_bounds),

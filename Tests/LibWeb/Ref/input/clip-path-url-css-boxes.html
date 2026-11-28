@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/clip-path-url-css-boxes-ref.html" />
+<style>
+    .column {
+        float: left;
+        width: 110px;
+    }
+    .case {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+    }
+</style>
+<div id="clip-paths">
+    <svg width="0" height="0" style="position: absolute">
+        <clipPath id="left-half" clipPathUnits="objectBoundingBox">
+            <rect width="0.5" height="1" />
+        </clipPath>
+        <clipPath id="moved" clipPathUnits="objectBoundingBox">
+            <rect width="1" height="1" />
+        </clipPath>
+    </svg>
+    <svg id="moved-first" width="0" height="0" style="position: absolute">
+        <clipPath id="moved" clipPathUnits="objectBoundingBox">
+            <rect width="0.5" height="1" />
+        </clipPath>
+    </svg>
+</div>
+<div class="column">
+    <div class="case">
+        <div style="position: absolute; width: 100px; height: 100px; background: green; clip-path: url(#inner)">
+            <svg width="100%" height="100%" style="display: block">
+                <clipPath id="inner" clipPathUnits="objectBoundingBox">
+                    <path id="inner-path" d="M0 0 h0.5 v0.5 h-0.5 Z" />
+                </clipPath>
+            </svg>
+        </div>
+    </div>
+    <div class="case" style="display: flex; clip-path: url(#left-half)">
+        <div style="flex: 1; background: green"></div>
+        <div style="flex: 1; background: red"></div>
+    </div>
+    <div class="case" id="gains-block" style="clip-path: url(#left-half)"><span style="display: inline-block; vertical-align: top; width: 100px; height: 50px; background: green"></span></div>
+</div>
+<div class="column">
+    <div class="case" style="background: green; clip-path: url(#late)"></div>
+    <div class="case" style="background: green; clip-path: url(#moved)"></div>
+    <div class="case" style="writing-mode: vertical-rl">
+        <div style="width: 100px; height: 100px; background: green; clip-path: url(#left-half)"></div>
+    </div>
+    <div class="case" style="background: green; clip-path: url(other-document.svg#left-half)"></div>
+</div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("inner-path").setAttribute("d", "M0 0.5 h1 v0.5 h-1 Z");
+            const block = document.createElement("div");
+            block.style.height = "50px";
+            block.style.background = "green";
+            document.getElementById("gains-block").appendChild(block);
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.setAttribute("width", "0");
+            svg.setAttribute("height", "0");
+            svg.innerHTML = '<clipPath id="late" clipPathUnits="objectBoundingBox"><rect width="0.5" height="1" /></clipPath>';
+            document.body.appendChild(svg);
+            const clipPaths = document.getElementById("clip-paths");
+            clipPaths.moveBefore(document.getElementById("moved-first"), clipPaths.firstElementChild);
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

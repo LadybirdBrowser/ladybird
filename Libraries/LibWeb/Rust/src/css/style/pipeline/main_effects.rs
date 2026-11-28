@@ -362,7 +362,9 @@ impl RetainedState {
             )
             .with(
                 MainEffects::SVG_REFERENCES,
-                adjustment_facts & element_adjustment_fact::IS_SVG_ELEMENT != 0,
+                adjustment_facts & element_adjustment_fact::IS_SVG_ELEMENT != 0
+                    || old_values.is_some_and(|old| crate::painting::style_queries::clip_path_is_url(old.mask()))
+                    || crate::painting::style_queries::clip_path_is_url(new_values.mask()),
             )
             .with(MainEffects::TIMELINES, timelines_differ)
             .with(

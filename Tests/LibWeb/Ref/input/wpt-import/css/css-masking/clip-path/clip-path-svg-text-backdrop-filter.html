@@ -1,0 +1,25 @@
+<!doctype html>
+<link rel="help" href="http://www.w3.org/TR/css-masking-1/#the-clip-path">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/clip-path-svg-text-backdrop-filter-ref.html">
+<meta name="fuzzy" content="0-1;0-200">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../fonts/ahem.css" />
+<style>
+.masked {
+  width: 500px;
+  height: 300px;
+  clip-path: url(#svgPath);
+  backdrop-filter: invert(100%);
+  background: transparent;
+}
+#svgText {
+  font: 100px/1 Ahem;
+}
+</style>
+<div class="masked"></div>
+<svg>
+  <clipPath id="svgPath">
+    <text id="svgText" x="10" y="100">Text</text>
+  </clipPath>
+</svg>

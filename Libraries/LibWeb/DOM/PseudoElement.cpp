@@ -11,8 +11,10 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/PseudoElement.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::DOM {
 
@@ -80,6 +82,17 @@ void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::E
     context.add_effect(abstract_element, effect);
 }
 
+static void republish_clip_path_references_if_needed(GC::Ptr<Element> originating_element, CSS::PseudoElement type, CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
+{
+    if (type != CSS::PseudoElement::Before && type != CSS::PseudoElement::After)
+        return;
+    if (!originating_element || is<SVG::SVGElement>(*originating_element) || originating_element->style_node_id() == 0)
+        return;
+    if (!Layout::clip_path_is_url(old_style) && !Layout::clip_path_is_url(new_style))
+        return;
+    Layout::publish_pseudo_element_clip_path_references(*originating_element);
+}
+
 void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& read, CSS::InstalledStyle style)
 {
     VERIFY(m_originating_element);
@@ -94,6 +107,7 @@ void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& re
         layout_node->set_style_record_identity(m_installed_style);
     if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0)
         CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), {}, style_record_identity.value(), held_before.record_pointer());
+    republish_clip_path_references_if_needed(m_originating_element, type(), held_before, m_installed_style);
 }
 
 void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read, CSS::StyleEngineFFI::Record const* record)
@@ -104,9 +118,10 @@ void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read,
     VERIFY(style_record);
     if (m_installed_style.record() == style_record)
         return;
-    m_installed_style = move(style);
+    auto held_before = exchange(m_installed_style, move(style));
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(m_installed_style);
+    republish_clip_path_references_if_needed(m_originating_element, type(), held_before, m_installed_style);
 }
 
 void SyntheticPseudoElement::set_computed_style(Layout::BegunRead const& read, CSS::InstalledStyle style)
@@ -131,7 +146,8 @@ void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues con
         if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0 && !!m_installed_style.record())
             CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(m_originating_element->document().style_computer().style_engine().host(), style_node_id, to_underlying(type()), {}, 0, m_installed_style.record_pointer());
     }
-    m_installed_style = {};
+    auto held_before = exchange(m_installed_style, {});
+    republish_clip_path_references_if_needed(m_originating_element, type(), held_before, m_installed_style);
 }
 
 SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type)

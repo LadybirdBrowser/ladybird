@@ -2177,6 +2177,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let box_facts = self.facts(child);
             if box_facts.is_box()
                 && !box_facts.is_absolutely_positioned()
+                && !box_facts.is_svg_resource_box()
                 && !self.run.pass.can_skip_is_anonymous_text_run(child)
             {
                 debug_assert!(

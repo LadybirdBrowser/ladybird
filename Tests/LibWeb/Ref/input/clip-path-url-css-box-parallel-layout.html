@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-url-css-box-parallel-layout-ref.html" />
+<style>
+    #clipped {
+        width: 200px;
+        background: red;
+        clip-path: url(#left-half);
+    }
+    #clipped div {
+        width: 100px;
+        height: 4px;
+        background: green;
+    }
+</style>
+<script>
+    internals.forceParallelLayout();
+</script>
+<svg width="0" height="0" style="position: absolute">
+    <clipPath id="left-half" clipPathUnits="objectBoundingBox">
+        <rect width="0.5" height="1" />
+    </clipPath>
+</svg>
+<div id="clipped"></div>
+<script>
+    document.getElementById("clipped").innerHTML = "<div></div>".repeat(40);
+</script>

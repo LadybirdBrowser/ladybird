@@ -186,9 +186,10 @@ impl crate::layout::tree_plan::content_items::RetainedQuotes for UnitQuotes<'_> 
 
 /// Whether the child list of `root`, the box of `element`, may change in part, planned from a window of it, as far as
 /// the list's box tells: it is a block container, a box, a list item or an inline box, whose list holds blocks or inline
-/// content, and no button, part of a table, shadow host, slot, SVG element or element whose contents are skipped, nor
-/// the parent of the text a writing suggestion is in. The anonymous boxes of a box that lays its contents out in some,
-/// and the lists of shadow hosts and slots, which hold nodes of other parents, need the whole list.
+/// content, and no button, part of a table, shadow host, slot, SVG element, element whose clip path is an SVG resource
+/// or element whose contents are skipped, nor the parent of the text a writing suggestion is in. The anonymous boxes
+/// of a box that lays its contents out in some, and the lists of shadow hosts and slots, which hold nodes of other
+/// parents, need the whole list.
 fn list_may_change_in_part(host: &TreeBuilderHost<'_>, root: LayoutNode, element: StyleNodeID) -> bool {
     let arena = host.arena();
     let root_data = arena.data(root);
@@ -208,6 +209,7 @@ fn list_may_change_in_part(host: &TreeBuilderHost<'_>, root: LayoutNode, element
             && engine.element_adjustment_facts(element)
                 & (element_adjustment_fact::IS_SVG_ELEMENT | element_adjustment_fact::IS_SVG_SWITCH_ELEMENT)
                 == 0
+            && arena.style_node_svg_attribute_facts(element).clip_path_reference_atom == 0
             && engine
                 .element_published_box_facts(element)
                 .is_some_and(|facts| facts.content_visibility == content_visibility::VISIBLE)

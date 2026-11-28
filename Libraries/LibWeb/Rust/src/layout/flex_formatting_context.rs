@@ -1216,7 +1216,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             if facts.is_box() {
                 let skip = self.run.pass.can_skip_is_anonymous_text_run(child);
                 // Skip any "out-of-flow" children
-                if !skip && !facts.is_absolutely_positioned() {
+                if !skip && !facts.is_absolutely_positioned() && !facts.is_svg_resource_box() {
                     // Flex inhibits floating, so only absolute positioning is out of flow here.
                     debug_assert!(
                         node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem),
@@ -4589,6 +4589,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let facts = self.facts(child);
             if facts.is_box()
                 && !facts.is_absolutely_positioned()
+                && !facts.is_svg_resource_box()
                 && !self.run.pass.can_skip_is_anonymous_text_run(child)
             {
                 let index = self.index_of_flex_item(child)?;

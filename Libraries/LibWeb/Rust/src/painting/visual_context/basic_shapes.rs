@@ -915,6 +915,20 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
+    if let StyleValueData::Url { .. } = clip_path {
+        let (path, winding_rule) = crate::painting::svg_masking::css_box_clip_path_of_lone_shape(layout_arena, slot)?;
+        let border_box = crate::painting::border_shape::reference_box(
+            layout_arena,
+            slot,
+            style,
+            Some(keyword::BORDER_BOX),
+            keyword::BORDER_BOX,
+        );
+        let device_path = device_path_from_local_path(path, border_box, pixel_ratio);
+        let device_bounding_rect =
+            libgfx_rust::enclosing_int_rect(libgfx_rust::FloatRect::from_array(device_path.bounding_box()));
+        return Some((device_path, device_bounding_rect, winding_rule));
+    }
     // [ <basic-shape> || <geometry-box> ], as a lone shape, a lone box, or a shape followed by its box.
     let (shape, geometry_box) = match clip_path {
         StyleValueData::BasicShape { shape } => (Some(shape.as_ref()), None),

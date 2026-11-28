@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>CSS Masking: Test clip-path property with svg clipPath element in column</title>
+<link rel="author" title="Fredrik Söderquist" href="mailto:fs@opera.com">
+<link rel="help" href="https://drafts.fxtf.org/css-masking-1/#the-clip-path">
+<link rel="issue" href="https://bugs.chromium.org/p/chromium/issues/detail?id=626097">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/reference/clip-path-columns-shape-002-ref.html">
+<meta name="assert" content="This test ensures that clip-path property works correctly in column layout when SVG <clipPath> elements with clipPathUnits='userSpaceOnUse' is referenced.">
+<style>
+body { margin: 0; }
+.clipped {
+  background-color: green;
+  border: 5px solid red;
+  -webkit-clip-path: url(#c);
+  clip-path: url(#c);
+}
+</style>
+<div style="columns: 2; column-gap: 0; width: 200px; height: 100px">
+  <div style="height: 100px"></div>
+  <div style="height: 90px" class="clipped"></div>
+</div>
+<svg>
+  <clipPath id="c" clipPathUnits="userSpaceOnUse">
+    <rect x="5" y="5" width="90" height="90"/>
+  </clipPath>
+</svg>

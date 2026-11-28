@@ -1566,6 +1566,15 @@ fn pseudo_element_record_damage_of_views(
     if counter_styles_changed {
         damage.merge(StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF));
     }
+    let old_clip_path = crate::painting::style_queries::handle_value(&old_values.mask().clip_path);
+    let new_clip_path = crate::painting::style_queries::handle_value(&new_values.mask().clip_path);
+    if old_clip_path != new_clip_path
+        && [old_clip_path, new_clip_path]
+            .iter()
+            .any(|clip_path| matches!(clip_path, Some(StyleValueData::Url { .. })))
+    {
+        damage.merge(StyleInvalidation::rebuild_layout_tree_from(REBUILD_ROOT_SELF));
+    }
     // A display: contents pseudo-element has no principal layout node to receive its updated
     // style. A list-item pseudo-element also owns a generated marker whose layout state is not
     // updated through the originating element. Rebuild their layout subtrees when a style change

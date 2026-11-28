@@ -569,6 +569,23 @@ pub(crate) fn place_child(
         abspos_boxes_placed_with_it.extend(lay_out_pending_abspos_children(run, batch));
     }
     let node_facts = NodeFacts::new(pass, node);
+    if node_facts.is_box()
+        && !crate::painting::style_queries::kind_is_svg_element_box(node_facts.data().kind.get())
+        && node_facts
+            .computed_values_view_if_styled()
+            .is_some_and(|style| crate::painting::style_queries::clip_path_is_url(style.mask()))
+    {
+        let metrics = &geometry.cells;
+        let collapsed = metrics.uses_collapsing_borders_model();
+        svg_formatting_context::lay_out_clip_path_of_css_box(
+            run,
+            node,
+            pass.frame.size_to_physical(
+                metrics.border_box_inline_size(collapsed),
+                metrics.border_box_block_size(collapsed),
+            ),
+        );
+    }
     let committed_offset = point_add(
         offset,
         committed_offset_delta_at_placement(

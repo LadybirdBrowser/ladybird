@@ -159,9 +159,12 @@ impl<A: PaintRead> PointResolver<'_, A> {
                 .map(move |index| (child, paintable_geometry::absolute_fragment_rect(arena, child, index)))
         };
         let children = || {
-            arena
-                .children(node)
-                .filter(|&child| arena.paintable_row_is_populated(child))
+            arena.children(node).filter(|&child| {
+                arena.paintable_row_is_populated(child)
+                    && !arena
+                        .node_kind_if_live(child)
+                        .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
+            })
         };
         let mut candidates: Vec<(NodeSlotId, CssPixelRect)> = children()
             .filter(|&child| {
@@ -266,7 +269,13 @@ impl<A: PaintRead> PointResolver<'_, A> {
         let arena = self.arena;
         let child = arena
             .children(node)
-            .filter(|&child| arena.paintable_row_is_populated(child) && arena.node_is_dom_backed(child))
+            .filter(|&child| {
+                arena.paintable_row_is_populated(child)
+                    && arena.node_is_dom_backed(child)
+                    && !arena
+                        .node_kind_if_live(child)
+                        .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
+            })
             .min_by(|&a, &b| {
                 distance(&paintable_geometry::absolute_rect(arena, a))
                     .total_cmp(&distance(&paintable_geometry::absolute_rect(arena, b)))

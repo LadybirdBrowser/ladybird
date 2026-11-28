@@ -856,7 +856,11 @@ impl<'a, A: PaintRead> InlineCursor<'a, A> {
         {
             return position;
         }
-        if arena.children(node).next().is_none() {
+        if arena.children(node).all(|child| {
+            arena
+                .node_kind_if_live(child)
+                .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
+        }) {
             return CaretPosition::StartOfBox { node };
         }
         beside(past_middle)

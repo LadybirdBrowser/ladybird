@@ -71,6 +71,7 @@ public:
 
     void register_resource_box_referencing_element(Badge<DOM::CommitMessages>, DOM::Element&);
     void mark_resource_box_referencing_elements_for_content_change();
+    void update_boxes_clipped_by_enclosing_clip_path_after_style_change(Layout::BegunRead const&, CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style);
     void note_svg_paint_resource_description_may_have_changed();
 
     RefPtr<CSS::StyleValue const> parse_presentation_attribute(CSS::PropertyID, Utf16View) const;
