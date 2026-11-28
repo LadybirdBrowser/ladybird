@@ -6,7 +6,7 @@
 
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/HighResolutionTime/Clocks.h>
 
 namespace Web::Fetch::Infrastructure {
 

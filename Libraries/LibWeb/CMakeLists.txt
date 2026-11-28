@@ -335,6 +335,7 @@ set(SOURCES
     Geometry/DOMRectList.cpp
     Geometry/DOMRectReadOnly.cpp
     GPC/GlobalPrivacyControl.cpp
+    HighResolutionTime/Clocks.cpp
     HighResolutionTime/TimeOrigin.cpp
     HTML/AbstractWorker.cpp
     HTML/BitmapDecodedImageData.cpp

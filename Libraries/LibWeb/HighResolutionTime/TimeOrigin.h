@@ -9,19 +9,15 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
-#include <LibWebCommon/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWeb/HighResolutionTime/Clocks.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HighResolutionTime {
 
 DOMHighResTimeStamp estimated_monotonic_time_of_the_unix_epoch();
 DOMHighResTimeStamp get_time_origin_timestamp(JS::Object const&);
-WEB_API DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No);
 WEB_API DOMHighResTimeStamp current_high_resolution_time(JS::Object const&);
 DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp, JS::Object const&);
 DOMHighResTimeStamp relative_high_resolution_coarsen_time(DOMHighResTimeStamp, JS::Object const&);
-WEB_API DOMHighResTimeStamp coarsened_shared_current_time(HTML::CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability = HTML::CanUseCrossOriginIsolatedAPIs::No);
-DOMHighResTimeStamp wall_clock_unsafe_current_time();
-WEB_API DOMHighResTimeStamp unsafe_shared_current_time();
 
 }

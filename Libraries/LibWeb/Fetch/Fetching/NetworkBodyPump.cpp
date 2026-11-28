@@ -16,7 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/HighResolutionTime/Clocks.h>
 
 namespace Web::Fetch::Fetching {
 
