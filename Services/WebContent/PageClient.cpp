@@ -1179,6 +1179,12 @@ GC::Ptr<WebContentConsoleClient> PageClient::attach_js_console(Web::DOM::Documen
 
 void PageClient::page_did_finish_loading(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id)
 {
+    // The UI announces the load from the accessibility tree it holds, so send it the changes still waiting first: They
+    // arrive ahead of the load finishing.
+    if (m_accessibility_update_timer && m_accessibility_update_timer->is_active() && page().accessibility_interested()) {
+        m_accessibility_update_timer->stop();
+        publish_accessibility_tree(false);
+    }
     client().async_did_finish_loading(m_id, navigable_id, document_id);
 }
 
