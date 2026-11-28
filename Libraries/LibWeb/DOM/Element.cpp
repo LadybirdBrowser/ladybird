@@ -419,8 +419,9 @@ void RustAttributeHooks::attribute_changed(Node* node, QualifiedName::Impl* name
         element.enqueue_an_attribute_changed_callback_reaction(name.local_name(), old_value, new_value, name.namespace_());
 
     // 3. Run the attribute change steps with element, attribute’s local name, oldValue, newValue, and attribute’s namespace.
+    // NB: libweb_rust compared the values, and says whether they differ.
     if (steps & RustFFI::ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS)
-        element.run_attribute_change_steps(name.local_name(), old_value, new_value, name.namespace_());
+        element.run_attribute_change_steps(name.local_name(), old_value, new_value, name.namespace_(), (steps & RustFFI::ATTRIBUTE_CHANGE_VALUE_IS_UNCHANGED) ? Element::AttributeValueChanged::No : Element::AttributeValueChanged::Yes);
     else if (steps & RustFFI::ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE)
         element.tell_style_engine_of_attribute_change(name.local_name(), old_value, new_value, name.namespace_());
 }
@@ -1302,7 +1303,7 @@ void Element::did_publish_presentational_hint_properties(ReadonlySpan<CSS::Style
         m_published_presentational_hint_properties.unchecked_append(property);
 }
 
-void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
+void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_, AttributeValueChanged value_changed)
 {
     attribute_changed(local_name, old_value, value, namespace_);
 
@@ -1310,16 +1311,16 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
     // the names whose change steps are specified elsewhere - and one of them is `style`, whose
     // early return is taken by exactly the CSSOM writes that change it. An attribute a selector
     // tests has to be heard about however it was written.
-    if (old_value != value)
+    if (value_changed == AttributeValueChanged::Yes)
         CSS::record_element_attribute_changed(*this, local_name, namespace_, old_value, value);
 
-    if (old_value != value
+    if (value_changed == AttributeValueChanged::Yes
         && local_name.is_one_of(HTML::AttributeNames::spellcheck, HTML::AttributeNames::readonly, HTML::AttributeNames::disabled, HTML::AttributeNames::type, HTML::AttributeNames::contenteditable)) {
         if (auto* controller = document().spell_check_controller_if_exists())
             controller->did_change_checking_state(*this);
     }
 
-    if (old_value != value) {
+    if (value_changed == AttributeValueChanged::Yes) {
         // An SVG element's parsed attributes are layout input, published under its style node. Published here,
         // after the change steps, rather than from SVGElement's: each SVG element runs its base class's steps before it
         // parses the new value itself.
