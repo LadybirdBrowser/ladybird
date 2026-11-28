@@ -8,7 +8,19 @@
 #pragma once
 
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/Forward.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+class Response;
+
+}
+
+namespace Web::ContentSecurityPolicy {
+
+class Policy;
+
+}
 
 namespace Web::ContentSecurityPolicy::Directives {
 

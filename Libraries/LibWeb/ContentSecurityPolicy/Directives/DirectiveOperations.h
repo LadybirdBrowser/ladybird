@@ -6,13 +6,27 @@
 
 #pragma once
 
+#include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
-#include <LibGC/Ptr.h>
+#include <AK/Vector.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/Forward.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+class Response;
+
+}
+
+namespace Web::ContentSecurityPolicy {
+
+class Policy;
+
+}
 
 namespace Web::ContentSecurityPolicy::Directives {
 
