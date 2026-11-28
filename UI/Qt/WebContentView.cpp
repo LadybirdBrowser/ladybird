@@ -30,6 +30,7 @@
 #include <LibWebCommon/CSS/SystemColor.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/UIEvents/MouseButton.h>
+#include <LibWebCommon/UIEvents/PhysicalKey.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/Utilities.h>
@@ -2802,6 +2803,21 @@ struct KeyData : Web::BrowserInputData {
     NonnullOwnPtr<QKeyEvent> event;
 };
 
+static Web::UIEvents::KeyCode get_physical_key_from_qt_key_event(QKeyEvent const& event)
+{
+#if defined(AK_OS_MACOS)
+    return Web::UIEvents::physical_key_from_macos_virtual_key(event.nativeVirtualKey());
+#elif defined(AK_OS_WINDOWS)
+    return Web::UIEvents::physical_key_from_scan_code(event.nativeScanCode());
+#else
+    // NB: Qt reports an XKB keycode here, which is the evdev key code plus 8.
+    auto keycode = event.nativeScanCode();
+    if (keycode < 8)
+        return Web::UIEvents::KeyCode::Key_Invalid;
+    return Web::UIEvents::physical_key_from_scan_code(keycode - 8);
+#endif
+}
+
 void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent const& event)
 {
     auto keycode = get_keycode_from_qt_key_event(event);
@@ -2826,6 +2842,7 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
     };
 
     auto web_event = to_web_event();
+    web_event.physical_key = get_physical_key_from_qt_key_event(event);
 #ifdef AK_OS_MACOS
     if (type == Web::KeyEvent::Type::KeyDown) {
         auto binding = m_native_text_editing_bindings.commands_for_key_event(event);

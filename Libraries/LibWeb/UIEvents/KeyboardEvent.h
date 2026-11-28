@@ -36,8 +36,8 @@ class KeyboardEvent final : public UIEvent {
 
 public:
     [[nodiscard]] static GC::Ref<KeyboardEvent> create(Utf16FlyString const& event_name, KeyboardEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
-    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
-    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat, KeyCode physical_key = KeyCode::Key_Invalid);
+    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat, KeyCode physical_key = KeyCode::Key_Invalid);
 
     virtual ~KeyboardEvent() override;
 

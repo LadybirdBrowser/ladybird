@@ -68,6 +68,7 @@ set(SOURCES
     SecureContexts/AbstractOperations.cpp
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
+    UIEvents/PhysicalKey.cpp
     UpgradeInsecureRequests/InsecureRequestsPolicy.cpp
     WebDriver/BiDi.cpp
     WebDriver/Capabilities.cpp

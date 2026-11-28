@@ -111,7 +111,7 @@ public:
     void note_animated_content_moved_under_pointer(i64 frame_time_nanoseconds);
     GC::Ptr<DOM::Node> target_node_for_mouse_position(CSSPixelPoint);
 
-    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false);
+    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false, UIEvents::KeyCode physical_key = UIEvents::KeyCode::Key_Invalid);
     // Whether a key the user pressed or a paste is being handled, along with what the page does in response to it.
     static bool is_handling_user_key_press_or_paste();
     EventResult handle_text_editing_command(TextEditingCommand const&);
@@ -121,7 +121,7 @@ public:
         GC::Weak<DOM::Node> scroll_target;
     };
     KeyboardScrollSnapshot keyboard_scroll_snapshot() const;
-    EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, UIEvents::KeyCode physical_key = UIEvents::KeyCode::Key_Invalid);
     void cancel_keyboard_activation();
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
@@ -189,7 +189,7 @@ private:
     GC::Ptr<DOM::Node> scroll_target_for_key_input() const;
     int page_scroll_distance_for_key_input() const;
 
-    EventResult fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, Optional<u32> key_code = {});
+    EventResult fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, Optional<u32> key_code = {}, UIEvents::KeyCode physical_key = UIEvents::KeyCode::Key_Invalid);
     EventResult handle_keyboard_activation(Utf16FlyString const& event_name, UIEvents::KeyCode, u32 modifiers, DOM::Node& target, bool cancelled, bool repeat);
     [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, Utf16String const& data);
     [[nodiscard]] EventResult input_event(Utf16FlyString const& event_name, Utf16FlyString const& input_type, HTML::LocalNavigable&, Variant<u32, Utf16String> code_point_or_string, GC::Ptr<DOM::StaticRange> deletion_range = nullptr);

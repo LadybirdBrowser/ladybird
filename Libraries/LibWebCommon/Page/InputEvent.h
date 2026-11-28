@@ -50,6 +50,9 @@ struct WEBCOMMON_API KeyEvent {
     u64 id { 0 };
     Vector<TextEditingCommand> editing_commands {};
     bool native_editing_binding_resolved { false };
+
+    // The key at the same position on a US keyboard, or Key_Invalid where the UI can't tell.
+    Web::UIEvents::KeyCode physical_key { Web::UIEvents::KeyCode::Key_Invalid };
 };
 
 inline bool is_keyboard_scroll_key(Web::UIEvents::KeyCode key, u32 modifiers)

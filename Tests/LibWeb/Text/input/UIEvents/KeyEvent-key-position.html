@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+        for (const type of ["keydown", "keyup"]) {
+            input.addEventListener(type, e => {
+                println(`${type} key=${e.key} code=${e.code} keyCode=${e.keyCode} ctrl=${e.ctrlKey}`);
+            });
+        }
+
+        // German QWERTZ: The key where a US keyboard has Y types z.
+        internals.sendKeyAtPosition(input, "Y", "z");
+        // German QWERTZ: The key where a US keyboard has Z types y.
+        internals.sendKeyAtPosition(input, "Z", "y");
+        // Ukrainian: The key where a US keyboard has F types a Cyrillic letter.
+        internals.sendKeyAtPosition(input, "F", "а");
+        // French AZERTY: The key where a US keyboard has 1 types &.
+        internals.sendKeyAtPosition(input, "1", "&");
+        // French AZERTY: The key where a US keyboard has M types a comma.
+        internals.sendKeyAtPosition(input, "M", ",");
+        // German QWERTZ: The key where a US keyboard has a semicolon types ö.
+        internals.sendKeyAtPosition(input, ";", "ö");
+        // German QWERTZ: Ctrl with the key where a US keyboard has Y.
+        internals.sendKeyAtPosition(input, "Y", "z", internals.MOD_CTRL);
+        // Ukrainian: Ctrl with the key where a US keyboard has F.
+        internals.sendKeyAtPosition(input, "F", "а", internals.MOD_CTRL);
+    });
+</script>
