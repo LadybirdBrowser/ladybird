@@ -1,0 +1,13 @@
+When a user edit last changed the value of an input or a textarea,
+Ladybird reports tooShort and tooLong for it; when a script did (the
+value setter, or setRangeText()), it reports neither. Blink keeps that
+in TextControlElement::LastChangeWasUserEdit(), which HTMLInputElement::
+TooShort() checks. WebKit keeps it in HTMLTextFormControlElement::
+lastChangeWasUserEdit(), and Gecko in mLastValueChangeWasInteractive,
+which its HTMLTextAreaElement::IsTooShort() and IsTooLong() check. Run
+headless (Firefox 151 and WebKit 26.5, with execCommand()’s insertText
+standing in for typing), both report tooShort for a short edited value,
+tooLong for an over-long value after a user deletion, and neither
+after setRangeText(), as Ladybird does. Chrome 158 doesn’t count an
+execCommand() edit as a user edit, so headless runs couldn’t show
+what it does for typed text.
