@@ -14,7 +14,10 @@ mod rust_demangle;
 mod rust_panic;
 
 pub mod authenticator;
+pub mod authenticator_ffi;
 pub mod cbor;
+pub mod ceremony;
 pub mod client_data;
 pub mod ffi_bytes;
+pub mod flow;
 pub mod security_key;
