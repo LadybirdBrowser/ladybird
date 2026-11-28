@@ -628,9 +628,10 @@ sandbox one when both show: "Pages are painted on the CPU, which can be slow."
   2. New Tab, New Window, New Private Window, Reopen Closed Tab
   3. History ▸, Bookmarks ▸, Downloads
   4. Zoom (− 100% +), Find in Page…
-  5. Settings, Inspect ▸, Help ▸ (Report Website Issue…, About Ladybird), then Quit on
-     Linux and Windows only. macOS has Quit in the app menu, so the Ladybird menu leaves it
-     out.
+  5. Settings, Inspect ▸, Help ▸ (Send Feedback ▸, About Ladybird), then Quit on Linux
+     and Windows only. macOS has Quit in the app menu, so the Ladybird menu leaves it out.
+     Send Feedback holds the rows of the Feedback panel: Report Website Issue…, Report a
+     Bug…, and Crash Reports (2 to Review) while reports are waiting.
 - One right edge: shortcuts are right-aligned, submenu chevrons and the zoom control end at
   the same 10 px inset as the shortcuts.
 - Zoom: `ctl`-filled − and + buttons, 28×22; the percentage between them is a borderless
