@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/FontTable.h>
+#include <LibGfx/RustFFI.h>
 
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
@@ -37,48 +38,18 @@ struct TableLocation {
 
 Optional<size_t> table_directory_offset(FontDataReader const& data, u32 face_index)
 {
-    if (!data.contains(0, 4))
+    size_t offset = 0;
+    if (!FFI::sfnt_rust_table_directory_offset(data.bytes().data(), data.bytes().size(), face_index, &offset))
         return {};
-    // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
-    if (data.u32_at(0) == FourCC { "ttcf" }.to_u32()) {
-        if (!data.contains(8, 4) || face_index >= data.u32_at(8) || !data.contains(12 + 4 * static_cast<size_t>(face_index), 4))
-            return {};
-        return data.u32_at(12 + 4 * face_index);
-    }
-    if (face_index != 0)
-        return {};
-    return 0;
+    return offset;
 }
 
-// https://learn.microsoft.com/en-us/typography/opentype/spec/otff#table-directory
 static Optional<TableLocation> find_table(FontDataReader const& data, unsigned face_index, FourCC tag)
 {
-    auto directory_offset = table_directory_offset(data, face_index);
-    if (!directory_offset.has_value() || !data.contains(*directory_offset, 12))
+    TableLocation location;
+    if (!FFI::sfnt_rust_find_table(data.bytes().data(), data.bytes().size(), face_index, tag.to_u32(), &location.offset, &location.length))
         return {};
-
-    auto table_count = data.u16_at(*directory_offset + 4);
-    for (size_t index = 0; index < table_count; ++index) {
-        auto record_offset = *directory_offset + 12 + 16 * index;
-        if (!data.contains(record_offset, 16))
-            return {};
-        if (data.u32_at(record_offset) != tag.to_u32())
-            continue;
-        size_t offset = data.u32_at(record_offset + 8);
-        size_t length = data.u32_at(record_offset + 12);
-        if (offset > data.bytes().size())
-            continue;
-        if (length > data.bytes().size() - offset) {
-            // Metrics tables are simple enough to cut off at the end of the data.
-            if (tag != FourCC { "hmtx" } && tag != FourCC { "vmtx" })
-                continue;
-            length = (data.bytes().size() - offset) & ~static_cast<size_t>(3);
-        }
-        if (length == 0)
-            return {};
-        return TableLocation { offset, length };
-    }
-    return {};
+    return location;
 }
 
 static FontDataReader face_data(hb_blob_t* blob)
