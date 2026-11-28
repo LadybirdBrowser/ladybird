@@ -134,12 +134,12 @@ impl PerformanceEventTiming {
     pub(crate) fn should_add_entry(&self, options: Option<&PerformanceObserverInit>) -> bool {
         // 1. If entry's entryType attribute value equals to "first-input", return true.
         let entry = self.entry.object();
-        if entry.entry_type() == Utf16String::from_utf8("first-input") {
+        if entry.entry_type() == "first-input" {
             return true;
         }
 
         // 2. Assert that entry's entryType attribute value equals "event".
-        assert!(entry.entry_type() == Utf16String::from_utf8("event"));
+        assert!(entry.entry_type() == "event");
 
         // 3. Let minDuration be computed as follows:
         let min_duration = match options.and_then(|options| options.duration_threshold) {

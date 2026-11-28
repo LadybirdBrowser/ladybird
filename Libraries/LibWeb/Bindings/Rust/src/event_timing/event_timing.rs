@@ -198,7 +198,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
         "contextmenu",
     ]
     .iter()
-    .any(|event_type| r#type == Utf16String::from_utf8(event_type))
+    .any(|event_type| r#type == *event_type)
     {
         return 0;
     }
@@ -212,7 +212,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     // 7. Let pendingPointerDowns be window's pending pointer downs.
 
     // 8. If type is keyup:
-    if r#type == Utf16String::from_utf8("keyup") {
+    if r#type == "keyup" {
         let Some(keyboard_event) = CppKeyboardEvent::from_event(event) else {
             return 0;
         };
@@ -249,7 +249,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     }
 
     // 9. If type is compositionstart:
-    if r#type == Utf16String::from_utf8("compositionstart") {
+    if r#type == "compositionstart" {
         // 1. For each entry in the values of pendingKeyDowns:
         // 2. Clear pendingKeyDowns.
         let mut pending_key_downs = state.pending_key_downs.borrow_mut(vm);
@@ -263,7 +263,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     }
 
     // 10. If type is input:
-    if r#type == Utf16String::from_utf8("input") {
+    if r#type == "input" {
         // 1. If event is not an instance of InputEvent, return 0.
         // NOTE: This check is done to exclude Events for which the type is input but that are not about modified text
         //       content.
@@ -296,7 +296,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     };
 
     // 2. If type is click:
-    if r#type == Utf16String::from_utf8("click") {
+    if r#type == "click" {
         // 1. If pointerMap[pointerId] does not exist, return 0.
         // 2. Let value be pointerMap[pointerId].
         let Some(value) = state.pointer_interaction_value(pointer_id) else {
@@ -311,11 +311,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     }
 
     // 3. Assert that type is pointerup, pointercancel, or contextmenu.
-    assert!(
-        r#type == Utf16String::from_utf8("pointerup")
-            || r#type == Utf16String::from_utf8("pointercancel")
-            || r#type == Utf16String::from_utf8("contextmenu")
-    );
+    assert!(r#type == "pointerup" || r#type == "pointercancel" || r#type == "contextmenu");
 
     // 4. If pendingPointerDowns[pointerId] does not exist:
     // 5. Let pointerDownEntry be pendingPointerDowns[pointerId].
@@ -323,12 +319,12 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     // 9. Remove pendingPointerDowns[pointerId].
     let Some(pointer_down_entry) = state.take_pending_pointer_down(vm, pointer_id) else {
         // 1. If type is contextmenu, return window's user interaction value.
-        if r#type == Utf16String::from_utf8("contextmenu") {
+        if r#type == "contextmenu" {
             return state.user_interaction_value.get();
         }
 
         // 2. If type is pointerup and window's is contextmenu triggered flag is true:
-        if r#type == Utf16String::from_utf8("pointerup") && state.is_contextmenu_triggered.get() {
+        if r#type == "pointerup" && state.is_contextmenu_triggered.get() {
             // 1. Set window's is contextmenu triggered flag to false.
             state.is_contextmenu_triggered.set(false);
 
@@ -341,7 +337,7 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     };
 
     // 7. If type is pointerup or contextmenu:
-    if r#type == Utf16String::from_utf8("pointerup") || r#type == Utf16String::from_utf8("contextmenu") {
+    if r#type == "pointerup" || r#type == "contextmenu" {
         // 1. Increase interaction count on window.
         increase_interaction_count(&state);
 
@@ -356,12 +352,12 @@ fn compute_interaction_id(vm: &Vm, event: &CppEvent, window: &CppWindow) -> u64 
     state.entries_to_be_queued.borrow_mut(vm).push(pointer_down_entry);
 
     // 10. If type is contextmenu, set window's is contextmenu triggered to true.
-    if r#type == Utf16String::from_utf8("contextmenu") {
+    if r#type == "contextmenu" {
         state.is_contextmenu_triggered.set(true);
     }
 
     // 11. If type is pointercancel, return 0.
-    if r#type == Utf16String::from_utf8("pointercancel") {
+    if r#type == "pointercancel" {
         return 0;
     }
 
@@ -431,7 +427,7 @@ fn finalize_event_timing(
 
     // 8. If event's type attribute value is pointerdown:
     let r#type = event.r#type();
-    if r#type == Utf16String::from_utf8("pointerdown") {
+    if r#type == "pointerdown" {
         // 1. Let pendingPointerDowns be relevantGlobal's pending pointer downs.
         // 2. Let pointerId be event's pointerId.
         let pointer_id = CppPointerEvent::from_event(event).map_or(0, |pointer_event| pointer_event.pointer_id());
@@ -453,8 +449,8 @@ fn finalize_event_timing(
         state.is_contextmenu_triggered.set(false);
     }
     // 9. Otherwise, if event's type attribute value is keydown:
-    else if let Some(keyboard_event) = CppKeyboardEvent::from_event(event)
-        && r#type == Utf16String::from_utf8("keydown")
+    else if r#type == "keydown"
+        && let Some(keyboard_event) = CppKeyboardEvent::from_event(event)
     {
         // 1. If event's isComposing attribute value is true:
         if keyboard_event.is_composing() {
@@ -508,10 +504,9 @@ fn set_event_timing_entry_duration(
     vm: &Vm,
     timing_entry: Ref<PerformanceEventTiming>,
     window: &CppWindow,
+    state: &WindowEventTimingStateRef,
     rendering_timestamp: f64,
 ) {
-    let state = window.event_timing_state(vm);
-
     // 1. If timingEntry's duration attribute value is nonzero, return.
     // AD-HOC: A duration that rounds to zero is a duration that has been set all the same. Otherwise, a pending
     //         pointerdown or keydown entry would be given a duration again by every later rendering update until its
@@ -601,7 +596,7 @@ fn dispatch_pending_event_timing_entries(vm: &Vm, window: &CppWindow) {
     let timeline = PerformanceTimeline::of(vm, window.realm());
     for timing_entry in entries_to_be_queued.values().iter().copied() {
         // 1. Set event timing entry duration passing timingEntry, window, and renderingTimestamp.
-        set_event_timing_entry_duration(vm, timing_entry, window, rendering_timestamp);
+        set_event_timing_entry_duration(vm, timing_entry, window, &state, rendering_timestamp);
 
         // 2. If timingEntry's duration attribute value is greater than or equal to 16, then queue timingEntry.
         let entry = AnyPerformanceEntry::PerformanceEventTiming(timing_entry);
@@ -618,7 +613,7 @@ fn dispatch_pending_event_timing_entries(vm: &Vm, window: &CppWindow) {
     }
     for pending_pointer_down_entry in pending_pointer_downs.values().iter().copied() {
         // 1. Set event timing entry duration passing pendingPointerDownEntry, window, and renderingTimestamp.
-        set_event_timing_entry_duration(vm, pending_pointer_down_entry, window, rendering_timestamp);
+        set_event_timing_entry_duration(vm, pending_pointer_down_entry, window, &state, rendering_timestamp);
     }
 
     // 6. For each pendingKeyDownEntry in the values from window's pending key downs:
@@ -628,7 +623,7 @@ fn dispatch_pending_event_timing_entries(vm: &Vm, window: &CppWindow) {
     }
     for pending_key_down_entry in pending_key_downs.values().iter().copied() {
         // 1. Set event timing entry duration passing pendingKeyDownEntry, window, and renderingTimestamp.
-        set_event_timing_entry_duration(vm, pending_key_down_entry, window, rendering_timestamp);
+        set_event_timing_entry_duration(vm, pending_key_down_entry, window, &state, rendering_timestamp);
     }
 }
 
