@@ -19,21 +19,30 @@ void AccessibilityChangeTracker::begin(i64 document_id, bool whole_tree)
     m_known_noted = 0;
 }
 
-static u64 hash_child_ids(ReadonlySpan<i64> child_ids)
+// A hash of the fields that a build computes again for every node, kept or not.
+static u64 hash_computed_fields(WebView::AccessibilityNodeData const& data)
 {
-    u64 hash = child_ids.size();
-    for (auto id : child_ids) {
-        hash ^= static_cast<u64>(id);
+    u64 hash = 0;
+    auto mix = [&](u64 value) {
+        hash ^= value;
         hash *= 0x9e3779b97f4a7c15;
         hash ^= hash >> 29;
-    }
+    };
+    mix(static_cast<u64>(data.parent_id));
+    mix(data.child_ids.size());
+    for (auto id : data.child_ids)
+        mix(static_cast<u64>(id));
+    mix((static_cast<u64>(static_cast<u32>(data.bounds.x())) << 32) | static_cast<u32>(data.bounds.y()));
+    mix((static_cast<u64>(static_cast<u32>(data.bounds.width())) << 32) | static_cast<u32>(data.bounds.height()));
+    mix((static_cast<u64>(static_cast<u32>(data.caret_offset)) << 32) | static_cast<u32>(data.selection_start));
+    mix((static_cast<u64>(static_cast<u32>(data.selection_end)) << 32) | (data.is_focused ? 1 : 0));
     return hash;
 }
 
 bool AccessibilityChangeTracker::note(WebView::AccessibilityNodeData const& data, u64 record_version, Optional<u64> geometry_version)
 {
     auto known_geometry_version = geometry_version.value_or(UNKNOWN_GEOMETRY_VERSION);
-    auto child_ids_hash = hash_child_ids(data.child_ids);
+    auto computed_fields_hash = hash_computed_fields(data);
     auto it = m_states.find(data.id);
     if (it == m_states.end()) {
         m_states.set(data.id, {});
@@ -43,25 +52,13 @@ bool AccessibilityChangeTracker::note(WebView::AccessibilityNodeData const& data
         auto const& state = it->value;
         auto unchanged = !m_whole_tree && record_version != 0 && state.record_version == record_version
             && known_geometry_version != UNKNOWN_GEOMETRY_VERSION && state.geometry_version == known_geometry_version
-            && state.parent_id == data.parent_id && state.child_ids_hash == child_ids_hash && state.bounds == data.bounds
-            && state.is_focused == data.is_focused && state.caret_offset == data.caret_offset
-            && state.selection_start == data.selection_start && state.selection_end == data.selection_end;
+            && state.computed_fields_hash == computed_fields_hash;
         if (unchanged) {
             it->value.build = m_build;
             return false;
         }
     }
-    auto& state = it->value;
-    state.record_version = record_version;
-    state.geometry_version = known_geometry_version;
-    state.parent_id = data.parent_id;
-    state.child_ids_hash = child_ids_hash;
-    state.bounds = data.bounds;
-    state.is_focused = data.is_focused;
-    state.caret_offset = data.caret_offset;
-    state.selection_start = data.selection_start;
-    state.selection_end = data.selection_end;
-    state.build = m_build;
+    it->value = { record_version, known_geometry_version, computed_fields_hash, m_build };
     return true;
 }
 

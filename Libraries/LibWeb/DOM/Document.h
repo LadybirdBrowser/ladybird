@@ -1316,13 +1316,9 @@ public:
     void cache_accessible_text(Element const&, CachedAccessibleText) const;
     void invalidate_cached_accessibility_data(Node const&, Optional<Utf16FlyString> const& attribute_name = {}, ReadonlySpan<GC::Ref<Node>> added_nodes = {}, ReadonlySpan<GC::Ref<Node>> removed_nodes = {});
 
-    // A kept record, with the version it got when it was kept: Every record and geometry kept gets a new version, so
-    // the same version means the same data.
-    struct KeptAccessibilityRecord {
-        WebView::AccessibilityNodeData const* data { nullptr };
-        u64 version { 0 };
-    };
-    KeptAccessibilityRecord kept_accessibility_record(Node const&) const;
+    // Fills in the node's data from its kept record and returns the version the record got when it was kept, or returns
+    // 0 when there's none: Every record and geometry kept gets a new version, so the same version means the same data.
+    u64 restore_accessibility_record(Node const&, WebView::AccessibilityNodeData&) const;
     // Returns the version the record gets, or 0 when it isn't kept.
     u64 cache_accessibility_record(Node const&, WebView::AccessibilityNodeData const&) const;
     // Makes a text leaf's style the one kept for every other text leaf with the same, while records are kept.
