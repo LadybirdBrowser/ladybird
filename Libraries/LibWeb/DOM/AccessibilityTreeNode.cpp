@@ -20,6 +20,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
@@ -39,6 +40,7 @@
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/HTMLTableRowElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
@@ -182,14 +184,46 @@ static Gfx::IntRect accessibility_bounds(Layout::BegunRead const& read, Element 
 // Gecko report for a text leaf (LayoutText::LocalBoundingBoxRectForAccessibility unions its line-box rects;
 // AccessibilityRenderObject::boundingBoxRect takes RenderText::absoluteQuads; LocalAccessible::ParentRelativeBounds
 // unions the text frame's in-flow rects). Empty when the text renders no fragment.
-static Optional<CSSPixelRect> text_bounding_client_rect(Document const& document, Layout::Node const& layout_node)
+// The row layout bound a text node to.
+struct TextRow {
+    Layout::RustFFI::DocumentHost* host { nullptr };
+    Compositing::RustFFI::NodeSlotId slot;
+};
+
+// Reads the text node's row, or nothing when it has none.
+// OPTIMIZATION: A build reads the row of every text node, and the layout node that Node::layout_node() makes for each
+//               would stay alive as long as the row does: tens of megabytes on a long document.
+static Optional<TextRow> text_row(DOM::Text const& text_node, Document const& document, Layout::BegunRead const& read)
 {
+    auto const* arena = document.layout_node_arena_if_created();
+    if (!arena)
+        return {};
+    auto style_node = NodeIdentity::of(text_node).style_node();
+    if (!style_node)
+        return {};
+    VERIFY(!document.layout_is_known_stale());
+    auto slot = Layout::RustFFI::layout_row_bound_to_style_node(arena->host(), &read, style_node.value());
+    if (slot.index == Compositing::RustFFI::NodeSlotId_INVALID.index)
+        return {};
+    return TextRow { arena->host(), slot };
+}
+
+static Optional<CSSPixelRect> text_bounding_client_rect(Document const& document, TextRow row)
+{
+    // The same test as Document::can_compute_client_rects_without_accumulated_visual_contexts_update(), for a row.
+    auto can_skip_visual_context_update = [&] {
+        if (!document.has_layout_box() || !Layout::RustFFI::document_host_visual_contexts_need_update(row.host))
+            return false;
+        auto navigable = document.navigable();
+        bool viewport_scroll_offset_is_zero = !navigable || navigable->viewport_scroll_offset().is_zero();
+        return Layout::RustFFI::layout_script_can_compute_client_rects_without_visual_context_update(row.host, row.slot, viewport_scroll_offset_is_zero);
+    };
     Layout::RustFFI::FfiViewportMapping viewport_mapping {};
-    if (!document.can_compute_client_rects_without_accumulated_visual_contexts_update(layout_node))
+    if (!can_skip_visual_context_update())
         viewport_mapping = Painting::viewport_mapping(document);
     Optional<CSSPixelRect> united;
     Layout::RustFFI::layout_script_text_range_rects(
-        layout_node.document_host(), Layout::Node::slot_id(&layout_node),
+        row.host, row.slot,
         to_underlying(Painting::SelectionState::Full), 0, 0, 0, NumericLimits<size_t>::max(),
         viewport_mapping, &united, [](void* context, CSSPixelRect rect) {
             auto& united = *static_cast<Optional<CSSPixelRect>*>(context);
@@ -247,17 +281,17 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
     Vector<i32> line_tops;
     Vector<i32> line_heights;
 
-    auto* layout = text_node.layout_node(read);
+    auto row = text_row(text_node, document, read);
 
     // The caret rect at a DOM offset is document-absolute and spans the height of the text on the line the offset
     // renders on, which is what a line's geometry is read from here.
     auto line_rect_at_offset = [&](size_t offset) -> Optional<CSSPixelRect> {
-        if (!layout)
+        if (!row.has_value())
             return {};
         Compositing::RustFFI::NodeSlotId const no_slot { Compositing::RustFFI::INVALID_NODE_SLOT_INDEX };
         Layout::RustFFI::FfiCaret caret;
-        Layout::RustFFI::layout_script_caret(layout->document_host(),
-            { .node = Layout::Node::slot_id(layout), .offset = offset, .downstream = true, .child_before = no_slot, .child_before_length = 0, .child_after = no_slot },
+        Layout::RustFFI::layout_script_caret(row->host,
+            { .node = row->slot, .offset = offset, .downstream = true, .child_before = no_slot, .child_before_length = 0, .child_after = no_slot },
             {}, &caret);
         if (!caret.found)
             return {};
@@ -265,8 +299,8 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
     };
 
     Vector<Layout::RustFFI::FfiVisualLine> lines;
-    if (layout) {
-        Layout::RustFFI::render_state_text_visual_lines(layout->document_host(), Layout::Node::slot_id(layout), &lines,
+    if (row.has_value()) {
+        Layout::RustFFI::render_state_text_visual_lines(row->host, row->slot, &lines,
             [](void* context, Layout::RustFFI::FfiVisualLine line) {
                 static_cast<Vector<Layout::RustFFI::FfiVisualLine>*>(context)->append(line);
             });
@@ -282,7 +316,7 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
     }
 
     if (!rendered_lines.is_empty()) {
-        if (auto own_box = text_bounding_client_rect(document, *layout); own_box.has_value())
+        if (auto own_box = text_bounding_client_rect(document, *row); own_box.has_value())
             node_data.bounds = own_box->to_type<int>();
 
         // Report positions relative to the text's own top-left (its leftmost line's left edge and its
@@ -306,7 +340,7 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
         x_positions.start_x.resize(text_utf16.length_in_code_units() + 1);
         x_positions.fragment_end_x.resize(text_utf16.length_in_code_units() + 1);
         Layout::RustFFI::layout_script_text_character_x_positions(
-            layout->document_host(), Layout::Node::slot_id(layout), &x_positions,
+            row->host, row->slot, &x_positions,
             [](void* context, size_t offset, float x, bool is_fragment_end) {
                 auto& positions = *static_cast<CharacterXPositions*>(context);
                 auto& list = is_fragment_end ? positions.fragment_end_x : positions.start_x;
@@ -406,11 +440,11 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
 }
 
 // What layout computes a text node's character geometry from, or nothing when that can't be told.
-static Optional<Document::CachedTextGeometry> text_geometry_sources(Layout::Node const& layout)
+static Optional<Document::CachedTextGeometry> text_geometry_sources(TextRow row)
 {
     Document::CachedTextGeometry geometry;
     auto known = Layout::RustFFI::layout_script_text_geometry_sources(
-        layout.document_host(), Layout::Node::slot_id(&layout), &geometry,
+        row.host, row.slot, &geometry,
         [](void* context, Layout::RustFFI::InlineContent const* line_content, i32 x, i32 y) {
             static_cast<Document::CachedTextGeometry*>(context)->sources.append({ line_content, x, y });
         });
@@ -458,11 +492,11 @@ static Optional<u64> fill_volatile_fields(WebView::AccessibilityNodeData& node_d
 
     // Text geometry is the costliest part of a build, so keep it for as long as the lines it came from stay the same.
     // Only its bounds are read again: They're viewport-relative, so scrolling moves them.
-    auto* text_layout = text_node->layout_node(read);
-    auto geometry = text_layout ? text_geometry_sources(*text_layout) : Optional<Document::CachedTextGeometry> {};
+    auto row = text_row(*text_node, document, read);
+    auto geometry = row.has_value() ? text_geometry_sources(*row) : Optional<Document::CachedTextGeometry> {};
     if (geometry.has_value()) {
         if (auto const* kept = document.cached_text_geometry(*text_node); kept && kept->sources == geometry->sources) {
-            if (auto own_box = text_bounding_client_rect(document, *text_layout); own_box.has_value())
+            if (auto own_box = text_bounding_client_rect(document, *row); own_box.has_value())
                 node_data.bounds = own_box->to_type<int>();
             node_data.text_geometry = kept->geometry;
             return kept->version;
@@ -951,8 +985,8 @@ i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::Accessibi
             // again.
             if (text_geometry_from_lines) {
                 auto const& text_node = static_cast<DOM::Text const&>(*value());
-                if (auto* text_layout = text_node.layout_node(read)) {
-                    if (auto sources = text_geometry_sources(*text_layout); sources.has_value())
+                if (auto row = text_row(text_node, document, read); row.has_value()) {
+                    if (auto sources = text_geometry_sources(*row); sources.has_value())
                         geometry_version = keep_text_geometry(node_data, text_node, document, sources.release_value());
                 }
             }
