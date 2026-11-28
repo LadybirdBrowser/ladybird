@@ -6,7 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/TypeCasts.h>
-#include <LibWeb/DOMURL/DOMURL.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>
@@ -156,7 +156,9 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<StringView> request_
         return OptionalNone {};
 
     // 3. If location is a header value, then set location to the result of parsing location with response’s URL.
-    auto location = DOMURL::parse_from_byte_string(location_values->first(), url());
+    // NB: The basic URL parser leaves out resolving a blob URL's entry, which no caller reads: redirect fetch and
+    //     navigation both end at a blob: location.
+    auto location = URL::Parser::basic_parse(location_values->first(), url());
     if (!location.has_value())
         return Error::from_string_literal("Invalid 'Location' header URL");
 

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const blobURL = URL.createObjectURL(new Blob(["blob"]));
+        const start = await server.createEcho("GET", "/fetch-redirect-to-a-blob-url", {
+            status: 302,
+            headers: { "Location": blobURL, "Access-Control-Allow-Origin": "*" },
+        });
+        try {
+            await fetch(start);
+            println("fetch: resolved");
+        } catch (error) {
+            println(`fetch: ${error.name}`);
+        }
+        done();
+    });
+</script>
