@@ -2775,6 +2775,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "AK/OwnPtr.h".to_string(),
         "AK/Utf16String.h".to_string(),
         "LibGC/Member.h".to_string(),
+        "LibGC/Ptr.h".to_string(),
         "LibWeb/CSS/StyleEngineIdentifiers.h".to_string(),
         "LibWeb/DOM/ClassNames.h".to_string(),
         "LibWeb/DOM/CppNodeFlags.h".to_string(),
@@ -2789,6 +2790,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     for (rust_name, cpp_name) in [
         ("NodeCell", "Web::DOM::Node"),
+        ("NodeRef", "GC::Ref<Web::DOM::Node>"),
+        ("NullableNodeRef", "GC::Ptr<Web::DOM::Node>"),
+        // NB: A function that crosses to C++ takes and returns a cell as a raw pointer, never as a GC::Ref or GC::Ptr,
+        //     which MSVC returns through a hidden pointer where Rust expects a pointer back.
+        ("RawNodeRef", "Web::DOM::Node*"),
+        ("RawNullableNodeRef", "Web::DOM::Node*"),
         ("NodeMember", "GC::Member<Web::DOM::Node>"),
         ("DocumentMember", "GC::Member<Web::DOM::Document>"),
         ("ElementMember", "GC::Member<Web::DOM::Element>"),
@@ -2817,6 +2824,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &[
             manifest_dir.join("src/dom/element_core.rs"),
             manifest_dir.join("src/dom/hooks.rs"),
+            manifest_dir.join("src/dom/insert.rs"),
             manifest_dir.join("src/dom/links.rs"),
             manifest_dir.join("src/dom/node_core.rs"),
             manifest_dir.join("src/dom/node_ref.rs"),

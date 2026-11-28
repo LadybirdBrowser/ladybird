@@ -220,6 +220,29 @@ impl NodeRef {
     }
 }
 
+/// A node or null, as a function that crosses to C++ takes or returns it: C++ sees it as a raw pointer, which every ABI
+/// passes and returns as C does, where a GC::Ptr is a class that MSVC returns through a hidden pointer.
+pub type RawNullableNodeRef = NullableNodeRef;
+
+/// A node or null, as C++ hands one over: laid out as a GC::Ptr<DOM::Node>, which is what C++ sees it as.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(transparent)]
+pub struct NullableNodeRef(Option<NodeRef>);
+
+impl From<Option<NodeRef>> for NullableNodeRef {
+    #[inline(always)]
+    fn from(node: Option<NodeRef>) -> Self {
+        Self(node)
+    }
+}
+
+impl From<NullableNodeRef> for Option<NodeRef> {
+    #[inline(always)]
+    fn from(node: NullableNodeRef) -> Self {
+        node.0
+    }
+}
+
 impl core::fmt::Debug for NodeRef {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(formatter, "NodeRef({:p})", self.cell)

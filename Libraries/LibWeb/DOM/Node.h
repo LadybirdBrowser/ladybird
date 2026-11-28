@@ -397,10 +397,7 @@ public:
             AllChildrenRemoved,
             Mutation,
         };
-        enum class AffectsElements {
-            No,
-            Yes,
-        };
+        using AffectsElements = RustFFI::AffectsElements;
         Type type {};
         GC::Ref<Node> node;
         AffectsElements affects_elements { AffectsElements::No };
@@ -689,6 +686,7 @@ private:
     void report_removal_to_style_engine(Node& parent);
     void update_layout_tree_for_removal(Node& parent);
     GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots_before_removal(Node& parent_root);
+    bool settle_descendant_slots_before_removal(Node& parent_root);
     void assign_slottables_after_removal(Node& parent, Node& parent_root, ReadonlySpan<GC::Ref<HTML::HTMLSlotElement>> descendant_slots);
     void run_removing_steps(Node& parent, Node& parent_root, bool was_tracked_by_style_engine);
     void add_transient_registered_observers(Node& parent);
@@ -702,9 +700,9 @@ private:
     void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
     void adjust_live_ranges_for_insertion(Node& child, size_t count);
     void insert_node_into_children(GC::Ref<Node>, GC::Ptr<Node> child);
-    void insert_nodes_before(ReadonlySpan<GC::Ref<Node>>, GC::Ptr<Node> child, bool suppress_observers, GC::Ref<Node> metadata_node, ChildrenChangedMetadata::AffectsElements);
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
+    void prepare_to_unlink_child(Node&);
     void begin_child_index_generation();
 
     mutable OwnPtr<RareData> m_rare_data;
