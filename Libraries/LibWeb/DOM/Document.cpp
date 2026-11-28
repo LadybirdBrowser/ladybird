@@ -481,51 +481,24 @@ static CSS::ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
-void Document::register_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType type) const
+void Document::collection_attribute_changed(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_)
 {
-    VERIFY(type != HTMLCollectionAttributeInvalidationType::Count);
-    auto index = to_underlying(type);
-    ++m_html_collection_attribute_invalidation_type_counts[index];
-    m_html_collection_attribute_invalidation_types |= HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(type);
-}
-
-void Document::unregister_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType type) const
-{
-    VERIFY(type != HTMLCollectionAttributeInvalidationType::Count);
-    auto index = to_underlying(type);
-    VERIFY(m_html_collection_attribute_invalidation_type_counts[index] > 0);
-    if (--m_html_collection_attribute_invalidation_type_counts[index] == 0)
-        m_html_collection_attribute_invalidation_types &= ~HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(type);
-}
-
-Document::HTMLCollectionAttributeInvalidationTypes Document::html_collection_attribute_invalidation_types_for_attribute(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const
-{
-    constexpr auto none = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::None);
-    constexpr auto class_ = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::Class);
-    constexpr auto name = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::Name);
-    constexpr auto id_or_name = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::IdOrName);
-    constexpr auto href = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::Href);
-    constexpr auto form_controls = HTMLCollectionCacheRegistration::attribute_invalidation_type_mask(HTMLCollectionAttributeInvalidationType::FormControls);
-
-    auto registered_types = m_html_collection_attribute_invalidation_types;
-    auto attribute_sensitive_types = registered_types & ~none;
-    if (attribute_sensitive_types == 0)
-        return 0;
-
-    HTMLCollectionAttributeInvalidationTypes types = 0;
-    if (!namespace_.has_value()) {
-        if ((attribute_sensitive_types & class_) && local_name == HTML::AttributeNames::class_)
-            types |= class_;
-        if ((attribute_sensitive_types & name) && local_name == HTML::AttributeNames::name)
-            types |= name;
-        if ((attribute_sensitive_types & id_or_name) && local_name.is_one_of(HTML::AttributeNames::id, HTML::AttributeNames::name))
-            types |= id_or_name;
-        if ((attribute_sensitive_types & href) && local_name == HTML::AttributeNames::href)
-            types |= href;
-        if ((attribute_sensitive_types & form_controls) && local_name == HTML::AttributeNames::type)
-            types |= form_controls;
-    }
-    return types;
+    if (namespace_.has_value())
+        return;
+    // NB: These are the HTMLCollection::AttributeInvalidationType values but None, less one, see HTMLCollection.cpp.
+    u8 attribute_types = 0;
+    if (local_name == HTML::AttributeNames::class_)
+        attribute_types |= 1 << 0;
+    if (local_name == HTML::AttributeNames::name)
+        attribute_types |= 1 << 1;
+    if (local_name.is_one_of(HTML::AttributeNames::id, HTML::AttributeNames::name))
+        attribute_types |= 1 << 2;
+    if (local_name == HTML::AttributeNames::href)
+        attribute_types |= 1 << 3;
+    if (local_name == HTML::AttributeNames::type)
+        attribute_types |= 1 << 4;
+    if (attribute_types)
+        RustFFI::rust_dom_collection_attributes_changed(this, attribute_types);
 }
 
 GC_DEFINE_ALLOCATOR(Document);
@@ -947,13 +920,19 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 
     // NB: libweb_rust finds the core of a document at this offset into the document's cell, which starts with its node.
     static_assert(offsetof(Document, m_document_core) == RustFFI::DOCUMENT_CORE_OFFSET);
+    RustFFI::rust_dom_start_tree_versions_of_document(this);
 }
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentCore) == 40 && alignof(RustFFI::DocumentCore) == 8);
+static_assert(sizeof(RustFFI::DocumentCore) == 96 && alignof(RustFFI::DocumentCore) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
 static_assert(offsetof(RustFFI::DocumentCore, live_ranges) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, node_iterators) == 24);
+static_assert(offsetof(RustFFI::DocumentCore, node_tree_version) == 40);
+static_assert(offsetof(RustFFI::DocumentCore, element_tree_version) == 48);
+static_assert(offsetof(RustFFI::DocumentCore, collection_attribute_versions) == 56);
+// NB: The collection state DocumentCore took in grows a document no more than the counts of valid collection caches it
+//     replaces did.
 
 Document::~Document()
 {

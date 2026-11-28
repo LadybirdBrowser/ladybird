@@ -6,12 +6,14 @@
 
 //! The writes of the tree state of DOM nodes: a node's links to its parent, children and siblings, the root of its tree,
 //! which every node of a subtree names, and the generation of a child list that the child indices of its elements are
-//! counted in. Rust is their only writer.
+//! counted in. Rust is their only writer. Each write also moves the versions of the node document's trees that the live
+//! collections follow.
 //! https://dom.spec.whatwg.org/#concept-tree
 
 use super::child_index;
 use super::node::NodeCell;
 use super::node_ref::NodeRef;
+use super::tree_version;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -23,15 +25,17 @@ crate::stage::main_thread_ffi_entries!(without_host);
 /// NB: The links are written in place and nothing is called that could run script or allocate, so the read handles the
 ///     main thread token lends cannot live across it, which the token's mutable borrow says.
 #[inline(always)]
-pub(crate) fn insert_child(_main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef, child: Option<NodeRef>) {
+pub(crate) fn insert_child(main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef, child: Option<NodeRef>) {
     link_child(parent, node, child);
+    tree_version::child_list_changed(main_thread, parent, node.is_element());
 }
 
 /// Removes `node` from `parent`'s children, and makes `node` the root of every node of its subtree. Begins a new
 /// generation of `parent`'s child list where an element leaves it from before another child.
 #[inline(always)]
-pub(crate) fn remove_child(_main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef) {
+pub(crate) fn remove_child(main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef) {
     unlink_child(parent, node);
+    tree_version::child_list_changed(main_thread, parent, node.is_element());
 }
 
 #[inline]

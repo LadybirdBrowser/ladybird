@@ -36,11 +36,12 @@ HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Sc
     : DOM::HTMLCollection(root, scope, filter, AttributeInvalidationType::FormControls, nullptr, Kind::FormControls)
     , m_form(form)
 {
+    keep_elements_in_own_order();
 }
 
 HTMLFormControlsCollection::~HTMLFormControlsCollection() = default;
 
-void HTMLFormControlsCollection::collect_elements_into(GC::RootVector<GC::Ref<DOM::Element>>& elements) const
+void HTMLFormControlsCollection::collect_elements_into(GC::RootVector<GC::Ref<DOM::Node>>& elements) const
 {
     // OPTIMIZATION: A form keeps its associated elements in tree order, so the collection is filtered from those
     //               rather than from a walk of the whole tree the form is in.

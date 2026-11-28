@@ -9,6 +9,7 @@
 
 pub mod adopt;
 pub mod child_index;
+pub mod collection;
 pub mod element;
 pub mod element_core;
 pub mod hooks;

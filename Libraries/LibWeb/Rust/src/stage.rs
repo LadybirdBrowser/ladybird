@@ -158,6 +158,7 @@ ffi_entry!(crate::dom::move_node::MainThreadFfiEntry);
 ffi_entry!(crate::dom::range::MainThreadFfiEntry);
 ffi_entry!(crate::dom::traversal::MainThreadFfiEntry);
 ffi_entry!(crate::dom::tree_version::MainThreadFfiEntry);
+ffi_entry!(crate::dom::collection::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

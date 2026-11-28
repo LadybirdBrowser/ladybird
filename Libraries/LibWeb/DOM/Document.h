@@ -384,13 +384,10 @@ public:
     u64 option_selectedness_version() const { return m_option_selectedness_version; }
     void bump_option_selectedness_version() { ++m_option_selectedness_version; }
 
-    using HTMLCollectionAttributeInvalidationType = HTMLCollectionCacheRegistration::AttributeInvalidationType;
-    using HTMLCollectionAttributeInvalidationTypes = HTMLCollectionCacheRegistration::AttributeInvalidationTypes;
-
-    void register_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType) const;
-    void unregister_valid_html_collection_cache(HTMLCollectionAttributeInvalidationType) const;
-    bool has_valid_html_collection_caches() const { return m_html_collection_attribute_invalidation_types != 0; }
-    HTMLCollectionAttributeInvalidationTypes html_collection_attribute_invalidation_types_for_attribute(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_) const;
+    // Records a change to the attribute local_name in namespace_ of an element whose node document this is, for the
+    // collections whose filters read it.
+    void collection_attribute_changed(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_);
+    u64 collection_attribute_version(u8 attribute_type) const { return m_document_core.collection_attribute_versions[attribute_type - 1]; }
 
     // The record types any observer registered in this document has ever asked for. A type stays set.
     void add_mutation_observer_types(MutationObserverOptions const&);
@@ -2575,8 +2572,6 @@ private:
     mutable Vector<GC::Weak<HTML::HTMLLabelElement>> m_label_elements;
     mutable u64 m_label_elements_dom_tree_version { NumericLimits<u64>::max() };
     u64 m_option_selectedness_version { 0 };
-    mutable Array<u64, to_underlying(HTMLCollectionAttributeInvalidationType::Count)> m_html_collection_attribute_invalidation_type_counts {};
-    mutable HTMLCollectionAttributeInvalidationTypes m_html_collection_attribute_invalidation_types { 0 };
 
     enum class MutationObserverType : u8 {
         ChildList = 1 << 0,

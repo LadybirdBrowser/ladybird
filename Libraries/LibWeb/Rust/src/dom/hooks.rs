@@ -6,7 +6,8 @@
 
 //! The table of C++ callbacks through which the DOM algorithms in Rust run a node's virtual hooks, such as its insertion
 //! and removing steps, and the steps of the systems whose state C++ keeps: the selections and highlights of live
-//! ranges, the filters of traversers, slots, mutation records, custom element reactions, the style engine's records, layout tree updates and collection caches.
+//! ranges, the filters of traversers and collections, slots, mutation records, custom element reactions, the style
+//! engine's records and layout tree updates.
 //!
 //! C++ registers the table once, before any node exists. Every wrapper takes the main thread token mutably, so no read
 //! handle lives across a call into C++. The documentation of each wrapper says whether its callback can run script,
@@ -17,8 +18,8 @@ use core::cell::UnsafeCell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use super::collection::CollectionCell;
 use super::node_ref::NodeRef;
-use super::node_ref::NullableNodeRef;
 use super::node_ref::RawNodeRef;
 use super::node_ref::RawNullableNodeRef;
 use super::traversal::NodeFilterCall;
@@ -29,15 +30,6 @@ use crate::stage::MainThread;
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IsSubtreeRoot {
-    No,
-    Yes,
-}
-
-/// Whether a change to the children of a node affects its element children, laid out as C++'s
-/// DOM::Node::ChildrenChangedMetadata::AffectsElements, which is this type.
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AffectsElements {
     No,
     Yes,
 }
@@ -95,10 +87,6 @@ pub struct RemovalFacts {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct ChildrenRemoval {
-    /// Whether the removals affect the element children of the parent, which is worked out only when
-    /// `track_affected_elements` says a collection cache could care.
-    pub affects_elements: AffectsElements,
-    pub track_affected_elements: bool,
     /// Whether some child holds the focused or hovered node, whose state its old ancestors lose.
     pub a_child_holds_a_propagating_state_source: bool,
     /// Whether a removed child has scheduled the renumbering of its list owner's list, which every child shares.
@@ -161,7 +149,7 @@ pub struct MoveHooks {
 pub struct InsertionHooks {
     /// See [`begin_insertion`].
     pub begin_insertion:
-        unsafe extern "C" fn(parent: RawNodeRef, node: RawNullableNodeRef, nodes: ak::Span<'_, NodeRef>) -> AffectsElements,
+        unsafe extern "C" fn(parent: RawNodeRef, node: RawNullableNodeRef, nodes: ak::Span<'_, NodeRef>),
     /// See [`insert_node_into_children`].
     pub insert_node_into_children: unsafe extern "C" fn(
         parent: RawNodeRef,
@@ -179,7 +167,6 @@ pub struct InsertionHooks {
         previous_sibling: RawNullableNodeRef,
         child: RawNullableNodeRef,
         suppress_observers: bool,
-        affects_elements: AffectsElements,
     ),
     /// See [`finish_insertion`].
     pub finish_insertion: unsafe extern "C" fn(nodes: ak::Span<'_, NodeRef>, run_post_connection_steps: bool),
@@ -196,7 +183,7 @@ pub struct DomHooks {
     /// See [`begin_removing_all_children`].
     pub begin_removing_all_children: unsafe extern "C" fn(parent: RawNodeRef) -> ChildrenRemoval,
     /// See [`end_removing_all_children`].
-    pub end_removing_all_children: unsafe extern "C" fn(parent: RawNodeRef, children_removal: ChildrenRemoval),
+    pub end_removing_all_children: unsafe extern "C" fn(parent: RawNodeRef),
     /// See [`prepare_removal`].
     pub prepare_removal: unsafe extern "C" fn(
         node: RawNodeRef,
@@ -233,6 +220,8 @@ pub struct DomHooks {
     pub live_range_boundary_points_set: unsafe extern "C" fn(document: RawNodeRef),
     /// See [`call_node_filter`].
     pub call_node_filter: unsafe extern "C" fn(filter: *const c_void, node: RawNodeRef) -> NodeFilterCall,
+    /// See [`collection_filter_matches`].
+    pub collection_filter_matches: unsafe extern "C" fn(collection: &CollectionCell, node: RawNodeRef) -> bool,
     /// See [`queue_tree_mutation_record`].
     pub queue_tree_mutation_record: unsafe extern "C" fn(
         target: RawNodeRef,
@@ -281,7 +270,7 @@ pub unsafe extern "C" fn rust_dom_register_hooks(hooks: &'static DomHooks) {
 /// Step 4.2 of inserting `node`, whose nodes are `nodes`, into `parent`, after step 4.1 has emptied a
 /// DocumentFragment: if `node` is a DocumentFragment, queues a tree mutation record for it with « », `nodes`, null and
 /// null. Before it, tells the editing history of the mutation and consumes the deferred style change events of the
-/// documents. Answers whether the insertion affects the element children of `parent`.
+/// documents.
 ///
 /// `node` is null for nodes that are inserted as the children of a DocumentFragment no one can observe, which is not
 /// made. `I` picks the callbacks, which leave out what its InsertionKind says, as do the ones below.
@@ -292,7 +281,7 @@ pub(crate) fn begin_insertion<I: Inserter>(
     parent: NodeRef,
     node: Option<NodeRef>,
     nodes: &[NodeRef],
-) -> AffectsElements {
+) {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe { (insertion_hooks::<I>(main_thread).begin_insertion)(parent, node.into(), ak::Span::new(nodes)) }
 }
@@ -333,8 +322,8 @@ pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>,
 }
 
 /// Steps 8 and 9 of inserting `node`, whose nodes are `nodes`, into `parent` before `child`: queues the tree mutation
-/// record unless `suppress_observers`, and runs the children changed steps for `parent`. Then invalidates the
-/// collection caches the insertion changed, and marks the layout tree for the inserted nodes.
+/// record unless `suppress_observers`, and runs the children changed steps for `parent`. Then marks the layout tree for
+/// the inserted nodes.
 ///
 /// Can run script, allocate and change the tree.
 #[allow(clippy::too_many_arguments)]
@@ -346,7 +335,6 @@ pub(crate) fn end_insertion<I: Inserter>(
     previous_sibling: Option<NodeRef>,
     child: Option<NodeRef>,
     suppress_observers: bool,
-    affects_elements: AffectsElements,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe {
@@ -357,7 +345,6 @@ pub(crate) fn end_insertion<I: Inserter>(
             previous_sibling.into(),
             child.into(),
             suppress_observers,
-            affects_elements,
         );
     }
 }
@@ -392,13 +379,9 @@ pub(crate) fn begin_removing_all_children(main_thread: &mut MainThread<'_>, pare
 /// removed: runs the children changed steps for `parent`.
 ///
 /// Can run script, allocate and change the tree.
-pub(crate) fn end_removing_all_children(
-    main_thread: &mut MainThread<'_>,
-    parent: NodeRef,
-    children_removal: ChildrenRemoval,
-) {
+pub(crate) fn end_removing_all_children(main_thread: &mut MainThread<'_>, parent: NodeRef) {
     // SAFETY: The callback is called on the main thread with a live node.
-    unsafe { (hooks(main_thread).end_removing_all_children)(parent, children_removal) }
+    unsafe { (hooks(main_thread).end_removing_all_children)(parent) }
 }
 
 /// The steps of removing `node` from `parent` that come before the node leaves its parent's children, but for the live
@@ -652,6 +635,18 @@ pub(crate) fn call_node_filter(
 ) -> NodeFilterCall {
     // SAFETY: The callback is called on the main thread with a live filter and node.
     unsafe { (hooks(main_thread).call_node_filter)(filter.as_ptr(), node) }
+}
+
+/// Whether the filter that C++ keeps for `collection` matches `node`.
+///
+/// Can allocate. Runs no script, and leaves the tree as it is.
+pub(crate) fn collection_filter_matches(
+    main_thread: &mut MainThread<'_>,
+    collection: &CollectionCell,
+    node: NodeRef,
+) -> bool {
+    // SAFETY: The callback is called on the main thread with a live collection and node.
+    unsafe { (hooks(main_thread).collection_filter_matches)(collection, node) }
 }
 
 /// Queues a tree mutation record for `target` with `added_nodes`, `removed_nodes`, `previous_sibling` and

@@ -14,6 +14,11 @@
 //!
 //! Every move takes a stamp from one counter no tree has had before, so a version remembered from one tree is never
 //! mistaken for the version of another.
+//!
+//! A document also counts the changes to the children of the nodes whose node document it is, connected or not, for the
+//! live collections, see collection.rs: its node tree version moves whenever a node joins or leaves a node's children,
+//! and its element tree version whenever an element does. These move as the child is linked or unlinked, before any
+//! step that could run script follows.
 
 use super::node::NodeCell;
 use super::node_core::ParentNodeCore;
@@ -22,35 +27,41 @@ use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
+/// The stamps handed out so far: the last one, and the last one a DOM tree or character data version took.
+#[derive(Clone, Copy, Default)]
+struct Stamps {
+    last: u64,
+    last_tree_version: u64,
+}
+
 #[cfg(not(test))]
 mod last_stamp {
     use core::cell::UnsafeCell;
 
+    use super::Stamps;
     use crate::stage::MainThread;
 
-    /// The last stamp handed out to a tree.
     #[repr(transparent)]
-    struct LastStamp(UnsafeCell<u64>);
+    struct LastStamp(UnsafeCell<Stamps>);
 
-    // SAFETY: Only the main thread reads or writes the stamp, which every access proves with its token.
+    // SAFETY: Only the main thread reads or writes the stamps, which every access proves with its token.
     unsafe impl Sync for LastStamp {}
 
-    static LAST_STAMP: LastStamp = LastStamp(UnsafeCell::new(0));
+    static LAST_STAMP: LastStamp = LastStamp(UnsafeCell::new(Stamps {
+        last: 0,
+        last_tree_version: 0,
+    }));
 
     #[inline(always)]
-    pub(super) fn get(_main_thread: &MainThread<'_>) -> u64 {
-        // SAFETY: Only the main thread reaches the stamp, see LastStamp.
+    pub(super) fn get(_main_thread: &MainThread<'_>) -> Stamps {
+        // SAFETY: Only the main thread reaches the stamps, see LastStamp.
         unsafe { *LAST_STAMP.0.get() }
     }
 
     #[inline(always)]
-    pub(super) fn take_next(_main_thread: &mut MainThread<'_>) -> u64 {
-        // SAFETY: Only the main thread reaches the stamp, see LastStamp, and nothing borrows it across this.
-        unsafe {
-            let stamp = LAST_STAMP.0.get();
-            *stamp += 1;
-            *stamp
-        }
+    pub(super) fn set(_main_thread: &mut MainThread<'_>, stamps: Stamps) {
+        // SAFETY: Only the main thread reaches the stamps, see LastStamp, and nothing borrows them across this.
+        unsafe { *LAST_STAMP.0.get() = stamps };
     }
 }
 
@@ -59,26 +70,51 @@ mod last_stamp {
 mod last_stamp {
     use core::cell::Cell;
 
+    use super::Stamps;
     use crate::stage::MainThread;
 
     std::thread_local! {
-        static LAST_STAMP: Cell<u64> = const { Cell::new(0) };
+        static LAST_STAMP: Cell<Stamps> = const { Cell::new(Stamps { last: 0, last_tree_version: 0 }) };
     }
 
-    pub(super) fn get(_main_thread: &MainThread<'_>) -> u64 {
+    pub(super) fn get(_main_thread: &MainThread<'_>) -> Stamps {
         LAST_STAMP.get()
     }
 
-    pub(super) fn take_next(_main_thread: &mut MainThread<'_>) -> u64 {
-        LAST_STAMP.set(LAST_STAMP.get() + 1);
-        LAST_STAMP.get()
+    pub(super) fn set(_main_thread: &mut MainThread<'_>, stamps: Stamps) {
+        LAST_STAMP.set(stamps);
     }
 }
 
-/// The last stamp any tree's version took, which moves whenever a version of any tree does.
+/// A stamp no tree has had before.
+#[inline(always)]
+pub(super) fn take_next_stamp(main_thread: &mut MainThread<'_>) -> u64 {
+    let mut stamps = last_stamp::get(main_thread);
+    stamps.last += 1;
+    last_stamp::set(main_thread, stamps);
+    stamps.last
+}
+
+/// A stamp no tree has had before, for a DOM tree or character data version.
+#[inline(always)]
+fn take_next_tree_version_stamp(main_thread: &mut MainThread<'_>) -> u64 {
+    let mut stamps = last_stamp::get(main_thread);
+    stamps.last += 1;
+    stamps.last_tree_version = stamps.last;
+    last_stamp::set(main_thread, stamps);
+    stamps.last
+}
+
+/// The last stamp handed out, which moves whenever any version that takes stamps does.
+#[inline(always)]
+pub(super) fn last_stamp(main_thread: &MainThread<'_>) -> u64 {
+    last_stamp::get(main_thread).last
+}
+
+/// The last stamp the DOM tree or character data version of any tree took, which moves whenever one of those does.
 #[inline(always)]
 pub(crate) fn last_tree_version_stamp(main_thread: &MainThread<'_>) -> u64 {
-    last_stamp::get(main_thread)
+    last_stamp::get(main_thread).last_tree_version
 }
 
 /// Calls `callback` with the counters of the tree `node` is in: its document's while it is connected, otherwise its
@@ -94,11 +130,27 @@ fn with_tree_version_holder(node: NodeRef, callback: impl FnOnce(&ParentNodeCore
     }
 }
 
+/// The DOM tree version of the tree `node` is in, which is 0 for a tree whose root cannot have children.
+#[inline(always)]
+pub(crate) fn dom_tree_version(node: NodeRef) -> u64 {
+    let mut version = 0;
+    with_tree_version_holder(node, |core| version = core.dom_tree_version());
+    version
+}
+
+/// Moves the node tree version of `parent`'s node document, and its element tree version if `elements_changed`, as a
+/// node joins or leaves `parent`'s children.
+#[inline(always)]
+pub(super) fn child_list_changed(main_thread: &mut MainThread<'_>, parent: NodeRef, elements_changed: bool) {
+    let stamp = take_next_stamp(main_thread);
+    parent.document_core().set_tree_versions(stamp, elements_changed);
+}
+
 /// Moves the DOM tree version of the tree `node` is in.
 #[inline(always)]
 pub(crate) fn bump_dom_tree_version(main_thread: &mut MainThread<'_>, node: NodeRef) {
     with_tree_version_holder(node, |core| {
-        core.set_dom_tree_version(last_stamp::take_next(main_thread));
+        core.set_dom_tree_version(take_next_tree_version_stamp(main_thread));
     });
 }
 
@@ -106,7 +158,7 @@ pub(crate) fn bump_dom_tree_version(main_thread: &mut MainThread<'_>, node: Node
 #[inline(always)]
 fn bump_character_data_version(main_thread: &mut MainThread<'_>, node: NodeRef) {
     with_tree_version_holder(node, |core| {
-        core.set_character_data_version(last_stamp::take_next(main_thread));
+        core.set_character_data_version(take_next_tree_version_stamp(main_thread));
     });
 }
 
@@ -150,10 +202,26 @@ pub unsafe extern "C" fn rust_dom_restart_tree_versions(shadow_root: &NodeCell) 
     let mut main_thread = unsafe { main_thread() };
     // SAFETY: The node is live.
     let shadow_root = unsafe { NodeRef::from_cell(shadow_root, &main_thread) };
-    let stamp = last_stamp::take_next(&mut main_thread);
+    let stamp = take_next_tree_version_stamp(&mut main_thread);
     let core = shadow_root.parent_node_core().expect("a shadow root is a ParentNode");
     core.set_dom_tree_version(stamp);
     core.set_character_data_version(stamp);
+}
+
+/// Starts the node and element tree versions of `document` with a stamp no document has had, as C++ constructs it, so
+/// that what a collection found under another document's versions is never taken to hold under this one's.
+///
+/// # Safety
+///
+/// The document must be live, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_start_tree_versions_of_document(document: &NodeCell) {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The document is live.
+    let document = unsafe { NodeRef::from_cell(document, &main_thread) };
+    let stamp = take_next_stamp(&mut main_thread);
+    document.document_core().set_tree_versions(stamp, true);
 }
 
 #[cfg(test)]
