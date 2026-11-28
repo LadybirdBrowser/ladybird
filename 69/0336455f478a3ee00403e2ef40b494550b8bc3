@@ -1,0 +1,15 @@
+For a textarea with wrap=hard, Ladybird submits its value with an LF
+at the start of every line its rendering wrapped. Blink and WebKit
+do the same: Blink’s HTMLTextAreaElement::AppendToFormData() submits
+ValueWithHardLineBreaks(), and WebKit’s appendFormData() submits
+valueWithHardLineBreaks(), both read from the rendered lines. Gecko’s
+HTMLTextAreaElement::SubmitNamesValues() instead serializes the value
+with nsIDocumentEncoder::OutputWrap at cols characters. Run headless
+(Chrome 158, Firefox 151, WebKit 26.5), Chrome and WebKit broke a
+textarea’s submitted value where its CSS width wrapped the text, kept
+each line’s trailing spaces, and added nothing for display: none or
+white-space: pre. Firefox broke at cols characters in all three cases,
+dropped the space at each break, and didn’t break a word longer than
+cols. The spec leaves the algorithm implementation-defined, asking only
+for lines of at most cols characters, so Ladybird follows Blink and
+WebKit, as two engines and the visible rendering agree.
