@@ -382,8 +382,8 @@ endpoint HubClient
     view_request_dismiss_dialog(u64 view_id) =|
     view_request_website_issue_report(u64 view_id) =|
     view_request_screenshot(u64 view_id) =|
-    view_accessibility_tree_received(u64 view_id, u64 sequence, Vector<WebView::AccessibilityNodeData> nodes) =|
-    view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::AccessibilityTreeDelta delta) =|
+    view_accessibility_tree_received(u64 view_id, u64 sequence, WebView::EncodedAccessibilityTree tree) =|
+    view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::EncodedAccessibilityTreeDelta delta) =|
     view_accessibility_focus_changed(u64 view_id, i64 node_id) =|
     view_restore_window(u64 view_id) =|
     view_reposition_window(u64 view_id, Gfx::IntPoint position) =|

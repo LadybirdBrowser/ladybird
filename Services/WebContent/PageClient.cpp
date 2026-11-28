@@ -1349,14 +1349,26 @@ void PageClient::publish_accessibility_tree(bool whole_tree_requested)
 
     auto change = document->build_accessibility_tree_change(m_accessibility_change_tracker, whole_tree_requested);
     if (change.is_whole_tree) {
-        client().async_did_get_accessibility_tree(m_id, ++m_accessibility_tree_sequence, move(change.nodes));
+        auto tree = WebView::EncodedAccessibilityTree::encode(change.nodes);
+        change.nodes = {};
+        if (tree.is_error()) {
+            dbgln("Unable to encode the accessibility tree: {}", tree.error());
+            return;
+        }
+        client().async_did_get_accessibility_tree(m_id, ++m_accessibility_tree_sequence, tree.release_value());
         return;
     }
     if (change.nodes.is_empty() && change.removed_ids.is_empty())
         return;
+    auto delta = WebView::EncodedAccessibilityTreeDelta::encode({ move(change.nodes), move(change.removed_ids) });
+    if (delta.is_error()) {
+        // The UI notices the gap in the sequence and asks for the whole tree.
+        dbgln("Unable to encode an accessibility tree change: {}", delta.error());
+        ++m_accessibility_tree_sequence;
+        return;
+    }
     auto base_sequence = m_accessibility_tree_sequence++;
-    client().async_did_change_accessibility_tree(m_id, base_sequence, m_accessibility_tree_sequence,
-        WebView::AccessibilityTreeDelta { move(change.nodes), move(change.removed_ids) });
+    client().async_did_change_accessibility_tree(m_id, base_sequence, m_accessibility_tree_sequence, delta.release_value());
 }
 
 void PageClient::page_did_finish_test(Utf16String const& text)

@@ -1097,13 +1097,13 @@ void HubConnection::view_request_screenshot(u64 view_id)
         view->on_request_screenshot();
 }
 
-void HubConnection::view_accessibility_tree_received(u64 view_id, u64 sequence, Vector<WebView::AccessibilityNodeData> nodes)
+void HubConnection::view_accessibility_tree_received(u64 view_id, u64 sequence, WebView::EncodedAccessibilityTree tree)
 {
     if (auto* view = RemoteView::find(view_id); view && view->on_accessibility_tree_received)
-        view->on_accessibility_tree_received(move(sequence), move(nodes));
+        view->on_accessibility_tree_received(move(sequence), move(tree));
 }
 
-void HubConnection::view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::AccessibilityTreeDelta delta)
+void HubConnection::view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::EncodedAccessibilityTreeDelta delta)
 {
     if (auto* view = RemoteView::find(view_id); view && view->on_accessibility_tree_changed)
         view->on_accessibility_tree_changed(move(base_sequence), move(sequence), move(delta));

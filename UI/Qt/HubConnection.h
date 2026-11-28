@@ -217,8 +217,8 @@ private:
     virtual void view_request_dismiss_dialog(u64 view_id) override;
     virtual void view_request_website_issue_report(u64 view_id) override;
     virtual void view_request_screenshot(u64 view_id) override;
-    virtual void view_accessibility_tree_received(u64 view_id, u64 sequence, Vector<WebView::AccessibilityNodeData> nodes) override;
-    virtual void view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::AccessibilityTreeDelta delta) override;
+    virtual void view_accessibility_tree_received(u64 view_id, u64 sequence, WebView::EncodedAccessibilityTree tree) override;
+    virtual void view_accessibility_tree_changed(u64 view_id, u64 base_sequence, u64 sequence, WebView::EncodedAccessibilityTreeDelta delta) override;
     virtual void view_accessibility_focus_changed(u64 view_id, i64 node_id) override;
     virtual void view_restore_window(u64 view_id) override;
     virtual void view_reposition_window(u64 view_id, Gfx::IntPoint position) override;
