@@ -147,7 +147,7 @@ static Event::ResponseDelivery delivery()
         .response = Web::Fetch::Infrastructure::Response::create(),
         .body = NullBody {},
         .timing_seed = {},
-        .redirect_continuation_id = {},
+        .manual_redirect = {},
     };
 }
 
@@ -345,7 +345,7 @@ static bool has_lease(NetworkTransportWithGate const& transport)
 // Opens the continuation of a manual redirect of the record's fetch, which stays open, and returns its id.
 static ContinuationId open_continuation(FetchEngineRecord& record, NetworkTransportHandle* network_transport = nullptr)
 {
-    record.open_redirect_continuation(network_transport);
+    record.open_redirect_continuation(network_transport, Web::Fetch::Infrastructure::Response::create());
     return record.open_redirect_continuation_id().value();
 }
 
@@ -472,7 +472,7 @@ TEST_CASE(a_redirect_handed_over_after_a_stop_of_its_fetch_is_abandoned_at_once)
     // The pipeline hands the redirect over once the stop has stopped its request.
     records.stop(FetchId { 1 });
     EXPECT(has_lease(redirect));
-    record->open_redirect_continuation(redirect.handle.ptr());
+    record->open_redirect_continuation(redirect.handle.ptr(), Web::Fetch::Infrastructure::Response::create());
     EXPECT(!has_lease(redirect));
     EXPECT(!record->open_redirect_continuation_id().has_value());
 }

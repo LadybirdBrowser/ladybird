@@ -1281,11 +1281,20 @@ void fetch_response_handover(Infrastructure::FetchParams const& fetch_params, In
             [](Infrastructure::ResponseBody::ReadThroughStream) { VERIFY_NOT_REACHED(); });
     }
 
+    Optional<Engine::Event::ResponseDelivery::ManualRedirect> manual_redirect;
+    if (auto manual_redirect_response = engine_record->take_manual_redirect_response()) {
+        manual_redirect = Engine::Event::ResponseDelivery::ManualRedirect {
+            .fetch_params = fetch_params,
+            .response = manual_redirect_response.release_nonnull(),
+            .continuation_id = engine_record->open_redirect_continuation_id(),
+        };
+    }
+
     Engine::Event::ResponseDelivery delivery {
         .response = response,
         .body = move(body),
         .timing_seed = timing_info->seed(),
-        .redirect_continuation_id = engine_record->open_redirect_continuation_id(),
+        .manual_redirect = move(manual_redirect),
     };
     engine_record->main_fetch_hands_over(move(delivery));
 }
@@ -1312,7 +1321,18 @@ void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController> con
     auto& realm = controller->realm();
     auto request = controller->request();
     auto const& response = *delivery.response;
-    controller->set_redirect_continuation_id(delivery.redirect_continuation_id);
+    controller->set_redirect_continuation_id(delivery.manual_redirect.has_value() ? delivery.manual_redirect->continuation_id : Optional<Engine::ContinuationId> {});
+
+    // https://fetch.spec.whatwg.org/#concept-http-fetch
+    // NB: This is HTTP fetch's step for a navigation's manual redirect, which sets fetchParams's controller's next
+    //     manual redirect steps to run HTTP-redirect fetch given fetchParams and response.
+    if (auto const& manual_redirect = delivery.manual_redirect; manual_redirect.has_value()) {
+        controller->set_next_manual_redirect_steps(GC::create_function(controller->heap(), GC::captures(manual_redirect->fetch_params, manual_redirect->response), [](auto& fetch_params, auto& response) {
+            // AD-HOC: Abandon the redirect when HTTP-redirect fetch returns early, as nothing else answers it.
+            if (http_redirect_fetch(*fetch_params, *response))
+                fetch_controller_of(*fetch_params)->resolve_redirect(Engine::Command::ResolveRedirect::Abandon {});
+        }));
+    }
 
     // NB: The body view takes the channel that the internal response's body arrives through.
     auto body_view = delivery.body.visit(
@@ -2117,7 +2137,6 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
 
     pending_actual_response->when_loaded([fetch_params = NonnullRefPtr { fetch_params }, request, response, internal_response, returned_pending_response, response_was_null = !response](NonnullRefPtr<Infrastructure::Response> resolved_actual_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP fetch' pending_actual_response load callback");
-        auto controller = fetch_controller_of(*fetch_params);
         if (response_was_null) {
             response = internal_response = resolved_actual_response;
             // 4. If request’s response tainting is "cors" and a CORS check for request and response returns failure,
@@ -2178,6 +2197,8 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
             case Infrastructure::Request::RedirectMode::Manual:
                 // 1. If request’s mode is "navigate", then set fetchParams’s controller’s next manual redirect steps
                 //    to run HTTP-redirect fetch given fetchParams and response.
+                // NB: The agent sets the steps when main fetch hands the redirect over, with the response the
+                //     fetch's engine record keeps for the handover.
                 if (request->mode() == Infrastructure::Request::Mode::Navigate) {
                     // AD-HOC: The WebDriver BiDi response completed steps run here for a navigation's redirect, before
                     //         main fetch hands it over, as only a navigation's final response reports them later.
@@ -2187,13 +2208,7 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
                     VERIFY(engine_record);
                     auto const& network_transport = internal_response->network_transport();
                     auto* network_transport_handle = network_transport.has_value() ? network_transport->handle.ptr() : nullptr;
-                    engine_record->open_redirect_continuation(network_transport_handle);
-                    controller->set_next_manual_redirect_steps(GC::create_function(GC::Heap::the(), GC::captures(fetch_params, response), [](auto& fetch_params, auto& response) {
-                        // AD-HOC: A redirect that HTTP-redirect fetch returns from without running main fetch is
-                        //         abandoned, as nothing else answers it.
-                        if (http_redirect_fetch(*fetch_params, *response))
-                            fetch_controller_of(*fetch_params)->resolve_redirect(Engine::Command::ResolveRedirect::Abandon {});
-                    }));
+                    engine_record->open_redirect_continuation(network_transport_handle, *response);
                 }
                 // 2. Otherwise, set response to an opaque-redirect filtered response whose internal response is
                 //    internalResponse.

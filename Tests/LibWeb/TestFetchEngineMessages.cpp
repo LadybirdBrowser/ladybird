@@ -146,7 +146,7 @@ TEST_CASE(events_round_trip_their_payloads)
         .response = response,
         .body = NullBody {},
         .timing_seed = move(timing_seed),
-        .redirect_continuation_id = ContinuationId(1),
+        .manual_redirect = {},
     });
     events.append(Event::EndOfBody { .delivery_id = DeliveryId(2), .end_time = 99 });
     events.append(Event::ConsumeBodyResult { .delivery_id = DeliveryId(3), .outcome = Event::ConsumeBodyResult::Bytes { Core::ImmutableBytes::adopt(MUST(ByteBuffer::copy("body"sv.bytes()))) } });
@@ -286,7 +286,7 @@ TEST_CASE(events_round_trip_their_payloads)
                 EXPECT(delivery.body.has<NullBody>());
                 EXPECT_EQ(delivery.timing_seed.start_time, 12.5);
                 EXPECT(delivery.timing_seed.render_blocking);
-                seen_ids.append(delivery.redirect_continuation_id->value());
+                EXPECT(!delivery.manual_redirect.has_value());
             },
             [&](Event::EndOfBody const& end) {
                 EXPECT_EQ(end.end_time, 99);
@@ -417,7 +417,7 @@ TEST_CASE(events_round_trip_their_payloads)
             },
             [&](Event::FetchEnded const&) { seen_fetch_end = true; });
     }
-    EXPECT_EQ(seen_ids, (Vector<u64> { 1, 2, 3, 4, 5, 6 }));
+    EXPECT_EQ(seen_ids, (Vector<u64> { 2, 3, 4, 5, 6 }));
     EXPECT(seen_network_phases);
     EXPECT(seen_violation_report);
     EXPECT(seen_fetch_end);

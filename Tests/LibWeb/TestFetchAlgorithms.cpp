@@ -216,7 +216,7 @@ static NonnullRefPtr<AlgorithmCalls> deliver_to_a_fetch(FetchHarness const& harn
         .response = move(response),
         .body = move(body),
         .timing_seed = {},
-        .redirect_continuation_id = {},
+        .manual_redirect = {},
     };
     engine_record->main_fetch_hands_over(move(delivery));
     harness.run_tasks_until(GC::create_function(heap, GC::captures(record), [](auto& record) { return record->calls.size() == 3; }));

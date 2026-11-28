@@ -131,10 +131,11 @@ void FetchEngineRecord::deliver_body(FetchByteChannel& channel)
     channel.set_delivery_id_unless_closed(DeliveryId { s_next_delivery_id.fetch_add(1) });
 }
 
-void FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* network_transport)
+void FetchEngineRecord::open_redirect_continuation(NetworkTransportHandle* network_transport, NonnullRefPtr<Infrastructure::Response> response)
 {
     ASSERT(is_on_owner_thread());
     VERIFY(!m_redirect_continuation.has_value());
+    m_manual_redirect_response = move(response);
 
     ContinuationId continuation_id { s_next_continuation_id.fetch_add(1) };
     if (auto* records = m_records.ptr())
@@ -175,6 +176,12 @@ Optional<ContinuationId> FetchEngineRecord::open_redirect_continuation_id() cons
     if (!m_redirect_continuation.has_value())
         return {};
     return m_redirect_continuation->id;
+}
+
+RefPtr<Infrastructure::Response> FetchEngineRecord::take_manual_redirect_response()
+{
+    ASSERT(is_on_owner_thread());
+    return move(m_manual_redirect_response);
 }
 
 void FetchEngineRecord::close_redirect_continuation()

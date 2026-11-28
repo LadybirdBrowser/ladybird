@@ -111,9 +111,10 @@ public:
     void deliver_body(FetchByteChannel&);
 
     // Opens the continuation of a manual redirect the fetch hands over, which waits for the agent's answer. The
-    // redirect's response arrived through the given network transport, if any.
-    void open_redirect_continuation(NetworkTransportHandle*);
+    // redirect's response arrived through the given network transport, if any, and is kept for the handover.
+    void open_redirect_continuation(NetworkTransportHandle*, NonnullRefPtr<Infrastructure::Response>);
     [[nodiscard]] Optional<ContinuationId> open_redirect_continuation_id() const;
+    [[nodiscard]] RefPtr<Infrastructure::Response> take_manual_redirect_response();
 
     enum class RedirectAnswerResult : u8 {
         Settled,
@@ -191,6 +192,7 @@ private:
         WeakPtr<NetworkTransportHandle> network_transport;
     };
     Optional<RedirectContinuation> m_redirect_continuation;
+    RefPtr<Infrastructure::Response> m_manual_redirect_response;
 
     struct NetworkInterception {
         ContinuationId id;
