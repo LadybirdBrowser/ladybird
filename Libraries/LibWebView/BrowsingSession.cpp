@@ -8,6 +8,8 @@
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HSTSStore.h>
+#include <LibWebView/IndexedDBRegistry.h>
+#include <LibWebView/IndexedDBStore.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/StorageJar.h>
 
@@ -21,7 +23,11 @@ BrowsingSession::BrowsingSession(IsPrivate is_private)
 {
 }
 
-BrowsingSession::~BrowsingSession() = default;
+// A private session's databases go with it.
+BrowsingSession::~BrowsingSession()
+{
+    IndexedDBRegistry::the().remove_session(m_id);
+}
 
 NonnullRefPtr<BrowsingSession> BrowsingSession::create(IsPrivate is_private)
 {

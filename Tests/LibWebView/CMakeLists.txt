@@ -86,6 +86,7 @@ set(TEST_SOURCES
     TestHelperProcessPaths.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp
+    TestIndexedDBStore.cpp
     TestLingeringIndicator.cpp
     TestMediaSessionCoordinator.cpp
     TestNavigationLoader.cpp

@@ -19,8 +19,8 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/DOMException.h>
+#include <LibWeb/WebIDL/QuotaExceededError.h>
 #include <LibWebCommon/IndexedDB/TransactionChanges.h>
 
 // What the Rust implementation of IndexedDB asks of LibWeb's C++ code, declared on the Rust side in
@@ -30,15 +30,13 @@ using namespace Web;
 
 extern "C" {
 
-void web_rust_indexed_db_check_pending_connection_wait(JSVM*, void* database);
-
+void web_rust_indexed_db_close_collected_connections();
+void web_indexed_db_enqueue_close_collected_connections();
 void* web_indexed_db_create_dom_exception(ReadonlyBytes name, FlatPtr message);
 void* web_indexed_db_dom_exception_from_value(JSValue);
 JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception);
 void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*));
-void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*));
 void* web_indexed_db_current_event_loop();
-void web_indexed_db_enqueue_check_pending_connection_wait(void* database);
 bool web_indexed_db_devtools_client_is_active(void* realm);
 IndexedDB::TransactionChanges* web_indexed_db_create_transaction_changes();
 void web_indexed_db_append_transaction_change(IndexedDB::TransactionChanges*, u8 kind, FlatPtr database_name, FlatPtr object_store_name, JsonValue* key);
@@ -51,9 +49,20 @@ JsonValue* web_indexed_db_json_array();
 void web_indexed_db_json_array_append(JsonValue* array, JsonValue* value);
 }
 
+void web_indexed_db_enqueue_close_collected_connections()
+{
+    GC::Heap::the().enqueue_post_gc_task([] {
+        web_rust_indexed_db_close_collected_connections();
+    });
+}
+
 void* web_indexed_db_create_dom_exception(ReadonlyBytes name, FlatPtr message)
 {
-    return WebIDL::DOMException::create(FlyString::from_utf8_without_validation(name), Utf16String::from_raw(message)).ptr();
+    auto message_string = Utf16String::from_raw(message);
+    // NB: QuotaExceededError is an interface of its own, rather than a name a DOMException can have.
+    if (name == "QuotaExceededError"sv.bytes())
+        return WebIDL::QuotaExceededError::create(message_string).ptr();
+    return WebIDL::DOMException::create(FlyString::from_utf8_without_validation(name), message_string).ptr();
 }
 
 void* web_indexed_db_dom_exception_from_value(JSValue raw_value)
@@ -81,27 +90,9 @@ void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*
     }));
 }
 
-void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*))
-{
-    GC::Ref<GC::Cell> function = *static_cast<GC::Cell*>(cell);
-    // NB: The function's captures, which the collector traces, keep the cell alive until the steps run.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), GC::captures(function, steps), [](auto& function, auto& steps) {
-        steps(JS::HostABI::vm_to_abi(JS::VM::the()), function.ptr());
-    }));
-}
-
 void* web_indexed_db_current_event_loop()
 {
     return &HTML::current_event_loop();
-}
-
-void web_indexed_db_enqueue_check_pending_connection_wait(void* database)
-{
-    GC::Heap::the().enqueue_post_gc_task([database = GC::Weak<GC::Cell>(*static_cast<GC::Cell*>(database))] {
-        if (!database)
-            return;
-        web_rust_indexed_db_check_pending_connection_wait(JS::HostABI::vm_to_abi(JS::VM::the()), database.ptr().ptr());
-    });
 }
 
 static GC::Ptr<DOM::Document> responsible_document(void* realm)

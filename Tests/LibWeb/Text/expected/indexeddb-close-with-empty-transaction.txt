@@ -1,0 +1,7 @@
+connection closed
+transaction complete
+upgrade needed
+upgrade succeeded
+connection closed
+transaction complete
+delete succeeded

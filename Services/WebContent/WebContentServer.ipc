@@ -175,6 +175,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     storage_area_write_acknowledged(Web::StorageAPI::StorageAreaId area_id) =|
     storage_area_write_refused(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) =|
     storage_area_reset(Web::StorageAPI::StorageAreaId area_id, Vector<Utf16String> keys, Vector<Utf16String> values) =|
+    indexed_db_events(u64 client_id, ByteBuffer events) =|
     inspect_dom_node(Web::PageId page_id, WebView::DOMNodeProperties::Type property_type, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options) =|
     inspect_grid_layouts(Web::PageId page_id, Web::UniqueNodeID root_node_id) =|
     inspect_current_grid(Web::PageId page_id, Web::UniqueNodeID node_id) =|

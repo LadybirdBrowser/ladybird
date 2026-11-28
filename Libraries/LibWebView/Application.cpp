@@ -59,6 +59,8 @@
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/ImageDecoderManager.h>
+#include <LibWebView/IndexedDBRegistry.h>
+#include <LibWebView/IndexedDBStore.h>
 #include <LibWebView/NoOpDefaultBrowser.h>
 #include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
@@ -1917,8 +1919,9 @@ ErrorOr<void> Application::launch_services()
         auto hsts_outcome = TRY(HSTSStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
         auto storage_outcome = TRY(StorageJar::migrate_schema(database, Database::MigrationMode::CheckOnly));
         auto downloads_outcome = TRY(DownloadStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
+        auto indexed_db_outcome = TRY(IndexedDBStore::migrate_schema(database, Database::MigrationMode::CheckOnly));
 
-        if (cookies_outcome == Database::MigrationOutcome::Success && hsts_outcome == Database::MigrationOutcome::Success && storage_outcome == Database::MigrationOutcome::Success && downloads_outcome == Database::MigrationOutcome::Success) {
+        if (cookies_outcome == Database::MigrationOutcome::Success && hsts_outcome == Database::MigrationOutcome::Success && storage_outcome == Database::MigrationOutcome::Success && downloads_outcome == Database::MigrationOutcome::Success && indexed_db_outcome == Database::MigrationOutcome::Success) {
             // Apply in order, stopping at the first store that finds the database too new
             // (a concurrent process may have migrated it since the preflight).
             cookies_outcome = TRY(CookieJar::migrate_schema(database));
@@ -1931,17 +1934,21 @@ ErrorOr<void> Application::launch_services()
             downloads_outcome = storage_outcome == Database::MigrationOutcome::Success
                 ? TRY(DownloadStore::migrate_schema(database))
                 : Database::MigrationOutcome::DatabaseTooNew;
+            indexed_db_outcome = downloads_outcome == Database::MigrationOutcome::Success
+                ? TRY(IndexedDBStore::migrate_schema(database))
+                : Database::MigrationOutcome::DatabaseTooNew;
         }
 
         // If any store finds the shared file too new, including a concurrent process migrating it
         // between the preflight and an apply above, none of them may persist this session, even if
         // an earlier store already migrated. Otherwise, we would keep writing to a vetoed database.
-        if (cookies_outcome != Database::MigrationOutcome::Success || hsts_outcome != Database::MigrationOutcome::Success || storage_outcome != Database::MigrationOutcome::Success || downloads_outcome != Database::MigrationOutcome::Success) {
-            warnln("Browsing database was created by a newer Ladybird version; cookies, web storage, HSTS policies and unfinished downloads will not be persisted this session");
+        if (cookies_outcome != Database::MigrationOutcome::Success || hsts_outcome != Database::MigrationOutcome::Success || storage_outcome != Database::MigrationOutcome::Success || downloads_outcome != Database::MigrationOutcome::Success || indexed_db_outcome != Database::MigrationOutcome::Success) {
+            warnln("Browsing database was created by a newer Ladybird version; cookies, web storage, IndexedDB databases, HSTS policies and unfinished downloads will not be persisted this session");
             cookies_outcome = Database::MigrationOutcome::DatabaseTooNew;
             hsts_outcome = Database::MigrationOutcome::DatabaseTooNew;
             storage_outcome = Database::MigrationOutcome::DatabaseTooNew;
             downloads_outcome = Database::MigrationOutcome::DatabaseTooNew;
+            indexed_db_outcome = Database::MigrationOutcome::DatabaseTooNew;
         }
 
         if (cookies_outcome == Database::MigrationOutcome::Success)
@@ -1959,16 +1966,25 @@ ErrorOr<void> Application::launch_services()
         else
             m_default_session->storage_jar = StorageJar::create();
 
+        // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
+        // already running on their profile.
+        auto might_share_profile = m_browser_options.headless_mode.has_value() || m_browser_options.webdriver_browser_endpoint.has_value() || m_stats_log;
+
+        // NB: Each backend writes the rows of the databases it loaded as it holds them, so two backends on one profile
+        //     would replace each other's records. So a run that might share its profile keeps its IndexedDB databases
+        //     in memory only.
+        if (indexed_db_outcome == Database::MigrationOutcome::Success && !might_share_profile)
+            m_default_session->indexed_db_store = TRY(IndexedDBStore::create(database));
+
         if (downloads_outcome == Database::MigrationOutcome::Success)
             m_download_store = TRY(DownloadStore::create(database));
         else
             m_download_store = DownloadStore::create_disabled();
 
-        // A headless run, a browser that WebDriver drives, and one that logs process statistics never join a browser
-        // already running on their profile. Yet startup recovery would still rewrite the saved session, reset the
-        // unclean-exit count, and demote the open windows of a browser running on this profile. So none of them keeps
-        // its session, leaving the Sessions database as the last run left it.
-        m_persists_sessions = !m_browser_options.headless_mode.has_value() && !m_browser_options.webdriver_browser_endpoint.has_value() && !m_stats_log;
+        // NB: Startup recovery would still rewrite the saved session, reset the unclean-exit count, and demote the open
+        //     windows of a browser running on this profile. So a run that might share its profile doesn't keep its
+        //     session, leaving the Sessions database as the last run left it.
+        m_persists_sessions = !might_share_profile;
     } else {
         m_default_session->cookie_jar = CookieJar::create();
         m_default_session->hsts_store = HSTSStore::create();
@@ -2877,14 +2893,17 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
         ->when_resolved([this, promise, since](Requests::CacheSizes cache_sizes) {
             auto cookie_sizes = m_default_session->cookie_jar->estimate_storage_size_accessed_since(since);
             auto storage_sizes = m_default_session->storage_jar->estimate_storage_size_accessed_since(since);
+            auto indexed_db_sizes = m_default_session->indexed_db_store
+                ? m_default_session->indexed_db_store->estimate_size_written_since(since)
+                : Requests::CacheSizes {};
 
             BrowsingDataSizes sizes;
 
             sizes.cache_size_since_requested_time = cache_sizes.since_requested_time;
             sizes.total_cache_size = cache_sizes.total;
 
-            sizes.site_data_size_since_requested_time = cookie_sizes.since_requested_time + storage_sizes.since_requested_time;
-            sizes.total_site_data_size = cookie_sizes.total + storage_sizes.total;
+            sizes.site_data_size_since_requested_time = cookie_sizes.since_requested_time + storage_sizes.since_requested_time + indexed_db_sizes.since_requested_time;
+            sizes.total_site_data_size = cookie_sizes.total + storage_sizes.total + indexed_db_sizes.total;
 
             promise->resolve(sizes);
         })
@@ -2926,11 +2945,13 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
         m_default_session->cookie_jar->expire_cookies_accessed_since(options.since);
         m_default_session->storage_jar->remove_items_accessed_since(options.since);
         m_default_session->hsts_store->remove_policies_observed_since(options.since);
+        IndexedDBRegistry::the().clear_site_data_since(*m_default_session, options.since);
 
         if (auto private_session = m_private_session.strong_ref()) {
             private_session->cookie_jar->expire_cookies_accessed_since(options.since);
             private_session->storage_jar->remove_items_accessed_since(options.since);
             private_session->hsts_store->remove_policies_observed_since(options.since);
+            IndexedDBRegistry::the().clear_site_data_since(*private_session, options.since);
         }
     }
 

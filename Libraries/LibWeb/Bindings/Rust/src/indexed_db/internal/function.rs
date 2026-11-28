@@ -11,6 +11,8 @@ use core::marker::PhantomData;
 
 use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, Trace, Value, Visitor, Vm};
 
+use libwebcommon_rust::indexed_db::backend::OperationResult;
+
 use crate::bindings::WebIdlResult;
 
 trait Steps: Trace {
@@ -121,65 +123,6 @@ unsafe impl<T> Trace for NoCells<T> {
     fn trace(&self, _: &mut Visitor) {}
 }
 
-trait OperationSteps: Trace {
-    fn call(&self, vm: &Vm) -> WebIdlResult<Value>;
-}
-
-struct CapturedOperation<C> {
-    captures: C,
-    steps: fn(&Vm, &C) -> WebIdlResult<Value>,
-}
-
-// SAFETY: The steps are a plain function, which holds no cells.
-unsafe impl<C: Trace> Trace for CapturedOperation<C> {
-    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
-        self.captures.trace(visitor);
-    }
-}
-
-impl<C: Trace> OperationSteps for CapturedOperation<C> {
-    fn call(&self, vm: &Vm) -> WebIdlResult<Value> {
-        (self.steps)(vm, &self.captures)
-    }
-}
-
-pub(crate) struct OperationCell(Box<dyn OperationSteps>);
-
-// SAFETY: The captures of the steps are all the cells this reaches.
-unsafe impl Trace for OperationCell {
-    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
-        self.0.trace(visitor);
-    }
-}
-
-static OPERATION_CLASS: EmbedderClass<OperationCell> = EmbedderClass::new("IndexedDBOperation");
-
-impl EmbedderValue for OperationCell {
-    const CLASS: &'static EmbedderClass<Self> = &OPERATION_CLASS;
-}
-
-/// A GC::Function<WebIDL::ExceptionOr<JS::Value>()>: the operation of a request.
-pub(crate) type Operation = Gc<EmbedderCell<OperationCell>>;
-
-/// GC::create_function() for an operation, with captures that it keeps alive.
-pub(crate) fn create_operation<C: Trace + 'static>(
-    vm: &Vm,
-    captures: C,
-    steps: fn(&Vm, &C) -> WebIdlResult<Value>,
-) -> Operation {
-    OPERATION_CLASS.allocate(vm, |_| {
-        let steps: Box<dyn OperationSteps> = Box::new(CapturedOperation { captures, steps });
-        OperationCell(steps)
-    })
-}
-
-pub(crate) fn perform_operation(vm: &Vm, operation: Operation) -> WebIdlResult<Value> {
-    let result = operation.0.call(vm);
-    // NB: The operation keeps its captures alive while it runs.
-    core::hint::black_box(operation);
-    result
-}
-
 impl Function {
     /// The cell, for LibWeb's C++ code to hold until it runs the function.
     pub(crate) fn cell_as_ptr(self) -> *mut core::ffi::c_void {
@@ -197,4 +140,63 @@ impl Function {
             _argument: PhantomData,
         }
     }
+}
+
+trait ConversionSteps: Trace {
+    fn call(&self, vm: &Vm, result: OperationResult) -> WebIdlResult<Value>;
+}
+
+struct CapturedConversion<C> {
+    captures: C,
+    steps: fn(&Vm, &C, OperationResult) -> WebIdlResult<Value>,
+}
+
+// SAFETY: The steps are a plain function, which holds no cells.
+unsafe impl<C: Trace> Trace for CapturedConversion<C> {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        self.captures.trace(visitor);
+    }
+}
+
+impl<C: Trace> ConversionSteps for CapturedConversion<C> {
+    fn call(&self, vm: &Vm, result: OperationResult) -> WebIdlResult<Value> {
+        (self.steps)(vm, &self.captures, result)
+    }
+}
+
+pub(crate) struct ConversionCell(Box<dyn ConversionSteps>);
+
+// SAFETY: The captures of the steps are all the cells this reaches.
+unsafe impl Trace for ConversionCell {
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        self.0.trace(visitor);
+    }
+}
+
+static CONVERSION_CLASS: EmbedderClass<ConversionCell> = EmbedderClass::new("IndexedDBConversion");
+
+impl EmbedderValue for ConversionCell {
+    const CLASS: &'static EmbedderClass<Self> = &CONVERSION_CLASS;
+}
+
+/// What turns the result that the backend sent for an operation into the request's result, in the request's realm:
+/// deserializing values, and converting keys to values.
+pub(crate) type Conversion = Gc<EmbedderCell<ConversionCell>>;
+
+pub(crate) fn create_conversion<C: Trace + 'static>(
+    vm: &Vm,
+    captures: C,
+    steps: fn(&Vm, &C, OperationResult) -> WebIdlResult<Value>,
+) -> Conversion {
+    CONVERSION_CLASS.allocate(vm, |_| {
+        let steps: Box<dyn ConversionSteps> = Box::new(CapturedConversion { captures, steps });
+        ConversionCell(steps)
+    })
+}
+
+pub(crate) fn convert_result(vm: &Vm, conversion: Conversion, result: OperationResult) -> WebIdlResult<Value> {
+    let value = conversion.0.call(vm, result);
+    // NB: The conversion keeps its captures alive while it runs.
+    core::hint::black_box(conversion);
+    value
 }

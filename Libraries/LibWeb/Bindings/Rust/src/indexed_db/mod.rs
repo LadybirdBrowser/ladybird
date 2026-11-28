@@ -6,6 +6,7 @@
 
 //! Indexed Database API, https://w3c.github.io/IndexedDB/
 
+pub(crate) mod client;
 pub(crate) mod cpp;
 pub(crate) mod exports;
 pub(crate) mod idb_cursor;
@@ -21,3 +22,5 @@ pub(crate) mod idb_request;
 pub(crate) mod idb_transaction;
 pub(crate) mod idb_version_change_event;
 pub(crate) mod internal;
+pub(crate) mod remote;
+pub(crate) mod remote_ops;

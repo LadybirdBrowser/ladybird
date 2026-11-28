@@ -1,0 +1,2 @@
+version after aborting a read-only transaction: 3
+version when opened again: 3

@@ -10,9 +10,10 @@
 // https://w3c.github.io/IndexedDB/#key-generator-construct
 
 // The current number is always a positive integer less than or equal to 2^53 (9007199254740992) + 1.
-pub(crate) const MAX_KEY_GENERATOR_VALUE: f64 = 9007199254740992.0;
+pub const MAX_KEY_GENERATOR_VALUE: f64 = 9007199254740992.0;
 
-pub(crate) struct KeyGenerator {
+#[derive(Clone)]
+pub struct KeyGenerator {
     // A key generator has a current number.
     // The current number is always a positive integer less than or equal to 2^53 (9007199254740992) + 1.
     // The initial value of a key generator's current number is 1, set when the associated object store is created.
@@ -20,20 +21,26 @@ pub(crate) struct KeyGenerator {
     current_number: u64,
 }
 
+impl Default for KeyGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KeyGenerator {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { current_number: 1 }
     }
 
-    pub(crate) fn current_number(&self) -> u64 {
+    pub fn current_number(&self) -> u64 {
         self.current_number
     }
 
-    pub(crate) fn increment(&mut self, amount: u64) {
+    pub fn increment(&mut self, amount: u64) {
         self.current_number += amount;
     }
 
-    pub(crate) fn set(&mut self, value: u64) {
+    pub fn set(&mut self, value: u64) {
         self.current_number = value;
     }
 }

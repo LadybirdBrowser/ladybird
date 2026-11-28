@@ -1,3 +1,4 @@
+#include <AK/ByteBuffer.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibIPC/File.h>
@@ -28,4 +29,7 @@ endpoint WebWorkerClient {
     did_release_image_decoder() =|
     did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage message) =|
     register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport) =|
+    connect_to_indexed_db(Web::HTML::EnvironmentId environment_id) => (Optional<u64> client_id)
+    indexed_db_request(u64 client_id, ByteBuffer request) =|
+    disconnect_from_indexed_db(u64 client_id) =|
 }

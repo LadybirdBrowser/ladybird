@@ -36,6 +36,7 @@ WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, Browsi
 WebWorkerClient::~WebWorkerClient()
 {
     remove_blob_url_entries();
+    IndexedDBRegistry::the().remove_owner(*this);
 }
 
 void WebWorkerClient::set_host(WebContentClient& host)
@@ -58,6 +59,7 @@ void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
 void WebWorkerClient::die()
 {
     remove_blob_url_entries();
+    IndexedDBRegistry::the().remove_owner(*this);
     WorkerAgentManager::the().worker_did_die(m_agent_id);
 
     // NB: The process of a worker on a thread goes on, and so may its use of the decoder.
@@ -254,6 +256,35 @@ void WebWorkerClient::register_dedicated_worker(Web::HTML::WorkerAgentStartReque
 {
     auto outside_settings = hosted_environment(request.outside_settings.id);
     WorkerAgentManager::the().register_dedicated_worker(*this, outside_settings, move(request), move(worker_transport));
+}
+
+// The client binds to the storage key this process derives for the worker's environment, never to one it names.
+Messages::WebWorkerClient::ConnectToIndexedDbResponse WebWorkerClient::connect_to_indexed_db(Web::HTML::EnvironmentId environment_id)
+{
+    auto session = this->session();
+    auto environment = hosted_environment(environment_id);
+    if (!session || !environment.has_value())
+        return OptionalNone {};
+    auto storage_key = obtain_a_storage_key(*environment);
+    if (!storage_key.has_value())
+        return OptionalNone {};
+    return IndexedDBRegistry::the().connect(*session, storage_key->to_string(), *this);
+}
+
+void WebWorkerClient::indexed_db_request(u64 client_id, ByteBuffer request)
+{
+    if (!IndexedDBRegistry::the().handle_request(*this, client_id, request.bytes()))
+        did_misbehave("indexed_db_request"sv, "the request is for another process's client, or doesn't decode"sv);
+}
+
+void WebWorkerClient::disconnect_from_indexed_db(u64 client_id)
+{
+    IndexedDBRegistry::the().disconnect(*this, client_id);
+}
+
+void WebWorkerClient::indexed_db_events(u64 client_id, ByteBuffer events)
+{
+    async_indexed_db_events(client_id, events.bytes());
 }
 
 }

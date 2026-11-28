@@ -43,6 +43,8 @@ public:
     // NB: Null for the ordinary session until Application fills these in during startup.
     OwnPtr<CookieJar> cookie_jar;
     OwnPtr<StorageJar> storage_jar;
+    // Where the session's IndexedDB databases are kept between runs; none for a session that keeps them in memory.
+    OwnPtr<IndexedDBStore> indexed_db_store;
     OwnPtr<BlobURLStore> blob_url_store;
     OwnPtr<HSTSStore> hsts_store;
     OwnPtr<PermissionManager> permission_manager;

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    spoofCurrentURL("https://example.com/indexeddb-close-with-empty-transaction.html");
+
+    // A connection that closes right after creating a transaction still has to let that transaction commit. And a
+    // version change or a deletion that waits for the connection to close goes on once it has, without firing blocked.
+    const dbName = "test-close-with-empty-transaction-" + Date.now() + Math.random();
+
+    function openAndCloseWithTransaction(version, then) {
+        const open = indexedDB.open(dbName, version);
+        open.onupgradeneeded = () => {
+            if (!open.result.objectStoreNames.contains("store"))
+                open.result.createObjectStore("store");
+        };
+        open.onsuccess = () => {
+            const db = open.result;
+            const transaction = db.transaction("store", "readonly");
+            transaction.oncomplete = () => println("transaction complete");
+            transaction.onabort = () => println("transaction aborted");
+            db.close();
+            println("connection closed");
+            then();
+        };
+    }
+
+    openAndCloseWithTransaction(1, () => {
+        const upgrade = indexedDB.open(dbName, 2);
+        upgrade.onblocked = () => println("upgrade blocked");
+        upgrade.onupgradeneeded = () => println("upgrade needed");
+        upgrade.onsuccess = () => {
+            println("upgrade succeeded");
+            upgrade.result.close();
+
+            openAndCloseWithTransaction(2, () => {
+                const deletion = indexedDB.deleteDatabase(dbName);
+                deletion.onblocked = () => println("delete blocked");
+                deletion.onsuccess = () => {
+                    println("delete succeeded");
+                    done();
+                };
+            });
+        };
+    });
+});
+</script>

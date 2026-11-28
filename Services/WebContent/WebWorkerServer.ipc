@@ -1,3 +1,4 @@
+#include <AK/ByteBuffer.h>
 #include <AK/JsonValue.h>
 #include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
@@ -19,6 +20,7 @@ endpoint WebWorkerServer {
     set_user_agent(String user_agent) =|
     set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) =|
     set_preferred_languages(Vector<String> preferred_languages) =|
+    indexed_db_events(u64 client_id, ByteBuffer events) =|
 
     start_worker(URL::URL url,
                  Web::HTML::WorkerType type,

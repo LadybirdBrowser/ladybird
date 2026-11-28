@@ -14,6 +14,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/ScriptAbortHandle.h>
+#include <LibWeb/IndexedDB/IndexedDBClient.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/WebRTC/RTCRtpScriptTransformer.h>
 #include <LibWebCommon/Forward.h>
@@ -27,7 +28,8 @@
 namespace WebWorker {
 
 class ConnectionFromClient final
-    : public IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint> {
+    : public IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>
+    , public Web::IndexedDB::IndexedDBClient {
     C_OBJECT(ConnectionFromClient);
 
 public:
@@ -77,6 +79,13 @@ private:
     virtual void set_user_agent(String user_agent) override;
     virtual void set_navigator_compatibility_mode(Web::NavigatorCompatibilityMode mode) override;
     virtual void set_preferred_languages(Vector<String> preferred_languages) override;
+    virtual void indexed_db_events(u64 client_id, ByteBuffer events) override;
+
+    // Web::IndexedDB::IndexedDBClient: the worker thread's link to Hub, which holds the databases.
+    virtual Optional<u64> connect_to_indexed_db(Web::PageId, Web::HTML::EnvironmentId const&) override;
+    virtual void indexed_db_request(u64 client_id, ReadonlyBytes request) override;
+    virtual void disconnect_from_indexed_db(u64 client_id) override;
+    virtual ByteBuffer inspect_indexed_db(u64, ReadonlyBytes) override { return {}; }
     virtual void start_worker(URL::URL url, Web::HTML::WorkerType type, Web::HTML::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::HTML::AgentType, URL::Origin origin, Web::HTML::EnvironmentId environment_id, bool has_process_to_itself) override;
     virtual void connect_shared_worker(Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) override;

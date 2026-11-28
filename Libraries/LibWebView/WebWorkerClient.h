@@ -22,6 +22,7 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/IndexedDBRegistry.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 #include <WebContent/WebWorkerClientEndpoint.h>
 #include <WebContent/WebWorkerServerEndpoint.h>
@@ -30,7 +31,8 @@ namespace WebView {
 
 class WEBVIEW_API WebWorkerClient final
     : public IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>
-    , public WebWorkerClientEndpoint {
+    , public WebWorkerClientEndpoint
+    , public IndexedDBClientOwner {
     C_OBJECT_ABSTRACT(WebWorkerClient);
 
 public:
@@ -78,6 +80,10 @@ public:
     virtual Messages::WebWorkerClient::RequestCompositorConnectionResponse request_compositor_connection() override;
     virtual void did_post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage) override;
     virtual void register_dedicated_worker(Web::HTML::WorkerAgentStartRequest request, IPC::TransportHandle worker_transport) override;
+    virtual Messages::WebWorkerClient::ConnectToIndexedDbResponse connect_to_indexed_db(Web::HTML::EnvironmentId environment_id) override;
+    virtual void indexed_db_request(u64 client_id, ByteBuffer request) override;
+    virtual void disconnect_from_indexed_db(u64 client_id) override;
+    virtual void indexed_db_events(u64 client_id, ByteBuffer events) override;
 
 private:
     virtual void did_misbehave(StringView message_name, StringView reason) override;

@@ -436,7 +436,7 @@ ErrorOr<void> Database::execute_raw(ByteString const& sql)
 
 ErrorOr<void> Database::Transaction::begin()
 {
-    TRY(m_database.execute_raw("BEGIN IMMEDIATE;"));
+    TRY(m_database.execute_raw(m_kind == Kind::Write ? "BEGIN IMMEDIATE;" : "BEGIN DEFERRED;"));
     m_active = true;
     return {};
 }
@@ -460,6 +460,15 @@ ErrorOr<void> Database::Transaction::commit()
 ErrorOr<void> Database::transaction(Function<ErrorOr<void>()> callback)
 {
     Transaction transaction { *this };
+    TRY(transaction.begin());
+    TRY(callback());
+    TRY(transaction.commit());
+    return {};
+}
+
+ErrorOr<void> Database::read_transaction(Function<ErrorOr<void>()> callback)
+{
+    Transaction transaction { *this, Transaction::Kind::Read };
     TRY(transaction.begin());
     TRY(callback());
     TRY(transaction.commit());

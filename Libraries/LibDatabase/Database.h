@@ -241,6 +241,10 @@ public:
 
     ErrorOr<void> transaction(Function<ErrorOr<void>()> callback);
 
+    // Runs the callback's reads against one snapshot of the database, without taking the write lock, so it doesn't wait
+    // for another writer to start. Outside WAL mode, a writer that's committing can still make it fail.
+    ErrorOr<void> read_transaction(Function<ErrorOr<void>()> callback);
+
     // Error-returning sibling of execute_statement, for callers that must handle failures
     // (e.g. migration backfills, which roll the migration transaction back) instead of
     // aborting the process.
@@ -310,8 +314,14 @@ private:
 
     class Transaction {
     public:
-        explicit Transaction(Database& database)
+        enum class Kind {
+            Write,
+            Read,
+        };
+
+        explicit Transaction(Database& database, Kind kind = Kind::Write)
             : m_database(database)
+            , m_kind(kind)
         {
         }
         ~Transaction();
@@ -326,6 +336,7 @@ private:
 
     private:
         Database& m_database;
+        Kind m_kind { Kind::Write };
         bool m_active { false };
     };
 

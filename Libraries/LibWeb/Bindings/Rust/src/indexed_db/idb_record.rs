@@ -19,20 +19,6 @@ use crate::indexed_db::internal::key::Key;
 /// The bytes of a Web::HTML::StorageSerializationRecord, which records share.
 pub(crate) type StorageSerializationRecord = Rc<[u8]>;
 
-// https://w3c.github.io/IndexedDB/#object-store-record
-#[derive(Clone)]
-pub(crate) struct ObjectStoreRecord {
-    pub(crate) key: Rc<Key>,
-    pub(crate) value: StorageSerializationRecord,
-}
-
-// https://w3c.github.io/IndexedDB/#index-list-of-records
-#[derive(Clone)]
-pub(crate) struct IndexRecord {
-    pub(crate) key: Rc<Key>,
-    pub(crate) value: Rc<Key>,
-}
-
 // https://w3c.github.io/IndexedDB/#record-snapshot
 // https://w3c.github.io/IndexedDB/#record-interface
 #[derive(Trace)]

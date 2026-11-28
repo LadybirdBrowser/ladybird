@@ -29,6 +29,8 @@ use crate::indexed_db::internal::algorithms::{abort_a_transaction, commit_a_tran
 use crate::indexed_db::internal::mutation_log::{MutationLog, MutationLogRef, TransactionChanges};
 use crate::indexed_db::internal::object_store::ObjectStoreRef;
 use crate::indexed_db::internal::request_list::RequestList;
+use crate::indexed_db::remote;
+use libwebcommon_rust::indexed_db::backend::{Mode, Request};
 
 /// The enumeration IDBTransactionMode of IndexedDB/IDBTransaction.idl.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -96,6 +98,14 @@ pub(crate) struct IDBTransaction {
 
     store_mutation_logs: GcRefCell<Vec<StoreMutationLog>>,
     original_version: Cell<u64>,
+    // Whether the backend confirmed that it committed the transaction, whose complete event is then on its way.
+    commit_confirmed: Cell<bool>,
+
+    // The client of the transaction's connection, and the number the backend knows the transaction by.
+    #[gc(untraced)]
+    remote_client: Cell<u64>,
+    #[gc(untraced)]
+    remote_id: Cell<u64>,
 }
 
 impl Wrappable for IDBTransaction {
@@ -136,10 +146,55 @@ impl IDBTransaction {
             index_handles: GcRefCell::new(Vec::new()),
             store_mutation_logs: GcRefCell::new(Vec::new()),
             original_version: Cell::new(0),
+            commit_confirmed: Cell::new(false),
+            remote_client: Cell::new(connection.remote_client()),
+            remote_id: Cell::new(0),
         });
         transaction.event_target.set_owner(transaction);
         connection.add_transaction(vm, transaction);
+
+        // An upgrade transaction is the backend's, which numbers it; the agent creates every other one.
+        if mode != IDBTransactionMode::Versionchange {
+            let id = remote::next_id(vm);
+            transaction.remote_id.set(id);
+            remote::register_transaction(vm, transaction);
+            remote::send(
+                transaction.remote_client(),
+                Request::CreateTransaction {
+                    connection: connection.remote_id(),
+                    transaction: id,
+                    scope: scope.iter().map(|store| remote::name_from(&store.name())).collect(),
+                    mode: match mode {
+                        IDBTransactionMode::Readonly => Mode::ReadOnly,
+                        IDBTransactionMode::Readwrite => Mode::ReadWrite,
+                        IDBTransactionMode::Versionchange => Mode::VersionChange,
+                    },
+                },
+            );
+        }
         transaction
+    }
+
+    pub(crate) fn commit_confirmed(&self) -> bool {
+        self.commit_confirmed.get()
+    }
+
+    pub(crate) fn set_commit_confirmed(&self) {
+        self.commit_confirmed.set(true);
+    }
+
+    pub(crate) fn remote_client(&self) -> u64 {
+        self.remote_client.get()
+    }
+
+    pub(crate) fn remote_id(&self) -> u64 {
+        self.remote_id.get()
+    }
+
+    /// Gives an upgrade transaction the number the backend created it with.
+    pub(crate) fn set_remote_id(vm: &Vm, this: Ref<IDBTransaction>, id: u64) {
+        this.remote_id.set(id);
+        remote::register_transaction(vm, this);
     }
 
     pub(crate) fn event_target(&self) -> &CppEventTarget {
@@ -300,10 +355,6 @@ impl IDBTransaction {
         }
     }
 
-    pub(crate) fn original_version(&self) -> u64 {
-        self.original_version.get()
-    }
-
     pub(crate) fn set_up_mutation_log_for_new_store(&self, vm: &Vm, store: ObjectStoreRef) {
         let log = MutationLog::create(vm);
         store.set_mutation_log(Some(log));
@@ -323,8 +374,11 @@ impl IDBTransaction {
             log.revert(vm, *store, database, self.connection);
         }
 
-        database.set_version(self.original_version.get());
-        self.connection.set_version(self.original_version.get());
+        // NB: Only an upgrade changes the version, and only one sets the version it had before.
+        if self.is_upgrade_transaction() {
+            database.set_version(self.original_version.get());
+            self.connection.set_version(self.original_version.get());
+        }
     }
 
     pub(crate) fn discard_mutation_logs(&self, vm: &Vm) {

@@ -19,18 +19,19 @@ use crate::bindings::event_target::{CppEventTarget, GetTheParent};
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::dom_string_list::DOMStringList;
-use crate::indexed_db::cpp::{current_event_loop, enqueue_post_gc_task};
+use crate::indexed_db::cpp::current_event_loop;
 use crate::indexed_db::idb_object_store::{
     IDBObjectStore, constraint_error, invalid_state_error, not_found_error, transaction_inactive_error,
 };
-use crate::indexed_db::idb_transaction::{IDBTransaction, IDBTransactionMode, TransactionState};
+use crate::indexed_db::idb_transaction::{IDBTransaction, IDBTransactionMode};
 use crate::indexed_db::internal::algorithms::{
-    KeyPath, close_a_database_connection, commit_a_transaction, create_a_sorted_name_list, is_valid_key_path,
-    queue_a_database_task,
+    KeyPath, close_a_database_connection, create_a_sorted_name_list, is_valid_key_path, queue_a_database_task,
 };
 use crate::indexed_db::internal::database::{Database, DatabaseRef};
-use crate::indexed_db::internal::function::{Function, call_function, create_function};
+use crate::indexed_db::internal::function::{Function, call_function};
 use crate::indexed_db::internal::object_store::{ObjectStore, ObjectStoreRef};
+use crate::indexed_db::remote;
+use libwebcommon_rust::indexed_db::backend::Operation as BackendOperation;
 
 /// The enumeration IDBTransactionDurability of IndexedDB/IDBDatabase.idl.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -94,14 +95,22 @@ pub(crate) struct IDBDatabase {
     // NB: Only the ones that have yet to finish, which is all that closing the connection and scheduling transactions
     //     look at. Keeping the finished ones would keep every transaction of a long-lived connection alive.
     transactions: GcRefCell<Vec<Ref<IDBTransaction>>>,
+
+    // The client that opened the connection, and the backend's number for it.
+    #[gc(untraced)]
+    remote_client: Cell<u64>,
+    #[gc(untraced)]
+    remote_id: Cell<u64>,
 }
 
 impl Wrappable for IDBDatabase {
     const FINALIZES: bool = true;
 
+    // NB: A connection that's collected while open can't be used again, so the backend closes it.
     fn finalize(object: Ref<Self>) {
-        object.associated_database.dissociate(object);
-        enqueue_post_gc_task(object.associated_database);
+        if object.state() != ConnectionState::Closed && object.remote_id() != 0 {
+            remote::connection_collected(object.remote_client(), object.remote_id());
+        }
     }
 
     fn cpp_parent(&self) -> Option<NonNull<c_void>> {
@@ -129,10 +138,25 @@ impl IDBDatabase {
             associated_database: db,
             realm,
             transactions: GcRefCell::new(Vec::new()),
+            remote_client: Cell::new(0),
+            remote_id: Cell::new(0),
         });
         connection.event_target.set_owner(connection);
-        db.associate(vm, connection);
         connection
+    }
+
+    /// The client that opened the connection, and the backend's number for it.
+    pub(crate) fn set_remote(&self, client_id: u64, connection_id: u64) {
+        self.remote_client.set(client_id);
+        self.remote_id.set(connection_id);
+    }
+
+    pub(crate) fn remote_client(&self) -> u64 {
+        self.remote_client.get()
+    }
+
+    pub(crate) fn remote_id(&self) -> u64 {
+        self.remote_id.get()
     }
 
     pub(crate) fn event_target(&self) -> &CppEventTarget {
@@ -286,7 +310,16 @@ impl IDBDatabase {
         //    Set the created object store's name to name.
         //    If autoIncrement is true, then the created object store uses a key generator.
         //    If keyPath is not null, set the created object store's key path to keyPath.
-        let object_store = ObjectStore::create(vm, database, name, auto_increment, key_path);
+        let object_store = ObjectStore::create(vm, database, name.clone(), auto_increment, key_path.clone());
+        remote::change_schema(
+            vm,
+            transaction,
+            BackendOperation::CreateObjectStore {
+                name: remote::name_from(&name),
+                key_path: key_path.as_ref().map(remote::backend_key_path),
+                auto_increment,
+            },
+        );
 
         // AD-HOC: Add newly created object store to this's object store set.
         this.add_to_object_store_set(vm, object_store);
@@ -366,6 +399,13 @@ impl IDBDatabase {
             .note_object_store_deleted(vm);
 
         // 7. Destroy store.
+        remote::change_schema(
+            vm,
+            transaction,
+            BackendOperation::DeleteObjectStore {
+                name: remote::name_from(&name),
+            },
+        );
         Database::remove_object_store(database, vm, store);
 
         Ok(())
@@ -493,85 +533,12 @@ impl IDBDatabase {
     }
 
     // https://w3c.github.io/IndexedDB/#transaction-scheduling
-    pub(crate) fn block_on_conflicting_transactions(this: Ref<Self>, vm: &Vm, transaction: Ref<IDBTransaction>) {
-        // The following constraints define when a transaction can be started:
-
-        // - A read-only transactions tx can start when there are no read/write transactions which:
-        // - A read/write transaction tx can start when there are no transactions which:
-
-        let blocking = MarkedVec::new(vm);
-        let transaction_scope = transaction.scope(vm);
-        for other in this.transactions(vm).values().iter() {
-            let other = *other;
-
-            // - Were created before tx; and
-            if other == transaction {
-                break;
-            }
-
-            // NB: According to the above conditions, we only block on transactions if one is read/write.
-            if transaction.is_readonly() && other.is_readonly() {
-                continue;
-            }
-
-            // - have overlapping scopes with tx; and
-            let other_scope = other.scope(vm);
-            let have_overlapping_scopes = transaction_scope
-                .values()
-                .iter()
-                .any(|store| other_scope.values().contains(store));
-            if !have_overlapping_scopes {
-                continue;
-            }
-
-            // - are not finished.
-            if other.is_finished() {
-                continue;
-            }
-
-            blocking.push(other);
+    // NB: The backend starts a transaction only once the transactions it must wait for have finished, whichever agent
+    //     created those, and holds back its operations and its commit until then. So the agent's transaction makes its
+    //     requests at once, and their results arrive once the transaction has started.
+    pub(crate) fn block_on_conflicting_transactions(_: Ref<Self>, vm: &Vm, transaction: Ref<IDBTransaction>) {
+        if !transaction.is_readonly() {
+            transaction.set_up_mutation_logs(vm);
         }
-
-        if blocking.is_empty() {
-            if !transaction.is_readonly() {
-                transaction.set_up_mutation_logs(vm);
-            }
-            return;
-        }
-
-        transaction.request_list().block_execution();
-        this.wait_for_transactions_to_finish(
-            vm,
-            &blocking.values(),
-            create_function(vm, transaction, |vm, &transaction, ()| {
-                // NB: The transaction may have been aborted while it was blocked, and must not be committed after.
-                if transaction.is_finished() {
-                    return;
-                }
-                assert!(transaction.state() != TransactionState::Active);
-                if transaction.request_list().is_empty() {
-                    // https://w3c.github.io/IndexedDB/#transaction-commit
-                    // The implementation must attempt to commit an inactive transaction when all requests placed
-                    // against the transaction have completed and their returned results handled, no new requests have
-                    // been placed against the transaction, and the transaction has not been aborted
-
-                    // If we were blocked, that means that the JS task has had its chance to make requests. If the request
-                    // list is empty, then the cleanup in the microtask checkpoint already ran, but skipped auto-committing.
-                    // We have to do it here instead.
-
-                    // FIXME: Update if this becomes explicit:
-                    //        https://github.com/w3c/IndexedDB/issues/489#issuecomment-3994928473
-                    // NB: A transaction that commit() was called on while it was blocked is already committing.
-                    if transaction.state() != TransactionState::Committing {
-                        commit_a_transaction(vm, transaction);
-                    }
-                    return;
-                }
-                if !transaction.is_readonly() {
-                    transaction.set_up_mutation_logs(vm);
-                }
-                transaction.request_list().unblock_execution(vm);
-            }),
-        );
     }
 }

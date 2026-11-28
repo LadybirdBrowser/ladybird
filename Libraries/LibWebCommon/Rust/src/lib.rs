@@ -13,7 +13,11 @@ mod rust_demangle;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
+#[cfg(test)]
+mod ffi_test_stubs;
+
 pub mod fetch;
 pub mod html;
+pub mod indexed_db;
 pub mod infra;
 pub mod mime_sniff;

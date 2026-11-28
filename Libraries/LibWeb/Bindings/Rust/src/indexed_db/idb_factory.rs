@@ -17,17 +17,17 @@ use crate::bindings::event_target::CppEvent;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::promise::{WebIdlPromise, create_promise, reject_promise, resolve_promise};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::indexed_db::cpp::run_in_parallel;
 use crate::indexed_db::idb_open_db_request::IDBOpenDBRequest;
 use crate::indexed_db::idb_request::AnyIDBRequest;
 use crate::indexed_db::internal::algorithms::{
     DeleteResult, OpenResult, convert_a_value_to_a_key, delete_a_database, fire_a_version_change_event,
     open_a_database_connection, queue_a_database_task, set_idb_request_result,
 };
-use crate::indexed_db::internal::database::{Database, DatabaseRef};
 use crate::indexed_db::internal::function::{NoCells, create_function, create_function_with};
 use crate::indexed_db::internal::key::Key;
+use crate::indexed_db::remote;
 use crate::storage_api::storage_key::obtain_a_storage_key;
+use libwebcommon_rust::indexed_db::backend::{DatabaseInfo, Error as BackendError};
 
 /// The dictionary IDBDatabaseInfo of IndexedDB/IDBFactory.idl.
 pub(crate) struct IDBDatabaseInfo {
@@ -276,28 +276,48 @@ impl IDBFactory {
         // NB: p is the promise created above.
 
         // 4. Run these steps in parallel:
-        run_in_parallel(
+        // NB: The backend knows the databases in storageKey, which it bound the realm's client to.
+        let _ = storage_key;
+        let Some(client_id) = remote::client_for(vm, realm) else {
+            let cx = CallContext::new(vm, realm);
+            let error =
+                Exception::Dom("UnknownError", Utf16String::from_utf8("The databases can't be reached")).throw(&cx);
+            reject_promise(vm, promise, error.value());
+            return Ok(promise);
+        };
+        remote::list_databases(
             vm,
-            create_function(
+            client_id,
+            create_function_with(
                 vm,
-                (realm, NoCells(storage_key), promise),
-                |vm, &(realm, ref storage_key, promise), ()| {
-                    crate::bindings::interface::with_temporary_execution_context_and_callbacks(realm, || {
-                        // 1. Let databases be the set of databases in storageKey.
-                        //    If this cannot be determined for any reason, then queue a database task to reject p with an appropriate error (e.g. an "UnknownError" DOMException) and terminate these steps.
-                        let databases = Database::for_key(vm, &storage_key.0);
-
-                        // 2. Let result be a new list.
-                        // 3. For each db of databases:
-                        //     1. If db's version is 0, then continue.
-                        //     2. Let info be a new IDBDatabaseInfo dictionary.
-                        //     3. Set info's name dictionary member to db's name.
-                        //     4. Set info's version dictionary member to db's version.
-                        //     5. Append info to result.
-                        // 4. Queue a database task to resolve p with result.
-                        // AD-HOC: p is resolved directly in a deferred invocation, not in a database task.
-                        resolve_database_info_list_promise(vm, realm, promise, &databases.values());
-                    });
+                (realm, promise),
+                |vm, &(realm, promise), databases: Result<Vec<DatabaseInfo>, BackendError>| {
+                    // 2. If databases is null, then queue a database task to reject p with an "UnknownError"
+                    //    DOMException and abort these steps.
+                    // 4. Queue a database task to resolve p with result.
+                    queue_a_database_task(
+                        vm,
+                        create_function(
+                            vm,
+                            (realm, promise, NoCells(databases)),
+                            |vm, &(realm, promise, ref databases), ()| {
+                                crate::bindings::interface::with_temporary_execution_context_and_callbacks(
+                                    realm,
+                                    || match &databases.0 {
+                                        Ok(databases) => {
+                                            resolve_database_info_list_promise(vm, realm, promise, databases);
+                                        }
+                                        Err(error) => {
+                                            let cx = CallContext::new(vm, realm);
+                                            let message = Utf16String::from_utf8(&error.message);
+                                            let error = Exception::Dom("UnknownError", message).throw(&cx);
+                                            reject_promise(vm, promise, error.value());
+                                        }
+                                    },
+                                );
+                            },
+                        ),
+                    );
                 },
             ),
         );
@@ -308,27 +328,20 @@ impl IDBFactory {
 }
 
 // NB: The generated conversion of IDBDatabaseInfo is only built with the bindings, so the dictionaries are built here.
-fn resolve_database_info_list_promise(vm: &Vm, realm: Gc<Realm>, promise: WebIdlPromise, databases: &[DatabaseRef]) {
+fn resolve_database_info_list_promise(vm: &Vm, realm: Gc<Realm>, promise: WebIdlPromise, databases: &[DatabaseInfo]) {
     let result = Array::create(vm, realm, 0, None).must();
 
-    let mut result_index: u64 = 0;
-    for db in databases {
-        // INTEROP: A database's version is not reported until its upgrade transaction commits, so that databases()
-        //          does not pick up changes that have not been committed.
-        let mut version = db.version();
-        if let Some(upgrade_transaction) = db.upgrade_transaction() {
-            version = upgrade_transaction.original_version();
-        }
-
-        if version == 0 {
-            continue;
-        }
+    for (result_index, db) in (0u64..).zip(databases) {
+        // 3.1. If db's version is 0, then continue.
+        // NB: The backend reports no database whose first upgrade hasn't committed, so none has version 0.
+        let version = db.version;
+        let name = remote::string_from(&db.name);
 
         let info = Object::create(vm, realm, Some(realm.intrinsics().object_prototype(vm)));
         info.create_data_property(
             vm,
             &PropertyKey::from_utf8("name"),
-            Value::from_string(PrimitiveString::create(vm, db.name())),
+            Value::from_string(PrimitiveString::create(vm, name)),
             None,
             None,
         )
@@ -348,7 +361,6 @@ fn resolve_database_info_list_promise(vm: &Vm, realm: Gc<Realm>, promise: WebIdl
         result
             .create_data_property_or_throw(vm, &PropertyKey::from_number(result_index), Value::from_object(info))
             .must();
-        result_index += 1;
     }
 
     resolve_promise(vm, promise, Value::from_object(result));

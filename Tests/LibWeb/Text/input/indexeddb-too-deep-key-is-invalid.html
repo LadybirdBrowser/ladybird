@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    // A key whose arrays nest more deeply than the backend accepts is an invalid key, which throws a DataError, rather
+    // than one that the backend refuses as it reads it.
+    const dbName = "test-too-deep-key-" + Date.now() + Math.random();
+    const open = indexedDB.open(dbName, 1);
+    open.onupgradeneeded = () => open.result.createObjectStore("store");
+    open.onsuccess = () => {
+        const db = open.result;
+        const store = db.transaction("store", "readwrite").objectStore("store");
+        let shallow = 0;
+        for (let i = 0; i < 1024; ++i)
+            shallow = [shallow];
+        store.put("ok", shallow).onsuccess = () => println("1024 levels: stored");
+        let deep = [shallow];
+        try {
+            store.put("too deep", deep);
+            println("1025 levels: stored");
+        } catch (error) {
+            println(`1025 levels: ${error.name}`);
+        }
+        store.transaction.oncomplete = () => {
+            db.close();
+            indexedDB.deleteDatabase(dbName).onsuccess = () => done();
+        };
+    };
+});
+</script>
