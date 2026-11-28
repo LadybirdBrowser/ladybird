@@ -36,14 +36,6 @@ struct TableLocation {
     size_t length { 0 };
 };
 
-Optional<size_t> table_directory_offset(FontDataReader const& data, u32 face_index)
-{
-    size_t offset = 0;
-    if (!FFI::sfnt_rust_table_directory_offset(data.bytes().data(), data.bytes().size(), face_index, &offset))
-        return {};
-    return offset;
-}
-
 static Optional<TableLocation> find_table(FontDataReader const& data, unsigned face_index, FourCC tag)
 {
     TableLocation location;

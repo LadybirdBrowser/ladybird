@@ -39,9 +39,6 @@ private:
     ReadonlyBytes m_bytes;
 };
 
-// The offset of the table directory of a face, if the data is an SFNT font or a collection of them.
-Optional<size_t> table_directory_offset(FontDataReader const&, u32 face_index);
-
 // Whether a face has a table, by the same rules as FontTable, without reading the table.
 bool face_has_table(hb_face_t*, FourCC tag);
 
