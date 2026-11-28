@@ -55,11 +55,15 @@ impl EventCounts {
 
     pub(crate) fn increment(&self, event_type: &Utf16String) {
         let mut entries = self.entries.borrow_mut();
-        let entry = entries
-            .iter_mut()
-            .find(|entry| &entry.0 == event_type)
+        // OPTIMIZATION: An event's type is the interned string that the list was made from, so look for the same
+        //               string first, and compare characters only if that finds nothing.
+        let identity = event_type.raw_identity();
+        let index = entries
+            .iter()
+            .position(|entry| entry.0.raw_identity() == identity)
+            .or_else(|| entries.iter().position(|entry| &entry.0 == event_type))
             .expect("eventCounts contains every event type considered for Event Timing");
-        entry.1 += 1;
+        entries[index].1 += 1;
     }
 }
 
