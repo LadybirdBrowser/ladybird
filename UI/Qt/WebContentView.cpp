@@ -247,8 +247,18 @@ WebContentView::WebContentView(QWidget* window, Optional<u64> hub_view_id, WebCo
         // (on Linux, AT-SPI's org.a11y.Status reports IsEnabled or ScreenReaderEnabled, which Gecko's a11y::
         // ShouldA11yBeEnabled() checks too) or has queried a window (-[QNSView activateQtAccessibility] on macOS). One
         // that turns up later gets the tree from accessibilityActiveChanged().
-        if (QAccessible::isActive())
-            fetch_accessibility_tree();
+        if (!QAccessible::isActive())
+            return;
+        // Once asked for the tree, WebContent sends every change to it, a new document's whole tree included, and sends
+        // the changes still waiting ahead of the load finishing (PageClient::page_did_finish_loading()). So the tree held
+        // is the loaded document's already: Announce the load from it rather than have the whole tree built and sent
+        // again.
+        if (m_requested_accessibility_tree) {
+            if (!m_accessibility_whole_tree_pending)
+                did_update_accessibility_tree(Vector<i64> {});
+            return;
+        }
+        fetch_accessibility_tree();
     };
     add_navigation_listener(AK::move(navigation_listener));
     QAccessible::installActivationObserver(this);
