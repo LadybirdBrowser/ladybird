@@ -107,12 +107,6 @@ public:
     void set_related_target(GC::Ptr<EventTarget> related_target) { m_event_core.related_target = related_target; }
     static constexpr GC::MemberOffset related_target_offset() { return GC_FIELD_OFFSET(Event, m_event_core.related_target); }
 
-    bool should_stop_propagation() const { return m_event_core.stop_propagation; }
-    void set_stop_propagation(bool stop_propagation) { m_event_core.stop_propagation = stop_propagation; }
-
-    bool should_stop_immediate_propagation() const { return m_event_core.stop_immediate_propagation; }
-    void set_stop_immediate_propagation(bool stop_immediate_propagation) { m_event_core.stop_immediate_propagation = stop_immediate_propagation; }
-
     bool cancelled() const { return m_event_core.canceled; }
     void set_cancelled(bool cancelled) { m_event_core.canceled = cancelled; }
 

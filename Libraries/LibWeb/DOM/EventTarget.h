@@ -69,9 +69,11 @@ public:
     void remove_all_event_listeners();
     void erase_all_event_listeners_and_handlers();
 
-    // A dispatch clones only the listeners it can run, and rarely more than a couple, so keep them inline.
     using ClonedEventListeners = GC::RootVector<GC::Ref<DOMEventListener>, 4>;
-    ClonedEventListeners event_listener_list_matching(Utf16FlyString const& type, Optional<Utf16FlyString> const& legacy_type) const;
+    ClonedEventListeners event_listener_list_matching(Utf16FlyString const& type) const;
+
+    // The steps that follow from removing listener from the event listener list, see remove_an_event_listener().
+    void run_event_listener_removal_steps(DOMEventListener const& listener);
 
     virtual bool has_activation_behavior() const;
     virtual void activation_behavior(Event const&);
@@ -109,7 +111,12 @@ private:
     struct Data {
         AK_ALLOC_WITH_KMALLOC;
 
-        Vector<GC::Ref<DOMEventListener>> event_listener_list;
+        ~Data();
+
+        // https://dom.spec.whatwg.org/#eventtarget-event-listener-list
+        // NB: libweb_rust defines its layout, and adds and removes the listeners (see Rust/src/dom/event_listeners.rs).
+        //     It finds the list at the start of the data.
+        RustFFI::EventListenerList event_listener_list { nullptr, 0, 0 };
 
         // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-map
         // Spec Note: The order of the entries of event handler map could be arbitrary. It is not observable through any algorithms that operate on the map.
@@ -117,7 +124,7 @@ private:
     };
 
     Data& ensure_data();
-    void update_listener_type_summaries();
+    ReadonlySpan<GC::Member<DOMEventListener>> event_listeners() const;
 
     template<typename>
     friend struct GC::CellConstructionHook;

@@ -4,14 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Dispatching an event: building the event's path from the cores of the targets it passes, and walking it in the
-//! capturing and bubbling phases. Only the steps that need state C++ keeps call into it, each through a callback of
-//! the table C++ registers, and only for a target that needs it: invoking the listeners of a target whose core says it
-//! may have some for the event, asking a target whose class can have activation behavior whether it has it, the
-//! "get the parent" of an event target that is no node and has one, and the steps that run activation behavior.
+//! Dispatching an event: building the event's path from the cores of the targets it passes, walking it in the
+//! capturing and bubbling phases, and invoking the listeners of each target, which event_listeners.rs keeps. Only the
+//! steps that need state C++ keeps call into it, each through a callback of the table C++ registers (see EventHooks),
+//! and only for a target that needs it, such as running the callback of a listener, the "get the parent" of an event
+//! target that is no node and has one, and the steps that run activation behavior.
 //! https://dom.spec.whatwg.org/#concept-event-dispatch
 
 use core::cell::UnsafeCell;
+use core::ops::ControlFlow;
 
 use super::event::EVENT_PHASE_AT_TARGET;
 use super::event::EVENT_PHASE_BUBBLING;
@@ -21,6 +22,11 @@ use super::event::EventCell;
 use super::event::EventPathItem;
 use super::event::EventRef;
 use super::event::RawEventRef;
+use super::event_listeners::ClonedListeners;
+use super::event_listeners::EventListenerRef;
+use super::event_listeners::RawEventListenerRef;
+use super::event_listeners::remove_an_event_listener;
+use super::event_listeners::with_cloned_listeners;
 use super::event_target::EVENT_TARGET_HAS_GET_THE_PARENT;
 use super::event_target::EventTargetCell;
 use super::event_target::EventTargetMember;
@@ -47,10 +53,22 @@ pub const DISPATCH_PATH_ENDS_BELOW_DISABLED_FORM_CONTROL: u8 = 1 << 2;
 /// Whether the event is a trusted PointerEvent, whose coalesced events have its target.
 pub const DISPATCH_IS_TRUSTED_POINTER_EVENT: u8 = 1 << 3;
 
+/// The type of an event that is being dispatched, as C++ works it out before it dispatches it.
+#[derive(Clone, Copy)]
+pub(crate) struct EventTypes {
+    /// The bits of the event's type in the listener type summaries of the targets' cores, and those of its legacy type
+    /// if it has one.
+    pub(crate) bits: u16,
+    /// The raw word of the interned string of the event's type attribute value.
+    pub(crate) event_type: usize,
+    /// The raw word of the interned string of the event's legacy type, if the event is trusted and has one, or 0.
+    /// https://dom.spec.whatwg.org/#concept-event-listener-invoke
+    pub(crate) legacy_event_type: usize,
+}
+
 /// The phase listeners are invoked for.
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum InvocationPhase {
+enum InvocationPhase {
     Capturing,
     Bubbling,
 }
@@ -59,13 +77,18 @@ pub enum InvocationPhase {
 /// targets it acts on as DOM::Event and DOM::EventTarget pointers.
 #[repr(C)]
 pub struct EventHooks {
-    /// See [`invoke_listeners`].
-    pub invoke_listeners: unsafe extern "C" fn(
+    /// See [`run_listener`].
+    pub run_listener: unsafe extern "C" fn(
         event: RawEventRef,
-        phase: InvocationPhase,
+        listener: RawEventListenerRef,
         invocation_target_in_shadow_tree: bool,
         legacy_output_did_listeners_throw: &mut bool,
     ),
+    /// See [`run_event_listener_removal_steps`].
+    pub run_event_listener_removal_steps:
+        unsafe extern "C" fn(target: RawEventTargetRef, listener: RawEventListenerRef),
+    /// See [`set_event_type`].
+    pub set_event_type: unsafe extern "C" fn(event: RawEventRef, event_type: usize),
     /// See [`get_the_parent_of_object`].
     pub get_the_parent:
         unsafe extern "C" fn(target: RawEventTargetRef, event: RawEventRef) -> RawNullableEventTargetRef,
@@ -119,29 +142,50 @@ pub unsafe extern "C" fn rust_dom_register_event_hooks(hooks: &'static EventHook
     unsafe { *HOOKS.0.get() = Some(hooks) };
 }
 
-/// Steps 8 to 11 of invoking listeners with an event path item, `event`, `phase`, the item's
-/// invocation-target-in-shadow-tree, and `legacy_output_did_listeners_throw`: clones the listeners of the event's
-/// currentTarget that have the event's type, or its legacy type, runs inner invoke with them, and again with the legacy
-/// type if none had the event's type and the event is trusted.
-/// https://dom.spec.whatwg.org/#concept-event-listener-invoke
+/// Steps 6 to 15 of inner invoke for `listener`, which C++ runs as they need state it keeps: works out the global
+/// objects of the event's currentTarget and of the listener's callback, skips the listener if either is a Window whose
+/// associated Document is not fully active, and otherwise calls the listener's callback with `event`, reporting what
+/// it throws and setting `legacy_output_did_listeners_throw` if it does.
+/// https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
 ///
 /// Can run script, allocate and change the tree.
-fn invoke_listeners(
+fn run_listener(
     main_thread: &mut MainThread<'_>,
     event: EventRef,
-    phase: InvocationPhase,
+    listener: EventListenerRef,
     invocation_target_in_shadow_tree: bool,
     legacy_output_did_listeners_throw: &mut bool,
 ) {
-    // SAFETY: The callback is called on the main thread with a live event.
+    // SAFETY: The callback is called on the main thread with a live event, and a listener a clone of a list keeps alive.
     unsafe {
-        (hooks(main_thread).invoke_listeners)(
+        (hooks(main_thread).run_listener)(
             event,
-            phase,
+            listener,
             invocation_target_in_shadow_tree,
             legacy_output_did_listeners_throw,
         );
     }
+}
+
+/// The steps that follow from removing `listener` from `target`'s event listener list, which C++ owns: telling the
+/// page and the target's class of the change.
+///
+/// Runs no script.
+fn run_event_listener_removal_steps(
+    main_thread: &mut MainThread<'_>,
+    target: EventTargetRef,
+    listener: EventListenerRef,
+) {
+    // SAFETY: The callback is called on the main thread with a live target and listener.
+    unsafe { (hooks(main_thread).run_event_listener_removal_steps)(target, listener) };
+}
+
+/// Sets `event`'s type attribute value to the interned string whose raw word is `event_type`, which C++ keeps.
+///
+/// Runs no script.
+fn set_event_type(main_thread: &mut MainThread<'_>, event: EventRef, event_type: usize) {
+    // SAFETY: The callback is called on the main thread with a live event and a live interned string.
+    unsafe { (hooks(main_thread).set_event_type)(event, event_type) };
 }
 
 /// The "get the parent" of `target`, an object that is no node, given `event`, which C++ answers for an object whose
@@ -397,9 +441,10 @@ fn target_is_disabled_form_control(main_thread: &mut MainThread<'_>, target: Eve
 }
 
 /// Dispatches `event` to `target`, with `target_override`, which is `target` unless the legacy target override flag is
-/// given. `touch_target_list` is the event's touch target list. `type_bits` are the bits of the event's type in the
-/// listener type summaries of the targets' cores, and those of its legacy type if it is trusted and has one, and
-/// `flags` are DISPATCH_* flags. Returns the event's target as its listeners last saw it, before dispatch may clear it.
+/// given. `touch_target_list` is the event's touch target list, which C++ replaces as listeners run, so it is read only
+/// before any of them does. `types` are the event's type and legacy type, and their bits in the listener type
+/// summaries of the targets' cores, and `flags` are DISPATCH_* flags. Returns the event's target as its listeners last
+/// saw it, before dispatch may clear it.
 /// https://dom.spec.whatwg.org/#concept-event-dispatch
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn dispatch(
@@ -407,8 +452,8 @@ pub(crate) fn dispatch(
     event: EventRef,
     mut target: EventTargetRef,
     target_override: EventTargetRef,
-    touch_target_list: &[Option<EventTargetRef>],
-    type_bits: u16,
+    touch_target_list: *const [Option<EventTargetRef>],
+    types: EventTypes,
     flags: u8,
     legacy_output_did_listeners_throw: &mut bool,
 ) -> EventTargetRef {
@@ -438,9 +483,7 @@ pub(crate) fn dispatch(
         type_is_load: flags & DISPATCH_TYPE_IS_LOAD != 0,
     };
     let is_trusted = event.core().is_trusted();
-    // NB: Invoking listeners replaces the event's touch target list, which `touch_target_list` is a view of, so the
-    //     list is only read before any of them runs.
-    let had_touch_targets = !touch_target_list.is_empty();
+    let had_touch_targets = touch_target_list.len() != 0;
     let is_activation_event = flags & DISPATCH_IS_ACTIVATION_EVENT != 0;
     let path_ends_below_disabled_form_control = flags & DISPATCH_PATH_ENDS_BELOW_DISABLED_FORM_CONTROL != 0;
 
@@ -452,7 +495,7 @@ pub(crate) fn dispatch(
         match target.as_node() {
             None => should_dispatch = true,
             Some(node) => {
-                should_dispatch = has_listener_on_event_path(main_thread, event, facts, target, type_bits);
+                should_dispatch = has_listener_on_event_path(main_thread, event, facts, target, types.bits);
 
                 // NB: The script that dispatched an untrusted event can read the target that dispatch leaves on it.
                 //     For a node outside any shadow tree, with no related target or touch targets, that's
@@ -485,6 +528,8 @@ pub(crate) fn dispatch(
         // 1. Let touchTargets be a new list.
         // 2. For each touchTarget of event's touch target list, append the result of retargeting touchTarget against
         //    target to touchTargets.
+        // SAFETY: The list is live and unchanged until a listener runs, after the last use of this view of it.
+        let touch_target_list = unsafe { &*touch_target_list };
         event.core().path().begin(touch_target_list.len());
         let touch_targets_against = |against: EventTargetRef| {
             touch_target_list
@@ -700,7 +745,7 @@ pub(crate) fn dispatch(
                 item_index,
                 target_item,
                 InvocationPhase::Capturing,
-                type_bits,
+                types,
                 flags,
                 legacy_output_did_listeners_throw,
             );
@@ -734,7 +779,7 @@ pub(crate) fn dispatch(
                 item_index,
                 target_item,
                 InvocationPhase::Bubbling,
-                type_bits,
+                types,
                 flags,
                 legacy_output_did_listeners_throw,
             );
@@ -835,7 +880,7 @@ fn invoke(
     item_index: usize,
     target_item_index: usize,
     phase: InvocationPhase,
-    type_bits: u16,
+    types: EventTypes,
     flags: u8,
     legacy_output_did_listeners_throw: &mut bool,
 ) {
@@ -884,26 +929,145 @@ fn invoke(
     }
     event.core().set_current_target(Some(invocation_target));
 
-    // 8. Let listeners be a clone of event's currentTarget attribute value's event listener list.
-    // 9. Let invocationTargetInShadowTree be pathItem's invocation-target-in-shadow-tree.
-    // 10. Let found be the result of running inner invoke with event, listeners, phase, invocationTargetInShadowTree,
-    //     and legacyOutputDidListenersThrowFlag if given.
-    // 11. If found is false and event's isTrusted attribute is true: ...
     // OPTIMIZATION: Inner invoke runs no listener of another type, so a target whose core says it has no listener of the
     //               event's type, or of its legacy type, for this phase has nothing to run.
     if !invocation_target
         .core()
-        .may_have_listeners(type_bits, phase == InvocationPhase::Capturing)
+        .may_have_listeners(types.bits, phase == InvocationPhase::Capturing)
     {
         return;
     }
-    invoke_listeners(
-        main_thread,
-        event,
-        phase,
-        invocation_target_in_shadow_tree,
-        legacy_output_did_listeners_throw,
+
+    // 8. Let listeners be a clone of event's currentTarget attribute value's event listener list.
+    // NOTE: This avoids event listeners added after this point from being run. Note that removal still has an effect
+    //       due to the removed field.
+    // OPTIMIZATION: Inner invoke runs no listener registered for another type, so leave those out of the clone. If the
+    //               event is trusted, step 11 renames the event and runs inner invoke again, so the clone includes the
+    //               listeners of the legacy event type as well.
+    with_cloned_listeners(
+        invocation_target,
+        types.event_type,
+        types.legacy_event_type,
+        None,
+        0,
+        &mut |listeners| {
+            // 9. Let invocationTargetInShadowTree be pathItem's invocation-target-in-shadow-tree.
+            // 10. Let found be the result of running inner invoke with event, listeners, phase,
+            //     invocationTargetInShadowTree, and legacyOutputDidListenersThrowFlag if given.
+            let found = inner_invoke(
+                main_thread,
+                event,
+                invocation_target,
+                listeners,
+                types.event_type,
+                phase,
+                invocation_target_in_shadow_tree,
+                legacy_output_did_listeners_throw,
+            );
+
+            // 11. If found is false and event's isTrusted attribute is true:
+            if !found && event.core().is_trusted() {
+                // 1. Let originalEventType be event's type attribute value.
+                let original_event_type = types.event_type;
+
+                // 2. If event's type attribute value is a match for any of the strings in the first column in the
+                //    following table, set event's type attribute value to the string in the second column on the same
+                //    row as the matching string, and return otherwise.
+                if types.legacy_event_type == 0 {
+                    return;
+                }
+                set_event_type(main_thread, event, types.legacy_event_type);
+
+                // 3. Inner invoke with event, listeners, phase, invocationTargetInShadowTree, and
+                //    legacyOutputDidListenersThrowFlag if given.
+                inner_invoke(
+                    main_thread,
+                    event,
+                    invocation_target,
+                    listeners,
+                    types.legacy_event_type,
+                    phase,
+                    invocation_target_in_shadow_tree,
+                    legacy_output_did_listeners_throw,
+                );
+
+                // 4. Set event's type attribute value to originalEventType.
+                set_event_type(main_thread, event, original_event_type);
+            }
+        },
     );
+}
+
+/// Inner invoke with `event`, whose type attribute value is the interned string whose raw word is `event_type` and
+/// whose currentTarget is `current_target`, `listeners`, `phase`, `invocation_target_in_shadow_tree`, and
+/// `legacy_output_did_listeners_throw`. Answers found.
+/// https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
+#[allow(clippy::too_many_arguments)]
+fn inner_invoke(
+    main_thread: &mut MainThread<'_>,
+    event: EventRef,
+    current_target: EventTargetRef,
+    listeners: &ClonedListeners<'_>,
+    event_type: usize,
+    phase: InvocationPhase,
+    invocation_target_in_shadow_tree: bool,
+    legacy_output_did_listeners_throw: &mut bool,
+) -> bool {
+    // 1. Let found be false.
+    let mut found = false;
+
+    // 2. For each listener of listeners, whose removed is false:
+    let _ = listeners.try_for_each(&mut |listener| {
+        let fields = listener.fields();
+        if fields.removed() {
+            return ControlFlow::Continue(());
+        }
+
+        // 1. If event's type attribute value is not listener's type, then continue.
+        if fields.type_raw() != event_type {
+            return ControlFlow::Continue(());
+        }
+
+        // 2. Set found to true.
+        found = true;
+
+        // 3. If phase is "capturing" and listener's capture is false, then continue.
+        if phase == InvocationPhase::Capturing && !fields.capture() {
+            return ControlFlow::Continue(());
+        }
+
+        // 4. If phase is "bubbling" and listener's capture is true, then continue.
+        if phase == InvocationPhase::Bubbling && fields.capture() {
+            return ControlFlow::Continue(());
+        }
+
+        // 5. If listener's once is true, then remove an event listener given event's currentTarget attribute value and
+        //    listener.
+        if fields.once() && remove_an_event_listener(current_target, listener) {
+            run_event_listener_removal_steps(main_thread, current_target, listener);
+        }
+
+        // 6. Let targetGlobal be event's currentTarget's node document's relevant global object if event's
+        //    currentTarget is a node; otherwise event's currentTarget's relevant global object.
+        // ...
+        // 15. If listenerGlobal is a Window object, then set listenerGlobal's current event to currentEvent.
+        run_listener(
+            main_thread,
+            event,
+            listener,
+            invocation_target_in_shadow_tree,
+            legacy_output_did_listeners_throw,
+        );
+
+        // 16. If event's stop immediate propagation flag is set, then break.
+        if event.core().stop_immediate_propagation() {
+            return ControlFlow::Break(());
+        }
+        ControlFlow::Continue(())
+    });
+
+    // 3. Return found.
+    found
 }
 
 /// Dispatches `event` to `target`, for DOM::EventDispatcher, see [`dispatch`].
@@ -920,6 +1084,8 @@ pub unsafe extern "C" fn rust_dom_dispatch(
     target_override: &EventTargetCell,
     touch_target_list: ak::Span<'_, NullableEventTargetRef>,
     type_bits: u16,
+    event_type: usize,
+    legacy_event_type: usize,
     flags: u8,
     legacy_output_did_listeners_throw: &mut bool,
 ) -> *const EventTargetCell {
@@ -933,21 +1099,23 @@ pub unsafe extern "C" fn rust_dom_dispatch(
             EventTargetRef::from_cell(target_override, &main_thread),
         )
     };
-    // NB: The list is read only while the path is built, before anything C++ could change it runs.
-    // SAFETY: A NullableEventTargetRef is laid out as an Option<EventTargetRef>.
-    let touch_target_list = unsafe {
-        ak::slice_from_raw_parts(
-            touch_target_list.as_slice().as_ptr().cast::<Option<EventTargetRef>>(),
-            touch_target_list.as_slice().len(),
-        )
-    };
+    // NB: A NullableEventTargetRef is laid out as an Option<EventTargetRef>. The list is read only while the path is
+    //     built, before anything C++ could change it runs, so dispatch() gets no reference to it that outlives that.
+    let touch_target_list = core::ptr::slice_from_raw_parts(
+        touch_target_list.as_slice().as_ptr().cast::<Option<EventTargetRef>>(),
+        touch_target_list.as_slice().len(),
+    );
     dispatch(
         &mut main_thread,
         event,
         target,
         target_override,
         touch_target_list,
-        type_bits,
+        EventTypes {
+            bits: type_bits,
+            event_type,
+            legacy_event_type,
+        },
         flags,
         legacy_output_did_listeners_throw,
     )

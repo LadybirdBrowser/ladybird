@@ -50,150 +50,69 @@ static Optional<Utf16FlyString> legacy_event_type_for_event_type(Utf16FlyString 
     return {};
 }
 
-// https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
-bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListeners& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw)
+// Steps 6 to 15 of https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke, which inner invoke in libweb_rust
+// runs for each listener it gets to, after steps 1 to 5.
+static void run_listener(Event& event, DOMEventListener& listener, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw)
 {
-    // 1. Let found be false.
-    bool found = false;
+    auto& callback = listener.callback->callback();
 
-    // NB: Event's currentTarget stays the same while its listeners run, so it's only checked once for being a node —
-    //     and not at all when it has no listeners for the event, as most targets in an event's path don't.
-    auto* current_target_node = listeners.is_empty() ? nullptr : as_if<Node>(event.current_target().ptr());
+    // 6. Let targetGlobal be event's currentTarget's node document's relevant global object if event's currentTarget
+    //    is a node; otherwise event's currentTarget's relevant global object.
+    auto* current_target_node = as_if<Node>(event.current_target().ptr());
+    auto* target_global = current_target_node
+        ? current_target_node->document().relevant_global_event_target().ptr()
+        : Bindings::current_target_global(callback, event);
 
-    // 2. For each listener of listeners, whose removed is false:
-    for (auto& listener : listeners) {
-        if (listener->removed())
-            continue;
+    // 7. Let listenerGlobal be listener callback's associated realm's global object.
+    auto* listener_window = Bindings::window_from_callback(callback);
 
-        // 1. If event’s type attribute value is not listener’s type, then continue.
-        if (event.type() != listener->type)
-            continue;
-
-        // 2. Set found to true.
-        found = true;
-
-        // 3. If phase is "capturing" and listener’s capture is false, then continue.
-        if (phase == Event::Phase::CapturingPhase && !listener->capture())
-            continue;
-
-        // 4. If phase is "bubbling" and listener’s capture is true, then continue.
-        if (phase == Event::Phase::BubblingPhase && listener->capture())
-            continue;
-
-        // 5. If listener’s once is true, then remove an event listener given event’s currentTarget attribute value and listener.
-        if (listener->once())
-            event.current_target()->remove_an_event_listener(*listener);
-
-        auto& callback = listener->callback->callback();
-
-        // 6. Let targetGlobal be event's currentTarget's node document's relevant global object if event's currentTarget
-        //    is a node; otherwise event's currentTarget's relevant global object.
-        auto* target_global = current_target_node
-            ? current_target_node->document().relevant_global_event_target().ptr()
-            : Bindings::current_target_global(callback, event);
-
-        // 7. Let listenerGlobal be listener callback's associated realm's global object.
-        auto* listener_window = Bindings::window_from_callback(callback);
-
-        // 8. If targetGlobal or listenerGlobal is a Window object whose associated Document is not fully active, then
-        //    continue.
-        if (listener_window && !listener_window->associated_document().is_fully_active())
-            continue;
-        // NB: Mostly, targetGlobal is listenerGlobal, which was just checked.
-        if (target_global != listener_window) {
-            if (auto* target_window = as_if<HTML::Window>(target_global); target_window && !target_window->associated_document().is_fully_active())
-                continue;
-        }
-
-        // 9. Let currentEvent be undefined.
-        Event* current_event = nullptr;
-
-        // 10. If listenerGlobal is a Window object:
-        if (listener_window) {
-            // 1. Set currentEvent to listenerGlobal's current event.
-            current_event = listener_window->current_event();
-
-            // 2. If invocationTargetInShadowTree is false, then set listenerGlobal's current event to event.
-            if (!invocation_target_in_shadow_tree)
-                listener_window->set_current_event(&event);
-        }
-
-        // 11. If listener’s passive is true, then set event’s in passive listener flag.
-        if (listener->passive() == true)
-            event.set_in_passive_listener(true);
-
-        // FIXME: 12. If listenerGlobal is a Window object, then record timing info for event listener given event and listener.
-
-        // 13. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
-        auto result = Bindings::invoke_event_listener(callback, event);
-
-        // If this throws an exception, then:
-        if (result.is_error()) {
-            // 1. Report exception for listener’s callback’s corresponding JavaScript object’s associated realm’s global object.
-            Bindings::report_exception_for_callback(callback, result.release_error().value());
-
-            // 2. Set legacyOutputDidListenersThrowFlag if given. (Only used by IndexedDB currently)
-            legacy_output_did_listeners_throw = true;
-        }
-
-        // 14. Unset event’s in passive listener flag.
-        event.set_in_passive_listener(false);
-
-        // 15. If listenerGlobal is a Window object, then set listenerGlobal's current event to currentEvent.
-        if (listener_window)
-            listener_window->set_current_event(current_event);
-
-        // 16. If event’s stop immediate propagation flag is set, then break.
-        if (event.should_stop_immediate_propagation())
-            break;
-    }
-
-    // 3. Return found.
-    return found;
-}
-
-// Steps 8 to 11 of https://dom.spec.whatwg.org/#concept-event-listener-invoke, which the dispatch in libweb_rust runs
-// for an event path item whose invocation target may have listeners for the event in the phase, after it set event's
-// currentTarget attribute to the item's invocation target.
-void EventDispatcher::invoke_listeners(Event& event, Event::Phase phase, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw)
-{
-    // 8. Let listeners be a clone of event's currentTarget attribute value's event listener list.
-    // NOTE: This avoids event listeners added after this point from being run. Note that removal still has an effect
-    //       due to the removed field.
-    // OPTIMIZATION: Inner invoke runs no listener registered for another type, so leave those out of the clone. If the
-    //               event is trusted, step 11 renames the event and dispatches it again, so we need to include the
-    //               legacy event type as well.
-    Optional<Utf16FlyString> legacy_event_type;
-    if (event.is_trusted())
-        legacy_event_type = legacy_event_type_for_event_type(event.type());
-    auto listeners = event.current_target()->event_listener_list_matching(event.type(), legacy_event_type);
-
-    // 9. Let invocationTargetInShadowTree be pathItem's invocation-target-in-shadow-tree.
-    // NB: The dispatch in libweb_rust passes it.
-
-    // 10. Let found be the result of running inner invoke with event, listeners, phase, invocationTargetInShadowTree,
-    //     and legacyOutputDidListenersThrowFlag if given.
-    bool found = inner_invoke(event, listeners, phase, invocation_target_in_shadow_tree, legacy_output_did_listeners_throw);
-
-    // 11. If found is false and event's isTrusted attribute is true:
-    if (!found && event.is_trusted()) {
-        // 1. Let originalEventType be event's type attribute value.
-        auto original_event_type = event.type();
-
-        // 2. If event's type attribute value is a match for any of the strings in the first column in the following
-        //    table, set event's type attribute value to the string in the second column on the same row as the
-        //    matching string, and return otherwise.
-        if (!legacy_event_type.has_value())
+    // 8. If targetGlobal or listenerGlobal is a Window object whose associated Document is not fully active, then
+    //    continue.
+    if (listener_window && !listener_window->associated_document().is_fully_active())
+        return;
+    // NB: Mostly, targetGlobal is listenerGlobal, which was just checked.
+    if (target_global != listener_window) {
+        if (auto* target_window = as_if<HTML::Window>(target_global); target_window && !target_window->associated_document().is_fully_active())
             return;
-        event.set_type(legacy_event_type.release_value());
-
-        // 3. Inner invoke with event, listeners, phase, invocationTargetInShadowTree, and
-        //    legacyOutputDidListenersThrowFlag if given.
-        inner_invoke(event, listeners, phase, invocation_target_in_shadow_tree, legacy_output_did_listeners_throw);
-
-        // 4. Set event's type attribute value to originalEventType.
-        event.set_type(original_event_type);
     }
+
+    // 9. Let currentEvent be undefined.
+    Event* current_event = nullptr;
+
+    // 10. If listenerGlobal is a Window object:
+    if (listener_window) {
+        // 1. Set currentEvent to listenerGlobal's current event.
+        current_event = listener_window->current_event();
+
+        // 2. If invocationTargetInShadowTree is false, then set listenerGlobal's current event to event.
+        if (!invocation_target_in_shadow_tree)
+            listener_window->set_current_event(&event);
+    }
+
+    // 11. If listener’s passive is true, then set event’s in passive listener flag.
+    if (listener.passive() == true)
+        event.set_in_passive_listener(true);
+
+    // FIXME: 12. If listenerGlobal is a Window object, then record timing info for event listener given event and listener.
+
+    // 13. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
+    auto result = Bindings::invoke_event_listener(callback, event);
+
+    // If this throws an exception, then:
+    if (result.is_error()) {
+        // 1. Report exception for listener’s callback’s corresponding JavaScript object’s associated realm’s global object.
+        Bindings::report_exception_for_callback(callback, result.release_error().value());
+
+        // 2. Set legacyOutputDidListenersThrowFlag if given. (Only used by IndexedDB currently)
+        legacy_output_did_listeners_throw = true;
+    }
+
+    // 14. Unset event’s in passive listener flag.
+    event.set_in_passive_listener(false);
+
+    // 15. If listenerGlobal is a Window object, then set listenerGlobal's current event to currentEvent.
+    if (listener_window)
+        listener_window->set_current_event(current_event);
 }
 
 static bool button_submits_or_resets_its_form(HTML::HTMLButtonElement const& button)
@@ -235,10 +154,19 @@ static GC::Ptr<EventTarget> link_activation_target_above_button(Event const& eve
 
 // The callbacks of the dispatch in libweb_rust, see Rust/src/dom/dispatch.rs.
 struct RustEventHooks {
-    static void invoke_listeners(GC::Ref<Event> event, RustFFI::InvocationPhase phase, bool invocation_target_in_shadow_tree, bool* legacy_output_did_listeners_throw)
+    static void run_listener(Event* event, DOMEventListener* listener, bool invocation_target_in_shadow_tree, bool* legacy_output_did_listeners_throw)
     {
-        auto event_phase = phase == RustFFI::InvocationPhase::Capturing ? Event::Phase::CapturingPhase : Event::Phase::BubblingPhase;
-        EventDispatcher::invoke_listeners(*event, event_phase, invocation_target_in_shadow_tree, *legacy_output_did_listeners_throw);
+        DOM::run_listener(*event, *listener, invocation_target_in_shadow_tree, *legacy_output_did_listeners_throw);
+    }
+
+    static void run_event_listener_removal_steps(EventTarget* target, DOMEventListener* listener)
+    {
+        target->run_event_listener_removal_steps(*listener);
+    }
+
+    static void set_event_type(Event* event, size_t type)
+    {
+        event->set_type(Utf16FlyString::from_raw(type));
     }
 
     static EventTarget* get_the_parent(EventTarget* target, Event* event)
@@ -308,7 +236,9 @@ struct RustEventHooks {
 };
 
 static constexpr RustFFI::EventHooks s_rust_event_hooks {
-    .invoke_listeners = RustEventHooks::invoke_listeners,
+    .run_listener = RustEventHooks::run_listener,
+    .run_event_listener_removal_steps = RustEventHooks::run_event_listener_removal_steps,
+    .set_event_type = RustEventHooks::set_event_type,
     .get_the_parent = RustEventHooks::get_the_parent,
     .has_activation_behavior = RustEventHooks::has_activation_behavior,
     .is_disabled_form_control = RustEventHooks::is_disabled_form_control,
@@ -369,8 +299,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     //     identity of its type again after, which stays valid as every type with a legacy type is one of the
     //     EventNames, which live as long as the process.
     u16 type_bits = event_type_summary_bit(event.type());
+    Optional<Utf16FlyString> legacy_event_type;
     if (event.is_trusted()) {
-        if (auto legacy_event_type = legacy_event_type_for_event_type(event.type()); legacy_event_type.has_value())
+        legacy_event_type = legacy_event_type_for_event_type(event.type());
+        if (legacy_event_type.has_value())
             type_bits |= event_type_summary_bit(*legacy_event_type);
     }
 
@@ -389,7 +321,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     if (event.is_trusted() && is<UIEvents::PointerEvent>(event))
         flags |= RustFFI::DISPATCH_IS_TRUSTED_POINTER_EVENT;
 
-    auto const* last_target = RustFFI::rust_dom_dispatch(&event, target.ptr(), target_override.ptr(), event.touch_target_list().span(), type_bits, flags, &legacy_output_did_listeners_throw);
+    auto const* last_target = RustFFI::rust_dom_dispatch(&event, target.ptr(), target_override.ptr(), event.touch_target_list().span(), type_bits, event.type().raw_identity(), legacy_event_type.has_value() ? legacy_event_type->raw_identity() : 0, flags, &legacy_output_did_listeners_throw);
 
     // https://w3c.github.io/event-timing/#sec-modifications-DOM
     // 1. Finalize event timing passing timingEntry, event, target, and the current high resolution time as inputs.

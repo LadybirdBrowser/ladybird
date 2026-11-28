@@ -10,6 +10,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibWeb/DOM/RustFFI.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -24,11 +25,12 @@ public:
     DOMEventListener();
     ~DOMEventListener();
 
-    // NB: The boolean fields of the listener are flags of the cell.
+    // NB: The boolean fields of the listener are flags of the cell, see the EVENT_LISTENER_* flags in
+    //     Rust/src/dom/event_listeners.rs, which reads the listener in place.
 
     // capture (a boolean, initially false)
-    bool capture() const { return has_flag(Flag::Capture); }
-    void set_capture(bool value) { set_flag(Flag::Capture, value); }
+    bool capture() const { return has_flag(RustFFI::EVENT_LISTENER_CAPTURE); }
+    void set_capture(bool value) { set_flag(RustFFI::EVENT_LISTENER_CAPTURE, value); }
 
     // callback (null or an EventListener object)
     GC::Member<IDLEventListener> callback;
@@ -42,37 +44,28 @@ public:
     // passive (null or a boolean, initially null)
     Optional<bool> passive() const
     {
-        if (!has_flag(Flag::PassiveIsSet))
+        if (!has_flag(RustFFI::EVENT_LISTENER_PASSIVE_IS_SET))
             return {};
-        return has_flag(Flag::Passive);
+        return has_flag(RustFFI::EVENT_LISTENER_PASSIVE);
     }
     void set_passive(Optional<bool> value)
     {
-        set_flag(Flag::PassiveIsSet, value.has_value());
-        set_flag(Flag::Passive, value.value_or(false));
+        set_flag(RustFFI::EVENT_LISTENER_PASSIVE_IS_SET, value.has_value());
+        set_flag(RustFFI::EVENT_LISTENER_PASSIVE, value.value_or(false));
     }
 
     // once (a boolean, initially false)
-    bool once() const { return has_flag(Flag::Once); }
-    void set_once(bool value) { set_flag(Flag::Once, value); }
+    bool once() const { return has_flag(RustFFI::EVENT_LISTENER_ONCE); }
+    void set_once(bool value) { set_flag(RustFFI::EVENT_LISTENER_ONCE, value); }
 
     // removed (a boolean for bookkeeping purposes, initially false)
-    bool removed() const { return has_flag(Flag::Removed); }
-    void set_removed(bool value) { set_flag(Flag::Removed, value); }
+    bool removed() const { return has_flag(RustFFI::EVENT_LISTENER_REMOVED); }
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
-    enum class Flag : u8 {
-        Capture = 1 << 0,
-        Once = 1 << 1,
-        Removed = 1 << 2,
-        PassiveIsSet = 1 << 3,
-        Passive = 1 << 4,
-    };
-
-    bool has_flag(Flag flag) const { return embedder_flags() & to_underlying(flag); }
-    void set_flag(Flag flag, bool value) { set_embedder_flags(static_cast<u8>(value ? (embedder_flags() | to_underlying(flag)) : (embedder_flags() & ~to_underlying(flag)))); }
+    bool has_flag(u8 flag) const { return embedder_flags() & flag; }
+    void set_flag(u8 flag, bool value) { set_embedder_flags(static_cast<u8>(value ? (embedder_flags() | flag) : (embedder_flags() & ~flag))); }
 };
 
 }
