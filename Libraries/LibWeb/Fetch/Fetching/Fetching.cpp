@@ -675,9 +675,8 @@ static ReadonlyBytes slice_blob_bytes(ReadonlyBytes bytes, i64 start, i64 end)
 
 static bool is_request_from_an_svg_image(Infrastructure::Request const& request)
 {
-    auto client = HTML::settings_object_of_fetch_client(resolve_fetch_client(request));
-    auto* window = client ? HTML::window_from_global_object(client->global_object()) : nullptr;
-    return window && window->associated_document().is_decoded_svg();
+    auto const& client = request.client_snapshot();
+    return client && client->is_window_of_a_decoded_svg_image == Infrastructure::ClientContext::IsWindowOfADecodedSVGImage::Yes;
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
