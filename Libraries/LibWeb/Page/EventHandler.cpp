@@ -1740,10 +1740,13 @@ static bool produces_character_value(u32 code_point)
     // A subset of the General Category values that are defined for each Unicode code point. This subset contains all
     // the Letter (Ll, Lm, Lo, Lt, Lu), Number (Nd, Nl, No), Punctuation (Pc, Pd, Pe, Pf, Pi, Po, Ps) and Symbol (Sc,
     // Sk, Sm, So) category values.
+    // AD-HOC: The subset leaves out the Space Separator (Zs) category, but the space bar fires keypress in every other
+    //         engine, and editors that type the text of keypress events themselves (web terminals, e.g.) depend on it.
     return Unicode::code_point_has_letter_general_category(code_point)
         || Unicode::code_point_has_number_general_category(code_point)
         || Unicode::code_point_has_punctuation_general_category(code_point)
-        || Unicode::code_point_has_symbol_general_category(code_point);
+        || Unicode::code_point_has_symbol_general_category(code_point)
+        || Unicode::code_point_has_space_separator_general_category(code_point);
 }
 
 // https://github.com/w3c/uievents/issues/183#issuecomment-448091687

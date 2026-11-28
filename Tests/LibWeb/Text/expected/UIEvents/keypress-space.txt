@@ -1,0 +1,11 @@
+keydown key=" " keyCode=32 charCode=0 shiftKey=false
+keypress key=" " keyCode=32 charCode=32 shiftKey=false
+beforeinput key=undefined keyCode=undefined charCode=undefined shiftKey=undefined
+keyup key=" " keyCode=32 charCode=0 shiftKey=false
+keydown key=" " keyCode=32 charCode=0 shiftKey=true
+keypress key=" " keyCode=32 charCode=32 shiftKey=true
+beforeinput key=undefined keyCode=undefined charCode=undefined shiftKey=undefined
+keyup key=" " keyCode=32 charCode=0 shiftKey=true
+field: "  "
+terminal typed: "a b", value: ""
+button clicks: 1

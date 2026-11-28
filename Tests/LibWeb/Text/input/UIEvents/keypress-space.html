@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="field"></textarea>
+<textarea id="terminal"></textarea>
+<button id="button">Button</button>
+<script>
+    promiseTest(async () => {
+        const field = document.getElementById("field");
+        const log = [];
+        for (const type of ["keydown", "keypress", "beforeinput", "keyup"])
+            field.addEventListener(type, event => log.push(`${type} key=${JSON.stringify(event.key)} keyCode=${event.keyCode} charCode=${event.charCode} shiftKey=${event.shiftKey}`));
+        field.focus();
+        internals.sendText(field, " ");
+        const shift = 1 << 2;
+        internals.sendText(field, " ", shift);
+        for (const line of log)
+            println(line);
+        println(`field: ${JSON.stringify(field.value)}`);
+
+        // An editor that types keypress text itself, as web terminals do, gets the space.
+        const terminal = document.getElementById("terminal");
+        let typed = "";
+        terminal.addEventListener("keypress", event => {
+            typed += event.key;
+            event.preventDefault();
+        });
+        terminal.focus();
+        internals.sendText(terminal, "a b");
+        println(`terminal typed: ${JSON.stringify(typed)}, value: ${JSON.stringify(terminal.value)}`);
+
+        // The space bar still clicks a button once, on release.
+        const button = document.getElementById("button");
+        let clicks = 0;
+        button.addEventListener("click", () => ++clicks);
+        button.focus();
+        internals.sendKey(button, "Space");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`button clicks: ${clicks}`);
+    });
+</script>
