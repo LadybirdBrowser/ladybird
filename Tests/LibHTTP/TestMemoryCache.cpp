@@ -95,6 +95,26 @@ TEST_CASE(not_modified_responses_are_not_stored)
     EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
 }
 
+TEST_CASE(a_request_with_preconditions_is_not_answered_from_a_stored_response)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/resource"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("v1"sv));
+    VERIFY(cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+
+    for (auto name : { "If-None-Match"sv, "If-Modified-Since"sv, "If-Match"sv, "If-Unmodified-Since"sv, "If-Range"sv }) {
+        auto conditional_request_headers = HTTP::HeaderList::create({ { "Accept"sv, "*/*"sv }, { name, "\"v1\""sv } });
+        EXPECT(!cache->open_entry(url, "GET"sv, *conditional_request_headers, HTTP::CacheMode::Default).has_value());
+    }
+}
+
 TEST_CASE(invalidation_removes_stored_and_pending_responses)
 {
     auto cache = HTTP::MemoryCache::create();
