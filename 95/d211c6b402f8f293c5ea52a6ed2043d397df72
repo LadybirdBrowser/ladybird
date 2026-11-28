@@ -1,0 +1,6 @@
+Ladybird’s Compositor goes back to ignoring a failed synchronous
+submit and VERIFY()ing an asynchronous one, so it no longer exits for a
+relaunch when the GPU context is lost. Chromium instead restarts its
+GPU process on context loss, as 5755a7ce3e3 did: GpuServiceImpl::
+MaybeExitOnContextLost() calls RestartGpuProcessForContextLoss().
+That’s from reading the source, not from running it.
