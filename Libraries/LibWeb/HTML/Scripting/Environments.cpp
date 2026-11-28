@@ -34,7 +34,7 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/Infra/SerializedURL.h>
-#include <LibWeb/MixedContent/AbstractOperations.h>
+#include <LibWeb/MixedContent/SettingsObject.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/ServiceWorker/ServiceWorker.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRegistration.h>

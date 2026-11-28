@@ -669,6 +669,7 @@ set(SOURCES
     MediaSourceExtensions/SourceBuffer.cpp
     MediaSourceExtensions/SourceBufferList.cpp
     MixedContent/AbstractOperations.cpp
+    MixedContent/SettingsObject.cpp
     Namespace.cpp
     NavigationTiming/PerformanceNavigationTiming.cpp
     NotificationsAPI/Notification.cpp

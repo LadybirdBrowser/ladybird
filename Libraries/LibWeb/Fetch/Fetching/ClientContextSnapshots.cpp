@@ -12,7 +12,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
-#include <LibWeb/MixedContent/AbstractOperations.h>
+#include <LibWeb/MixedContent/SettingsObject.h>
 
 namespace Web::Fetch::Fetching {
 
