@@ -1,0 +1,4 @@
+no box: compositor has the frame scrolled to 0,100
+empty box: compositor has the frame scrolled to 0,100
+box without height: compositor has the frame scrolled to 0,100
+box without width: compositor has the frame scrolled to 0,100
