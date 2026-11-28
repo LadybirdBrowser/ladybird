@@ -1,0 +1,7 @@
+Ladybird’s find-in-page searches the documents of a page in tree order,
+the top-level document first. Chromium’s FindRequestManager searches
+every frame of a page, walking the frame tree with TraverseNext(), and
+Firefox’s nsWebBrowserFind searches subframes with SearchInFrame() (from
+reading the sources; the report says both find the iframe’s text). In
+all three engines, window.find() searches only its own window, as it
+does in Ladybird (run in Chrome 158, Firefox 151, and WebKit 26.5).
