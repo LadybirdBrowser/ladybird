@@ -15,6 +15,7 @@ use libgc_api::member::write_barrier;
 
 use super::event_target::EventTargetMember;
 use super::id_map::IdMapField;
+use super::strings::FlyStringField;
 use super::strings::StringField;
 use super::weak_cells::WeakCellRegistryField;
 use crate::css::style::tree::StyleNodeID;
@@ -93,10 +94,121 @@ pub struct CharacterDataCore {
 }
 
 impl CharacterDataCore {
+    /// The core of a new node whose data is `data`, which passes to it.
+    #[inline(always)]
+    pub(super) fn new(data: ak::Utf16String) -> Self {
+        Self {
+            data: StringField::from_owned(data),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-cd-data
     #[inline(always)]
     pub fn data(&self) -> &StringField {
         &self.data
+    }
+
+    /// The data's string, whose reference passes to the caller, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn take_data(&self) -> ak::Utf16String {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { self.data.take() }
+    }
+}
+
+/// The state of a ProcessingInstruction node beyond that of every CharacterData node, which Rust lays out at the end of
+/// the node and C++ embeds in DOM::ProcessingInstruction.
+/// https://dom.spec.whatwg.org/#interface-processinginstruction
+#[derive(Trace)]
+#[repr(C)]
+pub struct ProcessingInstructionCore {
+    /// https://dom.spec.whatwg.org/#concept-pi-target
+    target: FlyStringField,
+}
+
+impl ProcessingInstructionCore {
+    /// The core of a new node whose target is `target`, which passes to it.
+    #[inline(always)]
+    pub(super) fn new(target: ak::Utf16FlyString) -> Self {
+        Self {
+            target: FlyStringField::from_owned(target),
+        }
+    }
+
+    #[inline(always)]
+    pub fn target(&self) -> &FlyStringField {
+        &self.target
+    }
+
+    /// Drops the strings of the core, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn release(&self) {
+        // SAFETY: Guaranteed by the caller.
+        drop(unsafe { self.target.take() });
+    }
+}
+
+/// The state of a DocumentType node beyond that of every node, which Rust lays out at the end of the node and C++ embeds
+/// in DOM::DocumentType.
+/// https://dom.spec.whatwg.org/#interface-documenttype
+#[derive(Trace)]
+#[repr(C)]
+pub struct DocumentTypeCore {
+    /// https://dom.spec.whatwg.org/#concept-doctype-name
+    name: FlyStringField,
+    /// https://dom.spec.whatwg.org/#concept-doctype-publicid
+    public_id: StringField,
+    /// https://dom.spec.whatwg.org/#concept-doctype-systemid
+    system_id: StringField,
+}
+
+impl DocumentTypeCore {
+    /// The core of a new doctype with the strings given, whose references pass to it.
+    #[inline(always)]
+    pub(super) fn new(name: ak::Utf16FlyString, public_id: ak::Utf16String, system_id: ak::Utf16String) -> Self {
+        Self {
+            name: FlyStringField::from_owned(name),
+            public_id: StringField::from_owned(public_id),
+            system_id: StringField::from_owned(system_id),
+        }
+    }
+
+    #[inline(always)]
+    pub fn name(&self) -> &FlyStringField {
+        &self.name
+    }
+
+    #[inline(always)]
+    pub fn public_id(&self) -> &StringField {
+        &self.public_id
+    }
+
+    #[inline(always)]
+    pub fn system_id(&self) -> &StringField {
+        &self.system_id
+    }
+
+    /// Drops the strings of the core, as the node is destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The core must be that of a node that is being destroyed, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn release(&self) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            drop(self.name.take());
+            drop(self.public_id.take());
+            drop(self.system_id.take());
+        }
     }
 }
 
@@ -675,6 +787,15 @@ impl NodeCore {
     /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own, whose node document is
     /// `document`.
     pub(crate) fn for_test(node_type: NodeType, node: NodePointer, document: NodePointer) -> Self {
+        Self::new(node_type, node, document)
+    }
+}
+
+impl NodeCore {
+    /// The core of `node`, a new node of `node_type` that is no document: the root of a tree of its own, which is not
+    /// connected, and whose node document is `document`.
+    #[inline(always)]
+    pub(super) fn new(node_type: NodeType, node: NodePointer, document: NodePointer) -> Self {
         let member = |node: Option<NodePointer>| NodeMember(Cell::new(node.map_or(0, NodePointer::compressed)));
         Self {
             parent: member(None),

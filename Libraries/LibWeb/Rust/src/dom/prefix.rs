@@ -58,6 +58,7 @@ use core::mem::MaybeUninit;
 use core::mem::offset_of;
 
 use libgc_api::Trace;
+use libgc_api::cell::{CELL_KIND_OTHER, CELL_STATE_LIVE};
 use libgc_api::layout::CELL_IDENTITY_HASH_STATE_OFFSET;
 
 use super::attr::AttrCore;
@@ -69,6 +70,8 @@ use super::node_core::CharacterDataCore;
 use super::node_core::DocumentCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::NodeCore;
+use super::node_core::NodePointer;
+use super::node_core::NodeType;
 use super::node_core::ParentNodeCore;
 use super::node_core::TextCore;
 use super::slots::ShadowRootCore;
@@ -95,6 +98,14 @@ pub struct OpaqueCxx<T, const N: usize>(UnsafeCell<MaybeUninit<[T; N]>>);
 unsafe impl<T, const N: usize> Trace for OpaqueCxx<T, N> {
     #[inline(always)]
     fn trace(&self, _: &mut libgc_api::Visitor<'_>) {}
+}
+
+impl<T, const N: usize> OpaqueCxx<T, N> {
+    /// A slot that holds `units`, which is how the C++ member it stands for starts out in an object Rust makes.
+    #[inline(always)]
+    pub(super) const fn new(units: [T; N]) -> Self {
+        Self(UnsafeCell::new(MaybeUninit::new(units)))
+    }
 }
 
 #[cfg(test)]
@@ -245,6 +256,48 @@ pub struct HTMLSlotElementPrefix {
     pub(super) core: SlotCore,
 }
 
+/// What C++ writes into a node it constructs that Rust has to write into a node it makes: the vtable pointers of the
+/// node's class, and the pointer to the shared null GC::WeakImpl that every null GC::Weak holds.
+#[derive(Clone, Copy)]
+pub(super) struct CxxWords {
+    pub(super) vtable: u64,
+    pub(super) null_weak_impl: u64,
+}
+
+impl NodePrefix {
+    /// The prefix of `node`, a new node of the class `class_id` and of `node_type`, that is no document, and whose node
+    /// document is `document`, as the constructors of DOM::Node and the classes it derives from make it.
+    #[inline(always)]
+    pub(super) fn new(
+        words: CxxWords,
+        class_id: NodeClassId,
+        node_type: NodeType,
+        node: NodePointer,
+        document: NodePointer,
+    ) -> Self {
+        Self {
+            event_target: EventTargetPrefix {
+                wrappable: WrappablePrefix {
+                    vtable: OpaqueCxx::new([words.vtable]),
+                    // NB: A cell whose identity was never hashed, which is live and of GC::CellKind::Other.
+                    cell_header: OpaqueCxx::new([0, CELL_STATE_LIVE, CELL_KIND_OTHER]),
+                    preservation_flags: OpaqueCxx::new([0]),
+                    class_id,
+                    // NB: A GC::Weak that is null.
+                    main_world_wrapper: OpaqueCxx::new([words.null_weak_impl]),
+                },
+                core: EventTargetCore::for_new_node(),
+                data: EventTargetDataField::null(),
+            },
+            core: NodeCore::new(node_type, node, document),
+            associated_animation_count_in_subtree: OpaqueCxx::new([0]),
+            node_directory_slot: OpaqueCxx::new([0]),
+            // NB: A null OwnPtr.
+            rare_data: OpaqueCxx::new([0]),
+        }
+    }
+}
+
 #[cfg(test)]
 impl WrappablePrefix {
     pub(crate) const fn for_test(class_id: NodeClassId) -> Self {
@@ -263,8 +316,8 @@ impl EventTargetPrefix {
     pub(crate) fn for_test(class_id: NodeClassId) -> Self {
         Self {
             wrappable: WrappablePrefix::for_test(class_id),
-            core: EventTargetCore::null_for_test(),
-            data: EventTargetDataField::null_for_test(),
+            core: EventTargetCore::for_new_node(),
+            data: EventTargetDataField::null(),
         }
     }
 }

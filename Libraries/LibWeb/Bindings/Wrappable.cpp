@@ -73,6 +73,11 @@ void Wrappable::visit_edges(GC::Cell::Visitor& visitor)
 void GCAllocatedWrappable::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visit_preserved_wrapper_edges(visitor);
+}
+
+void GCAllocatedWrappable::visit_preserved_wrapper_edges(GC::Cell::Visitor& visitor)
+{
     if (main_world_wrapper_is_preserved()) {
         VERIFY(m_main_world_wrapper);
         visitor.visit(*m_main_world_wrapper);

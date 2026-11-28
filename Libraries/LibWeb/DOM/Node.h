@@ -146,6 +146,18 @@ enum class SetNeedsLayoutTreeUpdateReason {
 
 [[nodiscard]] Utf16View to_string(SetNeedsLayoutTreeUpdateReason);
 
+// What the constructors of the classes of nodes whose objects libweb_rust defines (see Rust/src/dom/node_objects.rs)
+// take: C++ only ever constructs a probe of such a class, from which it reads the vtable pointers that Rust writes into
+// every object of the class.
+struct VtableProbe { };
+
+// Whether T is the C++ shell of a class of nodes whose objects libweb_rust defines whole, as RustObject: it adds no
+// member to the object Rust lays out, has no allocator of its own, so that C++ cannot allocate one, and no destructor
+// that C++ can call, as Rust destroys every one.
+template<typename T, typename RustObject>
+inline constexpr bool is_shell_of_rust_object = sizeof(T) == sizeof(RustObject) && alignof(T) == alignof(RustObject)
+    && !requires { requires IsSame<typename T::gc_allocator_marker, T>; } && !IsDestructible<T>;
+
 class WEB_API Node : public EventTarget
     , public TreeNode<Node> {
     WEB_WRAPPABLE(Node, EventTarget);
@@ -637,6 +649,7 @@ protected:
     };
 
     Node(Document&, NodeType);
+    explicit Node(VtableProbe);
 
     void set_document(Document&);
 
@@ -678,6 +691,12 @@ protected:
 private:
     friend class TreeNode<Node>;
     friend class RustDOMHooks;
+    friend struct RustNodeObjectHooks;
+
+    // Visits the cells the members in the opaque slots of the node's prefixes hold (see Rust/src/dom/prefix.rs), for
+    // libweb_rust, which traces the rest of the nodes whose objects it defines.
+    void visit_cxx_slot_edges(Cell::Visitor&);
+
     RustFFI::NodeCore& tree_node_links() { return m_core; }
     RustFFI::NodeCore const& tree_node_links() const { return m_core; }
 

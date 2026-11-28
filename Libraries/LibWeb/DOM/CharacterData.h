@@ -61,6 +61,10 @@ protected:
     };
 
     CharacterData(Document&, NodeType, Utf16String);
+    explicit CharacterData(VtableProbe probe)
+        : Node(probe)
+    {
+    }
 
     virtual OwnPtr<Node::RareData> create_rare_data() const override;
     RareData& ensure_character_data_rare_data() const;

@@ -214,6 +214,9 @@ protected:
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual void finalize() override;
 
+    // Visits the wrappers the object preserves.
+    void visit_preserved_wrapper_edges(GC::Cell::Visitor&);
+
 private:
     friend class WrapperWorld;
     friend WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);

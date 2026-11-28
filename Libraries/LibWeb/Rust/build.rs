@@ -2810,6 +2810,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut dom_config = base_config.clone();
     dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
     dom_config.includes = vec![
+        "AK/Utf16FlyString.h".to_string(),
         "AK/Utf16String.h".to_string(),
         "LibGC/CAPI.h".to_string(),
         "LibGC/Member.h".to_string(),
@@ -2828,6 +2829,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ParentNodeCore".to_string(),
         "CharacterDataCore".to_string(),
         "TextCore".to_string(),
+        "ProcessingInstructionCore".to_string(),
+        "DocumentTypeCore".to_string(),
         "DocumentFragmentCore".to_string(),
         "DocumentCore".to_string(),
         "ElementCore".to_string(),
@@ -2847,6 +2850,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ElementPrefix".to_string(),
         "HTMLElementPrefix".to_string(),
         "HTMLSlotElementPrefix".to_string(),
+        "CommentObject".to_string(),
+        "ProcessingInstructionObject".to_string(),
+        "DocumentTypeObject".to_string(),
+        "NodeObjectHooks".to_string(),
         "EventListenerList".to_string(),
         "EventCore".to_string(),
         "EventHooks".to_string(),
@@ -2904,6 +2911,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("ClassNamesField", "Web::DOM::ClassNames"),
         ("AttributeListField", "Web::DOM::AttributeList"),
         ("StringField", "AK::Utf16String"),
+        ("FlyStringField", "AK::Utf16FlyString"),
         ("MoveScope", "Web::DOM::MoveScope"),
         ("CloneScope", "Web::DOM::CloneScope"),
         ("RangeCell", "Web::DOM::AbstractRange"),
@@ -2943,6 +2951,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/move_node.rs"),
             manifest_dir.join("src/dom/node_class.rs"),
             manifest_dir.join("src/dom/node_core.rs"),
+            manifest_dir.join("src/dom/node_objects.rs"),
             manifest_dir.join("src/dom/node_ref.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
             manifest_dir.join("src/dom/prefix.rs"),

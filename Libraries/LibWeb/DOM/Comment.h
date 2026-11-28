@@ -12,19 +12,21 @@
 
 namespace Web::DOM {
 
+// NB: libweb_rust defines, allocates and destroys every Comment, see Rust/src/dom/node_objects.rs.
 class Comment final : public CharacterData {
     WEB_WRAPPABLE(Comment, CharacterData);
-    GC_DECLARE_ALLOCATOR(Comment);
 
 public:
     [[nodiscard]] static GC::Ref<Comment> create(Document&, Utf16String data);
     [[nodiscard]] static GC::Ref<Comment> create_for_constructor(JS::Object&, Utf16String data);
-    virtual ~Comment() override = default;
 
     virtual Utf16FlyString node_name() const override { return "#comment"_utf16_fly_string; }
 
 private:
-    Comment(Document&, Utf16String);
+    friend struct RustNodeObjectHooks;
+
+    explicit Comment(VtableProbe);
+    virtual ~Comment() override = default;
 };
 
 }

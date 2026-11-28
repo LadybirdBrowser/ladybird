@@ -275,9 +275,11 @@ impl EventTargetMember {
     }
 }
 
-#[cfg(test)]
 impl EventTargetCore {
-    pub(crate) fn null_for_test() -> Self {
+    /// The core of a node as it is made: one without flags, which only targets that are no nodes have, and without
+    /// listeners.
+    #[inline(always)]
+    pub(super) fn for_new_node() -> Self {
         Self {
             flags: Cell::new(0),
             capture_listener_types: Cell::new(0),
@@ -286,9 +288,10 @@ impl EventTargetCore {
     }
 }
 
-#[cfg(test)]
 impl EventTargetDataField {
-    pub(crate) fn null_for_test() -> Self {
+    /// The field of a target that has never needed its data, which holds a null OwnPtr.
+    #[inline(always)]
+    pub(super) fn null() -> Self {
         Self(UnsafeCell::new(core::ptr::null()))
     }
 }

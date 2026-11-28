@@ -26,6 +26,14 @@ impl FlyStringField {
         Self(UnsafeCell::new(value.into_raw()))
     }
 
+    /// The string, as a reference of its own to it, which stays valid however C++ changes the field.
+    #[inline(always)]
+    pub fn to_fly_string(&self) -> ak::Utf16FlyString {
+        // SAFETY: C++ does not write the field while Rust borrows it, and the string it holds is a live
+        //         AK::Utf16FlyString.
+        unsafe { ak::Utf16FlyString::from_raw_borrowed(*self.0.get()) }
+    }
+
     /// The word that names the string, which is the same for every AK::Utf16FlyString of the same string.
     #[inline(always)]
     pub fn raw_identity(&self) -> usize {
@@ -43,6 +51,18 @@ impl FlyStringField {
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         units_are_empty(self.units())
+    }
+
+    /// The string the field holds, whose reference passes to the caller, as the object that holds the field is
+    /// destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The field must hold a live AK::Utf16FlyString, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn take(&self) -> ak::Utf16FlyString {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { ak::Utf16FlyString::from_raw_owned(*self.0.get()) }
     }
 
     /// Puts the string `value` in the field, and answers the string it held.
@@ -129,6 +149,24 @@ impl StringField {
 }
 
 impl StringField {
+    /// A field that holds `value`, whose reference passes to it.
+    #[inline(always)]
+    pub(super) fn from_owned(value: ak::Utf16String) -> Self {
+        Self(UnsafeCell::new(value.into_raw()))
+    }
+
+    /// The string the field holds, whose reference passes to the caller, as the object that holds the field is
+    /// destroyed.
+    ///
+    /// # Safety
+    ///
+    /// The field must hold a live AK::Utf16String, which nothing reads after this.
+    #[inline(always)]
+    pub(super) unsafe fn take(&self) -> ak::Utf16String {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { ak::Utf16String::from_raw_owned(*self.0.get()) }
+    }
+
     /// The field's raw word, which names the string as C++'s AK::Utf16String::raw_identity() does.
     #[inline(always)]
     pub fn raw(&self) -> usize {

@@ -170,6 +170,7 @@ ffi_entry!(crate::dom::id_map::MainThreadFfiEntry);
 ffi_entry!(crate::dom::qualified_name::MainThreadFfiEntry);
 ffi_entry!(crate::dom::element_core::MainThreadFfiEntry);
 ffi_entry!(crate::dom::attr::MainThreadFfiEntry);
+ffi_entry!(crate::dom::node_objects::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

@@ -107,6 +107,9 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
+    // Visits the cells the target's data holds but for its event listener list, which libweb_rust traces.
+    void visit_data_edges(Cell::Visitor&);
+
 private:
     struct Data {
         AK_ALLOC_WITH_KMALLOC;
