@@ -402,10 +402,10 @@ QString AccessibilityInterface::text(QAccessible::Text t) const
     case QAccessible::Name:
         return to_qstring(data->name);
     case QAccessible::Description:
-        return to_qstring(data->description);
+        return to_qstring(data->details->description);
     case QAccessible::Value:
-        if (!data->value.is_empty())
-            return to_qstring(data->value);
+        if (!data->details->value.is_empty())
+            return to_qstring(data->details->value);
         if (data->heading_level > 0)
             return QString::number(data->heading_level);
         return {};
@@ -761,30 +761,31 @@ static QRect leaf_character_rect_local(WebView::AccessibilityNodeData const* lea
         return {};
     auto local_full = QRect(leaf_data->bounds.x(), leaf_data->bounds.y(),
         leaf_data->bounds.width(), leaf_data->bounds.height());
-    if (leaf_data->character_offsets.is_empty() || offset < 0)
+    auto const& geometry = *leaf_data->text_geometry;
+    if (geometry.character_count() == 0 || offset < 0)
         return local_full;
 
     offset = code_point_offset_for_utf16_offset(leaf_data->name, offset);
     // Return empty rect for out-of-range offsets. Qt's AT-SPI2 bridge implementation of GetRangeExtents iterates
     // characterRect over [startOffset..endOffset] *inclusive* — while callers pass endOffset as *exclusive*; returning
     // an empty rect for the extra past-end offset keeps the union confined to the requested range.
-    if (offset >= static_cast<int>(leaf_data->character_offsets.size()))
+    if (offset >= static_cast<int>(geometry.character_count()))
         return {};
 
-    auto const& char_pt = leaf_data->character_offsets[offset];
+    auto char_pt = geometry.character_offset(offset);
     int line_index = 0;
-    for (size_t i = 0; i < leaf_data->line_break_character_offsets.size(); ++i) {
-        if (leaf_data->line_break_character_offsets[i] <= offset)
+    for (size_t i = 0; i < geometry.line_break_character_offsets.size(); ++i) {
+        if (geometry.line_break_character_offsets[i] <= offset)
             line_index = static_cast<int>(i);
     }
-    int line_height = (line_index < static_cast<int>(leaf_data->line_heights.size()))
-        ? leaf_data->line_heights[line_index]
+    int line_height = (line_index < static_cast<int>(geometry.line_heights.size()))
+        ? geometry.line_heights[line_index]
         : leaf_data->bounds.height();
 
     int char_width = line_height / 2;
     int next_offset = offset + 1;
-    if (next_offset < static_cast<int>(leaf_data->character_offsets.size())) {
-        auto const& next_pt = leaf_data->character_offsets[next_offset];
+    if (next_offset < static_cast<int>(geometry.character_count())) {
+        auto next_pt = geometry.character_offset(next_offset);
         if (next_pt.y() == char_pt.y())
             char_width = next_pt.x() - char_pt.x();
     }
@@ -899,7 +900,7 @@ QString AccessibilityInterface::build_hypertext() const
     // way, and it's this text Orca reads back for typing echo and caret navigation — against the same offsets the
     // caret, selection and editable-text plumbing use.
     if (is_text_control(*data))
-        return QString::fromUtf8(reinterpret_cast<char const*>(data->value.bytes().data()), data->value.bytes().size());
+        return QString::fromUtf8(reinterpret_cast<char const*>(data->details->value.bytes().data()), data->details->value.bytes().size());
 
     // Leaf-like containers: flatten all descendant text so the whole unit speaks as one string.
     if (is_leaf_like_container_role(role))
@@ -1012,10 +1013,11 @@ static Optional<OffsetLineExtent> first_text_leaf_extent(WebView::AccessibilityT
     if (data->role.bytes_as_string_view() == "text leaf"sv) {
         if (data->name.is_empty())
             return {};
+        auto const& geometry = *data->text_geometry;
         i32 y = data->bounds.y();
-        if (!data->character_offsets.is_empty())
-            y += data->character_offsets.first().y();
-        i32 height = data->line_heights.is_empty() ? data->bounds.height() : data->line_heights.first();
+        if (geometry.character_count() > 0)
+            y += geometry.character_offset(0).y();
+        i32 height = geometry.line_heights.is_empty() ? data->bounds.height() : geometry.line_heights.first();
         return OffsetLineExtent { y, height, false };
     }
     for (auto child_id : data->child_ids) {
@@ -1038,18 +1040,19 @@ static void gather_offset_line_extents(WebView::AccessibilityTreeManager const* 
         return;
 
     if (data->role.bytes_as_string_view() == "text leaf"sv) {
+        auto const& geometry = *data->text_geometry;
         size_t code_point_index = 0;
         size_t line_index = 0;
         for (auto code_point : data->name.code_points()) {
             // line_break_character_offsets is ascending, so the line a code point is on only ever advances.
-            while (line_index + 1 < data->line_break_character_offsets.size()
-                && static_cast<size_t>(data->line_break_character_offsets[line_index + 1]) <= code_point_index)
+            while (line_index + 1 < geometry.line_break_character_offsets.size()
+                && static_cast<size_t>(geometry.line_break_character_offsets[line_index + 1]) <= code_point_index)
                 ++line_index;
             i32 y = data->bounds.y();
-            if (!data->character_offsets.is_empty())
-                y += data->character_offsets[min(code_point_index, data->character_offsets.size() - 1)].y();
-            i32 height = line_index < data->line_heights.size()
-                ? data->line_heights[line_index]
+            if (geometry.character_count() > 0)
+                y += geometry.character_offset(min(code_point_index, geometry.character_count() - 1)).y();
+            i32 height = line_index < geometry.line_heights.size()
+                ? geometry.line_heights[line_index]
                 : data->bounds.height();
             out.append({ y, height, false });
             if (code_point > 0xFFFF)
@@ -1130,8 +1133,8 @@ static int representative_line_height(WebView::AccessibilityTreeManager const* m
     if (!data)
         return 0;
     if (data->role.bytes_as_string_view() == "text leaf"sv) {
-        if (!data->line_heights.is_empty())
-            return data->line_heights.first();
+        if (!data->text_geometry->line_heights.is_empty())
+            return data->text_geometry->line_heights.first();
         return data->bounds.height();
     }
     for (auto child_id : data->child_ids) {
@@ -1360,7 +1363,7 @@ QVariant AccessibilityInterface::attributeValue(QAccessible::Attribute key) cons
 int AccessibilityInterface::columnExtent() const
 {
     auto const* data = node_data();
-    return data ? data->column_span : 1;
+    return data ? data->details->column_span : 1;
 }
 
 QList<QAccessibleInterface*> AccessibilityInterface::columnHeaderCells() const
@@ -1376,8 +1379,8 @@ int AccessibilityInterface::columnIndex() const
 
     // Prefer the colspan-aware index LibWeb already computed; the flat sibling loop below mis-reports every
     // cell after a colspan>1 cell.
-    if (data->cell_column_index >= 0)
-        return data->cell_column_index;
+    if (data->details->cell_column_index >= 0)
+        return data->details->cell_column_index;
 
     auto const* row = m_manager->node(data->parent_id);
     if (!row)
@@ -1395,7 +1398,7 @@ int AccessibilityInterface::columnIndex() const
 int AccessibilityInterface::rowExtent() const
 {
     auto const* data = node_data();
-    return data ? data->row_span : 1;
+    return data ? data->details->row_span : 1;
 }
 
 QList<QAccessibleInterface*> AccessibilityInterface::rowHeaderCells() const

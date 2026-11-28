@@ -1325,6 +1325,8 @@ public:
     KeptAccessibilityRecord kept_accessibility_record(Node const&) const;
     // Returns the version the record gets, or 0 when it isn't kept.
     u64 cache_accessibility_record(Node const&, WebView::AccessibilityNodeData const&) const;
+    // Makes a text leaf's style the one kept for every other text leaf with the same, while records are kept.
+    void intern_accessibility_text_style(WebView::AccessibilityShared<WebView::AccessibilityTextStyle>&) const;
     void invalidate_cached_accessibility_records_after_style_change(Element const&);
 
     // A text node's character geometry, kept with its record from one build to the next along with what layout
@@ -1334,6 +1336,8 @@ public:
         AK_MAKE_NONCOPYABLE(CachedTextGeometry);
 
     public:
+        AK_ALLOC_WITH_KMALLOC;
+
         CachedTextGeometry() = default;
         CachedTextGeometry(CachedTextGeometry&&) = default;
         // Releases the references this held, before taking the other's.
@@ -1350,9 +1354,7 @@ public:
         };
         Vector<Source> sources;
         u64 version { 0 };
-        Vector<Gfx::IntPoint> character_offsets;
-        Vector<i32> line_break_character_offsets;
-        Vector<i32> line_heights;
+        WebView::AccessibilityShared<WebView::AccessibilityTextGeometry> geometry;
     };
     CachedTextGeometry const* cached_text_geometry(Node const&) const;
     // Returns the version the geometry gets, or 0 when it isn't kept.

@@ -25,7 +25,7 @@ WebView::AccessibilityNodeData make_named_node(i64 id, i64 parent_id, StringView
     auto node = make_node(id, parent_id, move(child_ids));
     node.name = MUST(String::from_utf8(name));
     if (!live.is_empty())
-        node.live = MUST(String::from_utf8(live));
+        node.details.ensure().live = MUST(String::from_utf8(live));
     return node;
 }
 

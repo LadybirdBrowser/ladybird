@@ -2008,9 +2008,11 @@ String Internals::accessibility_character_offsets(GC::Ref<DOM::Node> node)
     for (auto const& node_data : document.build_accessibility_node_data()) {
         if (node_data.id != node_id)
             continue;
-        for (auto const& offset : node_data.character_offsets) {
+        auto const& geometry = *node_data.text_geometry;
+        for (size_t i = 0; i < geometry.character_count(); ++i) {
             if (!builder.is_empty())
                 builder.append(' ');
+            auto offset = geometry.character_offset(i);
             builder.appendff("{},{}", offset.x(), offset.y());
         }
         break;
@@ -2090,14 +2092,14 @@ String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
         auto field = [&](StringView name, auto const& value) { builder.appendff(" {}={}", name, value); };
         if (!data.name.is_empty())
             field("name"sv, quoted(data.name));
-        if (!data.description.is_empty())
-            field("description"sv, quoted(data.description));
-        if (!data.value.is_empty())
-            field("value"sv, quoted(data.value));
-        if (!data.url.is_empty())
-            field("url"sv, quoted(data.url));
-        if (!data.language.is_empty())
-            field("language"sv, data.language);
+        if (!data.details->description.is_empty())
+            field("description"sv, quoted(data.details->description));
+        if (!data.details->value.is_empty())
+            field("value"sv, quoted(data.details->value));
+        if (!data.details->url.is_empty())
+            field("url"sv, quoted(data.details->url));
+        if (!data.details->language.is_empty())
+            field("language"sv, data.details->language);
         builder.appendff(" bounds={},{} {}x{}", data.bounds.x(), data.bounds.y(), data.bounds.width(), data.bounds.height());
         if (data.is_focused)
             builder.append(" focused"sv);
@@ -2107,32 +2109,32 @@ String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
             field("heading_level"sv, data.heading_level);
         if (data.hierarchical_level != 0)
             field("hierarchical_level"sv, data.hierarchical_level);
-        if (!data.live.is_empty())
-            field("live"sv, data.live);
-        if (data.column_span != 1 || data.row_span != 1)
-            builder.appendff(" span={}x{}", data.column_span, data.row_span);
-        if (data.cell_column_index != -1)
-            field("column_index"sv, data.cell_column_index);
-        if (data.table_row_count != -1 || data.table_column_count != -1)
-            builder.appendff(" table={}x{}", data.table_row_count, data.table_column_count);
-        if (data.table_caption_id != -1)
-            field("caption"sv, reference(data.table_caption_id));
-        if (!data.table_summary.is_empty())
-            field("summary"sv, quoted(data.table_summary));
-        if (!data.column_header_ids.is_empty())
-            builder.appendff(" column_headers=[{}]", references(data.column_header_ids));
-        if (!data.row_header_ids.is_empty())
-            builder.appendff(" row_headers=[{}]", references(data.row_header_ids));
-        if (!data.keybinding.is_empty())
-            field("keybinding"sv, quoted(data.keybinding));
-        if (data.value_numeric.has_value())
-            field("value_now"sv, *data.value_numeric);
-        if (data.value_minimum.has_value())
-            field("value_min"sv, *data.value_minimum);
-        if (data.value_maximum.has_value())
-            field("value_max"sv, *data.value_maximum);
-        if (data.value_step.has_value())
-            field("value_step"sv, *data.value_step);
+        if (!data.details->live.is_empty())
+            field("live"sv, data.details->live);
+        if (data.details->column_span != 1 || data.details->row_span != 1)
+            builder.appendff(" span={}x{}", data.details->column_span, data.details->row_span);
+        if (data.details->cell_column_index != -1)
+            field("column_index"sv, data.details->cell_column_index);
+        if (data.details->table_row_count != -1 || data.details->table_column_count != -1)
+            builder.appendff(" table={}x{}", data.details->table_row_count, data.details->table_column_count);
+        if (data.details->table_caption_id != -1)
+            field("caption"sv, reference(data.details->table_caption_id));
+        if (!data.details->table_summary.is_empty())
+            field("summary"sv, quoted(data.details->table_summary));
+        if (!data.details->column_header_ids.is_empty())
+            builder.appendff(" column_headers=[{}]", references(data.details->column_header_ids));
+        if (!data.details->row_header_ids.is_empty())
+            builder.appendff(" row_headers=[{}]", references(data.details->row_header_ids));
+        if (!data.details->keybinding.is_empty())
+            field("keybinding"sv, quoted(data.details->keybinding));
+        if (data.details->value_numeric.has_value())
+            field("value_now"sv, *data.details->value_numeric);
+        if (data.details->value_minimum.has_value())
+            field("value_min"sv, *data.details->value_minimum);
+        if (data.details->value_maximum.has_value())
+            field("value_max"sv, *data.details->value_maximum);
+        if (data.details->value_step.has_value())
+            field("value_step"sv, *data.details->value_step);
         if (data.is_selected)
             builder.append(" selected"sv);
         using CheckedState = WebView::AccessibilityNodeData::CheckedState;
@@ -2165,24 +2167,27 @@ String Internals::dump_accessibility_node_data(GC::Ref<DOM::Node> node)
             field("caret"sv, data.caret_offset);
         if (data.selection_start != -1 || data.selection_end != -1)
             builder.appendff(" selection={}..{}", data.selection_start, data.selection_end);
-        if (!data.font_family.is_empty())
-            builder.appendff(" font={} {} {} {}", quoted(data.font_family), data.font_size, data.font_weight, data.font_style);
-        if (!data.color.is_empty())
-            field("color"sv, data.color);
-        if (!data.background_color.is_empty())
-            field("background"sv, data.background_color);
-        if (!data.text_decoration.is_empty() && data.text_decoration != "none"sv)
-            field("decoration"sv, data.text_decoration);
-        if (!data.character_offsets.is_empty()) {
+        if (!data.text_style->font_family.is_empty())
+            builder.appendff(" font={} {} {} {}", quoted(data.text_style->font_family), data.text_style->font_size, data.text_style->font_weight, data.text_style->font_style);
+        if (!data.text_style->color.is_empty())
+            field("color"sv, data.text_style->color);
+        if (!data.text_style->background_color.is_empty())
+            field("background"sv, data.text_style->background_color);
+        if (!data.text_style->text_decoration.is_empty() && data.text_style->text_decoration != "none"sv)
+            field("decoration"sv, data.text_style->text_decoration);
+        auto const& geometry = *data.text_geometry;
+        if (geometry.character_count() > 0) {
             builder.append(" characters="sv);
-            for (size_t j = 0; j < data.character_offsets.size(); ++j)
-                builder.appendff("{}{},{}", j ? " "sv : ""sv, data.character_offsets[j].x(), data.character_offsets[j].y());
+            for (size_t j = 0; j < geometry.character_count(); ++j) {
+                auto offset = geometry.character_offset(j);
+                builder.appendff("{}{},{}", j ? " "sv : ""sv, offset.x(), offset.y());
+            }
         }
-        if (!data.line_break_character_offsets.is_empty()) {
+        if (!geometry.line_break_character_offsets.is_empty()) {
             builder.append(" lines="sv);
-            for (size_t j = 0; j < data.line_break_character_offsets.size(); ++j) {
-                auto height = j < data.line_heights.size() ? data.line_heights[j] : -1;
-                builder.appendff("{}{}@{}", j ? " "sv : ""sv, data.line_break_character_offsets[j], height);
+            for (size_t j = 0; j < geometry.line_break_character_offsets.size(); ++j) {
+                auto height = j < geometry.line_heights.size() ? geometry.line_heights[j] : -1;
+                builder.appendff("{}{}@{}", j ? " "sv : ""sv, geometry.line_break_character_offsets[j], height);
             }
         }
         builder.append('\n');

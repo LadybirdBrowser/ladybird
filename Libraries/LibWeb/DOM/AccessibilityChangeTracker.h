@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGfx/Rect.h>
@@ -39,22 +40,26 @@ public:
     Vector<i64> end();
 
 private:
+    // OPTIMIZATION: One of these stays alive for every node of the tree, so it holds a hash of the node's child IDs rather
+    //               than a copy of them. Another list with the same hash would leave out a node whose children changed,
+    //               but for a 64-bit hash that's far less likely than any other way the update could go missing.
+    static constexpr u64 UNKNOWN_GEOMETRY_VERSION = NumericLimits<u64>::max();
     struct NodeState {
         u64 record_version { 0 };
-        Optional<u64> geometry_version;
+        u64 geometry_version { UNKNOWN_GEOMETRY_VERSION };
         i64 parent_id { -1 };
-        Vector<i64> child_ids;
+        u64 child_ids_hash { 0 };
         Gfx::IntRect bounds;
-        bool is_focused { false };
         i32 caret_offset { -1 };
         i32 selection_start { -1 };
         i32 selection_end { -1 };
-        u64 build { 0 };
+        u32 build { 0 };
+        bool is_focused { false };
     };
 
     Optional<i64> m_document_id;
     HashMap<i64, NodeState> m_states;
-    u64 m_build { 0 };
+    u32 m_build { 0 };
     size_t m_known_at_begin { 0 };
     size_t m_known_noted { 0 };
     bool m_whole_tree { false };

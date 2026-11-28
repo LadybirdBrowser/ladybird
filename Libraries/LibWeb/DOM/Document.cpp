@@ -324,15 +324,24 @@ void Document::PendingScrollEvent::visit_edges(GC::Cell::Visitor& visitor) const
     visitor.visit(event_target);
 }
 
+struct AccessibilityTextStyleTraits : public DefaultTraits<WebView::AccessibilityShared<WebView::AccessibilityTextStyle>> {
+    static unsigned hash(WebView::AccessibilityShared<WebView::AccessibilityTextStyle> const& style) { return style->hash(); }
+};
+
 struct Document::AccessibilityRecordCache {
     AK_ALLOC_WITH_KMALLOC;
     struct Record {
         WebView::AccessibilityNodeData data;
         u64 version { 0 };
-        Optional<CachedTextGeometry> text_geometry;
+        OwnPtr<CachedTextGeometry> text_geometry;
     };
     HashMap<UniqueNodeID, Record> records;
     u64 next_version { 1 };
+
+    // One style for all the text leaves that have the same. It holds the styles of the records and of the trees handed
+    // over, and lets go of the ones nothing else holds whenever it has grown to twice the size it last had after that.
+    HashTable<WebView::AccessibilityShared<WebView::AccessibilityTextStyle>, AccessibilityTextStyleTraits> text_styles;
+    size_t text_styles_size_after_trim { 0 };
 
     // OPTIMIZATION: Dropping the records of a whole subtree is put off until the records are next read, so that a
     //               subtree that's asked to drop its records many times between two reads is walked only once. The
@@ -359,6 +368,8 @@ struct Document::AccessibilityRecordCache {
     {
         records.clear();
         subtrees_to_drop.clear();
+        text_styles.clear();
+        text_styles_size_after_trim = 0;
     }
 };
 
@@ -376,9 +387,7 @@ Document::CachedTextGeometry& Document::CachedTextGeometry::operator=(CachedText
     release_text_geometry_sources(sources);
     sources = move(other.sources);
     version = other.version;
-    character_offsets = move(other.character_offsets);
-    line_break_character_offsets = move(other.line_break_character_offsets);
-    line_heights = move(other.line_heights);
+    geometry = move(other.geometry);
     return *this;
 }
 
@@ -7207,12 +7216,26 @@ u64 Document::cache_accessibility_record(Node const& node, WebView::Accessibilit
     auto kept = record;
     kept.bounds = {};
     kept.is_focused = false;
-    kept.character_offsets.clear();
-    kept.line_break_character_offsets.clear();
-    kept.line_heights.clear();
+    kept.text_geometry.clear();
     auto version = m_accessibility_record_cache->next_version++;
     m_accessibility_record_cache->records.set(node.unique_id(), { move(kept), version, {} });
     return version;
+}
+
+void Document::intern_accessibility_text_style(WebView::AccessibilityShared<WebView::AccessibilityTextStyle>& style) const
+{
+    if (!m_accessibility_record_cache || m_accessibility_caches_bypassed || style.is_default())
+        return;
+    auto& cache = *m_accessibility_record_cache;
+    if (auto it = cache.text_styles.find(style); it != cache.text_styles.end()) {
+        style = *it;
+        return;
+    }
+    if (cache.text_styles.size() >= max(cache.text_styles_size_after_trim * 2, static_cast<size_t>(256))) {
+        cache.text_styles.remove_all_matching([](auto const& kept) { return kept.ref_count() == 1; });
+        cache.text_styles_size_after_trim = cache.text_styles.size();
+    }
+    cache.text_styles.set(style);
 }
 
 Document::CachedTextGeometry const* Document::cached_text_geometry(Node const& node) const
@@ -7221,9 +7244,9 @@ Document::CachedTextGeometry const* Document::cached_text_geometry(Node const& n
         return nullptr;
     m_accessibility_record_cache->drop_subtrees_to_drop();
     auto it = m_accessibility_record_cache->records.find(node.unique_id());
-    if (it == m_accessibility_record_cache->records.end() || !it->value.text_geometry.has_value())
+    if (it == m_accessibility_record_cache->records.end() || !it->value.text_geometry)
         return nullptr;
-    return &*it->value.text_geometry;
+    return it->value.text_geometry.ptr();
 }
 
 u64 Document::cache_text_geometry(Node const& node, CachedTextGeometry geometry) const
@@ -7237,7 +7260,7 @@ u64 Document::cache_text_geometry(Node const& node, CachedTextGeometry geometry)
         return 0;
     geometry.version = m_accessibility_record_cache->next_version++;
     auto version = geometry.version;
-    it->value.text_geometry = move(geometry);
+    it->value.text_geometry = make<CachedTextGeometry>(move(geometry));
     return version;
 }
 
@@ -7418,9 +7441,7 @@ Vector<String> Document::cached_accessibility_record_mismatches()
         data.child_ids.clear();
         data.bounds = {};
         data.is_focused = false;
-        data.character_offsets.clear();
-        data.line_break_character_offsets.clear();
-        data.line_heights.clear();
+        data.text_geometry.clear();
         data.caret_offset = -1;
         data.selection_start = -1;
         data.selection_end = -1;
@@ -7466,8 +7487,7 @@ Vector<String> Document::cached_text_geometry_mismatches()
         if (!fresh_data.has_value())
             continue;
         auto const& computed = **fresh_data;
-        if (data.bounds == computed.bounds && data.character_offsets == computed.character_offsets
-            && data.line_break_character_offsets == computed.line_break_character_offsets && data.line_heights == computed.line_heights)
+        if (data.bounds == computed.bounds && data.text_geometry == computed.text_geometry)
             continue;
         mismatches.append(MUST(String::formatted("#text \"{}\": the kept geometry differs from computing it again", data.name)));
     }

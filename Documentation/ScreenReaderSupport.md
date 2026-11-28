@@ -99,18 +99,20 @@ On Linux specifically, the Qt AT-SPI2 bridge and the custom Orca script work as 
 
 `AccessibilityNodeData` (in `Libraries/LibWebCommon/WebView/`, which both WebContent and the UI link) is the serialization format. Each node carries:
 
-- `id` / `parent_id` / `child_ids` — tree structure via flat ID references
-- `role` — ARIA role string (`button`, `heading`, `banner`, etc.)
-- `name` / `description` / `value` — accessible name, description, value
-- `bounds` — bounding rect in CSS pixels (viewport-relative)
-- `is_focused` / `is_disabled` / `is_editable` / `is_multi_line` / `is_read_only` / `is_required` / `is_invalid` / `is_multi_selectable` / `is_pressed` / `is_visited` — individual state bits
-- `heading_level` — for `h1`—`h6` and explicit `aria-level`
-- `live` — `aria-live` value (`assertive`, `polite`, or empty)
-- Table geometry: `column_span`, `row_span`, `cell_row_index`, `cell_column_index`, `table_row_count`, `table_column_count`, `column_header_ids`, `row_header_ids`, `table_caption_id`, `table_summary`
-- `keybinding`, `checked_state`, `expanded_state`
-- Text formatting: `font_family`, `font_size`, `font_weight`, `font_style`, `color`, `background_color`, `text_decoration`
+- `id` / `parent_id` / `child_ids`: tree structure via flat ID references
+- `role`: ARIA role string (`button`, `heading`, `banner`, etc.)
+- `name`: accessible name
+- `bounds`: bounding rect in CSS pixels (viewport-relative)
+- `is_focused` / `is_disabled` / `is_editable` / `is_multi_line` / `is_read_only` / `is_required` / `is_invalid` / `is_multi_selectable` / `is_pressed` / `is_visited`: individual state bits
+- `heading_level`: for `h1` to `h6` and explicit `aria-level`
+- `checked_state`, `expanded_state`
 - Caret/selection: `caret_offset`, `selection_start`, `selection_end`
-- Text layout: `character_offsets` (per-character viewport positions), `line_break_character_offsets`, `line_heights` — used by macOS text-marker navigation
+
+And three parts that a node holds out of line, only when it has them (`AccessibilityShared`, copy-on-write, so copies of a node share them):
+
+- `details`: `description`, `value`, `url`, `language`, `live` (the `aria-live` value), `keybinding`, the numeric value range, and table geometry (`column_span`, `row_span`, `cell_column_index`, `table_row_count`, `table_column_count`, `column_header_ids`, `row_header_ids`, `table_caption_id`, `table_summary`)
+- `text_style`: text formatting (`font_family`, `font_size`, `font_weight`, `font_style`, `color`, `background_color`, `text_decoration`). Text leaves with the same style share one, in WebContent and in the UI.
+- `text_geometry`: text layout, per-character positions (`character_offset()`, from each character's x and its line's top), `line_break_character_offsets`, `line_heights`. Used by text-marker navigation.
 
 The IPC payload is a flat `Vector<AccessibilityNodeData>` with parent/child ID references, rather than a nested tree. That simplifies IPC encoding and lets the `AccessibilityTreeManager` build its own lookup tables.
 

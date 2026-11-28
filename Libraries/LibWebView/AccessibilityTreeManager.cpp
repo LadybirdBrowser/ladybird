@@ -128,8 +128,8 @@ void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes)
             String live_value;
             i64 live_region_id = -1;
             for (auto const* ancestor = &new_node; ancestor;) {
-                if (!ancestor->live.is_empty()) {
-                    live_value = ancestor->live;
+                if (!ancestor->details->live.is_empty()) {
+                    live_value = ancestor->details->live;
                     live_region_id = ancestor->id;
                     break;
                 }
@@ -165,6 +165,7 @@ void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes)
     }
 
     m_nodes.clear();
+    m_nodes.ensure_capacity(sanitized.size());
     m_root_id = root_id;
     m_whole_tree_was_repaired = repaired;
     m_focus_shown_on_root = false;
@@ -174,8 +175,24 @@ void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes)
     for (auto& node : sanitized) {
         if (node.is_focused)
             m_focused_id_from_content = node.id;
+        intern_text_style(node.text_style);
         m_nodes.set(node.id, move(node));
     }
+}
+
+void AccessibilityTreeManager::intern_text_style(AccessibilityShared<AccessibilityTextStyle>& style)
+{
+    if (style.is_default())
+        return;
+    if (auto it = m_text_styles.find(style); it != m_text_styles.end()) {
+        style = *it;
+        return;
+    }
+    if (m_text_styles.size() >= max(m_text_styles_size_after_trim * 2, static_cast<size_t>(256))) {
+        m_text_styles.remove_all_matching([](auto const& kept) { return kept.ref_count() == 1; });
+        m_text_styles_size_after_trim = m_text_styles.size();
+    }
+    m_text_styles.set(style);
 }
 
 Optional<Vector<i64>> AccessibilityTreeManager::apply_delta(AccessibilityTreeDelta const& delta)
@@ -338,9 +355,9 @@ Optional<Vector<i64>> AccessibilityTreeManager::apply_delta(AccessibilityTreeDel
             String live_value;
             for (auto id = changed_node.id; id != -1; id = final_parent_of(id)) {
                 auto const* ancestor = final_node(id);
-                if (!ancestor->live.is_empty()) {
+                if (!ancestor->details->live.is_empty()) {
                     live_region_id = id;
-                    live_value = ancestor->live;
+                    live_value = ancestor->details->live;
                     break;
                 }
             }
@@ -375,6 +392,7 @@ Optional<Vector<i64>> AccessibilityTreeManager::apply_delta(AccessibilityTreeDel
         auto& stored = m_nodes.ensure(changed_node.id);
         stored = changed_node;
         stored.parent_id = parent_id;
+        intern_text_style(stored.text_style);
         if (changed_node.is_focused)
             m_focused_id_from_content = changed_node.id;
         else if (m_focused_id_from_content == changed_node.id)

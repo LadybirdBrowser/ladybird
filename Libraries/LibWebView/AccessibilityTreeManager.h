@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibGfx/Point.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 #include <LibWebView/Export.h>
@@ -54,6 +55,12 @@ public:
 
 private:
     AccessibilityNodeData const* hit_test_recursive(i64 node_id, Gfx::IntPoint point) const;
+    // Makes a text leaf's style the one held for every other text leaf with the same.
+    void intern_text_style(AccessibilityShared<AccessibilityTextStyle>&);
+
+    struct TextStyleTraits : public DefaultTraits<AccessibilityShared<AccessibilityTextStyle>> {
+        static unsigned hash(AccessibilityShared<AccessibilityTextStyle> const& style) { return style->hash(); }
+    };
 
     HashMap<i64, AccessibilityNodeData> m_nodes;
     i64 m_root_id { -1 };
@@ -62,6 +69,11 @@ private:
     Optional<i64> m_focused_id_from_content;
     bool m_focus_shown_on_root { false };
     u64 m_generation { 0 };
+
+    // One style for all the text leaves that have the same. It lets go of the styles no node holds whenever it has grown
+    // to twice the size it last had after that.
+    HashTable<AccessibilityShared<AccessibilityTextStyle>, TextStyleTraits> m_text_styles;
+    size_t m_text_styles_size_after_trim { 0 };
 };
 
 }
