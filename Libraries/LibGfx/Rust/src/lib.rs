@@ -30,6 +30,7 @@ pub mod png_encoder;
 pub mod sfnt;
 pub mod text_layout;
 pub mod woff;
+pub mod woff2;
 pub mod yuv;
 
 pub use color::*;
