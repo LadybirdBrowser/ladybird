@@ -70,6 +70,8 @@ impl PreparedItem {
     pub(super) const UPRIGHT: u16 = 1 << 11;
     pub(super) const TAB_STOP: u16 = 1 << 12;
     pub(super) const SOFT_WRAPS: u16 = 1 << 13;
+    /// Collapsible white space that follows another collapsible space, which it collapses into.
+    pub(super) const COLLAPSES_INTO_PRECEDING_SPACE: u16 = 1 << 14;
 
     pub(super) fn new(type_: ItemType, node: Node, flags: u16) -> Self {
         Self {
@@ -136,6 +138,10 @@ impl PreparedItem {
 
     pub(super) fn has(&self, flag: u16) -> bool {
         self.bits & flag != 0
+    }
+
+    pub(super) fn set(&mut self, flag: u16) {
+        self.bits |= flag;
     }
 }
 
