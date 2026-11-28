@@ -6,6 +6,7 @@
 
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
+use crate::layout::inline_content::ClusterGeometry;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
 use crate::painting::paint_read::PaintRead;
@@ -267,21 +268,23 @@ pub(crate) fn for_each_dom_offset_x(
     let Some(rendered_text) = layout_arena.rendered_text(fragment.layout_node) else {
         return;
     };
-    let geometry = run.cluster_geometry();
     let length = fragment.length_in_code_units;
     let x = absolute_rect(layout_arena, fragment).x.to_float();
-    rendered_text.for_each_rendered_text_offset_of_dom_offsets(
-        fragment.dom_start_offset_in_node,
-        fragment.dom_end_offset_in_node,
-        crate::layout::RenderedTextBoundary::End,
-        |dom_offset, rendered_offset| {
-            let offset_in_fragment = rendered_offset.clamp(fragment.start, fragment.start + length) - fragment.start;
-            let inline_x = geometry
-                .x_for_offset(offset_in_fragment, true)
-                .unwrap_or_else(|| geometry.end_x(length));
-            callback(dom_offset, x + inline_x);
-        },
-    );
+    run.with_cluster_geometry(|geometry| {
+        rendered_text.for_each_rendered_text_offset_of_dom_offsets(
+            fragment.dom_start_offset_in_node,
+            fragment.dom_end_offset_in_node,
+            crate::layout::RenderedTextBoundary::End,
+            |dom_offset, rendered_offset| {
+                let offset_in_fragment =
+                    rendered_offset.clamp(fragment.start, fragment.start + length) - fragment.start;
+                let inline_x = geometry
+                    .x_for_offset(offset_in_fragment, true)
+                    .unwrap_or_else(|| geometry.end_x(length));
+                callback(dom_offset, x + inline_x);
+            },
+        );
+    });
 }
 
 pub(crate) fn rect_for_selection_offsets(
@@ -294,8 +297,21 @@ pub(crate) fn rect_for_selection_offsets(
 
 fn rect_for_selection_offsets_of_fragment_at(
     fragment: &FragmentRecord,
+    rect: CssPixelRect,
+    offsets: SelectionOffsets,
+) -> CssPixelRect {
+    rect_for_selection_offsets_in_geometry(fragment, rect, offsets, || {
+        fragment.glyph_run.as_ref().map(|run| run.cluster_geometry())
+    })
+}
+
+/// Like `rect_for_selection_offsets()`, for the fragment at `rect`, with `geometry` giving the geometry of its glyph run
+/// when the offsets need it.
+pub(crate) fn rect_for_selection_offsets_in_geometry<'geometry>(
+    fragment: &FragmentRecord,
     mut rect: CssPixelRect,
     offsets: SelectionOffsets,
+    geometry: impl FnOnce() -> Option<&'geometry ClusterGeometry>,
 ) -> CssPixelRect {
     let horizontal = is_horizontal(fragment);
     let length = fragment.length_in_code_units;
@@ -309,8 +325,8 @@ fn rect_for_selection_offsets_of_fragment_at(
         pixel_offset = CssPixels::from_raw(0);
         pixel_width = primary_size(rect, horizontal);
     } else {
-        let (left, right) = fragment.glyph_run.as_ref().map_or((0.0, 0.0), |run| {
-            run.cluster_geometry().range_extent(start_in_text, end_in_text, length)
+        let (left, right) = geometry().map_or((0.0, 0.0), |geometry| {
+            geometry.range_extent(start_in_text, end_in_text, length)
         });
         pixel_offset = CssPixels::nearest_value_for_f32(left);
         pixel_width = CssPixels::nearest_value_for_f32(right - left);

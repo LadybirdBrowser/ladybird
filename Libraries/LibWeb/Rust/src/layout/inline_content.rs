@@ -278,6 +278,16 @@ impl GlyphRunRecord {
         self.cluster_geometry
             .get_or_init(|| Box::new(ClusterGeometry::of(self)))
     }
+
+    /// Calls `callback` with the run's geometry, without keeping it for later queries when no query has built it yet.
+    /// For a query that visits every run of a document once, the way the accessibility tree reads where each character
+    /// is: the geometry of each run would otherwise stay alive with the run, at nearly one extent per character.
+    pub fn with_cluster_geometry<R>(&self, callback: impl FnOnce(&ClusterGeometry) -> R) -> R {
+        match self.cluster_geometry.get() {
+            Some(geometry) => callback(geometry),
+            None => callback(&ClusterGeometry::of(self)),
+        }
+    }
 }
 
 /// Where each cluster of a glyph run lies along the inline axis, in logical order, with offsets in code units of the
@@ -289,16 +299,26 @@ pub struct ClusterGeometry {
 
 #[derive(Clone, Copy)]
 struct ClusterExtent {
-    start: usize,
-    end: usize,
+    // NB: Offsets into one glyph run's text, so 32 bits are plenty, and the geometry of a run holds one extent per
+    //     cluster: nearly one per character.
+    start: u32,
+    end: u32,
     left: f32,
     right: f32,
     is_rtl: bool,
 }
 
 impl ClusterExtent {
+    fn start(&self) -> usize {
+        self.start as usize
+    }
+
+    fn end(&self) -> usize {
+        self.end as usize
+    }
+
     fn x_at(&self, offset: usize) -> f32 {
-        let advance = (self.right - self.left) * (offset - self.start) as f32 / (self.end - self.start) as f32;
+        let advance = (self.right - self.left) * (offset - self.start()) as f32 / (self.end() - self.start()) as f32;
         if self.is_rtl {
             self.right - advance
         } else {
@@ -325,8 +345,8 @@ impl ClusterGeometry {
             if length > 0 {
                 let start = placed.cluster_start as usize;
                 clusters.push(ClusterExtent {
-                    start,
-                    end: start + length,
+                    start: start as u32,
+                    end: (start + length) as u32,
                     left,
                     right,
                     is_rtl: placed.is_rtl,
@@ -345,9 +365,9 @@ impl ClusterGeometry {
     /// the one that starts there.
     pub fn x_for_offset(&self, offset: usize, downstream: bool) -> Option<f32> {
         let mut fallback = None;
-        for cluster in self.clusters.iter().filter(|c| (c.start..=c.end).contains(&offset)) {
+        for cluster in self.clusters.iter().filter(|c| (c.start()..=c.end()).contains(&offset)) {
             let x = cluster.x_at(offset);
-            if offset != if downstream { cluster.end } else { cluster.start } {
+            if offset != if downstream { cluster.end() } else { cluster.start() } {
                 return Some(x);
             }
             fallback = Some(x);
@@ -362,13 +382,13 @@ impl ClusterGeometry {
         let mut clusters_left_to_right: Vec<&ClusterExtent> = self
             .clusters
             .iter()
-            .filter(|cluster| cluster.right > cluster.left && cluster.start < length)
+            .filter(|cluster| cluster.right > cluster.left && cluster.start() < length)
             .collect();
         clusters_left_to_right.sort_by(|a, b| a.left.total_cmp(&b.left));
         let mut extents: Vec<(f32, f32)> = Vec::new();
         let mut extends_last_piece = false;
         for cluster in clusters_left_to_right {
-            let (from, to) = (start.max(cluster.start), end.min(cluster.end).min(length));
+            let (from, to) = (start.max(cluster.start()), end.min(cluster.end()).min(length));
             if from >= to {
                 extends_last_piece = false;
                 continue;
@@ -409,9 +429,9 @@ impl ClusterGeometry {
         next_grapheme_boundary: impl Fn(usize) -> Option<usize>,
     ) -> usize {
         let mut nearest = (0, f32::INFINITY);
-        for cluster in self.clusters.iter().filter(|cluster| cluster.start < length) {
-            let end = cluster.end.min(length);
-            let mut grapheme_start = cluster.start;
+        for cluster in self.clusters.iter().filter(|cluster| cluster.start() < length) {
+            let end = cluster.end().min(length);
+            let mut grapheme_start = cluster.start();
             while grapheme_start < end {
                 let grapheme_end = next_grapheme_boundary(grapheme_start)
                     .filter(|&next| next > grapheme_start)
@@ -452,7 +472,7 @@ impl ClusterGeometry {
                 }
             })?;
         let at_end = left == edge.is_rtl;
-        Some((if at_end { edge.end } else { edge.start }, at_end))
+        Some((if at_end { edge.end() } else { edge.start() }, at_end))
     }
 }
 
