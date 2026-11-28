@@ -19,8 +19,21 @@ void AccessibilityChangeTracker::begin(i64 document_id, bool whole_tree)
     m_known_noted = 0;
 }
 
+static u64 hash_child_ids(ReadonlySpan<i64> child_ids)
+{
+    u64 hash = child_ids.size();
+    for (auto id : child_ids) {
+        hash ^= static_cast<u64>(id);
+        hash *= 0x9e3779b97f4a7c15;
+        hash ^= hash >> 29;
+    }
+    return hash;
+}
+
 bool AccessibilityChangeTracker::note(WebView::AccessibilityNodeData const& data, u64 record_version, Optional<u64> geometry_version)
 {
+    auto known_geometry_version = geometry_version.value_or(UNKNOWN_GEOMETRY_VERSION);
+    auto child_ids_hash = hash_child_ids(data.child_ids);
     auto it = m_states.find(data.id);
     if (it == m_states.end()) {
         m_states.set(data.id, {});
@@ -29,8 +42,8 @@ bool AccessibilityChangeTracker::note(WebView::AccessibilityNodeData const& data
         ++m_known_noted;
         auto const& state = it->value;
         auto unchanged = !m_whole_tree && record_version != 0 && state.record_version == record_version
-            && geometry_version.has_value() && state.geometry_version == geometry_version
-            && state.parent_id == data.parent_id && state.child_ids == data.child_ids && state.bounds == data.bounds
+            && known_geometry_version != UNKNOWN_GEOMETRY_VERSION && state.geometry_version == known_geometry_version
+            && state.parent_id == data.parent_id && state.child_ids_hash == child_ids_hash && state.bounds == data.bounds
             && state.is_focused == data.is_focused && state.caret_offset == data.caret_offset
             && state.selection_start == data.selection_start && state.selection_end == data.selection_end;
         if (unchanged) {
@@ -40,9 +53,9 @@ bool AccessibilityChangeTracker::note(WebView::AccessibilityNodeData const& data
     }
     auto& state = it->value;
     state.record_version = record_version;
-    state.geometry_version = geometry_version;
+    state.geometry_version = known_geometry_version;
     state.parent_id = data.parent_id;
-    state.child_ids = data.child_ids;
+    state.child_ids_hash = child_ids_hash;
     state.bounds = data.bounds;
     state.is_focused = data.is_focused;
     state.caret_offset = data.caret_offset;

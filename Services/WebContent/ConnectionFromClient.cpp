@@ -2997,21 +2997,21 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
                     builder.append("\""sv);
                 }
 
-                if (!node->description.is_empty()) {
+                if (!node->details->description.is_empty()) {
                     builder.append(" description=\""sv);
-                    builder.append(node->description.bytes_as_string_view());
+                    builder.append(node->details->description.bytes_as_string_view());
                     builder.append("\""sv);
                 }
 
-                if (!node->value.is_empty()) {
+                if (!node->details->value.is_empty()) {
                     builder.append(" value=\""sv);
-                    builder.append(node->value.bytes_as_string_view());
+                    builder.append(node->details->value.bytes_as_string_view());
                     builder.append("\""sv);
                 }
 
-                if (!node->url.is_empty()) {
+                if (!node->details->url.is_empty()) {
                     builder.append(" url=\""sv);
-                    auto url_view = node->url.bytes_as_string_view();
+                    auto url_view = node->details->url.bytes_as_string_view();
                     if (url_view.starts_with(document_url_no_fragment))
                         builder.append(url_view.substring_view(document_url_no_fragment.bytes_as_string_view().length()));
                     else
@@ -3019,15 +3019,15 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
                     builder.append("\""sv);
                 }
 
-                if (!node->language.is_empty()) {
+                if (!node->details->language.is_empty()) {
                     builder.append(" lang=\""sv);
-                    builder.append(node->language.bytes_as_string_view());
+                    builder.append(node->details->language.bytes_as_string_view());
                     builder.append("\""sv);
                 }
 
-                if (!node->keybinding.is_empty()) {
+                if (!node->details->keybinding.is_empty()) {
                     builder.append(" accesskey=\""sv);
-                    builder.append(node->keybinding.bytes_as_string_view());
+                    builder.append(node->details->keybinding.bytes_as_string_view());
                     builder.append("\""sv);
                 }
 
@@ -3036,30 +3036,30 @@ void ConnectionFromClient::request_internal_page_info(Web::PageId page_id, WebVi
                 else if (node->hierarchical_level > 0)
                     builder.appendff(" level={}", node->hierarchical_level);
 
-                if (!node->live.is_empty()) {
+                if (!node->details->live.is_empty()) {
                     builder.append(" live=\""sv);
-                    builder.append(node->live.bytes_as_string_view());
+                    builder.append(node->details->live.bytes_as_string_view());
                     builder.append("\""sv);
                 }
 
-                if (node->value_numeric.has_value()) {
-                    builder.appendff(" value={}", *node->value_numeric);
-                    if (node->value_minimum.has_value())
-                        builder.appendff(" min={}", *node->value_minimum);
-                    if (node->value_maximum.has_value())
-                        builder.appendff(" max={}", *node->value_maximum);
+                if (node->details->value_numeric.has_value()) {
+                    builder.appendff(" value={}", *node->details->value_numeric);
+                    if (node->details->value_minimum.has_value())
+                        builder.appendff(" min={}", *node->details->value_minimum);
+                    if (node->details->value_maximum.has_value())
+                        builder.appendff(" max={}", *node->details->value_maximum);
                 }
 
-                if (node->column_span != 1)
-                    builder.appendff(" colspan={}", node->column_span);
-                if (node->row_span != 1)
-                    builder.appendff(" rowspan={}", node->row_span);
-                if (node->cell_column_index >= 0)
-                    builder.appendff(" cell_col={}", node->cell_column_index);
-                if (node->table_row_count >= 0)
-                    builder.appendff(" rows={}", node->table_row_count);
-                if (node->table_column_count >= 0)
-                    builder.appendff(" cols={}", node->table_column_count);
+                if (node->details->column_span != 1)
+                    builder.appendff(" colspan={}", node->details->column_span);
+                if (node->details->row_span != 1)
+                    builder.appendff(" rowspan={}", node->details->row_span);
+                if (node->details->cell_column_index >= 0)
+                    builder.appendff(" cell_col={}", node->details->cell_column_index);
+                if (node->details->table_row_count >= 0)
+                    builder.appendff(" rows={}", node->details->table_row_count);
+                if (node->details->table_column_count >= 0)
+                    builder.appendff(" cols={}", node->details->table_column_count);
 
                 using CheckedState = WebView::AccessibilityNodeData::CheckedState;
                 switch (node->checked_state) {

@@ -429,7 +429,7 @@ static NSString* nsStringFromAK(String const& string)
     if ([attribute isEqualToString:NSAccessibilityHelpAttribute]) {
         if (!data)
             return nil;
-        return nsStringFromAK(data->description);
+        return nsStringFromAK(data->details->description);
     }
 
     if ([attribute isEqualToString:NSAccessibilityValueAttribute]) {
@@ -458,8 +458,8 @@ static NSString* nsStringFromAK(String const& string)
         }
         if (data->role.bytes_as_string_view() == "text leaf"sv)
             return nsStringFromAK(data->name);
-        if (!data->value.is_empty())
-            return nsStringFromAK(data->value);
+        if (!data->details->value.is_empty())
+            return nsStringFromAK(data->details->value);
         return nil;
     }
 
@@ -685,7 +685,7 @@ static NSString* nsStringFromAK(String const& string)
         // Gecko (HTMLTableAccessible::ColCount() reads the table frame's count), WebKit (AccessibilityNodeObject::
         // columnCount() counts its table's cell slots) and Blink (AXTableInfo takes the widest col_index + col_span)
         // do. The widest row's cell count stands in only for a table without one.
-        return @(data->table_column_count >= 0 ? data->table_column_count : max_columns);
+        return @(data->details->table_column_count >= 0 ? data->details->table_column_count : max_columns);
     }
     if ([attribute isEqualToString:NSAccessibilityRowsAttribute]
         || [attribute isEqualToString:NSAccessibilityVisibleRowsAttribute])
@@ -779,7 +779,7 @@ static NSString* nsStringFromAK(String const& string)
     // Prefer the colspan-aware column index WebContent serialized for the cell. Counting the cell's preceding siblings
     // one column each mis-reports every cell that follows a cell spanning more than one column, so that stays only as
     // the fallback for a cell that arrived without an index.
-    int col_index = data->cell_column_index;
+    int col_index = data->details->cell_column_index;
     if (col_index < 0) {
         col_index = 0;
         for (auto sibling_id : row->child_ids) {
@@ -790,15 +790,15 @@ static NSString* nsStringFromAK(String const& string)
     }
 
     if ([attribute isEqualToString:@"AXColumnIndexRange"])
-        return [NSValue valueWithRange:NSMakeRange(col_index, MAX(1, data->column_span))];
+        return [NSValue valueWithRange:NSMakeRange(col_index, MAX(1, data->details->column_span))];
 
     if ([attribute isEqualToString:@"AXRowIndexRange"]) {
         auto const* row_data = _manager->node(data->parent_id);
         if (!row_data)
-            return [NSValue valueWithRange:NSMakeRange(0, MAX(1, data->row_span))];
+            return [NSValue valueWithRange:NSMakeRange(0, MAX(1, data->details->row_span))];
         LadybirdAccessibilityElement* rowElement = [_view accessibilityElementForNodeID:row_data->id];
         int row_index = [[rowElement rowIndex] intValue];
-        return [NSValue valueWithRange:NSMakeRange(row_index, MAX(1, data->row_span))];
+        return [NSValue valueWithRange:NSMakeRange(row_index, MAX(1, data->details->row_span))];
     }
 
     return nil;
