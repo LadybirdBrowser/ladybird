@@ -1897,6 +1897,17 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
     ) -> Result<(), CompileFailure> {
         fields.sort_unstable_by_key(|(offset, _, _)| *offset);
         let cell_fields = take_cell_fields(self.work, self.cell_encoding, fields)?;
+        // NB: The zero a cell leaves in `fields` keeps the plain fields around it in one run, but the cell's own store
+        //     below writes the whole field, so the zero itself needn't be stored. The cells come in the order of their
+        //     offsets, as `fields` is sorted.
+        let stored_as_cell = |offset: u32, size: usize| {
+            cell_fields
+                .binary_search_by_key(&offset, |&(cell_offset, _)| cell_offset)
+                .is_ok_and(|index| match cell_fields[index].1 {
+                    CellField::Word(_) => size == 8,
+                    CellField::Compressed(_) => size == 4,
+                })
+        };
         // The values `temp` and `vector` hold, to store repeated values
         // without materializing them again.
         let mut held = None;
@@ -1922,7 +1933,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 let address = Address::new(base, super::checked_i32(u64::from(offset))?);
                 let remaining = bytes.len() - index;
                 let word_cost = |word_offset: u32, word: u64, held: Option<u64>| {
-                    if overwritten.contains(&word_offset) {
+                    if overwritten.contains(&word_offset) || stored_as_cell(word_offset, 8) {
                         0
                     } else if i32::try_from(word as i64).is_ok() || held == Some(word) {
                         1
@@ -1959,7 +1970,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                 word[..size].copy_from_slice(&bytes[index..index + size]);
                 let bits = u64::from_le_bytes(word);
                 match size {
-                    8 if overwritten.contains(&offset) => {}
+                    8 if overwritten.contains(&offset) || stored_as_cell(offset, 8) => {}
                     8 if i32::try_from(bits as i64).is_ok() => self.masm.store_imm64(&address, bits),
                     // NB: The low half of the held vector stores as a double.
                     8 if held != Some(bits)
@@ -1975,6 +1986,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, '_, M> {
                         }
                         self.masm.store64(&address, temp);
                     }
+                    4 if stored_as_cell(offset, 4) => {}
                     4 => self.masm.store_imm32(&address, bits as u32),
                     _ => {
                         self.masm.move_imm32(temp, bits as u32);
