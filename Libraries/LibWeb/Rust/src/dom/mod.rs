@@ -8,6 +8,7 @@
 //! objects, which include them from the generated header LibWeb/DOM/RustFFI.h.
 
 pub mod adopt;
+pub mod child_index;
 pub mod element;
 pub mod element_core;
 pub mod hooks;
@@ -28,4 +29,5 @@ pub mod strings;
 pub(crate) mod test_tree;
 pub mod traversal;
 mod tree;
+pub mod tree_version;
 pub mod weak_cells;

@@ -4,10 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The writes of the tree state of DOM nodes: a node's links to its parent, children and siblings, and the root of its
-//! tree, which every node of a subtree names. Rust is their only writer.
+//! The writes of the tree state of DOM nodes: a node's links to its parent, children and siblings, the root of its tree,
+//! which every node of a subtree names, and the generation of a child list that the child indices of its elements are
+//! counted in. Rust is their only writer.
 //! https://dom.spec.whatwg.org/#concept-tree
 
+use super::child_index;
 use super::node::NodeCell;
 use super::node_ref::NodeRef;
 use crate::stage::MainThread;
@@ -15,7 +17,8 @@ use crate::stage::MainThread;
 crate::stage::main_thread_ffi_entries!(without_host);
 
 /// Inserts `node`, the root of a tree of its own, into `parent`'s children before `child`, or appends it if `child` is
-/// null, and makes `parent`'s root the root of every node of `node`'s subtree.
+/// null, and makes `parent`'s root the root of every node of `node`'s subtree. Begins a new generation of `parent`'s
+/// child list where an element joins it before another child.
 ///
 /// NB: The links are written in place and nothing is called that could run script or allocate, so the read handles the
 ///     main thread token lends cannot live across it, which the token's mutable borrow says.
@@ -24,7 +27,8 @@ pub(crate) fn insert_child(_main_thread: &mut MainThread<'_>, parent: NodeRef, n
     link_child(parent, node, child);
 }
 
-/// Removes `node` from `parent`'s children, and makes `node` the root of every node of its subtree.
+/// Removes `node` from `parent`'s children, and makes `node` the root of every node of its subtree. Begins a new
+/// generation of `parent`'s child list where an element leaves it from before another child.
 #[inline(always)]
 pub(crate) fn remove_child(_main_thread: &mut MainThread<'_>, parent: NodeRef, node: NodeRef) {
     unlink_child(parent, node);
@@ -62,11 +66,13 @@ fn link_child(parent: NodeRef, node: NodeRef, child: Option<NodeRef>) {
     }
     node_core.set_parent(Some(parent.pointer()));
     set_root_for_subtree(node, parent.core().root());
+    child_index::child_linked(parent, node, child);
 }
 
 #[inline]
 fn unlink_child(parent: NodeRef, node: NodeRef) {
     assert!(node.parent() == Some(parent), "a removed node is a child of the parent");
+    child_index::child_about_to_unlink(parent, node);
     let node_core = node.core();
     let previous_sibling = node_core.previous_sibling();
     let next_sibling = node_core.next_sibling();

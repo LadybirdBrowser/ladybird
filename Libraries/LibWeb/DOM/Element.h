@@ -349,18 +349,6 @@ public:
     bool has_class(Utf16FlyString const&, CaseSensitivity = CaseSensitivity::CaseSensitive) const;
     ReadonlySpan<Utf16FlyString> class_names() const { return m_element_core.classes.span(); }
 
-    // https://drafts.csswg.org/selectors/#child-index
-    // The element's 1-based index among its inclusive element siblings, or among those with its type, counted from
-    // the first or from the last. An element remembers its indices until its parent's element children next move, so
-    // asking every child of a parent for its index walks them about once.
-    enum class ChildIndexAmong : u8 {
-        Siblings,
-        SiblingsOfType,
-    };
-    u32 child_index(ChildIndexAmong) const;
-    u32 child_index_from_end(ChildIndexAmong) const;
-    void forget_child_indices() { m_parent_child_index_generation = 0; }
-
     // The element's StyleEngine identity, or 0 while it has none. Disconnected and never-styled
     // elements keep 0, which is what makes them free.
     void set_style_node_id(CSS::StyleNodeID);
@@ -1089,13 +1077,7 @@ private:
     // https://dom.spec.whatwg.org/#concept-element-custom-element-state
     CustomElementState m_custom_element_state { CustomElementState::Undefined };
 
-    // The child indices the element remembers, or zero for those not counted yet, and the generation of its parent's
-    // child list they were counted in; zero for none.
-    mutable u32 m_parent_child_index_generation { 0 };
-    mutable u32 m_child_index { 0 };
-    mutable u32 m_child_index_of_type { 0 };
-
-    // NB: This is declared next to the u32s above, so that they pack without padding.
+    // NB: This is declared next to the flags above, so that they pack without padding.
     GC::Member<CSS::CSSStyleProperties> m_inline_style;
 
     mutable Optional<Utf16String> m_lang_value;

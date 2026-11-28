@@ -224,6 +224,8 @@ Node::Node(Document& document, NodeType type)
     m_core.document = &document;
     m_core.root = this;
     m_core.node_type = type;
+    // NB: A child list's generation is never 0, which is what an element that remembers no child index holds.
+    m_core.child_index_generation = 1;
     // A Document is its own shadow-including root, so it is always connected.
     set_is_connected(type == NodeType::DOCUMENT_NODE);
 }
@@ -513,32 +515,26 @@ static ParentNode* tree_version_holder(Node const& node)
     return const_cast<ParentNode*>(as_if<ParentNode>(node.root()));
 }
 
-static u64 s_last_tree_version = 0;
-
 u64 Node::dom_tree_version() const
 {
     auto const* holder = tree_version_holder(*this);
-    return holder ? holder->m_dom_tree_version : 0;
+    return holder ? holder->m_parent_node_core.dom_tree_version : 0;
 }
 
 u64 Node::character_data_version() const
 {
     auto const* holder = tree_version_holder(*this);
-    return holder ? holder->m_character_data_version : 0;
+    return holder ? holder->m_parent_node_core.character_data_version : 0;
 }
 
 void Node::bump_dom_tree_version()
 {
-    // NB: Inserted or moved content can enter a selection without moving its boundary points.
-    document().set_needs_highlight_style_update_for_all_highlight_pseudo_elements();
-    if (auto* holder = tree_version_holder(*this))
-        holder->m_dom_tree_version = ++s_last_tree_version;
+    RustFFI::rust_dom_bump_dom_tree_version(this);
 }
 
 void Node::bump_character_data_version()
 {
-    if (auto* holder = tree_version_holder(*this))
-        holder->m_character_data_version = ++s_last_tree_version;
+    RustFFI::rust_dom_bump_character_data_version(this);
 }
 
 // https://dom.spec.whatwg.org/#dom-node-normalize
@@ -1414,9 +1410,9 @@ void Node::after_move_unlink(MoveScope& scope, Node& old_parent, Node& old_paren
 }
 
 // https://dom.spec.whatwg.org/#move
-void Node::after_move_link(MoveScope& scope, Node& old_parent, Node& old_parent_root, Node& new_parent, GC::Ptr<Node> child)
+void Node::after_move_link(MoveScope& scope, Node& old_parent, Node& old_parent_root, Node& new_parent)
 {
-    new_parent.account_for_linked_child(*this, child);
+    new_parent.account_for_linked_child(*this);
 
     CSS::record_node_moved_in_dom_order(*this, old_parent);
     if (auto* moved_element = as_if<Element>(*this)) {
@@ -1513,9 +1509,6 @@ void Node::end_move(MoveScope& scope, Node& old_parent, Node& new_parent, GC::Pt
         media_element->child_moved_out(*this, old_previous_sibling.ptr());
     if (auto* media_element = as_if<HTML::HTMLMediaElement>(new_parent))
         media_element->child_moved_in();
-
-    old_parent.bump_dom_tree_version();
-    new_parent.bump_dom_tree_version();
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
@@ -2135,8 +2128,8 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 
     // The nodes of a shadow tree count the versions of their tree on the document while they are connected, and on
     // their shadow root otherwise. The shadow root has missed every change made in the meantime, so it starts over.
-    if (auto* shadow_root = as_if<ShadowRoot>(*this))
-        shadow_root->m_dom_tree_version = shadow_root->m_character_data_version = ++s_last_tree_version;
+    if (is_shadow_root())
+        RustFFI::rust_dom_restart_tree_versions(this);
 
     // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
     // 1. Let document be removedNode's node document.
@@ -3400,7 +3393,7 @@ void Node::append_child_impl(GC::Ref<Node> node)
         return;
 
     RustFFI::rust_dom_insert_child(this, node.ptr(), nullptr);
-    account_for_linked_child(node, nullptr);
+    account_for_linked_child(node);
 }
 
 void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
@@ -3408,47 +3401,22 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
     if (!child)
         return append_child_impl(move(node));
     RustFFI::rust_dom_insert_child(this, node.ptr(), child.ptr());
-    account_for_linked_child(node, child);
+    account_for_linked_child(node);
 }
 
-// Puts node, which has just joined this node's children before child, or after them where child is null, in the C++
-// state that follows the children: the child index generation, the animation counts and the attribute name filters.
-void Node::account_for_linked_child(Node& node, GC::Ptr<Node> child)
+// Puts node, which has just joined this node's children, in the C++ state that follows the children: the animation
+// counts and the attribute name filters.
+void Node::account_for_linked_child(Node& node)
 {
-    if (child && node.is_element())
-        begin_child_index_generation();
     if (auto count = node.m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
     add_to_attribute_name_filter_of_parent(*this, node);
-}
-
-void Node::remove_child_impl(GC::Ref<Node> node)
-{
-    prepare_to_unlink_child(node);
-    RustFFI::rust_dom_remove_child(this, node.ptr());
 }
 
 void Node::prepare_to_unlink_child(Node& node)
 {
     if (auto count = node.m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(-static_cast<i32>(count));
-    if (auto* element = as_if<Element>(node)) {
-        if (element->next_sibling())
-            begin_child_index_generation();
-        element->forget_child_indices();
-    }
-}
-
-void Node::begin_child_index_generation()
-{
-    if (++m_child_index_generation != 0)
-        return;
-    // The generations have wrapped around, so no child may keep indices counted in the one that comes around again.
-    m_child_index_generation = 1;
-    for_each_child_of_type<Element>([](Element& child) {
-        child.forget_child_indices();
-        return IterationDecision::Continue;
-    });
 }
 
 void Node::change_associated_animation_count_in_subtree(i32 delta)
@@ -4164,7 +4132,7 @@ class RustDOMHooks {
 public:
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static RustFFI::InsertionStart begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes)
+    static Node::ChildrenChangedMetadata::AffectsElements begin_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes)
     {
         auto& document = parent->document();
 
@@ -4192,7 +4160,7 @@ public:
         if (node && is<DocumentFragment>(*node))
             node->queue_tree_mutation_record({}, nodes, nullptr, nullptr);
 
-        return { affects_elements, s_last_tree_version };
+        return affects_elements;
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
@@ -4270,7 +4238,7 @@ public:
 
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static u64 end_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* previous_sibling, Node* child, bool suppress_observers, Node::ChildrenChangedMetadata::AffectsElements affects_elements)
+    static void end_insertion(Node* parent, Node* node, ReadonlySpan<GC::Ref<Node>> nodes, Node* previous_sibling, Node* child, bool suppress_observers, Node::ChildrenChangedMetadata::AffectsElements affects_elements)
     {
         // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « »,
         //    previousSibling, and child.
@@ -4294,7 +4262,7 @@ public:
 
         // NB: The parser inserts into a tree the layout tree does not hold yet, see RustFFI::InsertionKind::Parser.
         if constexpr (kind == RustFFI::InsertionKind::Parser)
-            return s_last_tree_version;
+            return;
 
         // NB: The marks are set before the post-connection steps, since those can run script that reads layout
         //     geometry and must find the inserted nodes waiting for their boxes.
@@ -4312,21 +4280,18 @@ public:
                 inserted_node->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
             }
         }
-        return s_last_tree_version;
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static void finish_insertion(Node* parent, ReadonlySpan<GC::Ref<Node>> nodes, bool should_run_post_connection_steps)
+    static void finish_insertion(ReadonlySpan<GC::Ref<Node>> nodes, bool should_run_post_connection_steps)
     {
         if (should_run_post_connection_steps)
             run_post_connection_steps(nodes);
 
         // NB: The parser's insertions leave the list numbering alone, see RustFFI::InsertionKind::Parser.
-        if constexpr (kind == RustFFI::InsertionKind::Parser) {
-            parent->bump_dom_tree_version();
+        if constexpr (kind == RustFFI::InsertionKind::Parser)
             return;
-        }
 
         // AD-HOC: An inserted list item can renumber the list-item counter for its list owner's whole list.
         //         Appending to a forward counter does not change any existing counter value.
@@ -4338,8 +4303,6 @@ public:
                 break;
             }
         }
-
-        parent->bump_dom_tree_version();
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
@@ -4367,8 +4330,6 @@ public:
         Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::AllChildrenRemoved, parent, children_removal.affects_elements };
         parent->children_changed(metadata);
         parent->invalidate_html_collection_caches_in_ancestors(children_removal.affects_elements);
-
-        parent->bump_dom_tree_version();
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
@@ -4452,12 +4413,9 @@ public:
         if (!suppress_observers)
             node->queue_tree_mutation_record_for_removal(*parent, old_previous_sibling, old_next_sibling);
 
-        // NB: The removal of all children runs step 17 and moves the tree version of the parent once, see
-        //     end_removing_all_children().
-        if (is_one_of_all_children) {
-            node->bump_dom_tree_version();
+        // NB: The removal of all children runs step 17 once, see end_removing_all_children().
+        if (is_one_of_all_children)
             return;
-        }
 
         // 17. Run the children changed steps for parent.
         auto affects_elements = Node::ChildrenChangedMetadata::AffectsElements::No;
@@ -4466,12 +4424,6 @@ public:
         Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Removal, node, affects_elements, old_previous_sibling };
         parent->children_changed(metadata);
         parent->invalidate_html_collection_caches_in_ancestors(affects_elements);
-
-        parent->bump_dom_tree_version();
-
-        // The removed node heads a tree of its own again. Anything cached on it from the last time it did must not
-        // survive the changes made under it while it was part of another tree, which were counted against that tree.
-        node->bump_dom_tree_version();
     }
 
     static void run_removing_steps(Node* node, Node::IsSubtreeRoot is_subtree_root, Node* parent, Node* parent_root, bool was_tracked_by_style_engine, bool is_parent_connected)
@@ -4506,9 +4458,9 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#move
-    static void after_move_link(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root, Node* new_parent, Node* child)
+    static void after_move_link(MoveScope* scope, Node* node, Node* old_parent, Node* old_parent_root, Node* new_parent)
     {
-        node->after_move_link(*scope, *old_parent, *old_parent_root, *new_parent, child);
+        node->after_move_link(*scope, *old_parent, *old_parent_root, *new_parent);
     }
 
     // https://dom.spec.whatwg.org/#move

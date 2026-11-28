@@ -8,10 +8,12 @@
 //! https://dom.spec.whatwg.org/#concept-node-insert
 
 use super::adopt::adopt;
+use super::element_core::ELEMENT_IS_HTML_ELEMENT;
 use super::hooks;
+use super::hooks::AffectsElements;
 use super::hooks::DomInserter;
 use super::hooks::Inserter;
-use super::hooks::InsertionStart;
+use super::hooks::InsertionKind;
 use super::hooks::ParserInserter;
 use super::node::NodeCell;
 use super::node_core::NodeType;
@@ -21,6 +23,8 @@ use super::range::adjust_live_ranges_for_insertion;
 use super::remove::remove_all_children;
 use super::steps::insertion_steps_do_nothing;
 use super::tree::for_each_shadow_including_inclusive_descendant;
+use super::tree_version::bump_dom_tree_version;
+use super::tree_version::last_tree_version_stamp;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -58,9 +62,8 @@ pub(crate) fn insert(
     //    2. Queue a tree mutation record for node with « », nodes, null, and null.
     //       NOTE: This step intentionally does not pay attention to suppressObservers.
     // NB: The callback also tells the editing history of the mutation and consumes the deferred style change events of
-    //     the documents, and answers whether the insertion affects the element children of parent, and which tree
-    //     version the steps below start from.
-    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes);
+    //     the documents, and answers whether the insertion affects the element children of parent.
+    let affects_elements = hooks::begin_insertion::<DomInserter>(main_thread, parent, Some(node), nodes);
 
     // 5. If child is non-null:
     //    1. For each live range whose start node is parent and start offset is greater than child’s index: increase its
@@ -71,7 +74,15 @@ pub(crate) fn insert(
         adjust_live_ranges_for_insertion(main_thread, parent, child, count);
     }
 
-    insert_nodes::<DomInserter>(main_thread, parent, node, nodes, child, suppress_observers, start);
+    insert_nodes::<DomInserter>(
+        main_thread,
+        parent,
+        node,
+        nodes,
+        child,
+        suppress_observers,
+        affects_elements,
+    );
 }
 
 /// Inserts `node`, which the HTML or XML parser has just created, into `parent` before `child`, where the style engine
@@ -86,14 +97,14 @@ fn parser_insert(main_thread: &mut MainThread<'_>, node: NodeRef, parent: NodeRe
     // 2. Let count be nodes’s size.
     // 3. If count is 0, then return.
     // 4. If node is a DocumentFragment node: ...
-    let start = hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes);
+    let affects_elements = hooks::begin_insertion::<ParserInserter>(main_thread, parent, Some(node), &nodes);
 
     // 5. If child is non-null: ...
     if let Some(child) = child {
         adjust_live_ranges_for_insertion(main_thread, parent, child, 1);
     }
 
-    insert_nodes::<ParserInserter>(main_thread, parent, node, &nodes, child, false, start);
+    insert_nodes::<ParserInserter>(main_thread, parent, node, &nodes, child, false, affects_elements);
 }
 
 /// Inserts `nodes`, which have no parent and are no DocumentFragment, into `parent` before null with suppressObservers
@@ -107,12 +118,13 @@ pub(crate) fn insert_as_children_of_unobservable_fragment(
     if nodes.is_empty() {
         return;
     }
-    let start = hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes);
+    let affects_elements = hooks::begin_insertion::<DomInserter>(main_thread, parent, None, nodes);
     // NB: The children changed steps are told that parent itself was inserted, for want of the fragment.
-    insert_nodes::<DomInserter>(main_thread, parent, parent, nodes, None, true, start);
+    insert_nodes::<DomInserter>(main_thread, parent, parent, nodes, None, true, affects_elements);
 }
 
-/// Steps 6 and on of inserting `node`, whose nodes are `nodes`, into `parent` before `child`, which `start` begins.
+/// Steps 6 and on of inserting `node`, whose nodes are `nodes`, into `parent` before `child`, which affects the element
+/// children of `parent` as `affects_elements` says.
 /// https://dom.spec.whatwg.org/#concept-node-insert
 fn insert_nodes<I: Inserter>(
     main_thread: &mut MainThread<'_>,
@@ -121,12 +133,9 @@ fn insert_nodes<I: Inserter>(
     nodes: &[NodeRef],
     child: Option<NodeRef>,
     suppress_observers: bool,
-    start: InsertionStart,
+    affects_elements: AffectsElements,
 ) {
-    let InsertionStart {
-        affects_elements,
-        tree_version: tree_version_before_insertion_steps,
-    } = start;
+    let tree_version_before_insertion_steps = last_tree_version_stamp(main_thread);
 
     // 6. Let previousSibling be child’s previous sibling or parent’s last child if child is null.
     let previous_sibling = match child {
@@ -166,9 +175,8 @@ fn insert_nodes<I: Inserter>(
     //    and child.
     // 9. Run the children changed steps for parent.
     // NB: The callback also invalidates the collection caches, and marks the layout tree for the inserted nodes before
-    //     the post-connection steps, which can run script that reads layout geometry. It answers which tree version
-    //     the steps below start from.
-    let tree_version = hooks::end_insertion::<I>(
+    //     the post-connection steps, which can run script that reads layout geometry.
+    hooks::end_insertion::<I>(
         main_thread,
         parent,
         node,
@@ -188,12 +196,31 @@ fn insert_nodes<I: Inserter>(
     //               all nodes, since a callback could connect one of the initially detached subtrees. Unless some tree
     //               changed since the insertion steps began, the nodes to collect are the ones those steps ran for, so
     //               without one that has post-connection steps there is nothing to run.
-    let tree_changed_since_insertion_steps = tree_version != tree_version_before_insertion_steps;
+    let tree_changed_since_insertion_steps =
+        last_tree_version_stamp(main_thread) != tree_version_before_insertion_steps;
     let run_post_connection_steps = (any_node_has_post_connection_steps || tree_changed_since_insertion_steps)
         && nodes.iter().any(|node| node.is_connected());
 
-    // NB: The callback also schedules the list item renumbering the insertion causes, and moves the tree version.
-    hooks::finish_insertion::<I>(main_thread, parent, nodes, run_post_connection_steps);
+    // NB: The callback also schedules the list item renumbering the insertion causes, which only an inserted li element
+    //     can. The parser's insertions leave the list numbering alone, see InsertionKind::Parser.
+    let may_renumber_list = I::KIND == InsertionKind::Dom && nodes.iter().any(|&node| is_html_li_element(node));
+    if run_post_connection_steps || may_renumber_list {
+        hooks::finish_insertion::<I>(main_thread, nodes, run_post_connection_steps);
+    }
+
+    bump_dom_tree_version(main_thread, parent);
+}
+
+/// Whether `node` is an li element in the HTML namespace.
+#[inline(always)]
+fn is_html_li_element(node: NodeRef) -> bool {
+    node.element_core().is_some_and(|core| {
+        core.flags() & ELEMENT_IS_HTML_ELEMENT != 0
+            && matches!(
+                core.qualified_name().local_name().units(),
+                ak::Utf16StringUnits::Ascii(b"li")
+            )
+    })
 }
 
 /// Step 7.7 of inserting nodes: the walk over the shadow-including inclusive descendants of `node`, which has just

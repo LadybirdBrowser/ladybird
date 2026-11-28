@@ -162,6 +162,14 @@ pub struct ElementCore {
     flags: Cell<u8>,
     /// https://dom.spec.whatwg.org/#concept-element-shadow-root
     shadow_root: ShadowRootMember,
+    /// The generation of the parent's child list that `child_index` and `child_index_of_type` were counted in, or 0
+    /// for none. See child_index.rs.
+    parent_child_index_generation: Cell<u32>,
+    /// The element's 1-based index among its element siblings, or 0 where it is not counted yet.
+    child_index: Cell<u32>,
+    /// The element's 1-based index among its element siblings with its local name and namespace, or 0 where it is not
+    /// counted yet.
+    child_index_of_type: Cell<u32>,
 }
 
 impl ElementCore {
@@ -209,6 +217,21 @@ impl ElementCore {
     pub fn shadow_root(&self) -> Option<NodePointer> {
         self.shadow_root.get()
     }
+
+    #[inline(always)]
+    pub(super) fn parent_child_index_generation(&self) -> &Cell<u32> {
+        &self.parent_child_index_generation
+    }
+
+    #[inline(always)]
+    pub(super) fn child_index(&self) -> &Cell<u32> {
+        &self.child_index
+    }
+
+    #[inline(always)]
+    pub(super) fn child_index_of_type(&self) -> &Cell<u32> {
+        &self.child_index_of_type
+    }
 }
 
 #[cfg(test)]
@@ -245,6 +268,9 @@ impl ElementCore {
             style_attribute_is_dirty: Cell::new(false),
             flags: Cell::new(0),
             shadow_root: ShadowRootMember::null_for_test(),
+            parent_child_index_generation: Cell::new(0),
+            child_index: Cell::new(0),
+            child_index_of_type: Cell::new(0),
         }
     }
 
@@ -296,7 +322,7 @@ impl ElementCore {
 }
 
 // NB: Element.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<ElementCore>() == 64 && align_of::<ElementCore>() == 8);
+const _: () = assert!(size_of::<ElementCore>() == 80 && align_of::<ElementCore>() == 8);
 const _: () = assert!(offset_of!(ElementCore, qualified_name) == 0);
 const _: () = assert!(offset_of!(ElementCore, id) == 8);
 const _: () = assert!(offset_of!(ElementCore, classes) == 16);
@@ -305,6 +331,9 @@ const _: () = assert!(offset_of!(ElementCore, subtree_name_filter) == 48);
 const _: () = assert!(offset_of!(ElementCore, style_attribute_is_dirty) == 56);
 const _: () = assert!(offset_of!(ElementCore, flags) == 57);
 const _: () = assert!(offset_of!(ElementCore, shadow_root) == 60);
+const _: () = assert!(offset_of!(ElementCore, parent_child_index_generation) == 64);
+const _: () = assert!(offset_of!(ElementCore, child_index) == 68);
+const _: () = assert!(offset_of!(ElementCore, child_index_of_type) == 72);
 
 #[cfg(test)]
 mod tests {

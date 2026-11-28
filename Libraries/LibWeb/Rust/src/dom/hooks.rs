@@ -76,16 +76,6 @@ impl Inserter for ParserInserter {
     const KIND: InsertionKind = InsertionKind::Parser;
 }
 
-/// What the C++ side of inserting nodes answers once the steps before the nodes are inserted have run.
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct InsertionStart {
-    /// Whether the insertion affects the element children of the parent.
-    pub affects_elements: AffectsElements,
-    /// The tree version the insertion steps start from.
-    pub tree_version: u64,
-}
-
 /// What the C++ side of removing a node found before the node left its parent's children, which the steps after need.
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
@@ -145,7 +135,6 @@ pub struct MoveHooks {
         old_parent: RawNodeRef,
         old_parent_root: RawNodeRef,
         new_parent: RawNodeRef,
-        child: RawNullableNodeRef,
     ),
     /// See [`run_moving_steps`].
     pub run_moving_steps: unsafe extern "C" fn(
@@ -172,7 +161,7 @@ pub struct MoveHooks {
 pub struct InsertionHooks {
     /// See [`begin_insertion`].
     pub begin_insertion:
-        unsafe extern "C" fn(parent: RawNodeRef, node: RawNullableNodeRef, nodes: ak::Span<'_, NodeRef>) -> InsertionStart,
+        unsafe extern "C" fn(parent: RawNodeRef, node: RawNullableNodeRef, nodes: ak::Span<'_, NodeRef>) -> AffectsElements,
     /// See [`insert_node_into_children`].
     pub insert_node_into_children: unsafe extern "C" fn(
         parent: RawNodeRef,
@@ -191,10 +180,9 @@ pub struct InsertionHooks {
         child: RawNullableNodeRef,
         suppress_observers: bool,
         affects_elements: AffectsElements,
-    ) -> u64,
+    ),
     /// See [`finish_insertion`].
-    pub finish_insertion:
-        unsafe extern "C" fn(parent: RawNodeRef, nodes: ak::Span<'_, NodeRef>, run_post_connection_steps: bool),
+    pub finish_insertion: unsafe extern "C" fn(nodes: ak::Span<'_, NodeRef>, run_post_connection_steps: bool),
 }
 
 /// The callbacks, as DOM/Node.cpp registers them. Each takes the nodes it acts on as DOM::Node pointers, null only
@@ -293,8 +281,7 @@ pub unsafe extern "C" fn rust_dom_register_hooks(hooks: &'static DomHooks) {
 /// Step 4.2 of inserting `node`, whose nodes are `nodes`, into `parent`, after step 4.1 has emptied a
 /// DocumentFragment: if `node` is a DocumentFragment, queues a tree mutation record for it with « », `nodes`, null and
 /// null. Before it, tells the editing history of the mutation and consumes the deferred style change events of the
-/// documents. Answers whether the insertion affects the element children of `parent`, and the
-/// tree version after the steps.
+/// documents. Answers whether the insertion affects the element children of `parent`.
 ///
 /// `node` is null for nodes that are inserted as the children of a DocumentFragment no one can observe, which is not
 /// made. `I` picks the callbacks, which leave out what its InsertionKind says, as do the ones below.
@@ -305,7 +292,7 @@ pub(crate) fn begin_insertion<I: Inserter>(
     parent: NodeRef,
     node: Option<NodeRef>,
     nodes: &[NodeRef],
-) -> InsertionStart {
+) -> AffectsElements {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe { (insertion_hooks::<I>(main_thread).begin_insertion)(parent, node.into(), ak::Span::new(nodes)) }
 }
@@ -347,8 +334,7 @@ pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>,
 
 /// Steps 8 and 9 of inserting `node`, whose nodes are `nodes`, into `parent` before `child`: queues the tree mutation
 /// record unless `suppress_observers`, and runs the children changed steps for `parent`. Then invalidates the
-/// collection caches the insertion changed, and marks the layout tree for the inserted nodes. Answers the current tree
-/// version.
+/// collection caches the insertion changed, and marks the layout tree for the inserted nodes.
 ///
 /// Can run script, allocate and change the tree.
 #[allow(clippy::too_many_arguments)]
@@ -361,7 +347,7 @@ pub(crate) fn end_insertion<I: Inserter>(
     child: Option<NodeRef>,
     suppress_observers: bool,
     affects_elements: AffectsElements,
-) -> u64 {
+) {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe {
         (insertion_hooks::<I>(main_thread).end_insertion)(
@@ -372,24 +358,23 @@ pub(crate) fn end_insertion<I: Inserter>(
             child.into(),
             suppress_observers,
             affects_elements,
-        )
+        );
     }
 }
 
-/// The last steps of inserting `nodes` into `parent`: if `run_post_connection_steps`, steps 10 to 12, which run the
-/// post-connection steps of the connected shadow-including inclusive descendants of `nodes` that have some. Then
-/// schedules the list item renumbering the insertion causes, and moves the tree version of `parent`.
+/// The last steps of inserting `nodes`: if `run_post_connection_steps`, steps 10 to 12, which run the post-connection
+/// steps of the connected shadow-including inclusive descendants of `nodes` that have some. Then schedules the list
+/// item renumbering the insertion causes.
 ///
 /// Can run script, allocate and change the tree.
 pub(crate) fn finish_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
-    parent: NodeRef,
     nodes: &[NodeRef],
     run_post_connection_steps: bool,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes, which the caller roots.
     unsafe {
-        (insertion_hooks::<I>(main_thread).finish_insertion)(parent, ak::Span::new(nodes), run_post_connection_steps);
+        (insertion_hooks::<I>(main_thread).finish_insertion)(ak::Span::new(nodes), run_post_connection_steps);
     }
 }
 
@@ -404,8 +389,7 @@ pub(crate) fn begin_removing_all_children(main_thread: &mut MainThread<'_>, pare
 }
 
 /// The steps of removing all children of `parent` that concern only `parent`, and so run once after the last child is
-/// removed: runs the children changed steps for `parent`, and invalidates the collection caches and the tree version
-/// of `parent`.
+/// removed: runs the children changed steps for `parent`.
 ///
 /// Can run script, allocate and change the tree.
 pub(crate) fn end_removing_all_children(
@@ -420,8 +404,8 @@ pub(crate) fn end_removing_all_children(
 /// The steps of removing `node` from `parent` that come before the node leaves its parent's children, but for the live
 /// range and NodeIterator pre-remove steps: tells the editing history, the document and the page of the removal,
 /// schedules the list item renumbering the removal causes, settles the slot assignments of a shadow
-/// tree the subtree leaves, records the removal for layout and the style engine, and takes the node out of the C++
-/// state that follows the children of `parent`: the animation counts, the child index generation and the child indices.
+/// tree the subtree leaves, records the removal for layout and the style engine, and takes the node out of the animation
+/// counts of `parent`.
 ///
 /// For one of all the children of `parent`, which `children_removal` tracks, the steps that
 /// begin_removing_all_children() ran for every child are left out, and the facts every child shares are read from and
@@ -457,7 +441,7 @@ pub(crate) fn assign_slottables_after_removal(
 
 /// The last steps of removing `node` from `parent`: adds the transient registered observers, queues the tree mutation
 /// record unless `suppress_observers`, runs the children changed steps for `parent`, and invalidates the collection
-/// caches and tree versions the removal changed.
+/// caches the removal changed.
 ///
 /// For one of all the children of `parent`, `is_one_of_all_children` leaves out the steps for `parent`, which
 /// end_removing_all_children() runs once.
@@ -540,7 +524,7 @@ pub(crate) fn adopt_from_other_document(
 /// editability. Then has the style engine take in its pending arrivals, keeps in `scope` where an element was and whether the
 /// subtree holds the focused or hovered node, marks the layout tree of `old_parent`, settles and keeps in `scope` the
 /// slots of the subtree, unregisters the anchor names a subtree that leaves its tree scope registered, and takes `node`
-/// out of the C++ state that follows the children of `old_parent`.
+/// out of the animation counts of `old_parent`.
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
@@ -573,7 +557,7 @@ pub(crate) fn after_move_unlink(
     unsafe { (hooks(main_thread).moving.after_unlink)(scope, node, old_parent, old_parent_root) }
 }
 
-/// Steps 22 to 24 of moving `node`, which has joined the children of `new_parent` before `child`, from `old_parent`,
+/// Steps 22 to 24 of moving `node`, which has joined the children of `new_parent`, from `old_parent`,
 /// whose root was `old_parent_root`: assigns a slot for `node`, signals the slot change and assigns the slottables the
 /// insertion causes. Before them, puts `node` in the C++ state that follows the children of `new_parent`, records the
 /// move for the style engine and marks the layout tree. After them, refreshes the lookup caches of the document, and
@@ -588,12 +572,9 @@ pub(crate) fn after_move_link(
     old_parent: NodeRef,
     old_parent_root: NodeRef,
     new_parent: NodeRef,
-    child: Option<NodeRef>,
 ) {
     // SAFETY: The callback is called on the main thread with live nodes and the scope of the move.
-    unsafe {
-        (hooks(main_thread).moving.after_link)(scope, node, old_parent, old_parent_root, new_parent, child.into());
-    }
+    unsafe { (hooks(main_thread).moving.after_link)(scope, node, old_parent, old_parent_root, new_parent) }
 }
 
 /// Steps 25.2 and 25.3 of moving a node from `old_parent` into `new_parent`, for `inclusive_descendant`, a
@@ -618,8 +599,8 @@ pub(crate) fn run_moving_steps(
 
 /// Steps 26 and 27 of moving `node` from `old_parent` into `new_parent`: queues the tree mutation records for
 /// `old_parent` and `new_parent`. Before them, invalidates the styles of the elements whose `:read-write` state the
-/// move changed, and after them, invalidates the collection caches and moves the tree versions of the parents, and does
-/// for an <html> or media element parent what the children changed steps, which a move does not run, would have done.
+/// move changed, and after them, does for an <html> or media element parent what the children changed steps, which a
+/// move does not run, would have done.
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.

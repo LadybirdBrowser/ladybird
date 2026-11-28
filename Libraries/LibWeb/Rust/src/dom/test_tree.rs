@@ -31,27 +31,35 @@ use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
+use super::node_core::PARENT_NODE_CORE_OFFSET;
+use super::node_core::ParentNodeCore;
 use super::node_ref::NodeRef;
 use super::qualified_name::QualifiedNameField;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
 
-/// A node's cell, with its core where DOM::Node has it, a character data core where DOM::CharacterData has it, which
-/// only a CharacterData node's cell holds, a fragment core where DOM::DocumentFragment has it, and then either a document
-/// core where DOM::Document has it, which only a document's cell holds, or an element core where DOM::Element has it,
-/// which only an element's cell holds.
+/// A node's cell, with its core where DOM::Node has it, then either a character data core where DOM::CharacterData has
+/// it, which only a CharacterData node's cell holds, or a parent node core where DOM::ParentNode has it, which the cell
+/// of every other node holds, a fragment core where DOM::DocumentFragment has it, and then either a document core where
+/// DOM::Document has it, which only a document's cell holds, or an element core where DOM::Element has it, which only an
+/// element's cell holds.
 #[repr(C, align(8))]
 struct TestCell {
     header: [u8; NODE_CORE_OFFSET],
     core: NodeCore,
     fields: [u8; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
-    character_data_core: MaybeUninit<CharacterDataCore>,
-    character_data_fields:
-        [u8; DOCUMENT_FRAGMENT_CORE_OFFSET - CHARACTER_DATA_CORE_OFFSET - size_of::<CharacterDataCore>()],
+    middle: TestCellMiddle,
     fragment_core: DocumentFragmentCore,
     fragment_fields: [u8; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
     tail: TestCellTail,
+}
+
+/// What a CharacterData node's cell and a ParentNode's cell hold past the node core, where the two overlap.
+#[repr(C)]
+union TestCellMiddle {
+    character_data_core: ManuallyDrop<MaybeUninit<CharacterDataCore>>,
+    parent_node_core: ManuallyDrop<ParentNodeCore>,
 }
 
 /// What a document's cell and an element's cell hold past the fragment core, where the two overlap.
@@ -68,7 +76,9 @@ struct ElementTail {
 }
 
 const _: () = assert!(offset_of!(TestCell, core) == NODE_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, character_data_core) == CHARACTER_DATA_CORE_OFFSET);
+const _: () = assert!(offset_of!(TestCell, middle) == CHARACTER_DATA_CORE_OFFSET);
+const _: () = assert!(PARENT_NODE_CORE_OFFSET == CHARACTER_DATA_CORE_OFFSET);
+const _: () = assert!(size_of::<TestCellMiddle>() == DOCUMENT_FRAGMENT_CORE_OFFSET - CHARACTER_DATA_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, fragment_core) == DOCUMENT_FRAGMENT_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, tail) == DOCUMENT_CORE_OFFSET);
 const _: () = assert!(DOCUMENT_CORE_OFFSET + offset_of!(ElementTail, core) == ELEMENT_CORE_OFFSET);
@@ -132,9 +142,9 @@ pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: Nod
     let node = new_node(main_thread, node_type, |_| {}, None);
     // SAFETY: Every node of a test tree is a TestCell, and no reference to this one's character data core exists yet.
     unsafe {
-        (*(node.cell() as *const NodeCell as *mut TestCell))
-            .character_data_core
-            .write(CharacterDataCore::for_test(data));
+        (*(node.cell() as *const NodeCell as *mut TestCell)).middle = TestCellMiddle {
+            character_data_core: ManuallyDrop::new(MaybeUninit::new(CharacterDataCore::for_test(data))),
+        };
     }
     node
 }
@@ -208,10 +218,9 @@ fn new_node<'a>(
         header: [0; NODE_CORE_OFFSET],
         core,
         fields: [0; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
-        character_data_core: MaybeUninit::uninit(),
-        character_data_fields: [0; DOCUMENT_FRAGMENT_CORE_OFFSET
-            - CHARACTER_DATA_CORE_OFFSET
-            - size_of::<CharacterDataCore>()],
+        middle: TestCellMiddle {
+            parent_node_core: ManuallyDrop::new(ParentNodeCore::for_test()),
+        },
         fragment_core: DocumentFragmentCore::null_for_test(),
         fragment_fields: [0; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
         tail,

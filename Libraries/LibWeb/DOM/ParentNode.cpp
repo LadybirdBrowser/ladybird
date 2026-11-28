@@ -25,6 +25,18 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ParentNode);
 
+ParentNode::ParentNode(Document& document, NodeType type)
+    : Node(document, type)
+{
+    // NB: libweb_rust reads and moves the version counters of the tree rooted here in place.
+    static_assert(offsetof(ParentNode, m_parent_node_core) == RustFFI::PARENT_NODE_CORE_OFFSET);
+}
+
+// NB: The Rust definition of the core asserts the same layout.
+static_assert(sizeof(RustFFI::ParentNodeCore) == 16 && alignof(RustFFI::ParentNodeCore) == 8);
+static_assert(offsetof(RustFFI::ParentNodeCore, dom_tree_version) == 0);
+static_assert(offsetof(RustFFI::ParentNodeCore, character_data_version) == 8);
+
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
 WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(Utf16String const& selector_text)
 {

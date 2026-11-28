@@ -47,6 +47,8 @@ use super::node_core::NodeCore;
 use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
+use super::node_core::PARENT_NODE_CORE_OFFSET;
+use super::node_core::ParentNodeCore;
 use crate::stage::MainThread;
 
 /// A node held by code that changes the DOM, valid across tree changes, allocation and script for as long as it is
@@ -234,6 +236,26 @@ impl NodeRef {
         }
         // SAFETY: Every element embeds its core ELEMENT_CORE_OFFSET bytes into its cell, which Element.cpp asserts.
         Some(unsafe { &*self.pinned_cell().byte_add(ELEMENT_CORE_OFFSET).cast::<ElementCore>() })
+    }
+
+    /// The core of a ParentNode, an element, a document or a DocumentFragment, read for as long as the reference is
+    /// borrowed, during which nothing may call into C++, or none for any other node.
+    #[inline(always)]
+    pub(super) fn parent_node_core(&self) -> Option<&ParentNodeCore> {
+        if !matches!(
+            self.node_type(),
+            NodeType::ELEMENT_NODE | NodeType::DOCUMENT_NODE | NodeType::DOCUMENT_FRAGMENT_NODE
+        ) {
+            return None;
+        }
+        // SAFETY: Every ParentNode embeds its core PARENT_NODE_CORE_OFFSET bytes into its cell, which ParentNode.cpp
+        //         asserts.
+        Some(unsafe {
+            &*self
+                .pinned_cell()
+                .byte_add(PARENT_NODE_CORE_OFFSET)
+                .cast::<ParentNodeCore>()
+        })
     }
 
     /// The core of the node's node document, read for as long as the reference is borrowed, during which nothing may

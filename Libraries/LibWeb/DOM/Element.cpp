@@ -190,7 +190,7 @@ static_assert(sizeof(Element) == 288);
 #endif
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::ElementCore) == 64 && alignof(RustFFI::ElementCore) == 8);
+static_assert(sizeof(RustFFI::ElementCore) == 80 && alignof(RustFFI::ElementCore) == 8);
 static_assert(offsetof(RustFFI::ElementCore, qualified_name) == 0);
 static_assert(offsetof(RustFFI::ElementCore, id) == 8);
 static_assert(offsetof(RustFFI::ElementCore, classes) == 16);
@@ -199,6 +199,9 @@ static_assert(offsetof(RustFFI::ElementCore, subtree_name_filter) == 48);
 static_assert(offsetof(RustFFI::ElementCore, style_attribute_is_dirty) == 56);
 static_assert(offsetof(RustFFI::ElementCore, flags) == 57);
 static_assert(offsetof(RustFFI::ElementCore, shadow_root) == 60);
+static_assert(offsetof(RustFFI::ElementCore, parent_child_index_generation) == 64);
+static_assert(offsetof(RustFFI::ElementCore, child_index) == 68);
+static_assert(offsetof(RustFFI::ElementCore, child_index_of_type) == 72);
 
 Element::RareData::~RareData() = default;
 
@@ -355,6 +358,9 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .style_attribute_is_dirty = false,
         .flags = 0,
         .shadow_root = {},
+        .parent_child_index_generation = 0,
+        .child_index = 0,
+        .child_index_of_type = 0,
     }
 {
     // NB: libweb_rust finds the core of an element at this offset into the element's cell, which starts with its node.
@@ -2260,68 +2266,6 @@ GC::Ptr<ShadowRoot> Element::open_shadow_root() const
 
     // 3. Return shadow.
     return shadow;
-}
-
-static bool has_same_type(Element const& element, Element const& other)
-{
-    return element.local_name() == other.local_name() && element.namespace_uri() == other.namespace_uri();
-}
-
-u32 Element::child_index(ChildIndexAmong among) const
-{
-    auto const* parent = this->parent();
-    if (!parent)
-        return 1;
-    auto generation = parent->child_index_generation();
-    auto of_type = among == ChildIndexAmong::SiblingsOfType;
-    auto is_counted = [&](Element const& sibling) { return !of_type || has_same_type(sibling, *this); };
-    auto remembered_index = [&](Element const& sibling) -> u32& {
-        if (sibling.m_parent_child_index_generation != generation) {
-            sibling.m_parent_child_index_generation = generation;
-            sibling.m_child_index = 0;
-            sibling.m_child_index_of_type = 0;
-        }
-        return of_type ? sibling.m_child_index_of_type : sibling.m_child_index;
-    };
-
-    // Walk back to the nearest counted sibling that remembers its index...
-    u32 index = 0;
-    Element const* sibling = nullptr;
-    for (auto const* candidate = this; candidate; candidate = candidate->previous_element_sibling()) {
-        if (!is_counted(*candidate))
-            continue;
-        if (auto known = remembered_index(*candidate)) {
-            if (candidate == this)
-                return known;
-            index = known;
-            sibling = candidate->next_element_sibling();
-            break;
-        }
-    }
-
-    // ...and number the counted siblings from there through this element.
-    for (sibling = sibling ? sibling : parent->first_child_of_type<Element>();; sibling = sibling->next_element_sibling()) {
-        if (!is_counted(*sibling))
-            continue;
-        remembered_index(*sibling) = ++index;
-        if (sibling == this)
-            return index;
-    }
-}
-
-u32 Element::child_index_from_end(ChildIndexAmong among) const
-{
-    auto const* parent = this->parent();
-    if (!parent)
-        return 1;
-    auto const* last = parent->last_child_of_type<Element>();
-    // NB: The walk back to the last sibling of this type is not remembered, so it costs the number of siblings of
-    //     other types that follow it on every call.
-    if (among == ChildIndexAmong::SiblingsOfType) {
-        while (!has_same_type(*last, *this))
-            last = last->previous_element_sibling();
-    }
-    return last->child_index(among) - child_index(among) + 1;
 }
 
 // https://dom.spec.whatwg.org/#dom-element-matches

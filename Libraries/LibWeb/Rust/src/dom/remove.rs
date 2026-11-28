@@ -18,6 +18,7 @@ use super::steps::assign_slottables_after_removal_does_nothing;
 use super::steps::removing_steps_do_nothing;
 use super::traversal::run_node_iterator_pre_remove_steps;
 use super::tree::for_each_shadow_including_descendant;
+use super::tree_version::bump_dom_tree_version;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -86,6 +87,12 @@ pub(crate) fn remove(main_thread: &mut MainThread<'_>, node: NodeRef, suppress_o
         suppress_observers,
         false,
     );
+
+    bump_dom_tree_version(main_thread, parent);
+
+    // NB: The removed node heads a tree of its own again. Anything cached on it from the last time it did must not
+    //     survive the changes made under it while it was part of another tree, which were counted against that tree.
+    bump_dom_tree_version(main_thread, node);
 }
 
 /// Removes all of `parent`'s children, in tree order, with `suppress_observers`.
@@ -170,10 +177,15 @@ pub(crate) fn remove_all_children(main_thread: &mut MainThread<'_>, parent: Node
             suppress_observers,
             true,
         );
+
+        // NB: The removed node heads a tree of its own again, see remove().
+        bump_dom_tree_version(main_thread, node);
     }
 
     // 17. Run the children changed steps for parent.
     hooks::end_removing_all_children(main_thread, parent, children_removal);
+
+    bump_dom_tree_version(main_thread, parent);
 }
 
 /// https://dom.spec.whatwg.org/#concept-node-pre-remove
