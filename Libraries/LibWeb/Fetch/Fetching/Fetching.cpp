@@ -557,7 +557,7 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
         begin_rendering_pending_operation(controller.ptr(), client_window->associated_document(), RenderingPendingReason::ResourceFetchesInFlight);
 
     // 15. Run main fetch given fetchParams.
-    (void)main_fetch(fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), agent.fetch_executor->known_hsts_host_provider());
+    main_fetch(fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), agent.fetch_executor->known_hsts_host_provider());
 
     // 16. Return fetchParams’s controller.
     return controller;
@@ -850,10 +850,9 @@ static NonnullRefPtr<PendingResponse> get_response(Infrastructure::FetchParams c
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-static RefPtr<PendingResponse> continue_main_fetch(Infrastructure::FetchParams const&, RefPtr<Infrastructure::Response>, Recursive);
-static RefPtr<PendingResponse> continue_main_fetch_after_known_hsts_host_lookup(Infrastructure::FetchParams const&, Engine::KnownHSTSHostProvider&, String const& host, RefPtr<Infrastructure::Response>, Recursive);
-
-RefPtr<PendingResponse> main_fetch(Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Engine::KnownHSTSHostProvider& known_hsts_host_provider, Recursive recursive)
+// https://fetch.spec.whatwg.org/#concept-main-fetch
+// NB: The agent and the engine both run these steps, which prepare main fetch's request until it would run in parallel.
+MainFetchPreparation prepare_main_fetch(Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Engine::KnownHSTSHostProvider& known_hsts_host_provider)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' with: fetch_params @ {}", &fetch_params);
 
@@ -915,31 +914,61 @@ RefPtr<PendingResponse> main_fetch(Infrastructure::FetchParams const& fetch_para
     // 10. Set request’s current URL’s scheme to "https" if all of the following conditions are true:
     auto host = host_to_match_against_known_hsts_hosts(*request);
     if (!host.has_value())
-        return continue_main_fetch(fetch_params, move(response), recursive);
+        return { move(response), {} };
     if (auto is_known_hsts_host = known_hsts_host_provider.known_answer(*host); is_known_hsts_host.has_value()) {
         if (*is_known_hsts_host)
             upgrade_request_to_https(*request);
-        return continue_main_fetch(fetch_params, move(response), recursive);
+        return { move(response), {} };
     }
-    return continue_main_fetch_after_known_hsts_host_lookup(fetch_params, known_hsts_host_provider, *host, move(response), recursive);
+    return { move(response), host.release_value() };
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-// Main fetch continues at step 11.
-static RefPtr<PendingResponse> continue_main_fetch(Infrastructure::FetchParams const& fetch_params, RefPtr<Infrastructure::Response> response, Recursive recursive)
+// Main fetch given recursive true continues at step 12.
+static NonnullRefPtr<PendingResponse> continue_recursive_main_fetch(Infrastructure::FetchParams const& fetch_params, RefPtr<Infrastructure::Response> response)
+{
+    // 12. If response is null, then set response to the result of running the steps corresponding to the first
+    //     matching statement:
+    auto pending_response = !response
+        ? get_response(fetch_params)
+        : PendingResponse::create(fetch_params, *response);
+
+    // 13. If recursive is true, then return response.
+    return pending_response;
+}
+
+// https://fetch.spec.whatwg.org/#concept-main-fetch
+// NB: This is main fetch given recursive true, which the engine runs for a redirect it follows.
+NonnullRefPtr<PendingResponse> recursive_main_fetch(Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Engine::KnownHSTSHostProvider& known_hsts_host_provider)
+{
+    auto steps = prepare_main_fetch(fetch_params, report_violation, known_hsts_host_provider);
+    if (!steps.host_to_look_up.has_value())
+        return continue_recursive_main_fetch(fetch_params, move(steps.response));
+
+    NonnullRefPtr engine_record = *fetch_params.engine_record();
+    auto returned_pending_response = PendingResponse::create(fetch_params);
+    known_hsts_host_provider.look_up(fetch_params, *steps.host_to_look_up, [fetch_params = NonnullRefPtr { fetch_params }, engine_record, response = move(steps.response), returned_pending_response](bool is_known_hsts_host) mutable {
+        engine_record->defer([fetch_params = move(fetch_params), engine_record, response = move(response), returned_pending_response, is_known_hsts_host]() mutable {
+            if (engine_record->is_stopped()) {
+                returned_pending_response->resolve(Infrastructure::Response::network_error("Fetch was stopped while it looked up a Known HSTS Host"_string));
+                return;
+            }
+            if (is_known_hsts_host)
+                upgrade_request_to_https(fetch_params->request());
+            auto pending_response = continue_recursive_main_fetch(*fetch_params, move(response));
+            pending_response->when_loaded([returned_pending_response](NonnullRefPtr<Infrastructure::Response> response) {
+                returned_pending_response->resolve(response);
+            });
+        });
+    });
+    return returned_pending_response;
+}
+
+// https://fetch.spec.whatwg.org/#concept-main-fetch
+// Main fetch given recursive false continues at step 11.
+static void continue_main_fetch_in_parallel(Infrastructure::FetchParams const& fetch_params, RefPtr<Infrastructure::Response> response)
 {
     auto request = fetch_params.request();
-
-    if (recursive == Recursive::Yes) {
-        // 12. If response is null, then set response to the result of running the steps corresponding to the first
-        //     matching statement:
-        auto pending_response = !response
-            ? get_response(fetch_params)
-            : PendingResponse::create(fetch_params, *response);
-
-        // 13. If recursive is true, then return response.
-        return pending_response;
-    }
 
     // 11. If recursive is false, then run the remaining steps in parallel.
     auto controller = fetch_controller_of(fetch_params);
@@ -952,7 +981,7 @@ static RefPtr<PendingResponse> continue_main_fetch(Infrastructure::FetchParams c
             Engine::MainFetchInput next_hop { NonnullRefPtr { fetch_params }, response };
             controller->resolve_redirect(Engine::Command::ResolveRedirect::Follow { move(next_hop) });
         }
-        return nullptr;
+        return;
     }
 
     VERIFY(fetch_params.controller_registry());
@@ -968,41 +997,24 @@ static RefPtr<PendingResponse> continue_main_fetch(Infrastructure::FetchParams c
     // NB: A fetch stopped, aborted or terminated before it started is stopped once it starts.
     if (!fetch_params.control_block().is_ongoing())
         controller->stop_request();
-
-    return nullptr;
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-// Main fetch continues at step 11.
-static RefPtr<PendingResponse> continue_main_fetch_after_known_hsts_host_lookup(Infrastructure::FetchParams const& fetch_params, Engine::KnownHSTSHostProvider& known_hsts_host_provider, String const& host, RefPtr<Infrastructure::Response> response, Recursive recursive)
+// NB: This is main fetch given recursive false, which the agent runs for a fetch and a manual redirect's next hop.
+void main_fetch(Infrastructure::FetchParams const& fetch_params, ContentSecurityPolicy::ViolationReporter const& report_violation, Engine::KnownHSTSHostProvider& known_hsts_host_provider)
 {
-    if (recursive == Recursive::No) {
-        auto controller = GC::make_root(fetch_controller_of(fetch_params));
-        known_hsts_host_provider.look_up(fetch_params, host, [fetch_params = NonnullRefPtr { fetch_params }, response = move(response), controller = move(controller)](bool is_known_hsts_host) mutable {
-            if (is_known_hsts_host)
-                upgrade_request_to_https(fetch_params->request());
-            (void)continue_main_fetch(*fetch_params, move(response), Recursive::No);
-        });
-        return nullptr;
+    auto steps = prepare_main_fetch(fetch_params, report_violation, known_hsts_host_provider);
+    if (!steps.host_to_look_up.has_value()) {
+        continue_main_fetch_in_parallel(fetch_params, move(steps.response));
+        return;
     }
 
-    NonnullRefPtr engine_record = *fetch_params.engine_record();
-    auto returned_pending_response = PendingResponse::create(fetch_params);
-    known_hsts_host_provider.look_up(fetch_params, host, [fetch_params = NonnullRefPtr { fetch_params }, engine_record, response = move(response), returned_pending_response](bool is_known_hsts_host) mutable {
-        engine_record->defer([fetch_params = move(fetch_params), engine_record, response = move(response), returned_pending_response, is_known_hsts_host]() mutable {
-            if (engine_record->is_stopped()) {
-                returned_pending_response->resolve(Infrastructure::Response::network_error("Fetch was stopped while it looked up a Known HSTS Host"_string));
-                return;
-            }
-            if (is_known_hsts_host)
-                upgrade_request_to_https(fetch_params->request());
-            auto pending_response = continue_main_fetch(*fetch_params, move(response), Recursive::Yes);
-            pending_response->when_loaded([returned_pending_response](NonnullRefPtr<Infrastructure::Response> response) {
-                returned_pending_response->resolve(response);
-            });
-        });
+    auto controller = GC::make_root(fetch_controller_of(fetch_params));
+    known_hsts_host_provider.look_up(fetch_params, *steps.host_to_look_up, [fetch_params = NonnullRefPtr { fetch_params }, response = move(steps.response), controller = move(controller)](bool is_known_hsts_host) mutable {
+        if (is_known_hsts_host)
+            upgrade_request_to_https(fetch_params->request());
+        continue_main_fetch_in_parallel(*fetch_params, move(response));
     });
-    return returned_pending_response;
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
@@ -1326,10 +1338,22 @@ void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController> con
     // NB: This is HTTP fetch's step for a navigation's manual redirect, which sets fetchParams's controller's next
     //     manual redirect steps to run HTTP-redirect fetch given fetchParams and response.
     if (auto const& manual_redirect = delivery.manual_redirect; manual_redirect.has_value()) {
-        controller->set_next_manual_redirect_steps(GC::create_function(controller->heap(), GC::captures(manual_redirect->fetch_params, manual_redirect->response), [](auto& fetch_params, auto& response) {
+        controller->set_next_manual_redirect_steps(GC::create_function(controller->heap(), GC::captures(manual_redirect->fetch_params, manual_redirect->response), [](NonnullRefPtr<Infrastructure::FetchParams const>& fetch_params, NonnullRefPtr<Infrastructure::Response>& response) {
+            // https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
+            auto steps = prepare_redirect_hop(*fetch_params, *response);
+            auto controller = fetch_controller_of(*fetch_params);
+
             // AD-HOC: Abandon the redirect when HTTP-redirect fetch returns early, as nothing else answers it.
-            if (http_redirect_fetch(*fetch_params, *response))
-                fetch_controller_of(*fetch_params)->resolve_redirect(Engine::Command::ResolveRedirect::Abandon {});
+            if (steps.has<NonnullRefPtr<Infrastructure::Response>>()) {
+                controller->resolve_redirect(Engine::Command::ResolveRedirect::Abandon {});
+                return;
+            }
+            VERIFY(steps.get<Recursive>() == Recursive::No);
+
+            // 22. Return the result of running main fetch given fetchParams and recursive.
+            auto& realm = controller->realm();
+            auto& known_hsts_host_provider = controller->started_fetch_executor().known_hsts_host_provider();
+            main_fetch(*fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, fetch_params->request()), known_hsts_host_provider);
         }));
     }
 
@@ -2244,7 +2268,9 @@ NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const& fet
 }
 
 // https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
-RefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
+// NB: These are the steps that check the redirect and prepare the request for its next hop, which return either the
+//     response that HTTP-redirect fetch returns, or the recursive that main fetch runs the hop with.
+RedirectHopPreparation prepare_redirect_hop(Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-redirect fetch' with: fetch_params @ {}, response = {}", &fetch_params, &response);
 
@@ -2262,7 +2288,7 @@ RefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const& f
 
     // 4. If locationURL is null, then return response.
     if (!location_url_or_error.is_error() && !location_url_or_error.value().has_value())
-        return PendingResponse::create(fetch_params, response);
+        return NonnullRefPtr { response };
 
     // AD-HOC: Navigation responses have a RequestServer transfer lease so they can move through the UI process.
     //         This response will be discarded in favor of either a network error or the redirect response, so
@@ -2273,17 +2299,17 @@ RefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const& f
 
     // 5. If locationURL is failure, then return a network error.
     if (location_url_or_error.is_error())
-        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request redirect URL is invalid"_string));
+        return Infrastructure::Response::network_error("Request redirect URL is invalid"_string);
 
     auto location_url = location_url_or_error.release_value().release_value();
 
     // 6. If locationURL’s scheme is not an HTTP(S) scheme, then return a network error.
     if (!Infrastructure::is_http_or_https_scheme(location_url.scheme()))
-        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request redirect URL must have HTTP or HTTPS scheme"_string));
+        return Infrastructure::Response::network_error("Request redirect URL must have HTTP or HTTPS scheme"_string);
 
     // 7. If request’s redirect count is 20, then return a network error.
     if (request->redirect_count() == 20)
-        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request has reached maximum redirect count of 20"_string));
+        return Infrastructure::Response::network_error("Request has reached maximum redirect count of 20"_string);
 
     // 8. Increase request’s redirect count by 1.
     request->set_redirect_count(request->redirect_count() + 1);
@@ -2294,20 +2320,20 @@ RefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const& f
         && location_url.includes_credentials()
         && request->origin().has<URL::Origin>()
         && !request->origin().get<URL::Origin>().is_same_origin(location_url.origin())) {
-        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string));
+        return Infrastructure::Response::network_error("Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"_string);
     }
 
     // 10. If request’s response tainting is "cors" and locationURL includes credentials, then return a network error.
     // NOTE: This catches a cross-origin resource redirecting to a same-origin URL.
     if (request->response_tainting() == Infrastructure::Request::ResponseTainting::CORS && location_url.includes_credentials())
-        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request with 'cors' response tainting must not include credentials in redirect URL"_string));
+        return Infrastructure::Response::network_error("Request with 'cors' response tainting must not include credentials in redirect URL"_string);
 
     // 11. If internalResponse’s status is not 303, request’s body is non-null, and request’s body’s source is null, then
     //     return a network error.
     if (internal_response->status() != 303
         && !request->body().has<Empty>()
         && !request->body().get<Infrastructure::FetchBody>().source().has_value()) {
-        return PendingResponse::create(fetch_params, Infrastructure::Response::network_error("Request has body but no body source"_string));
+        return Infrastructure::Response::network_error("Request has body but no body source"_string);
     }
 
     // 12. If one of the following is true
@@ -2385,17 +2411,22 @@ RefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const& f
         recursive = Recursive::No;
     }
 
+    return recursive;
+}
+
+// https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
+// NB: This is HTTP-redirect fetch for a redirect the engine follows.
+NonnullRefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
+{
+    auto steps = prepare_redirect_hop(fetch_params, response);
+    if (auto const* returned_response = steps.get_pointer<NonnullRefPtr<Infrastructure::Response>>())
+        return PendingResponse::create(fetch_params, *returned_response);
+    VERIFY(steps.get<Recursive>() == Recursive::Yes);
+
     // 22. Return the result of running main fetch given fetchParams and recursive.
-    // NB: The navigation processes a manual redirect's next hop on the agent, which reports violations and looks up
-    //     hosts itself.
-    if (request->redirect_mode() == Infrastructure::Request::RedirectMode::Manual) {
-        auto controller = fetch_controller_of(fetch_params);
-        auto& realm = controller->realm();
-        auto& known_hsts_host_provider = controller->started_fetch_executor().known_hsts_host_provider();
-        return main_fetch(fetch_params, ContentSecurityPolicy::violation_reporter_for_request(realm, request), known_hsts_host_provider, recursive);
-    }
+    auto request = fetch_params.request();
     auto& engine_record = *fetch_params.engine_record();
-    return main_fetch(fetch_params, engine_violation_reporter(engine_record, request), engine_record.known_hsts_host_provider(), recursive);
+    return recursive_main_fetch(fetch_params, engine_violation_reporter(engine_record, request), engine_record.known_hsts_host_provider());
 }
 
 enum class AuthenticationHandled {

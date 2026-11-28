@@ -55,7 +55,14 @@ WEB_API GC::Ref<Infrastructure::FetchController> fetch(JS::Realm&, Infrastructur
 void append_accept_language_header_if_missing(Infrastructure::Request&, LoaderConfig const&);
 // The controller of the fetch the fetch params are for, on the agent that started the fetch, while the fetch runs.
 [[nodiscard]] WEB_API GC::Ref<Infrastructure::FetchController> fetch_controller_of(Infrastructure::FetchParams const&);
-RefPtr<PendingResponse> main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Engine::KnownHSTSHostProvider&, Recursive recursive = Recursive::No);
+// What preparing main fetch's request leaves: the response it set, and the host still to look up for its HSTS upgrade.
+struct MainFetchPreparation {
+    RefPtr<Infrastructure::Response> response;
+    Optional<String> host_to_look_up;
+};
+[[nodiscard]] MainFetchPreparation prepare_main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Engine::KnownHSTSHostProvider&);
+void main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Engine::KnownHSTSHostProvider&);
+NonnullRefPtr<PendingResponse> recursive_main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Engine::KnownHSTSHostProvider&);
 [[nodiscard]] Optional<String> host_to_match_against_known_hsts_hosts(Infrastructure::Request const&);
 void upgrade_request_to_https(Infrastructure::Request&);
 void run_main_fetch_parallel_steps(Engine::MainFetchInput, NonnullRefPtr<Engine::FetchEngineRecord>);
@@ -65,7 +72,9 @@ void fetch_response_handover(Infrastructure::FetchParams const&, Infrastructure:
 void finish_fetch_response_handover(GC::Ref<Infrastructure::FetchController>, Engine::Event::ResponseDelivery);
 NonnullRefPtr<PendingResponse> scheme_fetch(Infrastructure::FetchParams const&);
 NonnullRefPtr<PendingResponse> http_fetch(Infrastructure::FetchParams const&, MakeCORSPreflight make_cors_preflight = MakeCORSPreflight::No);
-WEB_API RefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const&, Infrastructure::Response&);
+using RedirectHopPreparation = Variant<NonnullRefPtr<Infrastructure::Response>, Recursive>;
+[[nodiscard]] RedirectHopPreparation prepare_redirect_hop(Infrastructure::FetchParams const&, Infrastructure::Response&);
+WEB_API NonnullRefPtr<PendingResponse> http_redirect_fetch(Infrastructure::FetchParams const&, Infrastructure::Response&);
 NonnullRefPtr<PendingResponse> http_network_or_cache_fetch(Infrastructure::FetchParams const&, IsAuthenticationFetch is_authentication_fetch = IsAuthenticationFetch::No, IsNewConnectionFetch is_new_connection_fetch = IsNewConnectionFetch::No);
 NonnullRefPtr<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(Infrastructure::FetchParams const&, HTTP::Cookie::IncludeCredentials include_credentials = HTTP::Cookie::IncludeCredentials::No, IsNewConnectionFetch is_new_connection_fetch = IsNewConnectionFetch::No, RefPtr<HTTP::MemoryCache> = {});
 NonnullRefPtr<PendingResponse> cors_preflight_fetch(Infrastructure::FetchParams const&);
