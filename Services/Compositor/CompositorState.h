@@ -254,6 +254,7 @@ private:
         DrawnFonts fonts;
         DrawnImageFrames image_frames;
         DisplayListRasterCache raster_cache;
+        Optional<OwnedCanvasSurfaces> canvas_surfaces;
         Gfx::ShareableBitmap target_bitmap;
         RefPtr<Gfx::PaintingSurface> target_surface;
         // Rasters on the CPU, so the pixels match a raster of the same list in any other process.

@@ -446,7 +446,18 @@ void DisplayListPlayerSkia::play_command(DrawCanvas const& command)
     if (!canvas_surface)
         return;
 
-    auto image = canvas_surface->sk_image_snapshot<sk_sp<SkImage>>();
+    sk_sp<SkImage> image;
+    RefPtr<Gfx::Bitmap> read_back_bitmap;
+    if (!m_skia_backend_context && canvas_surface->skia_backend_context()) {
+        auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, canvas_surface->size());
+        if (bitmap.is_error())
+            return;
+        read_back_bitmap = bitmap.release_value();
+        canvas_surface->read_into_bitmap(*read_back_bitmap);
+        image = Gfx::sk_image_from_bitmap(*read_back_bitmap, {});
+    } else {
+        image = canvas_surface->sk_image_snapshot<sk_sp<SkImage>>();
+    }
     if (!image)
         return;
 

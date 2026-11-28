@@ -1120,6 +1120,7 @@ bool CompositorState::stage_rasterization(CompositorStateWebContentClient& clien
         ids_of_image_frames.unchecked_append(image_frame_id.value());
     if (!rasterization->image_frames.take_registered(ids_of_image_frames, client.registered_image_frames()))
         return false;
+    rasterization->canvas_surfaces = OwnedCanvasSurfaces { m_canvas_surface_registry, client.canvas_surface_owner_id() };
     rasterization->target_bitmap = move(target_bitmap);
     staged.set(token, move(rasterization));
     return true;
@@ -1197,7 +1198,13 @@ bool CompositorState::begin_staged_rasterization(WebContentClientId client, u64 
     __builtin_memset(target.scanline_u8(0), 0, target.size_in_bytes());
     rasterization->target_surface = Gfx::PaintingSurface::wrap_bitmap(target);
     rasterization->player = make<DisplayListPlayerSkia>(RefPtr<Gfx::SkiaBackendContext> {});
-    painter = rasterization->player->begin_painting(*rasterization->target_surface, rasterization->fonts, &rasterization->image_frames, rasterization->raster_cache, nullptr, nullptr);
+    DisplayListPlayerSkia::CurrentVideoFrame current_video_frame;
+    if (auto web_content_client = m_web_content_clients.get(client); web_content_client.has_value()) {
+        current_video_frame = [this, &web_content_client = *web_content_client.value()](Media::VideoSinkHandle handle) {
+            return this->current_video_frame(web_content_client, handle);
+        };
+    }
+    painter = rasterization->player->begin_painting(*rasterization->target_surface, rasterization->fonts, &rasterization->image_frames, rasterization->raster_cache, &*rasterization->canvas_surfaces, move(current_video_frame));
     return true;
 }
 
