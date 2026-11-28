@@ -1,0 +1,11 @@
+Ladybird’s network event actors now outlive the frame target that was
+current when their requests started. In Firefox, they never belonged
+to a frame target: The NetworkEventWatcher that the WatcherActor runs
+in the parent process creates them, so replacing a frame target leaves
+the page’s requests alone.
+
+Run headless with a server that answers a POST two seconds after the
+page loads, the POST now gets its 501 status and its body, and before,
+it got neither, and every request of the page answered unknownActor. The
+page’s own document request still gets no completion update, since Fetch
+never reports that request as finished; that’s outside DevTools.
