@@ -441,6 +441,11 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
         TRY(profile.try_append("(deny default (with no-report))\n"sv));
 
     TRY(profile.try_append(R"~~~(
+; Helpers need neither analytics nor distributed notifications, though their system frameworks try to reach both.
+(deny mach-lookup (with no-report)
+    (global-name "com.apple.analyticsd")
+    (global-name-prefix "com.apple.distributed_notifications"))
+
 (deny process-info*)
 (allow process-info-pidinfo process-info-rusage process-info-setcontrol
     (target self))
