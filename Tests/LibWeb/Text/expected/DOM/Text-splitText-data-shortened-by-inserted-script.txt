@@ -1,0 +1,2 @@
+splitText() threw IndexSizeError
+ran: true, data: "", sibling: "an = true; window.splitTarget.data = '';"

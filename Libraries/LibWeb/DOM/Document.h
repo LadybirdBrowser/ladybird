@@ -409,7 +409,7 @@ public:
         return identity;
     }
 
-    bool preserve_selection_offsets_during_identical_character_data_replacement() const { return m_preserve_selection_offsets_during_identical_character_data_replacement; }
+    bool preserve_selection_offsets_during_identical_character_data_replacement() const { return m_document_core.flags & RustFFI::DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT; }
 
     WebIDL::ExceptionOr<void> populate_with_html_head_and_body();
 
@@ -2628,7 +2628,6 @@ private:
     bool m_had_user_edits { false };
     bool m_inside_clipboard_exec_command { false };
     bool m_running_editing_command_action { false };
-    bool m_preserve_selection_offsets_during_identical_character_data_replacement { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     Utf16FlyString m_default_single_line_container_name { HTML::TagNames::div };

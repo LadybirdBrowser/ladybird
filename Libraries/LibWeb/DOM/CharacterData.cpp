@@ -6,7 +6,6 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -103,95 +102,83 @@ void CharacterData::set_data(Utf16View const& data)
     // NOTE: Since the offset is 0, it can never be above data's length, so this can never throw.
     // NOTE: Setting the data to the same value as the current data still causes a mutation observer callback.
     // FIXME: Figure out a way to make this a no-op again if the passed in data is the same as the current data.
-    MUST(replace_data(0, this->length_in_utf16_code_units(), data));
+    MUST(replace_data(0, this->length_in_utf16_code_units(), data, nullptr));
+}
+
+void CharacterData::set_data(Utf16String const& data)
+{
+    // NB: As above, with the new value's string, which the node's data then shares.
+    MUST(replace_data(0, this->length_in_utf16_code_units(), data.utf16_view(), &data));
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-substring
 WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, size_t count) const
 {
-    // 1. Let length be node’s length.
-    auto length = m_character_data_core.data.length_in_code_units();
-
-    // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
-    if (offset > length)
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/character_data.rs.
+    auto substring = RustFFI::rust_dom_substring_data(this, offset, count);
+    if (substring == 0)
         return WebIDL::IndexSizeError::create("Substring offset out of range."_utf16);
-
-    // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
-    //    to the end of node’s data, and then return.
-    if (offset + count > length)
-        return Utf16String::from_utf16(m_character_data_core.data.substring_view(offset));
-
-    // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return Utf16String::from_utf16(m_character_data_core.data.substring_view(offset, count));
+    return Utf16String::adopt_raw(substring);
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
 WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t count, Utf16View const& data)
 {
-    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
-    if (auto history = document().editing_history_if_exists())
-        history->notify_dom_mutation();
+    return replace_data(offset, count, data, nullptr);
+}
 
-    // 1. Let length be node’s length.
-    auto length = m_character_data_core.data.length_in_code_units();
-
-    // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
-    if (offset > length)
+WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t count, Utf16View const& data, Utf16String const* data_string)
+{
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/character_data.rs, and calls back into
+    //     RustCharacterDataHooks::character_data_replaced() for what it does beyond the data and the live ranges.
+    bool replaced = data.has_latin1_storage()
+        ? RustFFI::rust_dom_replace_data(this, offset, count, data.latin1_span().data(), nullptr, data.length_in_code_units(), data_string ? data_string->raw_identity() : 0)
+        : RustFFI::rust_dom_replace_data(this, offset, count, nullptr, reinterpret_cast<u16 const*>(data.utf16_span().data()), data.length_in_code_units(), data_string ? data_string->raw_identity() : 0);
+    if (!replaced)
         return WebIDL::IndexSizeError::create("Replacement offset out of range."_utf16);
+    return {};
+}
 
-    // 3. If offset plus count is greater than length, then set count to length minus offset.
-    if (offset + count > length)
-        count = length - offset;
+void RustCharacterDataHooks::character_data_replaced(Node* node, size_t old_raw_data, size_t offset, size_t count, size_t data_length, u8 steps)
+{
+    auto& character_data = static_cast<CharacterData&>(*node);
+    auto old_data = Utf16String::from_raw(old_raw_data);
 
-    // 5. Insert data into node’s data after offset code units.
-    // 6. Let delete offset be offset + data’s length.
-    // 7. Starting from delete offset code units, remove count code units from node’s data.
-    auto before_data = m_character_data_core.data.substring_view(0, offset);
-    auto after_data = m_character_data_core.data.substring_view(offset + count);
-
-    Utf16StringBuilder full_data(before_data.length_in_code_units() + data.length_in_code_units() + after_data.length_in_code_units());
-    full_data.append(before_data);
-    full_data.append(data);
-    full_data.append(after_data);
-
-    auto old_data = m_character_data_core.data;
-    m_character_data_core.data = full_data.to_string();
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (steps & RustFFI::CHARACTER_DATA_NOTIFY_EDITING_HISTORY)
+        character_data.document().editing_history_if_exists()->notify_dom_mutation();
 
     // 4. Queue a mutation record of "characterData" for node with null, null, node’s data, « », « », null, and null.
-    // NOTE: We do this later so that the mutation observer may notify UI clients of this node's new value.
-    queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
-
-    GC::Ptr<Range> selection_range_to_preserve;
-    if (m_character_data_core.data == old_data && document().preserve_selection_offsets_during_identical_character_data_replacement()) {
-        if (auto selection = document().get_selection())
-            selection_range_to_preserve = selection->range();
-    }
-
-    // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to
-    //    offset plus count, set its start offset to offset.
-    // 9. For each live range whose end node is node and end offset is greater than offset but less than or equal to
-    //    offset plus count, set its end offset to offset.
-    // 10. For each live range whose start node is node and start offset is greater than offset plus count, increase its
-    //     start offset by data’s length and decrease it by count.
-    // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end
-    //     offset by data’s length and decrease it by count.
-    // NB: libweb_rust runs these steps, see Rust/src/dom/range.rs.
-    RustFFI::rust_dom_live_ranges_replace_data(this, offset, count, data.length_in_code_units(), selection_range_to_preserve.ptr());
+    if (steps & RustFFI::CHARACTER_DATA_QUEUE_MUTATION_RECORD)
+        character_data.queue_mutation_record(MutationType::characterData, {}, {}, old_data, {}, {}, nullptr, nullptr);
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
-    if (auto* parent = this->parent()) {
-        ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Mutation, *this };
-        parent->children_changed(metadata);
+    if (steps & RustFFI::CHARACTER_DATA_RUN_CHILDREN_CHANGED_STEPS) {
+        if (auto* parent = character_data.parent()) {
+            Node::ChildrenChangedMetadata metadata { Node::ChildrenChangedMetadata::Type::Mutation, character_data };
+            parent->children_changed(metadata);
+        }
     }
 
-    // OPTIMIZATION: If the characters are the same, we can skip the remainder of this function.
-    if (m_character_data_core.data == old_data)
-        return {};
+    if (steps & RustFFI::CHARACTER_DATA_DATA_CHANGED)
+        character_data.did_replace_data(old_data, offset, count, data_length);
+}
 
+AbstractRange* RustCharacterDataHooks::selection_range(Node* document)
+{
+    if (auto selection = static_cast<Document&>(*document).get_selection())
+        return selection->range().ptr();
+    return nullptr;
+}
+
+// What replacing the data of the node does to its spelling markers, its style and its layout, where the new data is not
+// the old data.
+void CharacterData::did_replace_data(Utf16String const& old_data, size_t offset, size_t count, size_t data_length)
+{
     // A spelling marker covers the text it was flagged on: Data replaced around it moves it, and data replaced inside
     // it ends it.
     if (has_spelling_markers())
-        document().spelling_markers().did_replace_data(as<Text>(*this), offset, count, data.length_in_code_units());
+        document().spelling_markers().did_replace_data(as<Text>(*this), offset, count, data_length);
 
     if (auto* controller = document().writing_suggestion_controller_if_exists(); controller && is<Text>(*this))
         controller->did_change_text(as<Text>(*this));
@@ -239,8 +226,6 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         if (auto parent = parent_element())
             CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
     }
-
-    return {};
 }
 
 // https://dom.spec.whatwg.org/#dom-characterdata-appenddata

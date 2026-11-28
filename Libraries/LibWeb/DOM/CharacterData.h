@@ -16,6 +16,12 @@
 
 namespace Web::DOM {
 
+// The callbacks libweb_rust makes as it replaces the data of a CharacterData node (see Rust/src/dom/character_data.rs).
+struct RustCharacterDataHooks {
+    static void character_data_replaced(Node*, size_t old_data, size_t offset, size_t count, size_t data_length, u8 steps);
+    static AbstractRange* selection_range(Node* document);
+};
+
 // https://dom.spec.whatwg.org/#characterdata
 class WEB_API CharacterData
     : public Node
@@ -29,6 +35,7 @@ public:
 
     Utf16String const& data() const { return m_character_data_core.data; }
     void set_data(Utf16View const&);
+    void set_data(Utf16String const&);
 
     unsigned length_in_utf16_code_units() const { return m_character_data_core.data.length_in_code_units(); }
 
@@ -61,7 +68,12 @@ protected:
     RareData const* character_data_rare_data() const;
 
 private:
+    friend struct RustCharacterDataHooks;
+
     virtual size_t external_memory_size() const override;
+
+    WebIDL::ExceptionOr<void> replace_data(size_t offset, size_t count, Utf16View const&, Utf16String const* data_string);
+    void did_replace_data(Utf16String const& old_data, size_t offset, size_t count, size_t data_length);
 
     RustFFI::CharacterDataCore m_character_data_core;
 };

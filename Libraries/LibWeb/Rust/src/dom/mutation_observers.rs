@@ -20,6 +20,7 @@
 
 use super::node_core::DOCUMENT_HAS_MUTATION_LISTENER;
 use super::node_core::DOCUMENT_OBSERVES_ATTRIBUTES;
+use super::node_core::DOCUMENT_OBSERVES_CHARACTER_DATA;
 use super::node_core::DOCUMENT_OBSERVES_CHILD_LIST;
 use super::node_ref::NodeRef;
 
@@ -55,6 +56,16 @@ pub(crate) fn attribute_mutation_record_is_heard(target: NodeRef) -> bool {
         return true;
     }
     flags & DOCUMENT_OBSERVES_ATTRIBUTES != 0 && has_observed_inclusive_ancestor(target)
+}
+
+/// Whether queuing a "characterData" record for `target` would reach anyone, as for an "attributes" record.
+#[inline(always)]
+pub(crate) fn character_data_mutation_record_is_heard(target: NodeRef) -> bool {
+    let flags = target.document_core().flags();
+    if flags & DOCUMENT_HAS_MUTATION_LISTENER != 0 {
+        return true;
+    }
+    flags & DOCUMENT_OBSERVES_CHARACTER_DATA != 0 && has_observed_inclusive_ancestor(target)
 }
 
 #[cfg(test)]

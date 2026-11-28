@@ -210,6 +210,9 @@ pub const DOCUMENT_IS_HTML_DOCUMENT: u8 = 1 << 5;
 /// Whether the document has an editing history, which hears of every mutation in it. C++ sets it as it makes the
 /// history, which lives as long as the document.
 pub const DOCUMENT_HAS_EDITING_HISTORY: u8 = 1 << 6;
+/// Whether replacing the data of a node in the document with the same data keeps the offsets of the document's
+/// selection, which C++ sets while it dispatches the input event of an editing command.
+pub const DOCUMENT_PRESERVES_SELECTION_OFFSETS_DURING_IDENTICAL_REPLACEMENT: u8 = 1 << 7;
 
 /// The state of a document that the DOM algorithms in Rust read, which C++ embeds in DOM::Document as its only storage
 /// of it.
