@@ -760,6 +760,16 @@ impl FontValues {
         }
     }
 
+    /// Whether the cascades of both fonts resolve every code point to the same fonts. This compares what the frozen
+    /// lists select, and not the identities of the cascades.
+    pub fn font_cascade_resolves_like(&self, other: &Self) -> bool {
+        match (self.frozen_font_list.list(), other.frozen_font_list.list()) {
+            (Some(list), Some(other_list)) => list.resolves_like(other_list),
+            // NB: Only a cascade that nobody published has no frozen list, and it resolves like itself alone.
+            _ => self.font_cascade_list == other.font_cascade_list,
+        }
+    }
+
     /// https://drafts.csswg.org/css-fonts/#first-available-font
     /// The frozen cascade answers where the font computer published one: a load filling one of its
     /// faces in moves the answer without a new style. A cascade nobody published (a unit test's)

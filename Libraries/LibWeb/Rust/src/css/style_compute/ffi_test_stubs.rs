@@ -170,10 +170,6 @@ extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void
     FONT_CASCADE_LIST_UNREFS.set(FONT_CASCADE_LIST_UNREFS.get() + 1);
 }
 #[unsafe(no_mangle)]
-extern "C" fn ladybird_gfx_font_cascade_list_equals(list: *const c_void, other: *const c_void) -> bool {
-    list == other
-}
-#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_cascade_list_frozen(_raw: *const std::ffi::c_void) -> *const std::ffi::c_void {
     std::ptr::null()
 }
