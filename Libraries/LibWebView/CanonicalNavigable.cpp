@@ -1203,6 +1203,7 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
     };
     auto document = create_and_initialize_a_document(response_document);
     document->set_host(populated_document->document->host());
+    top_level_traversable().replace_populated_document_of_history_jobs(*this, *populated_document->document, document);
     populated_document->document = move(document);
 }
 
