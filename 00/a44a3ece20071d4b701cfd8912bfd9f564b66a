@@ -1,0 +1,7 @@
+Ladybird now puts the caret on an empty line in front of its line
+break, past a comment ahead of it. Chrome 158, Firefox 151, and WebKit
+26.5 all do the same, run on “<p><!-- note --><br></p>”: Down and Right
+each stop once on that line, in front of the line break. Blink gets
+there through MostForwardCaretPosition() in visible_units.cc, which
+passes over nodes that can’t hold a caret, comments among them, and
+WebKit through Position::downstream(), which does the same.
