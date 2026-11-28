@@ -193,6 +193,7 @@ if (NOT WIN32)
         TestUserActivation.cpp
         TestViewSource.cpp
         TestWebCompatReport.cpp
+        TestWebContentRelaunchFailure.cpp
     )
     list(APPEND TEST_SOURCES ${HEADLESS_TEST_SOURCES})
 endif()

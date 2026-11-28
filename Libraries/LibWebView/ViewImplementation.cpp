@@ -4542,6 +4542,11 @@ void ViewImplementation::did_complete_webdriver_content_command(WebContentPage& 
 
 void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
 {
+    finish_closing_browsing_context();
+}
+
+void ViewImplementation::finish_closing_browsing_context()
+{
     discard_webdriver_input_commands();
     reject_pending_selection_requests();
 
@@ -5079,7 +5084,27 @@ void ViewImplementation::handle_web_content_process_crash(WebContentCrashReason 
         m_repeated_crash_timer->restart();
     }
 
-    respawn_web_content_process_after_crash();
+    // NB: A browser that's quitting starts no process for the tab. On a system shutdown, every process gets SIGTERM
+    //     at once, so the tab's process can be gone before the browser is.
+    if (Core::EventLoop::current().was_exit_requested())
+        return;
+
+    // A tab whose process can't be replaced (when the system is out of memory, e.g.) is closed, rather than the whole
+    // browser going down with it. It's closed on a later turn of the event loop, since closing it can destroy this view.
+    if (!respawn_web_content_process_after_crash()) {
+        if (auto pending_screenshot = move(m_pending_screenshot))
+            pending_screenshot->reject(Error::from_string_literal("The tab closed before taking the screenshot"));
+        if (auto pending_info_request = move(m_pending_info_request))
+            pending_info_request->reject(Error::from_string_literal("The tab closed before sending its page info"));
+        answer_pending_console_input_completions();
+        m_pending_webdriver_crash_commands = move(pending_crash_commands);
+        finish_closing_browsing_context();
+        Core::deferred_invoke([weak_view = make_weak_ptr()] {
+            if (weak_view && weak_view->on_close)
+                weak_view->on_close();
+        });
+        return;
+    }
 
     // A repeatedly crashing headless page is left dormant so the next WebDriver test or explicit navigation can
     // proceed without feeding an automatic restore loop. So is a page that was ended for its memory use, because
@@ -5102,7 +5127,7 @@ void ViewImplementation::handle_web_content_process_crash(WebContentCrashReason 
         complete_webdriver_input_command(command.key, JsonValue {});
 }
 
-void ViewImplementation::respawn_web_content_process_after_crash()
+bool ViewImplementation::respawn_web_content_process_after_crash()
 {
     // Nothing answers the crashed page's requests.
     fail_pending_debugger_requests();
@@ -5116,10 +5141,14 @@ void ViewImplementation::respawn_web_content_process_after_crash()
 
     // The tab is displayed by a page of a new process, standing in for the document the crashed process destroyed
     // until a document activates in the tab: the traversal recovering the tab populates one in that page.
-    // FIXME: Fail the tab, rather than crashing the whole application, if no process can be launched.
-    auto page = MUST(traversable().obtain_page_to_host_traversable({}));
-    traversable().set_page_standing_in_for_lost_document({}, page);
+    auto page = traversable().obtain_page_to_host_traversable({});
+    if (page.is_error()) {
+        warnln("Unable to launch a WebContent process for the crashed tab: {}", page.error());
+        return false;
+    }
+    traversable().set_page_standing_in_for_lost_document({}, page.release_value());
     display_page_changed({});
+    return true;
 }
 
 Optional<ViewImplementation::NavigationToRetry> ViewImplementation::navigation_to_retry_for_ongoing_navigation() const

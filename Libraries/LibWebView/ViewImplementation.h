@@ -963,7 +963,7 @@ protected:
     struct CrashState;
     void handle_web_content_process_crash(WebContentCrashReason);
     void did_save_crash_report(ByteString report_name);
-    void respawn_web_content_process_after_crash();
+    [[nodiscard]] bool respawn_web_content_process_after_crash();
     void prepare_for_navigation_after_crash(Optional<NavigationToRetry> navigation_to_retry = {});
     void set_crash_state(Optional<CrashState>);
 
@@ -984,6 +984,7 @@ protected:
     void request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete);
     NonnullRefPtr<Core::Promise<bool>> select_word_for_dictionary_lookup(Gfx::IntPoint widget_position);
     void reject_pending_selection_requests();
+    void finish_closing_browsing_context();
 
     String m_window_handle;
     NonnullOwnPtr<PageBackingStores> m_backing_stores { make<PageBackingStores>() };

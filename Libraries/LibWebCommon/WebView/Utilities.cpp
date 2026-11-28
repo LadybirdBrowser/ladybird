@@ -28,6 +28,7 @@ static constexpr auto libexec_path = "libexec"sv;
 
 ByteString& s_ladybird_resource_root = *new ByteString;
 static auto& s_ladybird_binary_path = *new Optional<ByteString>;
+static auto& s_helper_process_directory_for_testing = *new Optional<ByteString>;
 
 Optional<ByteString>& s_mach_server_name = *new Optional<ByteString>;
 
@@ -85,8 +86,16 @@ void platform_init(Optional<ByteString> ladybird_binary_path)
     Core::ResourceImplementation::install(make<Core::ResourceImplementationFile>(MUST(String::from_byte_string(s_ladybird_resource_root))));
 }
 
+void set_helper_process_directory_for_testing(Optional<ByteString> directory)
+{
+    s_helper_process_directory_for_testing = move(directory);
+}
+
 ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name)
 {
+    if (s_helper_process_directory_for_testing.has_value())
+        return Vector<ByteString> { LexicalPath::join(*s_helper_process_directory_for_testing, process_name).string() };
+
     auto application_path = TRY(application_directory());
     Vector<ByteString> paths;
 
