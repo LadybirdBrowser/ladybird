@@ -748,3 +748,35 @@ private:
 };
 
 }
+
+namespace Web::DOM {
+
+// Whether DOM/NodeClasses.json lists T, and every class T derives from, under the class it derives from.
+template<typename T>
+constexpr bool node_class_is_listed_under_its_base()
+{
+    if constexpr (!HasNodeClassId<T>)
+        return false;
+    else if constexpr (IsSame<T, Node>)
+        return NodeClassTraits<T>::parent == NodeClassId::NotANode;
+    else
+        return NodeClassTraits<T>::parent == NodeClassTraits<typename T::Base>::id && node_class_is_listed_under_its_base<typename T::Base>();
+}
+
+}
+
+namespace GC {
+
+// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h).
+template<typename T>
+requires(IsBaseOf<Web::DOM::Node, T>)
+struct CellConstructionHook<T> {
+    static void did_construct(T& node)
+    {
+        static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
+        static_assert(Web::DOM::node_class_is_listed_under_its_base<T>(), "DOM/NodeClasses.json must list each class of nodes under the class it derives from");
+        static_cast<Web::Bindings::Wrappable&>(node).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
+    }
+};
+
+}

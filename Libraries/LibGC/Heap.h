@@ -278,6 +278,8 @@ private:
         new (memory) T(forward<Args>(args)...);
         auto* cell = static_cast<T*>(memory);
         cell->set_cell_kind(T::cell_kind_for_class);
+        if constexpr (requires { CellConstructionHook<T>::did_construct(*cell); })
+            CellConstructionHook<T>::did_construct(*cell);
         mark_if_allocated_during_incremental_sweep(*cell);
         undefer_gc();
         return *cell;

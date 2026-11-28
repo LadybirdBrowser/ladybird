@@ -1025,6 +1025,7 @@ sync_rust_crate_ffi_headers(
         Layout/LayoutRustFFI.h
         Compositor/RenderClockRustFFI.h
         Animations/RustFFI.h
+        DOM/NodeClassesGenerated.h
 )
 add_dependencies(LibWeb libweb_rust-ffi-headers)
 target_link_libraries(libweb_bindings_rust INTERFACE LibGfx LibGC LibUnicode)

@@ -70,13 +70,23 @@ public:                                            \
         return #class_##sv;                        \
     }                                              \
     friend class GC::Heap;                         \
-    friend struct GC::CellTypeThunks;
+    friend struct GC::CellTypeThunks;              \
+    template<typename>                             \
+    friend struct GC::CellConstructionHook;
 
 #define GC_CELL_WITH_CUSTOM_CLASS_NAME(class_, base_class) \
 public:                                                    \
     using Base = base_class;                               \
     friend class GC::Heap;                                 \
-    friend struct GC::CellTypeThunks;
+    friend struct GC::CellTypeThunks;                      \
+    template<typename>                                     \
+    friend struct GC::CellConstructionHook;
+
+// Lets the embedder finish constructing a cell with what only the class it is constructed as knows. A specialization
+// for a class T can have a static did_construct(T&), which the heap calls right after T's constructor. Every cell class
+// befriends it, so it can name the members its class keeps private.
+template<typename T>
+struct CellConstructionHook { };
 
 // A coarse class tag stored in every cell header. It lets a holder of a cell pointer confirm what
 // the cell really is with a single byte compare, without reading a vtable. Only the classes a
