@@ -125,6 +125,9 @@ public:
     void stop_hosting_in_page(CanonicalNavigable&, NonnullRefPtr<WebContentPage>);
     void release_page_if_unused(NonnullRefPtr<WebContentPage>);
     void end_history_jobs(CanonicalNavigable const&, CanonicalDocument const* populated_document = nullptr);
+    // A job that populated a document, which the hosting process then created with an origin of its own, goes on with
+    // the document the UI process created in its place.
+    void replace_populated_document_of_history_jobs(CanonicalNavigable const&, CanonicalDocument const& populated_document, NonnullRefPtr<CanonicalDocument> replacement);
 
     Optional<ViewImplementation&> view() const;
     void set_view(Badge<ViewImplementation>, ViewImplementation&);
