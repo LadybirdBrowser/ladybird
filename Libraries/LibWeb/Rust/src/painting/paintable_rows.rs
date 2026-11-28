@@ -1058,9 +1058,10 @@ impl LayoutNodeArena {
         }
     }
 
-    /// The nodes of the box that an animation of the kind drives: the effect nodes of an opacity,
-    /// background color or filter animation, or the spatial nodes of a transform animation, as far
-    /// as the tree holds nodes of the right kind for them.
+    /// The nodes of the box that an animation of the kind drives, as far as the tree holds nodes of the right kind
+    /// for them: the effect nodes of a background color animation, the spatial nodes of a transform animation, or
+    /// the innermost effects node of an opacity or filter animation, which holds the opacity and filter of the box.
+    /// An effects node above that one only blends the box with its backdrop above the masks of the box.
     pub(crate) fn paintable_visual_animation_target_indices(
         &self,
         id: NodeSlotId,
@@ -1072,19 +1073,16 @@ impl LayoutNodeArena {
             return Vec::new();
         };
         self.with_paintable_visual_context_node_handles(id, |handles| {
-            let valid_targets = |indices: &mut dyn Iterator<Item = u32>| -> Vec<u32> {
-                indices
-                    .filter(|&index| tree.visual_animation_target_is_valid(target_kind, index))
-                    .collect()
-            };
+            let is_valid_target = |index: &u32| tree.visual_animation_target_is_valid(target_kind, *index);
+            let effects = handles.effects.iter().map(|index| index.0);
             match target_kind {
-                FfiVisualAnimationTargetKind::Opacity
-                | FfiVisualAnimationTargetKind::BackgroundColor
-                | FfiVisualAnimationTargetKind::Filter => {
-                    valid_targets(&mut handles.effects.iter().map(|index| index.0))
+                FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => {
+                    effects.rev().find(is_valid_target).into_iter().collect()
                 }
+                FfiVisualAnimationTargetKind::BackgroundColor => effects.filter(is_valid_target).collect(),
                 FfiVisualAnimationTargetKind::Transform => {
-                    valid_targets(&mut handles.spatial.iter().map(|index| index.0))
+                    let spatial = handles.spatial.iter().map(|index| index.0);
+                    spatial.filter(is_valid_target).collect()
                 }
             }
         })
