@@ -5,6 +5,8 @@
  */
 
 #include <LibSandbox/Sandbox.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(AK_OS_LINUX)
 #    include <AK/LexicalPath.h>
@@ -16,8 +18,6 @@
 #    include <fcntl.h>
 #    include <link.h>
 #    include <linux/landlock.h>
-#    include <stdlib.h>
-#    include <string.h>
 #    include <sys/prctl.h>
 #    include <sys/stat.h>
 #    include <sys/syscall.h>
@@ -32,7 +32,6 @@
 #    include <errno.h>
 #    include <limits.h>
 #    include <sandbox.h>
-#    include <stdlib.h>
 #    include <sys/stat.h>
 #    include <unistd.h>
 
@@ -58,6 +57,12 @@ ErrorOr<void> install_no_new_privileges()
         return Error::from_syscall("prctl(PR_SET_NO_NEW_PRIVS)"sv, errno);
 #endif
     return {};
+}
+
+bool sandbox_debugging_is_enabled()
+{
+    auto const* value = getenv("LADYBIRD_SANDBOX_DEBUG");
+    return value && *value && StringView { value, strlen(value) } != "0"sv;
 }
 
 ErrorOr<void> configure_runtime()
@@ -425,10 +430,17 @@ ErrorOr<void> apply_macos_sandbox(SeatbeltProfile const& options)
 
 ; Seatbelt otherwise adds syscalls that it thinks go with the allowed operations, such as fork() with process-fork.
 (disable-syscall-inference)
+)~~~"sv));
 
-(deny default
-    (with message "Ladybird macOS sandbox default deny"))
+    // sandboxd symbolicates the backtrace of every refusal that it reports through coresymbolicationd, which caches the
+    // symbols of each binary that it sees. Every build of Ladybird brings new binaries, so on a machine that builds it
+    // often, such as a CI runner, that cache grows by gigabytes a day.
+    if (sandbox_debugging_is_enabled())
+        TRY(profile.try_append("(deny default (with message \"Ladybird macOS sandbox default deny\"))\n"sv));
+    else
+        TRY(profile.try_append("(deny default (with no-report))\n"sv));
 
+    TRY(profile.try_append(R"~~~(
 (deny process-info*)
 (allow process-info-pidinfo process-info-rusage process-info-setcontrol
     (target self))
@@ -804,12 +816,6 @@ static ErrorOr<size_t> count_threads()
 }
 
 static bool s_signals_stay_within_the_process_tree = false;
-
-bool sandbox_debugging_is_enabled()
-{
-    auto const* value = getenv("LADYBIRD_SANDBOX_DEBUG");
-    return value && *value && StringView { value, strlen(value) } != "0"sv;
-}
 
 bool signals_stay_within_the_process_tree()
 {

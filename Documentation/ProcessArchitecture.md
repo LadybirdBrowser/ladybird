@@ -114,6 +114,8 @@ On Linux, sandboxes are built from seccomp and Landlock. On kernels without Land
 
 A system call that a Linux sandbox kills the process for is always logged. Most refusals only make the call fail, though, and the process may never say so. To see those too, start Ladybird with `LADYBIRD_SANDBOX_DEBUG=1`. Every helper then logs each system call that its seccomp policy refuses without killing it, and confines its files with the broker even where Landlock exists, so that it can log each path that it refuses. The broker decides by path where Landlock decides by file, and it does not scope signals or abstract sockets, so a refusal that only Landlock causes does not happen in this mode.
 
+On macOS, Seatbelt refuses quietly by default. With `LADYBIRD_SANDBOX_DEBUG=1`, each refusal is logged instead, and `sandboxd` writes a violation report with a backtrace of the helper to the system log, which `log stream --predicate 'process == "sandboxd"'` shows.
+
 ## Class overview
 
 ```
