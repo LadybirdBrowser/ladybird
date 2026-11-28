@@ -34,4 +34,5 @@ PASS: insert a subtree that increments a counter a nested element reset before a
 PASS: insert an opening quote between inline-blocks
 PASS: insert an inline-block under a first-letter
 PASS: insert an inline-block into a list in a first-letter block
-36 cases; 36 matched; 0 mismatched
+PASS: insert a slot that shows an incrementing child before a counter user in a shadow tree
+37 cases; 37 matched; 0 mismatched
