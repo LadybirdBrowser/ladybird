@@ -19,8 +19,8 @@
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 use core::ptr::NonNull;
-use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Barrier;
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering, fence};
+use std::sync::{Barrier, Condvar, Mutex, MutexGuard, PoisonError};
 
 use crossbeam_deque::{Injector, Steal, Stealer, Worker};
 
@@ -34,6 +34,12 @@ pub(crate) const COMPRESSED_POINTER_SHIFT: u32 = 3;
 /// How many cells the thread that collects marks alone before the helpers join in, which takes about as long as waking
 /// them. Collections that mark fewer are done before then.
 const CELLS_TO_MARK_BEFORE_HELPERS: usize = 4096;
+
+/// How many times a marker that ran out of work looks for more before it parks, see Marker::wait_for_work().
+const LOOKS_FOR_WORK_BEFORE_PARKING: u32 = 128;
+
+/// How many cells a marker visits between looks at whether a marker that parked could take some of its work.
+const VISITS_BETWEEN_WAKE_CHECKS: u32 = 64;
 
 /// Where the marker finds what it needs in LibGC's cells, type infos and NaN-boxed values.
 #[repr(C)]
@@ -93,10 +99,17 @@ struct Job<'a> {
     stealers: Vec<Stealer<u32>>,
     /// The cells that only the thread that collects may visit the edges of.
     owner_queue: Injector<u32>,
-    /// How many markers mark in this round; 1 until the helpers join in.
-    participants: AtomicUsize,
     /// The markers that found no work, see Marker::run_round().
     idle_markers: AtomicUsize,
+    /// What the markers that ran out of work park on, see Marker::wait_for_work(), and the condition variables that
+    /// wake the helpers and the owner. Markers that have work wake them without taking turns: a marker that parks holds
+    /// the lock from its last look for work until it waits, so that it misses no wake-up.
+    parking: Mutex<()>,
+    helpers_wakeup: Condvar,
+    owner_wakeup: Condvar,
+    /// How many helpers parked, and whether the owner did.
+    parked_helpers: AtomicUsize,
+    owner_parked: AtomicBool,
     round_done: Barrier,
     /// Whether the markers go for another round, which the owner decides once a round is done.
     another_round: AtomicBool,
@@ -485,32 +498,113 @@ impl Marker {
     fn run_round(&self) {
         let job = self.job();
         loop {
+            let mut visits = 0u32;
             while let Some(cell) = self.find_work() {
                 self.visit_edges_of(cell);
+                visits += 1;
+                if visits == VISITS_BETWEEN_WAKE_CHECKS {
+                    visits = 0;
+                    self.wake_parked_markers();
+                }
             }
+            // NB: The cells this marker queued last for the owner are only in the owner queue.
+            self.wake_parked_markers();
 
             // NB: A marker only queues cells while it is not idle, and only the owner takes from the owner queue. So
             //     once every marker is idle and the owner queue is empty, no cell is left anywhere.
             job.idle_markers.fetch_add(1, Ordering::SeqCst);
-            let mut waits = 0u32;
-            loop {
-                if self.has_visible_work() {
-                    job.idle_markers.fetch_sub(1, Ordering::SeqCst);
-                    break;
-                }
-                if job.idle_markers.load(Ordering::SeqCst) == job.participants.load(Ordering::Relaxed)
-                    && job.owner_queue.is_empty()
-                {
-                    return;
-                }
-                // NB: A marker that waits long yields, rather than take the time of a thread it shares a core with.
-                waits += 1;
-                if waits < 1024 {
-                    core::hint::spin_loop();
-                } else {
-                    std::thread::yield_now();
-                }
+            if !self.wait_for_work() {
+                return;
             }
+            job.idle_markers.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+
+    /// Whether every marker ran out of work, and no cell is left anywhere, see run_round().
+    fn round_is_over(&self) -> bool {
+        let job = self.job();
+        // NB: Only markers that mark in parallel run rounds, and then every marker of the job does.
+        job.idle_markers.load(Ordering::SeqCst) == job.markers.len() && job.owner_queue.is_empty()
+    }
+
+    /// Waits, as an idle marker, until another marker has work this one can take, and returns true, or until the round
+    /// is over, and returns false. A marker looks for work a few times, and then parks until a marker with work to
+    /// spare or cells for the owner wakes it, see wake_parked_markers(), or the round is over.
+    fn wait_for_work(&self) -> bool {
+        let job = self.job();
+        for _ in 0..LOOKS_FOR_WORK_BEFORE_PARKING {
+            if self.has_visible_work() {
+                return true;
+            }
+            if self.round_is_over() {
+                self.end_round();
+                return false;
+            }
+            core::hint::spin_loop();
+        }
+
+        let mut guard = lock(&job.parking);
+        if self.is_owner {
+            job.owner_parked.store(true, Ordering::SeqCst);
+        } else {
+            job.parked_helpers.fetch_add(1, Ordering::SeqCst);
+        }
+        // NB: A marker with work stores its cells before it looks at who parked, see wake_parked_markers(), and this one
+        //     says it parked before it looks for cells, so that one of them sees what the other did.
+        fence(Ordering::SeqCst);
+        let found_work = loop {
+            if self.has_visible_work() {
+                break true;
+            }
+            if self.round_is_over() {
+                break false;
+            }
+            let wakeup = if self.is_owner {
+                &job.owner_wakeup
+            } else {
+                &job.helpers_wakeup
+            };
+            guard = wakeup.wait(guard).unwrap_or_else(PoisonError::into_inner);
+            fence(Ordering::SeqCst);
+        };
+        if self.is_owner {
+            job.owner_parked.store(false, Ordering::SeqCst);
+        } else {
+            job.parked_helpers.fetch_sub(1, Ordering::SeqCst);
+        }
+        drop(guard);
+        if !found_work {
+            self.end_round();
+        }
+        found_work
+    }
+
+    /// Wakes every marker that parked, once the round is over.
+    fn end_round(&self) {
+        let job = self.job();
+        let _guard = lock(&job.parking);
+        job.helpers_wakeup.notify_all();
+        job.owner_wakeup.notify_all();
+    }
+
+    /// Wakes a marker that parked, where this one has work in its queue to spare, which any marker may steal, and the
+    /// owner, where it parked while the owner queue has cells.
+    fn wake_parked_markers(&self) {
+        let job = self.job();
+        fence(Ordering::SeqCst);
+        let owner_parked = job.owner_parked.load(Ordering::Relaxed);
+        let has_work_to_spare = self.queue.len() > 1;
+        let wake_helper = has_work_to_spare && job.parked_helpers.load(Ordering::Relaxed) != 0;
+        let wake_owner = owner_parked && ((has_work_to_spare && !wake_helper) || !job.owner_queue.is_empty());
+        if !wake_helper && !wake_owner {
+            return;
+        }
+        let _guard = lock(&job.parking);
+        if wake_helper {
+            job.helpers_wakeup.notify_one();
+        }
+        if wake_owner {
+            job.owner_wakeup.notify_one();
         }
     }
 
@@ -731,6 +825,10 @@ pub extern "C" fn rust_gc_marker_release_unused_helper_memory() {
     });
 }
 
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// Marks every cell of the heaps that the roots reach, and adds up the bytes they take.
 ///
 /// # Safety
@@ -759,8 +857,12 @@ fn mark(request: &mut MarkRequest, heaps: &[*const c_void], roots: &[*const c_vo
         markers: Vec::with_capacity(marker_count),
         stealers: Vec::with_capacity(marker_count),
         owner_queue: Injector::new(),
-        participants: AtomicUsize::new(1),
         idle_markers: AtomicUsize::new(0),
+        parking: Mutex::new(()),
+        helpers_wakeup: Condvar::new(),
+        owner_wakeup: Condvar::new(),
+        parked_helpers: AtomicUsize::new(0),
+        owner_parked: AtomicBool::new(false),
         round_done: Barrier::new(marker_count),
         another_round: AtomicBool::new(false),
         context: request.context,
@@ -808,7 +910,6 @@ fn mark(request: &mut MarkRequest, heaps: &[*const c_void], roots: &[*const c_vo
     match helpers {
         Some(helpers) => {
             threads_used = marker_count;
-            job.participants.store(marker_count, Ordering::SeqCst);
             // SAFETY: mark_in_parallel_from_pool() takes the job and the index of a helper's marker, which runs nowhere
             //         else.
             unsafe {
