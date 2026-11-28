@@ -11387,6 +11387,7 @@ Optional<Painting::DisplayListRecording> Document::start_recording(Layout::Begun
     }
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
+    overlay_inputs.drag_image = m_drag_image_overlay;
 
     return Painting::start_rust_display_list_recording(read, *this, visual_context_tree_structural_epoch, surface_clear_color, cache_mode, config, overlay_inputs, move(committed));
 }
@@ -11435,6 +11436,17 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
         return;
 
     m_caret_hit_test_debug_rect = rect;
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
+    page().client().request_frame_for(*this);
+}
+
+void Document::set_drag_image_overlay(Optional<Painting::DragImageOverlay> overlay)
+{
+    if (m_drag_image_overlay == overlay)
+        return;
+
+    m_drag_image_overlay = move(overlay);
     set_needs_repaint(InvalidateDisplayList::PaintCommands);
     set_rendering_pending(*this, RenderingPendingReason::NeedsRenderingUpdate, 1);
     page().client().request_frame_for(*this);

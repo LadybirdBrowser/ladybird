@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebCommon/MimeSniff/Resource.h>
 #include <LibWebCommon/UIEvents/KeyCode.h>
@@ -31,6 +32,7 @@ void DragAndDropEventHandler::visit_edges(JS::Cell::Visitor& visitor) const
     visitor.visit(m_source_node);
     visitor.visit(m_immediate_user_selection);
     visitor.visit(m_current_target_element);
+    visitor.visit(m_drag_feedback_document);
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-and-drop-processing-model
@@ -54,6 +56,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     CSSPixelPoint page_offset,
     CSSPixelPoint client_offset,
     CSSPixelPoint offset,
+    CSSPixelPoint drag_origin,
     unsigned button,
     unsigned buttons,
     unsigned modifiers,
@@ -194,10 +197,12 @@ EventResult DragAndDropEventHandler::handle_drag_start(
         m_drag_data_store->add_text("text/uri-list"_utf16_fly_string, url);
     }();
 
-    // FIXME: 8. Update the drag data store default feedback as appropriate for the user agent (if the user is dragging the
-    //           selection, then the selection would likely be the basis for this feedback; if the user is dragging an element,
-    //           then that element's rendering would be used; if the drag began outside the user agent, then the platform
-    //           conventions for determining the drag feedback should be used).
+    // 8. Update the drag data store default feedback as appropriate for the user agent (if the user is dragging the
+    //    selection, then the selection would likely be the basis for this feedback; if the user is dragging an element,
+    //    then that element's rendering would be used; if the drag began outside the user agent, then the platform
+    //    conventions for determining the drag feedback should be used).
+    if (auto* element = as_if<DOM::Element>(m_source_node.ptr()))
+        update_default_feedback(*element, drag_origin);
 
     // 9. Fire a DND event named dragstart at the source node.
     auto drag_event = fire_a_drag_and_drop_event(m_source_node, HTML::EventNames::dragstart);
@@ -219,6 +224,12 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     //            used as hints for where to put the cursor relative to the resulting image. The values are expressed
     //            as distances in CSS pixels from the left side and from the top side of the image respectively.
     //         2. The drag data store default feedback.
+    m_drag_feedback = m_drag_data_store->bitmap();
+    if (!m_drag_feedback.has_value())
+        m_drag_feedback = m_drag_data_store->default_feedback();
+    if (auto* source_node = as_if<DOM::Node>(m_source_node.ptr()))
+        m_drag_feedback_document = source_node->document();
+    show_drag_feedback(client_offset);
 
     return EventResult::Handled;
 }
@@ -241,6 +252,8 @@ EventResult DragAndDropEventHandler::handle_drag_move(
     auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, Utf16FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(relevant_global_object, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
+
+    show_drag_feedback(client_offset);
 
     // FIXME: 1. If the user agent is still performing the previous iteration of the sequence (if any) when the next iteration
     //           becomes due, return for this iteration (effectively "skipping missed frames" of the drag-and-drop operation).
@@ -592,11 +605,40 @@ bool DragAndDropEventHandler::allow_text_drop(GC::Ref<DOM::Node> node) const
     return false;
 }
 
+void DragAndDropEventHandler::update_default_feedback(DOM::Element& element, CSSPixelPoint drag_origin)
+{
+#if defined(AK_OS_MACOS)
+    static constexpr CSSPixels MAXIMUM_IMAGE_DIMENSION = 400;
+#else
+    static constexpr CSSPixels MAXIMUM_IMAGE_DIMENSION = 200;
+#endif
+    Optional<CSSPixelSize> maximum_size;
+    if (is<HTML::HTMLImageElement>(element))
+        maximum_size = CSSPixelSize { MAXIMUM_IMAGE_DIMENSION, MAXIMUM_IMAGE_DIMENSION };
+    auto raster = element.document().rasterize_element(element, maximum_size, drag_origin);
+    if (!raster.has_value())
+        return;
+    m_drag_data_store->set_default_feedback({ move(raster->frame), raster->size }, raster->point_in_raster);
+}
+
+void DragAndDropEventHandler::show_drag_feedback(CSSPixelPoint client_offset)
+{
+    if (!m_drag_feedback.has_value() || !m_drag_feedback->image.frame.has_value() || !m_drag_feedback_document)
+        return;
+
+    CSSPixelRect rect { client_offset - m_drag_feedback->hot_spot, m_drag_feedback->image.size };
+    m_drag_feedback_document->set_drag_image_overlay(Painting::DragImageOverlay { *m_drag_feedback->image.frame, rect });
+}
+
 void DragAndDropEventHandler::reset()
 {
     // When the drag-and-drop operation has completed, we no longer need the drag data store and its related fields.
     // Clear them, as we currently use the existence of the drag data store to ignore other input events.
     m_drag_data_store.clear();
+    if (m_drag_feedback_document)
+        m_drag_feedback_document->set_drag_image_overlay({});
+    m_drag_feedback_document = nullptr;
+    m_drag_feedback.clear();
     m_source_node = nullptr;
     m_immediate_user_selection = nullptr;
     m_current_target_element = nullptr;

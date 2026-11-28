@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    #source {
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+    .offscreen {
+        position: absolute;
+        left: -9999px;
+    }
+    .preview {
+        width: 40px;
+        height: 20px;
+        background: blue;
+    }
+    #overflowing {
+        position: absolute;
+        left: 40px;
+        width: 20px;
+        height: 10px;
+        background: red;
+    }
+    #text {
+        width: 10px;
+        height: 20px;
+        white-space: nowrap;
+        font: 20px monospace;
+    }
+    #scroller {
+        overflow: hidden;
+    }
+    #scroller div {
+        height: 20px;
+    }
+    #list {
+        position: absolute;
+        left: 300px;
+        top: 0;
+        width: 120px;
+        height: 100px;
+        overflow: auto;
+    }
+    #item {
+        margin-top: 130px;
+        width: 80px;
+        height: 80px;
+        background: orange;
+    }
+    #frame {
+        position: absolute;
+        left: 300px;
+        top: 200px;
+        width: 200px;
+        height: 200px;
+        border: none;
+    }
+    #scaler {
+        position: absolute;
+        left: 0;
+        top: 250px;
+        transform: scale(2);
+        transform-origin: 0 0;
+    }
+    #scaled {
+        width: 50px;
+        height: 50px;
+        background: purple;
+    }
+    .lines {
+        font: 20px/20px monospace;
+    }
+    #wrapping {
+        width: 58px;
+    }
+    #inlines {
+        position: absolute;
+        left: 0;
+        top: 560px;
+        white-space: nowrap;
+    }
+    #wide {
+        position: absolute;
+        left: 0;
+        top: 450px;
+    }
+</style>
+<div id="source" draggable="true"></div>
+<div id="preview" class="offscreen preview"><div id="overflowing"></div></div>
+<canvas id="fresh" class="offscreen" width="40" height="20"></canvas>
+<div id="drawn" class="offscreen"><canvas id="presented" width="40" height="20"></canvas></div>
+<div id="drawnLate" class="offscreen"><canvas id="nestedFresh" width="40" height="20"></canvas></div>
+<div id="translated" class="offscreen preview" style="transform: translateX(80px)"></div>
+<div id="text" class="offscreen">XXXXXX</div>
+<div id="scroller" class="offscreen preview">
+    <div style="background: red"></div>
+    <div style="background: lime"></div>
+</div>
+<svg class="offscreen" width="120" height="100"><rect id="shape" x="30" y="15" width="40" height="20" fill="blue" /></svg>
+<div id="list"><div id="item" draggable="true"></div></div>
+<iframe id="frame" srcdoc="<body style='margin: 0'>"></iframe>
+<div id="scaler"><div id="scaled" draggable="true"></div></div>
+<div id="hidden" style="display: none"></div>
+<div class="offscreen lines"><span style="background: red; color: red">YY<span id="word" style="color: blue; background: blue content-box; padding-left: 10px">XX</span>YY</span></div>
+<div id="wrapping" class="offscreen lines"><span style="color: red">YY</span><span id="wrapped" style="color: blue; background: blue">XX XX</span><span style="color: red">YY</span></div>
+<div class="offscreen lines"><span id="holder" style="color: blue">X<span style="display: inline-block; width: 30px; height: 30px; background: lime"></span></span></div>
+<div class="offscreen lines"><span id="positioned" style="position: relative; color: blue; background: blue">XX</span></div>
+<div id="inlines" class="lines"><span id="draggableSpan" draggable="true" style="color: orange; background: orange">XXXX</span> <a id="link" href="#" style="color: purple; background: purple">link</a></div>
+<img id="wide" width="9000" height="90" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAKCAYAAAC0VX7mAAAAF0lEQVR42mP4z/D/PzUxw6iBowYORwMBWbVVx9SFIz4AAAAASUVORK5CYII=" />
+<script src="../include.js"></script>
+<script>
+    const describeDragImage = (...pixels) => {
+        const rect = internals.dragImageRect();
+        if (rect === null)
+            return "no drag image";
+        return [rect, ...pixels.map(([x, y]) => `(${x}, ${y}) ${internals.dragImagePixel(x, y)}`)].join(", ");
+    };
+
+    const dragWith = (setDragImage, ...pixels) => {
+        source.addEventListener("dragstart", event => setDragImage(event.dataTransfer), { once: true });
+        internals.mouseDown(50, 50);
+        internals.mouseMove(50, 60);
+        internals.mouseMove(150, 150);
+        const description = describeDragImage(...pixels);
+        internals.mouseUp(150, 150);
+        return description;
+    };
+
+    promiseTest(async () => {
+        const image = new Image();
+        image.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAKCAYAAAC0VX7mAAAAF0lEQVR42mP4z/D/PzUxw6iBowYORwMBWbVVx9SFIz4AAAAASUVORK5CYII=";
+        await image.decode();
+        fresh.getContext("2d").fillStyle = "blue";
+        presented.getContext("2d").fillStyle = "blue";
+        presented.getContext("2d").fillRect(0, 0, 40, 20);
+        nestedFresh.getContext("2d").fillStyle = "blue";
+        scroller.scrollTop = 20;
+        list.scrollTop = 130;
+        await animationFrame();
+        await animationFrame();
+
+        println(`Element outside the viewport: ${dragWith(data => data.setDragImage(preview, 10, 5), [0, 0], [39, 19], [50, 5])}`);
+        println(`img element at its natural size: ${dragWith(data => data.setDragImage(image, 4, 2), [0, 0], [19, 9])}`);
+        fresh.getContext("2d").fillRect(0, 0, 40, 20);
+        println(`Canvas drawn in the same task: ${dragWith(data => data.setDragImage(fresh, 0, 0), [5, 5])}`);
+        println(`Canvas inside the element: ${dragWith(data => data.setDragImage(drawn, 0, 0), [5, 5])}`);
+        nestedFresh.getContext("2d").fillRect(0, 0, 40, 20);
+        println(`Canvas inside the element drawn in the same task: ${dragWith(data => data.setDragImage(drawnLate, 0, 0), [5, 5])}`);
+        println(`Transformed element: ${dragWith(data => data.setDragImage(translated, 0, 0), [5, 5])}`);
+        println(`Text overflowing its box: ${dragWith(data => data.setDragImage(text, 0, 0))}`);
+        println(`Scrolled element: ${dragWith(data => data.setDragImage(scroller, 0, 0), [5, 5])}`);
+        println(`SVG element inside an svg element: ${dragWith(data => data.setDragImage(shape, 0, 0), [5, 5])}`);
+        println(`Inline element: ${dragWith(data => data.setDragImage(word, 0, 0), [2, 10], [20, 10])}`);
+        println(`Inline element across two lines: ${dragWith(data => data.setDragImage(wrapped, 0, 0), [2, 10], [50, 10], [2, 30], [50, 30])}`);
+        println(`Inline element holding an inline-block: ${dragWith(data => data.setDragImage(holder, 0, 0), [20, 5])}`);
+        println(`Positioned inline element: ${dragWith(data => data.setDragImage(positioned, 0, 0), [5, 5])}`);
+        println(`img element whose image has not loaded: ${dragWith(data => {
+            const unloaded = new Image();
+            unloaded.src = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+            data.setDragImage(unloaded, 0, 0);
+        })}`);
+        println(`Element that renders nothing, after an image: ${dragWith(data => {
+            data.setDragImage(preview, 0, 0);
+            data.setDragImage(hidden, 0, 0);
+        }, [0, 0])}`);
+        println(`Constructed DataTransfer: ${(() => {
+            new DataTransfer().setDragImage(preview, 0, 0);
+            return "no exception";
+        })()}`);
+
+        println(`Default feedback: ${dragWith(() => {}, [0, 0], [99, 99])}`);
+
+        internals.mouseDown(10, 10);
+        internals.mouseMove(95, 90);
+        internals.mouseMove(200, 200);
+        println(`Default feedback held where it was pressed: ${describeDragImage()}`);
+        internals.mouseUp(200, 200);
+
+        internals.mouseDown(310, 30);
+        internals.mouseMove(310, 40);
+        internals.mouseMove(500, 400);
+        println(`Default feedback of an element in a scrolled container: ${describeDragImage([0, 0])}`);
+        internals.mouseUp(500, 400);
+
+        internals.mouseDown(100, 460);
+        internals.mouseMove(100, 470);
+        internals.mouseMove(200, 200);
+        println(`Default feedback of a wide image: ${describeDragImage()}`);
+        internals.mouseUp(200, 200);
+
+        internals.mouseDown(60, 290);
+        internals.mouseMove(60, 300);
+        internals.mouseMove(200, 200);
+        println(`Default feedback of an element in a scaled container: ${describeDragImage([0, 0])}`);
+        internals.mouseUp(200, 200);
+
+        internals.mouseDown(10, 570);
+        internals.mouseMove(10, 580);
+        internals.mouseMove(200, 200);
+        println(`Default feedback of an inline element: ${describeDragImage([0, 0])}`);
+        internals.mouseUp(200, 200);
+
+        internals.mouseDown(80, 570);
+        internals.mouseMove(80, 580);
+        internals.mouseMove(200, 200);
+        println(`Default feedback of a link: ${describeDragImage([5, 5])}`);
+        internals.mouseUp(200, 200);
+
+        source.addEventListener("drag", event => event.dataTransfer.setDragImage(preview, 0, 0), { once: true });
+        internals.mouseDown(50, 50);
+        internals.mouseMove(50, 60);
+        internals.mouseMove(160, 160);
+        println(`Called from a drag event: ${describeDragImage([0, 0])}`);
+        internals.mouseUp(160, 160);
+
+        internals.mouseDown(50, 50);
+        internals.mouseMove(50, 60);
+        internals.mouseMove(150, 150);
+        internals.mouseMove(350, 250);
+        println(`After the pointer moves over an iframe: ${describeDragImage()}`);
+        internals.mouseUp(350, 250);
+        println(`After the drop on the iframe: ${describeDragImage()}`);
+    });
+</script>

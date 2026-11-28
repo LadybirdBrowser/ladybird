@@ -17,6 +17,7 @@
 #include <LibWeb/Painting/DisplayListDumpOptions.h>
 #include <LibWeb/Painting/DisplayListRecording.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
+#include <LibWeb/Painting/DragImageOverlay.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -57,6 +58,7 @@ struct InspectorOverlayInputs {
     Vector<GridHighlight> grid_highlights;
     Vector<FlexHighlight> flex_highlights;
     Optional<CSSPixelRect> caret_debug_rect;
+    Optional<DragImageOverlay> drag_image;
 };
 
 struct ElementRaster {

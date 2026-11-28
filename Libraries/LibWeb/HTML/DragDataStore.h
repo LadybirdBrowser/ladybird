@@ -58,6 +58,8 @@ public:
 
     void set_mode(Mode);
 
+    void set_default_feedback(DragImage image, CSSPixelPoint hot_spot) { m_default_feedback = DragFeedback { move(image), hot_spot }; }
+    Optional<DragFeedback> const& default_feedback() const { return m_default_feedback; }
     Optional<DragFeedback> bitmap() const;
 
     RustDragDataStore const* rust_store() const { return m_store; }
@@ -66,6 +68,9 @@ private:
     explicit DragDataStore(RustDragDataStore*);
 
     RustDragDataStore* m_store;
+
+    // https://html.spec.whatwg.org/multipage/dnd.html#drag-data-store-default-feedback
+    Optional<DragFeedback> m_default_feedback;
 };
 
 }

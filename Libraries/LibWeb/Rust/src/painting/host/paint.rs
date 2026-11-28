@@ -61,6 +61,8 @@ pub struct FfiRecordingInputs {
     pub flex_overlays: *const FfiFlexOverlayInput,
     pub flex_overlay_count: usize,
     pub caret_debug_rect: used_values::OptionalCssPixelRect,
+    pub drag_image_frame: *const c_void,
+    pub drag_image_rect: used_values::FfiCssPixelRect,
     // Per-document facts the host resolves once per recording.
     pub caret: FfiCaretPaint,
     pub focused_text_control: FfiFocusedTextControlSelection,
@@ -129,8 +131,8 @@ impl FfiRecordingInputs {
     pub(crate) unsafe fn recording_inputs(&self) -> crate::painting::record::inputs::UnframedRecordingInputs {
         use crate::painting::force_dark::ForceDarkSettings;
         use crate::painting::record::inputs::{
-            CaretPaint, CaretTarget, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays, InspectorHighlight,
-            RecordingInputs, UnframedRecordingInputs,
+            CaretPaint, CaretTarget, DragImageOverlay, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays,
+            InspectorHighlight, RecordingInputs, UnframedRecordingInputs,
         };
 
         // SAFETY: The caller lends these arrays and buffers for this call.
@@ -235,6 +237,11 @@ impl FfiRecordingInputs {
                 .caret_debug_rect
                 .has_value
                 .then(|| self.caret_debug_rect.value.into()),
+            drag_image: (!self.drag_image_frame.is_null()).then(|| DragImageOverlay {
+                // SAFETY: The caller passes a live frame.
+                frame: unsafe { libgfx_rust::image_frame::ImageFrameHandle::retain(self.drag_image_frame) },
+                rect: self.drag_image_rect.into(),
+            }),
             caret: caret_target.map(|target| CaretPaint {
                 target,
                 rect: caret.rect.into(),

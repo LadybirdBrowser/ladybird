@@ -10,6 +10,7 @@ use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::force_dark::ForceDarkSettings;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, RootBackgroundSource};
 use libgfx_rust::font::FontHandle;
+use libgfx_rust::image_frame::ImageFrameHandle;
 use libgfx_rust::{Color, IntRect, IntSize};
 
 /// The inputs read by content that is recorded outside per-box captures: scroll metadata,
@@ -111,6 +112,7 @@ pub(crate) struct RecordingInputs {
     // These array elements are already plain values without pointers or optional-value tags.
     pub flex_overlays: Box<[FfiFlexOverlayInput]>,
     pub caret_debug_rect: Option<CssPixelRect>,
+    pub drag_image: Option<DragImageOverlay>,
     pub caret: Option<CaretPaint>,
     pub focused_text_control: Option<FocusedTextControlSelection>,
     pub focused_area_outline: Option<FocusedAreaOutline>,
@@ -162,6 +164,12 @@ pub(crate) struct InspectorHighlight {
     pub paintable: NodeSlotId,
     pub label: String,
     pub fonts: OverlayLabelFonts,
+}
+
+#[derive(Clone)]
+pub(crate) struct DragImageOverlay {
+    pub frame: ImageFrameHandle,
+    pub rect: CssPixelRect,
 }
 
 #[derive(Clone)]

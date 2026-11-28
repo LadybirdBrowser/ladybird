@@ -69,6 +69,7 @@
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/PaintTiming/DocumentPaintTimingState.h>
 #include <LibWeb/Painting/DisplayListRecording.h>
+#include <LibWeb/Painting/DragImageOverlay.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/Forward.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
@@ -1710,6 +1711,8 @@ public:
     TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
     void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
+    Optional<Painting::DragImageOverlay> const& drag_image_overlay() const { return m_drag_image_overlay; }
+    void set_drag_image_overlay(Optional<Painting::DragImageOverlay>);
 
     RenderingStats* rendering_stats() const { return m_rendering_stats.ptr(); }
     RenderingStats& ensure_rendering_stats() const;
@@ -2522,6 +2525,7 @@ private:
     Optional<HitTestItemsOnScreen> m_hit_test_items_on_screen;
     [[nodiscard]] bool hit_test_items_on_screen_are_as_adopted() const;
     Optional<CSSPixelRect> m_caret_hit_test_debug_rect;
+    Optional<Painting::DragImageOverlay> m_drag_image_overlay;
 
     mutable StyleUpdateStatistics m_style_update_statistics;
 

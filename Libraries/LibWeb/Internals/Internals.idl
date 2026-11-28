@@ -134,6 +134,10 @@ interface Internals {
     DOMString currentCursor();
     // The color of one pixel of the current image cursor's bitmap, or null when the cursor is no image.
     DOMString? currentCursorPixel(long x, long y);
+    // The rect of the drag image in CSS pixels in the layout viewport, or null when none shows.
+    DOMString? dragImageRect();
+    // The color of one pixel of the drag image's bitmap, or null when none shows.
+    DOMString? dragImagePixel(long x, long y);
     DOMString themeColor();
 
     // Returns the text that would be placed on the clipboard if the user copied the current selection now.

@@ -1,0 +1,2 @@
+PASS: recording during a drag (work)
+PASS: recording after the drop (work)

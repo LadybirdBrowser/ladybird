@@ -586,6 +586,10 @@ static void fill_recording_inputs(RecordingInputsStorage& storage, Layout::Begun
     inputs.flex_overlays = ffi_flex_overlays.data();
     inputs.flex_overlay_count = ffi_flex_overlays.size();
     inputs.caret_debug_rect = overlay_inputs.caret_debug_rect;
+    if (overlay_inputs.drag_image.has_value()) {
+        inputs.drag_image_frame = &overlay_inputs.drag_image->frame;
+        inputs.drag_image_rect = overlay_inputs.drag_image->rect;
+    }
     auto& inspector_highlight_label_text = storage.inspector_highlight_label_text;
     auto& inspector_label_fonts = storage.inspector_label_fonts;
     if (overlay_inputs.highlighted_layout_node) {

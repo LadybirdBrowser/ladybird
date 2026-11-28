@@ -2581,11 +2581,13 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!target_layout_node)
         return EventResult::Dropped;
 
-    auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
-        return event_handler.handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
-    });
-    if (dispath_result.has_value())
-        return *dispath_result;
+    if (!m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation()) {
+        auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, nullptr, [&](EventHandler& event_handler, CSSPixelPoint position) {
+            return event_handler.handle_drag_and_drop_event(type, position, screen_position, button, buttons, modifiers, move(files));
+        });
+        if (dispath_result.has_value())
+            return *dispath_result;
+    }
 
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
     auto offset = Painting::mouse_event_offset(*target_layout_node, viewport_position);
@@ -2596,8 +2598,10 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
             document.page().invalidate_compositor_keyboard_scroll_state_for_document(document);
     };
     switch (type) {
-    case DragEvent::Type::DragStart:
-        return m_drag_and_drop_event_handler->handle_drag_start(HTML::relevant_global_object(document), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
+    case DragEvent::Type::DragStart: {
+        auto drag_origin = m_mousedown_visual_viewport_position.has_value() ? document.visual_viewport()->map_to_layout_viewport(*m_mousedown_visual_viewport_position) : viewport_position;
+        return m_drag_and_drop_event_handler->handle_drag_start(HTML::relevant_global_object(document), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, drag_origin, button, buttons, modifiers, move(files));
+    }
     case DragEvent::Type::DragMove:
         return m_drag_and_drop_event_handler->handle_drag_move(HTML::relevant_global_object(document), *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::DragEnd:

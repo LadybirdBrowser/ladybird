@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<style>
+    #source {
+        width: 100px;
+        height: 100px;
+        background: green;
+    }
+</style>
+<script src="../include.js"></script>
+<script src="../work-test.js"></script>
+<div id="source" draggable="true"></div>
+<script>
+    displayListTest({
+        steps: [
+            {
+                name: "recording during a drag",
+                mutate: () => {
+                    internals.mouseDown(50, 50);
+                    internals.mouseMove(50, 60);
+                    internals.mouseMove(150, 150);
+                },
+                expect: {
+                    displayList: `
+                        @canvas RECORD (empty)
+                        @viewport ASSEMBLE
+                          @viewport/preamble RECORD (empty)
+                          @viewport/scroll-metadata RECORD (empty)
+                          @viewport/background SKIP
+                          @viewport/border SKIP
+                          BlockContainer<HTML>/descendants(background-and-borders) COPY
+                          @viewport/foreground RECORD (empty)
+                          BlockContainer<HTML>/descendants(foreground) COPY
+                          BlockContainer<HTML> COPY
+                          @viewport/outline SKIP
+                        @inspector-overlays RECORD
+                    `,
+                },
+            },
+            {
+                name: "recording after the drop",
+                mutate: () => internals.mouseUp(150, 150),
+                expect: {
+                    displayList: `
+                        @canvas RECORD (empty)
+                        @viewport ASSEMBLE
+                          @viewport/preamble COPY
+                          @viewport/scroll-metadata COPY
+                          @viewport/background COPY
+                          @viewport/border COPY
+                          BlockContainer<HTML>/descendants(background-and-borders) COPY
+                          @viewport/foreground COPY
+                          BlockContainer<HTML>/descendants(foreground) COPY
+                          BlockContainer<HTML> COPY
+                          @viewport/outline COPY
+                    `,
+                },
+            },
+        ],
+    });
+</script>

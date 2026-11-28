@@ -153,7 +153,8 @@ fn record_display_list_impl<O: Observer>(
     let has_inspector_overlays = inputs.inspector_highlight.is_some()
         || inputs.grid_overlays.is_some()
         || !inputs.flex_overlays.is_empty()
-        || inputs.caret_debug_rect.is_some();
+        || inputs.caret_debug_rect.is_some()
+        || inputs.drag_image.is_some();
     let root_scope = PaintScope::stacking_context(viewport);
     // The scopes the published recording walked, where it can be reused from.
     let published_root = recorder
@@ -177,6 +178,7 @@ fn record_display_list_impl<O: Observer>(
                 accumulated_scales_changed,
                 coverage,
             ) && !has_inspector_overlays
+                && !frame.has_inspector_overlays
                 && frame.prologue_id == prologue_id
         })
         .map(|(frame, root)| {
@@ -244,6 +246,7 @@ fn record_display_list_impl<O: Observer>(
         frame_inputs,
         root_background_canvas_rect,
         prologue_id,
+        has_inspector_overlays,
         root_group_color,
         hit_test_items_stamp: source.hit_test_items_stamp(),
         chunks,
