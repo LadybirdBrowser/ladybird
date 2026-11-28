@@ -34,10 +34,7 @@ impl FlyStringField {
 
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
-        match self.units() {
-            Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units.is_empty(),
-            Utf16StringUnits::Utf16(units) => units.is_empty(),
-        }
+        units_are_empty(self.units())
     }
 }
 
@@ -66,6 +63,19 @@ impl StringField {
     pub fn units(&self) -> Utf16StringUnits<'_> {
         // SAFETY: C++ does not write the field while Rust borrows it, and the string it holds lives as long as it does.
         unsafe { ak::utf16_string_units(&*self.0.get()) }
+    }
+
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        units_are_empty(self.units())
+    }
+}
+
+#[inline(always)]
+fn units_are_empty(units: Utf16StringUnits<'_>) -> bool {
+    match units {
+        Utf16StringUnits::Ascii(units) | Utf16StringUnits::Latin1(units) => units.is_empty(),
+        Utf16StringUnits::Utf16(units) => units.is_empty(),
     }
 }
 

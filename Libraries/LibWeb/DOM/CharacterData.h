@@ -27,10 +27,10 @@ class WEB_API CharacterData
 public:
     virtual ~CharacterData() override;
 
-    Utf16String const& data() const { return m_data; }
+    Utf16String const& data() const { return m_character_data_core.data; }
     void set_data(Utf16View const&);
 
-    unsigned length_in_utf16_code_units() const { return m_data.length_in_code_units(); }
+    unsigned length_in_utf16_code_units() const { return m_character_data_core.data.length_in_code_units(); }
 
     WebIDL::ExceptionOr<Utf16String> substring_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units) const;
     WebIDL::ExceptionOr<void> append_data(Utf16View const&);
@@ -63,7 +63,7 @@ protected:
 private:
     virtual size_t external_memory_size() const override;
 
-    Utf16String m_data;
+    RustFFI::CharacterDataCore m_character_data_core;
 };
 
 }

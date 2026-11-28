@@ -619,8 +619,8 @@ public:
     bool is_document_element() const;
 
     bool is_shadow_host() const;
-    GC::Ptr<ShadowRoot> shadow_root() { return m_shadow_root; }
-    GC::Ptr<ShadowRoot const> shadow_root() const { return m_shadow_root; }
+    GC::Ptr<ShadowRoot> shadow_root() { return m_element_core.shadow_root; }
+    GC::Ptr<ShadowRoot const> shadow_root() const { return m_element_core.shadow_root; }
     void set_shadow_root(GC::Ptr<ShadowRoot>);
 
     void set_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
@@ -1089,9 +1089,8 @@ private:
     mutable u32 m_child_index { 0 };
     mutable u32 m_child_index_of_type { 0 };
 
-    // NB: These are declared next to the u32s above, so that they pack without padding.
+    // NB: This is declared next to the u32s above, so that they pack without padding.
     GC::Member<CSS::CSSStyleProperties> m_inline_style;
-    GC::Member<ShadowRoot> m_shadow_root;
 
     mutable Optional<Utf16String> m_lang_value;
 };

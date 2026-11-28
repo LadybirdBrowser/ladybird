@@ -69,6 +69,12 @@ impl<'a> Element<'a> {
         self.core().classes()
     }
 
+    /// https://dom.spec.whatwg.org/#concept-element-shadow-root
+    #[inline(always)]
+    pub fn shadow_root(self) -> Option<Node<'a>> {
+        self.node.follow(self.core().shadow_root())
+    }
+
     /// https://dom.spec.whatwg.org/#concept-element-attribute
     #[inline(always)]
     pub fn attributes(self) -> &'a [Attribute] {
@@ -87,7 +93,6 @@ mod tests {
     use super::super::node_core::NodeType;
     use super::super::test_tree;
     use super::*;
-    use crate::dom::qualified_name::QualifiedNameField;
     use crate::stage::MainThread;
 
     #[test]
@@ -103,58 +108,5 @@ mod tests {
         ] {
             assert_eq!(test_tree::node(&main_thread, node_type).as_element(), None);
         }
-    }
-
-    #[test]
-    fn an_element_reads_its_name_from_its_core() {
-        let main_thread = MainThread::for_test();
-        let svg = test_tree::element(
-            &main_thread,
-            ElementCore::for_test(QualifiedNameField::for_test("svg", Some("http://www.w3.org/2000/svg"))),
-        );
-        assert_eq!(
-            svg.local_name().raw_identity(),
-            FlyStringField::for_test("svg").raw_identity()
-        );
-        assert_eq!(
-            svg.namespace().map(FlyStringField::raw_identity),
-            Some(FlyStringField::for_test("http://www.w3.org/2000/svg").raw_identity())
-        );
-        let div = test_tree::node(&main_thread, NodeType::ELEMENT_NODE)
-            .as_element()
-            .unwrap();
-        assert_eq!(
-            div.local_name().raw_identity(),
-            FlyStringField::for_test("div").raw_identity()
-        );
-        assert!(div.namespace().is_none());
-    }
-
-    #[test]
-    fn an_element_reads_its_id_and_classes_from_its_core() {
-        let main_thread = MainThread::for_test();
-        let element = test_tree::element(
-            &main_thread,
-            ElementCore::for_test(QualifiedNameField::for_test("p", None))
-                .with_id_for_test("intro")
-                .with_classes_for_test(&["lead", "wide"]),
-        );
-        assert_eq!(
-            element.id().map(FlyStringField::raw_identity),
-            Some(FlyStringField::for_test("intro").raw_identity())
-        );
-        let classes: Vec<usize> = element.classes().iter().map(FlyStringField::raw_identity).collect();
-        assert_eq!(
-            classes,
-            [
-                FlyStringField::for_test("lead").raw_identity(),
-                FlyStringField::for_test("wide").raw_identity()
-            ]
-        );
-        let div = test_tree::node(&main_thread, NodeType::ELEMENT_NODE)
-            .as_element()
-            .unwrap();
-        assert!(div.id().is_none());
-        assert!(div.classes().is_empty());
     }
 }

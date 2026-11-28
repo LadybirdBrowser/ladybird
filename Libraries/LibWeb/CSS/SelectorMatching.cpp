@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
@@ -456,25 +455,6 @@ RequiredState element_required_state(DOM::Element const& target)
     if (is<HTML::HTMLSelectElement>(target) || is<HTML::HTMLTextAreaElement>(target))
         return target.has_attribute(HTML::AttributeNames::required) ? RequiredState::Required : RequiredState::Optional;
     return RequiredState::NotApplicable;
-}
-
-static bool child_keeps_element_from_being_empty(DOM::Node const& child)
-{
-    if (is<DOM::Element>(child))
-        return true;
-    auto const* text = as_if<DOM::Text>(child);
-    return text && !text->data().is_empty();
-}
-
-bool element_is_empty_ignoring_child(DOM::Element const& element, DOM::Node const& ignored_child)
-{
-    for (auto const* child = element.first_child(); child; child = child->next_sibling()) {
-        if (child == &ignored_child)
-            continue;
-        if (child_keeps_element_from_being_empty(*child))
-            return false;
-    }
-    return true;
 }
 
 }

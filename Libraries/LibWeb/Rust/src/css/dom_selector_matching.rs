@@ -71,8 +71,6 @@ pub struct FfiDomSelectorCallbacks {
     pub child_index: unsafe extern "C" fn(element: &NodeCell, which: FfiChildIndex) -> u32,
     /// The bit of the DOM's filter of the attribute names and classes in a subtree for a name.
     pub name_filter_bit: unsafe extern "C" fn(local_name: usize) -> u64,
-    /// The shadow root the element hosts, or null.
-    pub shadow_root: unsafe extern "C" fn(element: &NodeCell) -> *const NodeCell,
     /// Whether the element is in a state, by the state's `StateFact` value.
     pub matches_state: unsafe extern "C" fn(element: &NodeCell, state: u8) -> bool,
     /// The element's resolved language tag, or an empty view when it has none. Only valid until the next callback, which
@@ -83,8 +81,6 @@ pub struct FfiDomSelectorCallbacks {
     /// The element's heading level, or zero when it is not a heading.
     pub heading_level: unsafe extern "C" fn(element: &NodeCell) -> u32,
     pub has_custom_state: unsafe extern "C" fn(element: &NodeCell, state: usize) -> bool,
-    /// Whether no child of the element keeps it from being `:empty`.
-    pub is_empty: unsafe extern "C" fn(element: &NodeCell) -> bool,
 }
 
 /// A node or null that a query names, which C++ sees as an opaque pointer: the GC plugin rejects a raw cell pointer
@@ -635,11 +631,10 @@ pub extern "C" fn rust_dom_selector_program_id_lookup(program: &DomSelectorProgr
     program.id_lookup
 }
 
-/// The DOM, as the nodes' cores and the callbacks show it.
+/// The DOM, as the nodes' cores show it.
 #[derive(Clone, Copy)]
 struct DomTree<'q> {
-    dom: &'q FfiDomSelectorCallbacks,
-    main_thread: &'q MainThread<'static>,
+    nodes: core::marker::PhantomData<DomNode<'q>>,
 }
 
 impl<'q> SelectorTree for DomTree<'q> {
@@ -675,8 +670,7 @@ impl<'q> SelectorTree for DomTree<'q> {
 
     #[inline]
     fn shadow_root_of(self, host: DomNode<'q>) -> Option<DomNode<'q>> {
-        // SAFETY: The host returns null or a live node, and the DOM does not change during a query.
-        unsafe { optional_node((self.dom.shadow_root)(host.cell()), self.main_thread) }
+        host.as_element().and_then(Element::shadow_root)
     }
 
     #[inline]
@@ -688,7 +682,6 @@ impl<'q> SelectorTree for DomTree<'q> {
 /// The live DOM as a subject of one query.
 struct DomSubject<'q> {
     dom: &'q FfiDomSelectorCallbacks,
-    main_thread: &'q MainThread<'static>,
     query: &'q DomSelectorProgram,
     ids_and_classes_ignore_case: bool,
     /// Whether the query remembers answers, which a query matching one element does only if it can ask a question
@@ -905,8 +898,7 @@ impl<'q> SelectorSubject for DomSubject<'q> {
     #[inline]
     fn tree(&self) -> DomTree<'q> {
         DomTree {
-            dom: self.dom,
-            main_thread: self.main_thread,
+            nodes: core::marker::PhantomData,
         }
     }
 
@@ -991,7 +983,7 @@ impl<'q> SelectorSubject for DomSubject<'q> {
 
     #[inline]
     fn is_empty(&mut self, node: DomNode<'q>) -> Result<bool, StyleAttributeIsDirty> {
-        Ok(unsafe { (self.dom.is_empty)(node.cell()) })
+        Ok(is_empty(node))
     }
 
     #[inline]
@@ -1216,7 +1208,6 @@ impl<'q> DomQuery<'q> {
             evaluator: SelectorEvaluator {
                 subject: DomSubject {
                     dom: unsafe { &*query.callbacks },
-                    main_thread,
                     query: program,
                     ids_and_classes_ignore_case: query.ids_and_classes_ignore_case,
                     remembers_answers: !matches_one_element || program.lone_match_repeats_questions,
@@ -1428,6 +1419,16 @@ unsafe fn query_subtree(
     Ok(())
 }
 
+/// Whether `:empty` matches the element `node`: it has no element child, and no text child holding anything.
+/// https://drafts.csswg.org/selectors-4/#empty-pseudo
+fn is_empty(node: Node<'_>) -> bool {
+    node.children().all(|child| match child.node_type() {
+        NodeType::ELEMENT_NODE => false,
+        NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE => child.data().is_empty(),
+        _ => true,
+    })
+}
+
 /// The filter of the attribute names and classes in the whole tree `node` is in, with every bit set where no one
 /// element holds that tree. The filter of a document's one element child holds every name of the document's tree.
 fn tree_name_filter(node: Node<'_>) -> u64 {
@@ -1535,6 +1536,39 @@ mod tests {
             next_element_in_subtree(first_span.node(), first_div.node(), 0, 0, 0),
             None
         );
+    }
+
+    #[test]
+    fn only_elements_and_text_with_data_keep_an_element_from_being_empty() {
+        let main_thread = MainThread::for_test();
+        let parent = test_tree::node(&main_thread, NodeType::ELEMENT_NODE);
+        assert!(is_empty(parent));
+        test_tree::append_child(parent, test_tree::node(&main_thread, NodeType::TEXT_NODE));
+        test_tree::append_child(
+            parent,
+            test_tree::character_data(&main_thread, NodeType::COMMENT_NODE, "comment"),
+        );
+        test_tree::append_child(
+            parent,
+            test_tree::character_data(&main_thread, NodeType::PROCESSING_INSTRUCTION_NODE, "data"),
+        );
+        assert!(is_empty(parent));
+
+        let with_text = test_tree::node(&main_thread, NodeType::ELEMENT_NODE);
+        test_tree::append_child(
+            with_text,
+            test_tree::character_data(&main_thread, NodeType::TEXT_NODE, " "),
+        );
+        assert!(!is_empty(with_text));
+        let with_cdata = test_tree::node(&main_thread, NodeType::ELEMENT_NODE);
+        test_tree::append_child(
+            with_cdata,
+            test_tree::character_data(&main_thread, NodeType::CDATA_SECTION_NODE, "x"),
+        );
+        assert!(!is_empty(with_cdata));
+        let with_element = test_tree::node(&main_thread, NodeType::ELEMENT_NODE);
+        test_tree::append_child(with_element, test_tree::node(&main_thread, NodeType::ELEMENT_NODE));
+        assert!(!is_empty(with_element));
     }
 
     #[test]

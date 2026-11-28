@@ -27,8 +27,8 @@ public:
 
     virtual Utf16FlyString node_name() const override { return "#document-fragment"_utf16_fly_string; }
 
-    Element* host() { return m_host.ptr(); }
-    Element const* host() const { return m_host.ptr(); }
+    Element* host() { return m_document_fragment_core.host.ptr(); }
+    Element const* host() const { return m_document_fragment_core.host.ptr(); }
 
     void set_host(Element*);
 
@@ -38,8 +38,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    // https://dom.spec.whatwg.org/#concept-documentfragment-host
-    GC::Member<Element> m_host;
+    RustFFI::DocumentFragmentCore m_document_fragment_core;
 };
 
 }

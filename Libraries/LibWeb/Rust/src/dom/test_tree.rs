@@ -18,29 +18,36 @@ use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
 use super::node::Node;
 use super::node::NodeCell;
-use super::node_core::DOCUMENT_FRAGMENT_HOST_OFFSET;
+use super::node_core::CHARACTER_DATA_CORE_OFFSET;
+use super::node_core::CharacterDataCore;
+use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
+use super::node_core::DocumentFragmentCore;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
-use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::qualified_name::QualifiedNameField;
 use crate::stage::MainThread;
 
-/// A node's cell, with its core where DOM::Node has it, a host where DOM::DocumentFragment has it, and an element core
+/// A node's cell, with its core where DOM::Node has it, a character data core where DOM::CharacterData has it, which
+/// only a CharacterData node's cell holds, a fragment core where DOM::DocumentFragment has it, and an element core
 /// where DOM::Element has it, which only an element's cell holds.
 #[repr(C, align(8))]
 struct TestCell {
     header: [u8; NODE_CORE_OFFSET],
     core: NodeCore,
-    fields: [u8; DOCUMENT_FRAGMENT_HOST_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
-    host: NodeMember,
-    element_fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_HOST_OFFSET - size_of::<NodeMember>()],
+    fields: [u8; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
+    character_data_core: MaybeUninit<CharacterDataCore>,
+    character_data_fields:
+        [u8; DOCUMENT_FRAGMENT_CORE_OFFSET - CHARACTER_DATA_CORE_OFFSET - size_of::<CharacterDataCore>()],
+    fragment_core: DocumentFragmentCore,
+    element_fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
     element_core: MaybeUninit<ElementCore>,
 }
 
 const _: () = assert!(offset_of!(TestCell, core) == NODE_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, host) == DOCUMENT_FRAGMENT_HOST_OFFSET);
+const _: () = assert!(offset_of!(TestCell, character_data_core) == CHARACTER_DATA_CORE_OFFSET);
+const _: () = assert!(offset_of!(TestCell, fragment_core) == DOCUMENT_FRAGMENT_CORE_OFFSET);
 const _: () = assert!(offset_of!(TestCell, element_core) == ELEMENT_CORE_OFFSET);
 
 const ARENA_CELLS: usize = 1 << 14;
@@ -85,7 +92,8 @@ fn pointer_of(node: Node<'_>) -> NodePointer {
     compress(node.cell() as *const NodeCell as usize)
 }
 
-/// A new node of `node_type`, the root of a tree of its own. An element is a `div` in no namespace.
+/// A new node of `node_type`, the root of a tree of its own. An element is a `div` in no namespace, and a CharacterData
+/// node has no data.
 pub(crate) fn node<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType) -> Node<'a> {
     match node_type {
         NodeType::ELEMENT_NODE => element(
@@ -93,8 +101,24 @@ pub(crate) fn node<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType) -> 
             ElementCore::for_test(QualifiedNameField::for_test("div", None)),
         )
         .node(),
+        NodeType::TEXT_NODE
+        | NodeType::CDATA_SECTION_NODE
+        | NodeType::PROCESSING_INSTRUCTION_NODE
+        | NodeType::COMMENT_NODE => character_data(main_thread, node_type, ""),
         _ => new_node(main_thread, node_type, |_| {}, None),
     }
+}
+
+/// A new CharacterData node of `node_type` with the data `data`, the root of a tree of its own.
+pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType, data: &str) -> Node<'a> {
+    let node = new_node(main_thread, node_type, |_| {}, None);
+    // SAFETY: Every node of a test tree is a TestCell, and no reference to this one's character data core exists yet.
+    unsafe {
+        (*(node.cell() as *const NodeCell as *mut TestCell))
+            .character_data_core
+            .write(CharacterDataCore::for_test(data));
+    }
+    node
 }
 
 /// A new element with the core `core`, the root of a tree of its own.
@@ -113,6 +137,9 @@ pub(crate) fn shadow_root<'a>(main_thread: &'a MainThread<'_>, host: Node<'a>) -
         None,
     );
     set_host(shadow_root, host);
+    if let Some(element) = host.as_element() {
+        element.core().set_shadow_root_for_test(Some(pointer_of(shadow_root)));
+    }
     shadow_root
 }
 
@@ -121,7 +148,7 @@ pub(crate) fn set_host(fragment: Node<'_>, host: Node<'_>) {
     assert_eq!(fragment.node_type(), NodeType::DOCUMENT_FRAGMENT_NODE);
     // SAFETY: Every node of a test tree is a TestCell.
     let cell = unsafe { &*(fragment.cell() as *const NodeCell as *const TestCell) };
-    cell.host.set(Some(pointer_of(host)));
+    cell.fragment_core.set_host_for_test(Some(pointer_of(host)));
 }
 
 fn new_node<'a>(
@@ -141,9 +168,13 @@ fn new_node<'a>(
     let cell = cell.write(TestCell {
         header: [0; NODE_CORE_OFFSET],
         core,
-        fields: [0; DOCUMENT_FRAGMENT_HOST_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
-        host: NodeMember::null_for_test(),
-        element_fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_HOST_OFFSET - size_of::<NodeMember>()],
+        fields: [0; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
+        character_data_core: MaybeUninit::uninit(),
+        character_data_fields: [0; DOCUMENT_FRAGMENT_CORE_OFFSET
+            - CHARACTER_DATA_CORE_OFFSET
+            - size_of::<CharacterDataCore>()],
+        fragment_core: DocumentFragmentCore::null_for_test(),
+        element_fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
         element_core: element_core.map_or(MaybeUninit::uninit(), MaybeUninit::new),
     });
     // SAFETY: The cell lives for the rest of the process, and only the test that made it changes its tree, which it
