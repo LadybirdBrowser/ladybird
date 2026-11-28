@@ -167,6 +167,15 @@ StrongEventLoopReference WeakEventLoopReference::take()
     return StrongEventLoopReference(*this);
 }
 
+bool WeakEventLoopReference::deferred_invoke(Function<void()> invokee)
+{
+    auto event_loop = take();
+    if (!event_loop.is_alive())
+        return false;
+    event_loop->deferred_invoke(move(invokee));
+    return true;
+}
+
 StrongEventLoopReference::StrongEventLoopReference(WeakEventLoopReference& event_loop_weak)
 {
     event_loop_weak.m_lock.lock_read();
