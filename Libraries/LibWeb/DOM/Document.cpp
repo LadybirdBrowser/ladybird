@@ -7053,6 +7053,24 @@ Utf16String Document::dump_accessibility_tree_as_json()
     return builder.to_string();
 }
 
+ReadonlySpan<GC::Weak<HTML::HTMLLabelElement>> Document::label_elements() const
+{
+    // OPTIMIZATION: Every labelable element's labels list looks for the labels in its tree, and a document can have
+    //               thousands of labelable elements but only a handful of labels. So the document finds its labels once
+    //               per change to its tree, rather than each list walking the whole tree for them.
+    // The list holds its labels weakly, so that a label removed from the tree (and the subtree it went with) isn't kept
+    // alive until the list is next asked for.
+    if (m_label_elements_dom_tree_version != dom_tree_version()) {
+        m_label_elements.clear_with_capacity();
+        for_each_in_subtree_of_type<HTML::HTMLLabelElement>([&](auto& label) {
+            m_label_elements.append(label);
+            return TraversalDecision::Continue;
+        });
+        m_label_elements_dom_tree_version = dom_tree_version();
+    }
+    return m_label_elements;
+}
+
 AccessibilityChangeTracker::Change Document::build_accessibility_tree_change(AccessibilityChangeTracker& tracker, bool whole_tree)
 {
     auto document_id = static_cast<i64>(unique_id().value());
