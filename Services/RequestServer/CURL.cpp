@@ -156,6 +156,18 @@ CURLcode configure_ssl_context(CURL*, [[maybe_unused]] void* ssl_context, [[mayb
             ERR_clear_error();
     }
 
+    // For the same reason, offer the TLS 1.2 cipher suites that common browsers offer instead of the OpenSSL default
+    // list, which also has DHE suites and CBC suites with SHA-256 and SHA-384. The TLS 1.3 suites stay the same.
+    if (uses_openssl) {
+        static constexpr char ciphers[] = "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+                                          "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"
+                                          "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"
+                                          "ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:"
+                                          "AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA:AES256-SHA";
+        if (SSL_CTX_set_cipher_list(static_cast<SSL_CTX*>(ssl_context), ciphers) != 1)
+            ERR_clear_error();
+    }
+
 #ifdef AK_OS_MACOS
     if (uses_openssl)
         share_certificate_store(static_cast<SSL_CTX*>(ssl_context));
