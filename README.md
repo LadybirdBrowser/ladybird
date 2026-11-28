@@ -3,8 +3,10 @@
 [Ladybird](https://ladybird.org) is a truly independent web browser, using a novel engine based on web standards.
 
 > [!IMPORTANT]
-> Ladybird is in a pre-alpha state, and only suitable for use by developers
->
+> Ladybird is alpha software, so some websites won’t work, and it will crash sometimes.
+> When that happens, tell us! You can report a broken site from inside the browser.
+> After a crash, you can read the crash report and decide whether to send it.
+> Our [privacy policy](https://ladybird.org/privacy/) has the details.
 
 ## Features
 
@@ -30,9 +32,11 @@ At the moment, many core library support components are inherited from SerenityO
 - LibCore: Event loop, OS abstraction layer
 - LibIPC: Inter-process communication
 
-## How do I build and run this?
+## How do I run this?
 
-See [build instructions](Documentation/BuildInstructionsLadybird.md) for information on how to build Ladybird.
+Download the alpha release for Linux or macOS from [ladybird.org](https://ladybird.org/download/).
+
+To build it yourself, see the [build instructions](Documentation/BuildInstructionsLadybird.md).
 
 Ladybird runs on Linux, macOS, Windows (with WSL2), and many other \*Nixes.
 

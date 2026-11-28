@@ -9,7 +9,7 @@ Independent means:
 
 ## Is [some particular site] usable in Ladybird?
 
-Ladybird is pre-alpha software you have to build from the sources yourself in order to even try. That said, it’s getting better day-by-day at handling some of the most widely-used sites on the web. So, you may find that a given site among the sites you visit daily is already usable in Ladybird. Or you may not. The only way you can really know at this point is to follow the [build instructions](BuildInstructionsLadybird.md) to build Ladybird and try it yourself.
+Ladybird is alpha software, so some websites won’t work, and it will crash sometimes. When that happens, tell us! You can report a broken site from inside the browser. After a crash, you can read the crash report and decide whether to send it. Our [privacy policy](https://ladybird.org/privacy/) has the details.
 
 ## Windows support when?
 
@@ -35,13 +35,14 @@ Ladybird supports user-configured content blocker lists, and we already have ope
 ## Is there a release roadmap?
 
 - 2026: alpha release (daily driver for developers and early adopters) for Linux and macOS.
-- 2027: beta release; downloadable app for Linux and macOS.
+- 2027: beta release for Linux and macOS.
 - 2028: stable release for general use
     ![image](https://github.com/user-attachments/assets/dec1ab54-5844-47dc-b365-03983bc00390)
 
 ## Well, how do I run this thing then?
 
-Simple, my friend! Just refer to the [build instructions](BuildInstructionsLadybird.md).
+Simple, my friend! Download the alpha release for Linux or macOS from [ladybird.org](https://ladybird.org/download/).
+Or, to build it yourself, refer to the [build instructions](BuildInstructionsLadybird.md).
 
 ## I did a `git pull` and now the build is broken! What do I do?
 
