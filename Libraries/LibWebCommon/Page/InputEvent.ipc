@@ -55,6 +55,7 @@ struct Web::KeyEvent {
     u64 id;
     Vector<Web::TextEditingCommand> editing_commands;
     bool native_editing_binding_resolved;
+    Web::UIEvents::KeyCode physical_key;
 }
 
 [ExistingCpp]

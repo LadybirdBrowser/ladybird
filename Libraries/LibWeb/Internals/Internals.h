@@ -112,6 +112,7 @@ public:
     void mouse_event_through_ui_process(Bindings::MouseEventThroughUIProcessType, double x, double y, Bindings::MouseEventThroughUIProcessOptions const&, GC::Ref<WebIDL::Promise>);
     void wheel_through_ui_process(double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase, Bindings::WheelTicks const&, GC::Ref<WebIDL::Promise>);
     void send_key(HTML::HTMLElement&, Utf16String const&, WebIDL::UnsignedShort modifiers, WebIDL::UnsignedLong repeat_count);
+    void send_key_at_position(HTML::HTMLElement&, Utf16String const& position_key_name, Utf16String const& character, WebIDL::UnsignedShort modifiers);
     WebIDL::ExceptionOr<void> send_text_editing_command(HTML::HTMLElement&, Utf16String const& command_name, bool extend_selection);
     void paste(HTML::HTMLElement& target, Utf16String const& text);
     void paste_from_clipboard();

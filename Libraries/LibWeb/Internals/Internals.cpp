@@ -926,6 +926,24 @@ void Internals::send_key(HTML::HTMLElement& target, Utf16String const& key_name,
     page().handle_keyup(key_code, modifiers, 0, false);
 }
 
+void Internals::send_key_at_position(HTML::HTMLElement& target, Utf16String const& position_key_name, Utf16String const& character, WebIDL::UnsignedShort modifiers)
+{
+    auto physical_key = UIEvents::key_code_from_string(position_key_name.utf16_view());
+    u32 code_point = 0;
+    for (auto c : character) {
+        code_point = c;
+        break;
+    }
+    auto key_code = UIEvents::code_point_to_key_code(code_point);
+    // With Ctrl, a letter key types the control character for that letter, as the UI reports it.
+    if ((modifiers & UIEvents::Mod_Ctrl) && is_ascii_alpha(code_point))
+        code_point = to_ascii_uppercase(code_point) - '@';
+    target.focus();
+
+    page().handle_keydown(key_code, modifiers, code_point, false, false, false, {}, false, {}, physical_key);
+    page().handle_keyup(key_code, modifiers, code_point, false, physical_key);
+}
+
 void Internals::paste(HTML::HTMLElement& target, Utf16String const& text)
 {
     auto& page = this->page();

@@ -1,0 +1,16 @@
+keydown key=z code=KeyY keyCode=90 ctrl=false
+keyup key=z code=KeyY keyCode=90 ctrl=false
+keydown key=y code=KeyZ keyCode=89 ctrl=false
+keyup key=y code=KeyZ keyCode=89 ctrl=false
+keydown key=а code=KeyF keyCode=70 ctrl=false
+keyup key=а code=KeyF keyCode=70 ctrl=false
+keydown key=& code=Digit1 keyCode=49 ctrl=false
+keyup key=& code=Digit1 keyCode=49 ctrl=false
+keydown key=, code=KeyM keyCode=188 ctrl=false
+keyup key=, code=KeyM keyCode=188 ctrl=false
+keydown key=ö code=Semicolon keyCode=0 ctrl=false
+keyup key=ö code=Semicolon keyCode=0 ctrl=false
+keydown key=z code=KeyY keyCode=90 ctrl=true
+keyup key=z code=KeyY keyCode=90 ctrl=true
+keydown key=а code=KeyF keyCode=70 ctrl=true
+keyup key=а code=KeyF keyCode=70 ctrl=true

@@ -16,11 +16,15 @@ namespace Web::UIEvents {
 GC_DEFINE_ALLOCATOR(KeyboardEvent);
 
 // https://www.w3.org/TR/uievents/#determine-keydown-keyup-keyCode
-static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
+static unsigned long determine_key_code(KeyCode platform_key, KeyCode physical_key, u32 code_point)
 {
     // If input key when pressed without modifiers would insert a numerical character (0-9), return the ASCII code of that numerical character.
     if (is_ascii_digit(code_point))
         return code_point;
+    // NB: A key in the digit row reports its digit on every layout, including one (AZERTY, e.g.) whose characters there
+    //     without modifiers aren't digits.
+    if (physical_key >= KeyCode::Key_0 && physical_key <= KeyCode::Key_9)
+        return to_underlying(physical_key);
 
     switch (platform_key) {
     case KeyCode::Key_ExclamationPoint:
@@ -50,6 +54,10 @@ static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
     // If input key when pressed without modifiers would insert a lower case character in the a-z alphabetical range, return the ASCII code of the upper case equivalent.
     if (is_ascii_lower_alpha(code_point))
         return to_ascii_uppercase(code_point);
+    // NB: A letter key whose layout puts no key we know there (a Cyrillic letter, e.g.) reports the letter that a US
+    //     keyboard has at its position.
+    if (platform_key == KeyCode::Key_Invalid && physical_key >= KeyCode::Key_A && physical_key <= KeyCode::Key_Z)
+        return to_underlying(physical_key);
 
     // If the key’s function, as determined in an implementation-specific way, corresponds to one of the keys in the §8.3.3 Fixed virtual key codes table, return the corresponding key code.
     // https://www.w3.org/TR/uievents/#fixed-virtual-key-codes
@@ -698,11 +706,12 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     return DOMKeyLocation::Standard;
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat, KeyCode physical_key)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
-    auto event_code = MUST(get_event_code(platform_key, modifiers));
-    auto key_code = determine_key_code(platform_key, code_point);
+    // NB: The code names the key by its position: the key a US keyboard has there, wherever the UI can tell.
+    auto event_code = MUST(get_event_code(physical_key != KeyCode::Key_Invalid ? physical_key : platform_key, modifiers));
+    auto key_code = determine_key_code(platform_key, physical_key, code_point);
     auto char_code = determine_char_code(Utf16FlyString::from_fly_string(event_name), code_point);
 
     // For character-producing keypress events, browsers report the character code
@@ -729,11 +738,12 @@ GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object cons
     return KeyboardEvent::create(Utf16FlyString::from_fly_string(event_name), event_init, HighResolutionTime::current_high_resolution_time(relevant_global_object));
 }
 
-GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Object const& relevant_global_object, Utf16FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat, KeyCode physical_key)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point, modifiers));
-    auto event_code = MUST(get_event_code(platform_key, modifiers));
-    auto key_code = determine_key_code(platform_key, code_point);
+    // NB: The code names the key by its position: the key a US keyboard has there, wherever the UI can tell.
+    auto event_code = MUST(get_event_code(physical_key != KeyCode::Key_Invalid ? physical_key : platform_key, modifiers));
+    auto key_code = determine_key_code(platform_key, physical_key, code_point);
     auto char_code = determine_char_code(event_name, code_point);
 
     if (event_name == UIEvents::EventNames::keypress && char_code != 0)
