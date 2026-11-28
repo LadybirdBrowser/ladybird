@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/box-shadow-blur-on-tilted-box-far-from-origin-ref.html">
+<style>
+    body { margin: 0; }
+    #scroller {
+        width: 300px;
+        height: 300px;
+        overflow: hidden;
+    }
+    .distance-from-origin { height: 2000px; }
+    .scene {
+        box-sizing: border-box;
+        width: 300px;
+        height: 300px;
+        padding: 75px;
+        perspective: 600px;
+    }
+    .tilted-box {
+        width: 150px;
+        height: 150px;
+        background: green;
+        transform: rotateX(-10deg);
+        box-shadow: 0 0 30px black;
+    }
+</style>
+<!-- The blur of a shadow on a box tilted under perspective is the same wherever the box is in its coordinate space. -->
+<div id="scroller">
+    <div class="distance-from-origin"></div>
+    <div class="scene"><div class="tilted-box"></div></div>
+</div>
+<script>
+    document.getElementById("scroller").scrollTop = 2000;
+</script>
