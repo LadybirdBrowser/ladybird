@@ -380,6 +380,9 @@ DecoderErrorOr<SegmentInformation> Reader::parse_segment_information_element(Str
         return ElementIterationDecision::Continue;
     }));
 
+    if (segment_information.timestamp_scale() == 0)
+        return DecoderError::corrupted("TimestampScale was 0"sv);
+
     return segment_information;
 }
 
