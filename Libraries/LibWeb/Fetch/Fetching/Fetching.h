@@ -95,6 +95,7 @@ WEB_API Utf16String network_request_failed_error_message(Optional<StringView> er
 WEB_API void set_http_memory_cache_enabled(bool enabled);
 WEB_API bool http_memory_cache_enabled();
 WEB_API void clear_http_memory_cache();
+void clear_http_memory_cache_entries();
 bool http_memory_cache_can_hold_body_in_memory(size_t);
 void evict_http_memory_cache_entries_over_limits();
 WEB_API Optional<Utf16String> http_cache_partition(Infrastructure::Request const&);
