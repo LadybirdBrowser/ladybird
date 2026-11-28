@@ -33,28 +33,22 @@ public:
     // For Document::build_accessibility_tree_change(): A build begins, notes each node it reaches, and ends.
     void begin(i64 document_id, bool whole_tree);
     // Returns whether the node goes in the change. A node's data is the same as last time when its kept record and
-    // geometry have the same versions (see Document::kept_accessibility_record()) and every field computed again on
+    // geometry have the same versions (see Document::restore_accessibility_record()) and every field computed again on
     // each build is the same; a geometry version that isn't known counts as changed.
     bool note(WebView::AccessibilityNodeData const&, u64 record_version, Optional<u64> geometry_version);
     // Returns the IDs of the nodes noted last time but not this time.
     Vector<i64> end();
 
 private:
-    // OPTIMIZATION: One of these stays alive for every node of the tree, so it holds a hash of the node's child IDs rather
-    //               than a copy of them. Another list with the same hash would leave out a node whose children changed,
+    // OPTIMIZATION: One of these stays alive for every node of the tree, so it holds a hash of the fields a build computes
+    //               again rather than a copy of them. Another node with the same hash would leave out a node that changed,
     //               but for a 64-bit hash that's far less likely than any other way the update could go missing.
     static constexpr u64 UNKNOWN_GEOMETRY_VERSION = NumericLimits<u64>::max();
     struct NodeState {
         u64 record_version { 0 };
         u64 geometry_version { UNKNOWN_GEOMETRY_VERSION };
-        i64 parent_id { -1 };
-        u64 child_ids_hash { 0 };
-        Gfx::IntRect bounds;
-        i32 caret_offset { -1 };
-        i32 selection_start { -1 };
-        i32 selection_end { -1 };
+        u64 computed_fields_hash { 0 };
         u32 build { 0 };
-        bool is_focused { false };
     };
 
     Optional<i64> m_document_id;

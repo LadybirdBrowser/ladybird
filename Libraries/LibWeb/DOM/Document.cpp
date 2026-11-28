@@ -328,10 +328,86 @@ struct AccessibilityTextStyleTraits : public DefaultTraits<WebView::Accessibilit
     static unsigned hash(WebView::AccessibilityShared<WebView::AccessibilityTextStyle> const& style) { return style->hash(); }
 };
 
+// What a node's record keeps of its data: the fields that stay the same from one build to the next until a change to the
+// node or its style could alter them. A build computes the rest again: the bounds, focus, caret, selection, parent,
+// children and text geometry. The ID is the node's.
+// OPTIMIZATION: One of these stays alive for every node of the tree, so it leaves those out rather than keeping a whole
+//               AccessibilityNodeData with them at their defaults.
+struct KeptAccessibilityNodeData {
+    explicit KeptAccessibilityNodeData(WebView::AccessibilityNodeData const& data)
+        : role(data.role)
+        , name(data.name)
+        , details(data.details)
+        , text_style(data.text_style)
+        , heading_level(data.heading_level)
+        , hierarchical_level(data.hierarchical_level)
+        , checked_state(data.checked_state)
+        , expanded_state(data.expanded_state)
+        , pressed_state(data.pressed_state)
+        , is_disabled(data.is_disabled)
+        , is_selected(data.is_selected)
+        , is_editable(data.is_editable)
+        , is_multi_line(data.is_multi_line)
+        , is_password(data.is_password)
+        , is_read_only(data.is_read_only)
+        , is_required(data.is_required)
+        , is_invalid(data.is_invalid)
+        , is_multi_selectable(data.is_multi_selectable)
+        , is_visited(data.is_visited)
+    {
+    }
+
+    void restore(UniqueNodeID id, WebView::AccessibilityNodeData& data) const
+    {
+        data.id = static_cast<i64>(id.value());
+        data.role = role;
+        data.name = name;
+        data.details = details;
+        data.text_style = text_style;
+        data.heading_level = heading_level;
+        data.hierarchical_level = hierarchical_level;
+        data.checked_state = checked_state;
+        data.expanded_state = expanded_state;
+        data.pressed_state = pressed_state;
+        data.is_disabled = is_disabled;
+        data.is_selected = is_selected;
+        data.is_editable = is_editable;
+        data.is_multi_line = is_multi_line;
+        data.is_password = is_password;
+        data.is_read_only = is_read_only;
+        data.is_required = is_required;
+        data.is_invalid = is_invalid;
+        data.is_multi_selectable = is_multi_selectable;
+        data.is_visited = is_visited;
+    }
+
+    FlyString role;
+    String name;
+    WebView::AccessibilityShared<WebView::AccessibilityNodeDetails> details;
+    WebView::AccessibilityShared<WebView::AccessibilityTextStyle> text_style;
+    i32 heading_level;
+    i32 hierarchical_level;
+    WebView::AccessibilityNodeData::CheckedState checked_state;
+    WebView::AccessibilityNodeData::ExpandedState expanded_state;
+    WebView::AccessibilityNodeData::PressedState pressed_state;
+    bool is_disabled;
+    bool is_selected;
+    bool is_editable;
+    bool is_multi_line;
+    bool is_password;
+    bool is_read_only;
+    bool is_required;
+    bool is_invalid;
+    bool is_multi_selectable;
+    bool is_visited;
+};
+// A field added to AccessibilityNodeData has to be either kept above or computed again on every build.
+static_assert(sizeof(WebView::AccessibilityNodeData) == 136);
+
 struct Document::AccessibilityRecordCache {
     AK_ALLOC_WITH_KMALLOC;
     struct Record {
-        WebView::AccessibilityNodeData data;
+        KeptAccessibilityNodeData data;
         u64 version { 0 };
         OwnPtr<CachedTextGeometry> text_geometry;
     };
@@ -7153,15 +7229,16 @@ void Document::cache_accessible_text(Element const& element, CachedAccessibleTex
         m_cached_accessible_text_depending_on_any_node.set(id);
 }
 
-Document::KeptAccessibilityRecord Document::kept_accessibility_record(Node const& node) const
+u64 Document::restore_accessibility_record(Node const& node, WebView::AccessibilityNodeData& data) const
 {
     if (!m_accessibility_record_cache || m_accessibility_caches_bypassed)
-        return {};
+        return 0;
     m_accessibility_record_cache->drop_subtrees_to_drop();
     auto it = m_accessibility_record_cache->records.find(node.unique_id());
     if (it == m_accessibility_record_cache->records.end())
-        return {};
-    return { &it->value.data, it->value.version };
+        return 0;
+    it->value.data.restore(it->key, data);
+    return it->value.version;
 }
 
 u64 Document::cache_accessibility_record(Node const& node, WebView::AccessibilityNodeData const& record) const
@@ -7171,13 +7248,8 @@ u64 Document::cache_accessibility_record(Node const& node, WebView::Accessibilit
     if (!m_accessibility_record_cache)
         m_accessibility_record_cache = make<AccessibilityRecordCache>();
     m_accessibility_record_cache->drop_subtrees_to_drop();
-    // Leave out what every build computes again anyway, so it isn't kept, and copied out, for nothing.
-    auto kept = record;
-    kept.bounds = {};
-    kept.is_focused = false;
-    kept.text_geometry.clear();
     auto version = m_accessibility_record_cache->next_version++;
-    m_accessibility_record_cache->records.set(node.unique_id(), { move(kept), version, {} });
+    m_accessibility_record_cache->records.set(node.unique_id(), { KeptAccessibilityNodeData { record }, version, {} });
     return version;
 }
 
@@ -7414,7 +7486,11 @@ Vector<String> Document::cached_accessibility_record_mismatches()
     Vector<String> mismatches;
     for (auto const& data : fresh) {
         auto cached = m_accessibility_record_cache->records.find(UniqueNodeID { data.id });
-        if (cached == m_accessibility_record_cache->records.end() || kept_part(cached->value.data) == kept_part(data))
+        if (cached == m_accessibility_record_cache->records.end())
+            continue;
+        WebView::AccessibilityNodeData restored;
+        cached->value.data.restore(cached->key, restored);
+        if (kept_part(move(restored)) == kept_part(data))
             continue;
         auto* node = Node::from_unique_id(UniqueNodeID { data.id });
         auto const* element = as_if<Element>(node);

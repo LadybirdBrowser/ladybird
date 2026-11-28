@@ -522,9 +522,9 @@ i64 AccessibilityTreeNode::serialize_node_as_node_data(Vector<WebView::Accessibi
     // What a change tracker tells this build of the node from the last one by: see AccessibilityChangeTracker::note().
     u64 record_version = 0;
     Optional<u64> geometry_version;
-    if (auto kept = keeps_records ? document.kept_accessibility_record(*value()) : Document::KeptAccessibilityRecord {}; kept.data) {
-        node_data = *kept.data;
-        record_version = kept.version;
+    if (keeps_records)
+        record_version = document.restore_accessibility_record(*value(), node_data);
+    if (record_version != 0) {
         geometry_version = fill_volatile_fields(node_data, *value(), document, read);
     } else {
         if (!value()->is_text())
