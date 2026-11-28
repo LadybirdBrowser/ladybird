@@ -15,3 +15,5 @@ mod rust_panic;
 
 pub mod authenticator;
 pub mod cbor;
+pub mod client_data;
+pub mod ffi_bytes;
