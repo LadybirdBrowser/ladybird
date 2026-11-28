@@ -71,6 +71,7 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/NavigationParamsDescriptor.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/PolicyContainerFromFetchResponse.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Agent.h>

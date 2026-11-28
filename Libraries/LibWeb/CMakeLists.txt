@@ -529,6 +529,7 @@ set(SOURCES
     HTML/Parser/IncrementalDocumentParser.cpp
     HTML/Parser/SpeculativeHTMLParser.cpp
     HTML/PluginArray.cpp
+    HTML/PolicyContainerFromFetchResponse.cpp
     HTML/PolicyContainers.cpp
     HTML/PreparedNavigationDescriptor.cpp
     HTML/PopoverTargetAttributes.cpp

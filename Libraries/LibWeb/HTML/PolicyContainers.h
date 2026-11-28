@@ -10,13 +10,11 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Utf16String.h>
-#include <LibGC/Ptr.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
-#include <LibWeb/Forward.h>
 #include <LibWeb/SRI/IntegrityPolicy.h>
 #include <LibWebCommon/HTML/EmbedderPolicy.h>
+#include <LibWebCommon/HTML/SerializedPolicyContainer.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/UpgradeInsecureRequests/InsecureRequestsPolicy.h>
 
@@ -79,9 +77,6 @@ private:
 
 // https://html.spec.whatwg.org/multipage/browsers.html#requires-storing-the-policy-container-in-history
 [[nodiscard]] bool url_requires_storing_the_policy_container_in_history(URL::URL const& url);
-
-// https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
-[[nodiscard]] NonnullRefPtr<PolicyContainer> create_a_policy_container_from_a_fetch_response(GC::Ref<Fetch::Infrastructure::ResponseView const> response, GC::Ptr<Environment> environment);
 
 [[nodiscard]] NonnullRefPtr<PolicyContainer> create_a_policy_container_from_serialized_policy_container(SerializedPolicyContainer const&);
 
