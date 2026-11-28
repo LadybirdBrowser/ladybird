@@ -129,7 +129,7 @@ impl<H: WebGLHost> Replayer<'_, H> {
             if error == GL_NO_ERROR {
                 return;
             }
-            eprintln!("Compositor: Discarding GL error {error:#x} raised by the Compositor's own work");
+            ak::warnln!("Compositor: Discarding GL error {error:#x} raised by the Compositor's own work");
         }
     }
 }

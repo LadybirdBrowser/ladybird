@@ -106,7 +106,7 @@ pub unsafe extern "C" fn webrtc_client_run(
     match run(mach_server_name, network_access) {
         Ok(()) => 0,
         Err(error) => {
-            eprintln!("WebRTCClient: {error:#}");
+            ak::warnln!("WebRTCClient: {error:#}");
             1
         }
     }

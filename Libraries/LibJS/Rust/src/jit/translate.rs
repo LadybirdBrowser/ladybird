@@ -738,7 +738,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
         // NB: The code is identified by its executable and how often that executable's code was discarded before.
         let stress = if is_stress_exit { " (stress)" } else { "" };
         if executable == compiled_executable {
-            eprintln!(
+            ak::warnln!(
                 "JIT exit: {} pc {} {:?}{stress}, code {:p}/{}",
                 super::describe_executable(&executable),
                 frame_state.pc(),
@@ -747,7 +747,7 @@ pub(super) fn exit(vm: &Vm, root: NonNull<ExecutionContext>, code: &JitCode, ind
                 compiled_executable.jit_discard_count()
             );
         } else {
-            eprintln!(
+            ak::warnln!(
                 "JIT exit: {} pc {} {:?}{stress}, inlined into {}, code {:p}/{}",
                 super::describe_executable(&executable),
                 frame_state.pc(),
@@ -1172,7 +1172,7 @@ fn note_legacy_arguments_read(vm: &Vm, root: &ExecutionContext, code: &JitCode, 
         compiled_executable.note_learned_jit_exit_site();
     }
     if vm.jit.options.log_exits && !code.is_invalidated() {
-        eprintln!(
+        ak::warnln!(
             "JIT invalidate: {}, legacy arguments of {} read at pc {}",
             super::describe_executable(&compiled_executable),
             super::describe_executable(&executable),

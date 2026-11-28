@@ -464,7 +464,7 @@ impl SampleBufferDisplayLayer {
             let status: isize = send(renderer, sel!("status"), ());
             if status == RENDERING_STATUS_FAILED {
                 let error: *mut c_void = send(renderer, sel!("error"), ());
-                eprintln!(
+                ak::warnln!(
                     "Compositor: AVFoundation failed to show a video surface: {}",
                     description_of(error)
                 );

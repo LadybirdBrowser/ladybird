@@ -79,7 +79,7 @@ impl<T> GcRefCell<T> {
         // SAFETY: The thread that owns the heap is stopped while its collection marks, and it holds no mutable borrow,
         //         which this checks, so nothing changes the value while it is traced.
         let Ok(value) = (unsafe { self.0.try_borrow_unguarded() }) else {
-            eprintln!("libjs_rust: garbage collection while a GcRefCell is mutably borrowed");
+            ak::warnln!("libjs_rust: garbage collection while a GcRefCell is mutably borrowed");
             std::process::abort();
         };
         value
@@ -95,7 +95,7 @@ impl<T> GcRefCell<T> {
 pub unsafe fn ref_cell_for_trace<T>(cell: &core::cell::RefCell<T>) -> &T {
     // SAFETY: See GcRefCell::borrow_for_trace().
     let Ok(value) = (unsafe { cell.try_borrow_unguarded() }) else {
-        eprintln!("libjs_rust: garbage collection while a RefCell it traces is mutably borrowed");
+        ak::warnln!("libjs_rust: garbage collection while a RefCell it traces is mutably borrowed");
         std::process::abort();
     };
     value

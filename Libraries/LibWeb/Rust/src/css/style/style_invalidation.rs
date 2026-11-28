@@ -1215,7 +1215,7 @@ fn compare_record_views(
                         != new_longhands.handle(property).map(RetainedStyleValueData::pointer)
             })
     {
-        eprintln!("the engine records that share a group read different values of a longhand it holds");
+        ak::warnln!("the engine records that share a group read different values of a longhand it holds");
         std::process::abort();
     }
     packed

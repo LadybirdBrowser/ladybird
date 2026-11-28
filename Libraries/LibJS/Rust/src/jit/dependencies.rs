@@ -337,7 +337,7 @@ pub fn invalidate_dependents(vm: &Vm, dependency: Dependency) {
             continue;
         };
         if vm.jit.options.log_exits {
-            eprintln!(
+            ak::warnln!(
                 "JIT invalidate: {}, {dependency:?} no longer holds",
                 super::describe_executable(&executable)
             );

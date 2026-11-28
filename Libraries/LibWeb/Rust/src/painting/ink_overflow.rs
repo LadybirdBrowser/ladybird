@@ -817,7 +817,7 @@ impl crate::layout::LayoutNodeArena {
             && let Some(settle_elapsed) = settle_elapsed
         {
             let total_elapsed = start.elapsed();
-            eprintln!(
+            ak::warnln!(
                 "Paint ink overflow audit: rows={} checked={} unbounded={} contribution-unbounded={} recalculated={recalculated} settle-us={} audit-us={} size={}",
                 counts.rows,
                 counts.checked,

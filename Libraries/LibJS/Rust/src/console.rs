@@ -703,7 +703,7 @@ impl Console {
         arguments
     }
 
-    /// Writes what a host's debug output shows of a message, with dbgln(), which writes to the standard error.
+    /// Writes what a host's debug output shows of a message to the standard error, as dbgln() does.
     pub fn output_debug_message(&self, log_level: LogLevel, output: Utf16View<'_>) {
         let prefix = match log_level {
             LogLevel::Debug => "\x1b[32;1m(js debug)\x1b[0m",
@@ -713,7 +713,7 @@ impl Console {
             LogLevel::Warn => "\x1b[32;1m(js warn)\x1b[0m",
             _ => "\x1b[32;1m(js)\x1b[0m",
         };
-        eprintln!("{prefix} {}", crate::terminal::escape_for_terminal(&output.to_utf8()));
+        ak::warnln!("{prefix} {}", crate::terminal::escape_for_terminal(&output.to_utf8()));
     }
 
     pub fn report_exception(

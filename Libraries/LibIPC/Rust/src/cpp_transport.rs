@@ -31,7 +31,7 @@ fn into_cpp_transport(transport: std::io::Result<Transport>) -> *mut RustTranspo
     match transport {
         Ok(transport) => Box::into_raw(Box::new(RustTransport(transport))),
         Err(error) => {
-            eprintln!("Transport: Unable to start: {error}");
+            ak::warnln!("Transport: Unable to start: {error}");
             core::ptr::null_mut()
         }
     }

@@ -877,7 +877,7 @@ fn post_frame_through(
                 });
             }
             None => {
-                eprintln!(
+                ak::warnln!(
                     "WebContent: Could not place {} new display list chunks in shared memory",
                     new_chunks.len()
                 );

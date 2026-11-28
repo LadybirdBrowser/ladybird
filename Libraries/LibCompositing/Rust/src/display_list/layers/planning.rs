@@ -3063,7 +3063,7 @@ fn build_layer_stack(
                 false,
                 "the compositor refuses a plan of layers the planner made: {why_plan_fails_checks}"
             );
-            eprintln!(
+            ak::warnln!(
                 "WebContent: Sending one layer, as the compositor refuses the plan of layers: {why_plan_fails_checks}"
             );
             WhyListIsOneLayer::PlanFailsChecksOfCompositor

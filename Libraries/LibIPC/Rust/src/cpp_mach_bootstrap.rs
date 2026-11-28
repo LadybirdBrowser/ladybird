@@ -107,7 +107,7 @@ pub unsafe extern "C" fn ipc_mach_bootstrap_listener_create(
     match MachBootstrapListener::new(server_port_name, move |request| handler.handle(request)) {
         Ok(listener) => Box::into_raw(Box::new(BootstrapListener(listener))),
         Err(error) => {
-            eprintln!("MachBootstrapListener: Unable to register {server_port_name}: {error}");
+            ak::warnln!("MachBootstrapListener: Unable to register {server_port_name}: {error}");
             core::ptr::null_mut()
         }
     }

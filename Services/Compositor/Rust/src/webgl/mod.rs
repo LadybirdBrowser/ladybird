@@ -223,7 +223,7 @@ impl WebGLContexts {
             match unsafe { GlFunctions::load(|name| host.gl_proc_address(name)) } {
                 Ok(gl) => self.gl = Some(Box::new(gl)),
                 Err(missing_function) => {
-                    eprintln!("Compositor: Cannot replay WebGL without {missing_function:?}");
+                    ak::warnln!("Compositor: Cannot replay WebGL without {missing_function:?}");
                     host.destroy_webgl_context(client, canvas_id);
                     return None;
                 }
@@ -413,7 +413,7 @@ impl WebGLContexts {
             }
             PresentOutcome::ShowedPresentedFrame => {}
             PresentOutcome::NoDrawingBuffer => {
-                eprintln!("Compositor: Cannot present a WebGL context without a drawing buffer");
+                ak::warnln!("Compositor: Cannot present a WebGL context without a drawing buffer");
             }
         }
         Ok(())

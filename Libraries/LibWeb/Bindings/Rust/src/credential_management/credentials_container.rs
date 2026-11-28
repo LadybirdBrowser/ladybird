@@ -109,7 +109,7 @@ impl CredentialsContainer {
         //        gets those.
         let Some(public_key) = &options.public_key else {
             if options.password || options.federated.is_some() {
-                eprintln!("FIXME: Unimplemented CredentialsContainer::get() for password and federated credentials");
+                ak::warnln!("FIXME: Unimplemented CredentialsContainer::get() for password and federated credentials");
                 reject_not_implemented_promise(vm, promise, "get");
                 return Ok(());
             }
@@ -176,7 +176,7 @@ impl CredentialsContainer {
         if matches!(credential, AnyCredential::PublicKeyCredential(_)) {
             return Err(not_supported_error("A public key credential cannot be stored"));
         }
-        eprintln!("FIXME: Unimplemented CredentialsContainer::store()");
+        ak::warnln!("FIXME: Unimplemented CredentialsContainer::store()");
         reject_not_implemented_promise(cx.vm(), promise, "store");
         Ok(())
     }
@@ -239,7 +239,7 @@ impl CredentialsContainer {
         }
         // FIXME: Create the credentials of the other interfaces.
         let Some(public_key) = &options.public_key else {
-            eprintln!("FIXME: Unimplemented CredentialsContainer::create() for password and federated credentials");
+            ak::warnln!("FIXME: Unimplemented CredentialsContainer::create() for password and federated credentials");
             reject_not_implemented_promise(vm, promise, "create");
             return Ok(());
         };
@@ -281,7 +281,7 @@ impl CredentialsContainer {
 
     // https://w3c.github.io/webappsec-credential-management/#dom-credentialscontainer-preventsilentaccess
     pub(crate) fn prevent_silent_access(&self, cx: &mut CallContext, promise: WebIdlPromise) -> WebIdlResult<()> {
-        eprintln!("FIXME: Unimplemented CredentialsContainer::prevent_silent_access()");
+        ak::warnln!("FIXME: Unimplemented CredentialsContainer::prevent_silent_access()");
         reject_not_implemented_promise(cx.vm(), promise, "prevent silent access");
         Ok(())
     }

@@ -607,7 +607,7 @@ impl DocumentHost {
     /// waiting for that one's.
     pub(crate) fn seal_clock_plan(&self, plan: Option<ClockPlan>, update: u64) {
         if super::clock::hover::logs_hover() {
-            eprintln!(
+            ak::warnln!(
                 "{} hover lane: host frame of the update hovers {:?}",
                 super::clock::hover::log_time(),
                 self.hover_target.get().map(StyleNodeID::raw)
@@ -948,7 +948,7 @@ impl DocumentHost {
             self.lane_move.set(None);
         }
         if super::clock::hover::logs_hover() {
-            eprintln!(
+            ak::warnln!(
                 "{} hover lane: host takes in what the lanes did: moved {}, presented {presented}, {} steps to adopt, newest pointer {:?}",
                 super::clock::hover::log_time(),
                 self.lane_move.get().is_some(),

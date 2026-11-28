@@ -55,7 +55,7 @@ pub fn should_dump_interpreter_assembly() -> bool {
         if value == "1" {
             return true;
         }
-        eprintln!(
+        ak::warnln!(
             "Ignoring LADYBIRD_JS_INTERPRETER_DUMP value '{}': expected 0 or 1",
             value.to_string_lossy()
         );

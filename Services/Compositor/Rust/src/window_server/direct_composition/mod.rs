@@ -77,7 +77,7 @@ impl Shared {
         }
         // SAFETY: The device is live.
         if let Err(error) = unsafe { self.device.Commit() } {
-            eprintln!("Compositor: Unable to commit the visuals of remote layers: {error}");
+            ak::warnln!("Compositor: Unable to commit the visuals of remote layers: {error}");
         }
     }
 
@@ -90,7 +90,7 @@ impl Shared {
         let texture = match create_composition_texture_filled_with(device, color) {
             Ok(texture) => texture,
             Err(error) => {
-                eprintln!("Compositor: Unable to create a composition texture of a color: {error}");
+                ak::warnln!("Compositor: Unable to create a composition texture of a color: {error}");
                 return None;
             }
         };
@@ -176,7 +176,7 @@ impl DirectCompositionWindowServer {
         let dxgi_factory = match unsafe { gpu.adapter.GetParent::<IDXGIFactory2>() } {
             Ok(factory) => factory,
             Err(error) => {
-                eprintln!("Compositor: Unable to reach the DXGI factory of the GPU: {error}");
+                ak::warnln!("Compositor: Unable to reach the DXGI factory of the GPU: {error}");
                 return None;
             }
         };
@@ -191,7 +191,7 @@ impl DirectCompositionWindowServer {
                     device_showing_composition_textures = Some(device4);
                     device = Some(created);
                 }
-                Err(error) => eprintln!(
+                Err(error) => ak::warnln!(
                     "Compositor: Unable to create a DirectComposition device that shows composition textures: {error}"
                 ),
             }
@@ -202,7 +202,7 @@ impl DirectCompositionWindowServer {
             None => match unsafe { DCompositionCreateDevice2::<_, IDCompositionDesktopDevice>(None::<&IUnknown>) } {
                 Ok(device) => device,
                 Err(error) => {
-                    eprintln!("Compositor: Unable to create a DirectComposition device: {error}");
+                    ak::warnln!("Compositor: Unable to create a DirectComposition device: {error}");
                     return None;
                 }
             },

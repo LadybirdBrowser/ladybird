@@ -51,14 +51,14 @@ fn create_d3d11_device_for_composition_textures(adapter: &IDXGIAdapter1) -> Opti
         )
     };
     if let Err(error) = created {
-        eprintln!("Compositor: Unable to create a Direct3D 11 device for composition textures: {error}");
+        ak::warnln!("Compositor: Unable to create a Direct3D 11 device for composition textures: {error}");
         return None;
     }
     let device = device?;
     let device1 = match device.cast::<ID3D11Device1>() {
         Ok(device1) => device1,
         Err(error) => {
-            eprintln!("Compositor: Unable to reach the Direct3D 11.1 interface of a device: {error}");
+            ak::warnln!("Compositor: Unable to reach the Direct3D 11.1 interface of a device: {error}");
             return None;
         }
     };
@@ -68,7 +68,7 @@ fn create_d3d11_device_for_composition_textures(adapter: &IDXGIAdapter1) -> Opti
         match unsafe { DCompositionCreateDevice3::<_, IDCompositionDesktopDevice>(None::<&IUnknown>) } {
             Ok(composition_device) => composition_device,
             Err(error) => {
-                eprintln!(
+                ak::warnln!(
                     "Compositor: Unable to create a DirectComposition device to check for composition textures: {error}"
                 );
                 return None;
@@ -79,7 +79,7 @@ fn create_d3d11_device_for_composition_textures(adapter: &IDXGIAdapter1) -> Opti
     let composition_device4 = match composition_device.cast::<IDCompositionDevice4>() {
         Ok(composition_device4) => composition_device4,
         Err(error) => {
-            eprintln!("Compositor: This DirectComposition has no composition textures: {error}");
+            ak::warnln!("Compositor: This DirectComposition has no composition textures: {error}");
             return None;
         }
     };
@@ -87,11 +87,11 @@ fn create_d3d11_device_for_composition_textures(adapter: &IDXGIAdapter1) -> Opti
     match unsafe { composition_device4.CheckCompositionTextureSupport(&device) } {
         Ok(supported) if supported.as_bool() => Some(device1),
         Ok(_) => {
-            eprintln!("Compositor: DirectComposition shows no composition textures of this GPU");
+            ak::warnln!("Compositor: DirectComposition shows no composition textures of this GPU");
             None
         }
         Err(error) => {
-            eprintln!("Compositor: Unable to check for composition textures: {error}");
+            ak::warnln!("Compositor: Unable to check for composition textures: {error}");
             None
         }
     }

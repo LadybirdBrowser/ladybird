@@ -120,7 +120,7 @@ impl CodeFlushingOptions {
                 _ => false,
             };
             if !known {
-                eprintln!("LIBJS_CODE_FLUSH: Ignoring the option '{option}'");
+                ak::warnln!("LIBJS_CODE_FLUSH: Ignoring the option '{option}'");
             }
         }
         options

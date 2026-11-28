@@ -422,7 +422,7 @@ impl JitState {
         let _ = std::fs::create_dir_all(directory);
         let path = format!("{directory}/coverage-{}-{number}.json", std::process::id());
         if let Err(error) = std::fs::write(&path, json) {
-            eprintln!("LIBJS_JIT: Could not write {path}: {error}");
+            ak::warnln!("LIBJS_JIT: Could not write {path}: {error}");
         }
     }
 

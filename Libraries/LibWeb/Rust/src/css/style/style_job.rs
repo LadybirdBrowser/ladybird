@@ -446,9 +446,11 @@ fn verify_installed_styles(styles: &super::computed::InstalledStyles, rows: &[su
         };
         let installed = installed.map_or(0, |style| style.final_style_record().raw());
         if installed != row.new_style_record {
-            eprintln!(
+            ak::warnln!(
                 "the installed styles hold record {installed} for node {} (pseudo-element {}), the row installs {}",
-                row.style_node, row.pseudo_kind, row.new_style_record
+                row.style_node,
+                row.pseudo_kind,
+                row.new_style_record
             );
             std::process::abort();
         }

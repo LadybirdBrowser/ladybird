@@ -6,7 +6,7 @@
 
 //! AST dump in the format of the AST tests' expectations.
 //!
-//! Produces tree-drawing output to stdout via `println!`.
+//! Produces tree-drawing output to stdout via `ak::outln!`.
 
 use crate::ast::*;
 use crate::utf16::Utf16View;
@@ -81,7 +81,7 @@ fn print_node(state: &DumpState, text: &str) {
     if let Some(output) = state.output {
         let _ = writeln!(output.borrow_mut(), "{line}");
     } else {
-        println!("{line}");
+        ak::outln!("{line}");
     }
 }
 

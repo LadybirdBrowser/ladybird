@@ -53,7 +53,7 @@ pub(super) fn report_validation_error(state: State, pointer: usize, code_point: 
         let rendered_code_point = code_point
             .map(|code_point| format!("{code_point:?}"))
             .unwrap_or_else(|| "EOF".to_string());
-        eprintln!(
+        ak::warnln!(
             "URL validation error: state={state:?} pointer={pointer} code_point={rendered_code_point} message={message}"
         );
     }

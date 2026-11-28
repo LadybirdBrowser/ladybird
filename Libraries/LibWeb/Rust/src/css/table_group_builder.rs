@@ -180,7 +180,7 @@ impl<'a> LonghandSource<'a> {
                     && property_id != property_id::COLOR
                     && !GroupValueLayout::reads(reads, GroupValueLayout::get().place(LonghandID::new(property_id)))
                 {
-                    eprintln!("a style group build reads longhand {property_id}, which its key does not cover");
+                    ak::warnln!("a style group build reads longhand {property_id}, which its key does not cover");
                     std::process::abort();
                 }
                 values.effective_value(property_id)

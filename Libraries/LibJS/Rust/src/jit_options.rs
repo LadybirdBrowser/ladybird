@@ -386,12 +386,12 @@ impl Options {
         match Self::parse(&value) {
             Ok(options) => {
                 if options.help {
-                    eprint!("{}", options.help_text());
+                    ak::warn!("{}", options.help_text());
                 }
                 options
             }
             Err(error) => {
-                eprintln!("LIBJS_JIT: {error} (LIBJS_JIT=help lists the options)");
+                ak::warnln!("LIBJS_JIT: {error} (LIBJS_JIT=help lists the options)");
                 std::process::exit(1);
             }
         }

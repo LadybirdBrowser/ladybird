@@ -239,7 +239,7 @@ impl Lane {
                 Ok(()) => sampled_any = true,
                 Err(Park(reason)) => {
                     if super::hover::logs_hover() {
-                        eprintln!("{} clock lane: holds an element: {reason}", super::hover::log_time());
+                        ak::warnln!("{} clock lane: holds an element: {reason}", super::hover::log_time());
                     }
                     self.held_elements.push(node);
                 }

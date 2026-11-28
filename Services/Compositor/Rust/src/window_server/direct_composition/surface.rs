@@ -70,7 +70,7 @@ impl SharedTexture {
                     match unsafe { d3d11_device.OpenSharedResource1::<ID3D11Texture2D>(self.shared_handle) } {
                         Ok(texture) => *opened = Some(texture),
                         Err(error) => {
-                            eprintln!("Compositor: Unable to open a surface on the Direct3D 11 device: {error}");
+                            ak::warnln!("Compositor: Unable to open a surface on the Direct3D 11 device: {error}");
                             return None;
                         }
                     }
@@ -82,7 +82,7 @@ impl SharedTexture {
                 let texture = match unsafe { device.CreateCompositionTexture(opened) } {
                     Ok(texture) => texture,
                     Err(error) => {
-                        eprintln!("Compositor: Unable to create a composition texture of a surface: {error}");
+                        ak::warnln!("Compositor: Unable to create a composition texture of a surface: {error}");
                         return None;
                     }
                 };
@@ -100,7 +100,7 @@ impl SharedTexture {
             // SAFETY: The texture is live.
             match unsafe { composition_texture.texture.SetAlphaMode(alpha_mode) } {
                 Ok(()) => composition_texture.alpha_mode = alpha_mode,
-                Err(error) => eprintln!("Compositor: Unable to set the alpha mode of a composition texture: {error}"),
+                Err(error) => ak::warnln!("Compositor: Unable to set the alpha mode of a composition texture: {error}"),
             }
         }
         if composition_texture.source_rect != Some(source_rect) {
@@ -113,7 +113,9 @@ impl SharedTexture {
             // SAFETY: The texture is live, and reads the rect during the call.
             match unsafe { composition_texture.texture.SetSourceRect(&raw const rect) } {
                 Ok(()) => composition_texture.source_rect = Some(source_rect),
-                Err(error) => eprintln!("Compositor: Unable to set the source rect of a composition texture: {error}"),
+                Err(error) => {
+                    ak::warnln!("Compositor: Unable to set the source rect of a composition texture: {error}")
+                }
             }
         }
         Some(composition_texture.texture.clone())

@@ -35,7 +35,7 @@ fn parking_window() -> Option<HWND> {
             .spawn(move || run(&sender));
         let parking_window = thread.ok().and_then(|_| receiver.recv().ok().flatten());
         if parking_window.is_none() {
-            eprintln!("Compositor: Unable to start the thread of the windows of remote layers");
+            ak::warnln!("Compositor: Unable to start the thread of the windows of remote layers");
         }
         parking_window
     });
@@ -116,7 +116,7 @@ extern "system" fn parking_window_procedure(window: HWND, message: u32, w_param:
                 match child_window {
                     Ok(child_window) => LRESULT(child_window.0 as isize),
                     Err(_) => {
-                        eprintln!(
+                        ak::warnln!(
                             "Compositor: Unable to create the window of a remote layer: error {}",
                             GetLastError().0
                         );
