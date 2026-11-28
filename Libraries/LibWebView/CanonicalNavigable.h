@@ -95,7 +95,7 @@ public:
     Utf16String const& target_name() const;
 
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
-    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
+    void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {}, Optional<URL::Origin> pdf_viewer_origin = {});
     // Populates nothing for a document that would hold access the active document lacks.
     void populate_document_for_javascript_url(CanonicalNavigation&, NonnullRefPtr<CanonicalSessionHistoryEntry>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
