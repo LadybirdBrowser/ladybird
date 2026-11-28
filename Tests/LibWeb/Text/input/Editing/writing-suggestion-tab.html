@@ -64,6 +64,19 @@
         await show("Tab whose keydown moves the caret");
         area.removeEventListener("keydown", moveCaret);
 
+        await reset();
+        const insertTab = e => {
+            log.push(`keydown isComposing ${e.isComposing}`);
+            if (e.key !== "Tab" || e.isComposing)
+                return;
+            e.preventDefault();
+            area.setRangeText("\t", area.selectionStart, area.selectionEnd, "end");
+        };
+        area.addEventListener("keydown", insertTab);
+        internals.sendText(area, TAB);
+        await show("Tab handled by a page that leaves a composition alone");
+        area.removeEventListener("keydown", insertTab);
+
         area.value = "";
         log = [];
         internals.sendText(area, TAB);

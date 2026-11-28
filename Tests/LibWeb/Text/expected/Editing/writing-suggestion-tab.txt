@@ -28,6 +28,11 @@ Tab whose keydown moves the caret:
   focus: area
   events: keydown Tab 229 229
   suggestion: (none)
+Tab handled by a page that leaves a composition alone:
+  value: prediction
+  focus: area
+  events: keydown Tab 229 229, keydown isComposing true, beforeinput insertText ction, input insertText ction
+  suggestion: (none)
 Tab without a suggestion:
   value: 
   focus: after
