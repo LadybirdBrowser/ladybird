@@ -9,7 +9,6 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
-#include <LibGC/Ptr.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 
