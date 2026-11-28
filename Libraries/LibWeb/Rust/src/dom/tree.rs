@@ -9,6 +9,7 @@
 
 use super::node::Node;
 use super::node_core::NodeType;
+use super::node_ref::NodeRef;
 
 impl<'a> Node<'a> {
     /// https://dom.spec.whatwg.org/#concept-tree-child
@@ -93,6 +94,31 @@ impl<'a> Node<'a> {
             return self.parent();
         };
         core::iter::successors(Some(previous_sibling), |node| node.last_child()).last()
+    }
+}
+
+/// Calls `callback` with each shadow-including inclusive descendant of `node`, in shadow-including tree order, as
+/// DOM::Node::for_each_shadow_including_inclusive_descendant() does. The callback may change the tree: the walk reads
+/// each link as it reaches it, so it goes on from where the nodes it holds are when the callback returns.
+/// https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
+pub(crate) fn for_each_shadow_including_inclusive_descendant(node: NodeRef, callback: &mut impl FnMut(NodeRef)) {
+    callback(node);
+    for_each_shadow_including_descendant(node, callback);
+}
+
+/// Calls `callback` with each shadow-including descendant of `node`, in shadow-including tree order, as
+/// DOM::Node::for_each_shadow_including_descendant() does: an element's shadow root and its shadow-including
+/// descendants come before the element's children.
+/// https://dom.spec.whatwg.org/#concept-shadow-including-descendant
+pub(crate) fn for_each_shadow_including_descendant(node: NodeRef, callback: &mut impl FnMut(NodeRef)) {
+    // NB: The walk recurses, as the C++ one does, so that the nodes it holds stay on the stack.
+    if let Some(shadow_root) = node.shadow_root() {
+        for_each_shadow_including_inclusive_descendant(shadow_root, callback);
+    }
+    let mut child = node.first_child();
+    while let Some(current) = child {
+        for_each_shadow_including_inclusive_descendant(current, callback);
+        child = current.next_sibling();
     }
 }
 
@@ -202,6 +228,28 @@ mod tests {
         assert_eq!(text.next_after_subtree(document), Some(body));
         assert_eq!(doctype.next_after_subtree(document), Some(html));
         assert_eq!(body.next_after_subtree(body), None);
+    }
+
+    #[test]
+    fn a_shadow_including_walk_visits_a_shadow_root_before_its_hosts_children() {
+        let main_thread = MainThread::for_test();
+        let host = node(&main_thread, NodeType::ELEMENT_NODE);
+        let light_child = node(&main_thread, NodeType::ELEMENT_NODE);
+        append_child(host, light_child);
+        let shadow_root = super::super::test_tree::shadow_root(&main_thread, host);
+        let shadow_child = node(&main_thread, NodeType::TEXT_NODE);
+        append_child(shadow_root, shadow_child);
+        let root = node(&main_thread, NodeType::DOCUMENT_FRAGMENT_NODE);
+        append_child(root, host);
+
+        let mut visited = Vec::new();
+        for_each_shadow_including_inclusive_descendant(NodeRef::from(root), &mut |node| visited.push(node));
+        let expected = [root, host, shadow_root, shadow_child, light_child].map(NodeRef::from);
+        assert_eq!(visited, expected);
+
+        visited.clear();
+        for_each_shadow_including_descendant(NodeRef::from(host), &mut |node| visited.push(node));
+        assert_eq!(visited, expected[2..]);
     }
 
     #[test]

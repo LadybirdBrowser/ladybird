@@ -386,10 +386,7 @@ public:
     // Whether this node overrides post_connection(). Every override of post_connection() must also override this to
     // return true, since insertions skip the post-connection steps when no inserted node has them.
     virtual bool has_post_connection_steps() const { return false; }
-    enum class IsSubtreeRoot : u8 {
-        No,
-        Yes,
-    };
+    using IsSubtreeRoot = RustFFI::IsSubtreeRoot;
     MUST_UPCALL virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root);
     MUST_UPCALL virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor);
 
@@ -683,6 +680,7 @@ protected:
 
 private:
     friend class TreeNode<Node>;
+    friend class RustDOMHooks;
     RustFFI::NodeCore& tree_node_links() { return m_core; }
     RustFFI::NodeCore const& tree_node_links() const { return m_core; }
 
@@ -708,7 +706,6 @@ private:
     void append_child_impl(GC::Ref<Node>);
     void remove_child_impl(GC::Ref<Node>);
     void begin_child_index_generation();
-    void set_root_for_subtree(Node&);
 
     mutable OwnPtr<RareData> m_rare_data;
 };

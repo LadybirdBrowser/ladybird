@@ -2298,6 +2298,47 @@ fn reject_optional_in_extern_c_signatures(header: &Path) {
     }
 }
 
+/// Rejects a cell handle (GC::Ref, GC::Ptr or GC::Member) that a function signature or a callback takes or returns
+/// by value. These are classes, which MSVC returns through a hidden pointer and C does not, so only a raw pointer to a
+/// cell crosses between Rust and C++. A span of handles, a pointer to one and a field of a struct are only laid out.
+fn reject_cell_handles_in_signatures(header: &Path) {
+    let text = std::fs::read_to_string(header).unwrap_or_default();
+    for line in text.lines() {
+        let code = line.trim();
+        if code.starts_with("//") || (code.ends_with(';') && !code.contains(['(', ')'])) {
+            continue;
+        }
+        let mut rest = code;
+        while let Some(start) = ["GC::Ref<", "GC::Ptr<", "GC::Member<", "Span<"]
+            .iter()
+            .filter_map(|handle| rest.find(handle).map(|index| (index, handle.len())))
+            .min()
+        {
+            let (index, length) = start;
+            let is_span = rest[index..].starts_with("Span<");
+            let mut depth = 1;
+            let mut end = index + length;
+            for (offset, character) in rest[end..].char_indices() {
+                match character {
+                    '<' => depth += 1,
+                    '>' => depth -= 1,
+                    _ => {}
+                }
+                if depth == 0 {
+                    end += offset + 1;
+                    break;
+                }
+            }
+            assert!(
+                is_span || rest[end..].trim_start().starts_with('*'),
+                "{}: a cell handle by value in a signature: {line}",
+                header.display()
+            );
+            rest = &rest[end..];
+        }
+    }
+}
+
 /// Whether a header's sources failing to parse fails the build here, or is left for rustc to report.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SyntaxErrors {
@@ -2337,6 +2378,7 @@ fn write_ffi_header(
             std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
             bindings.write_to_file(&output_header);
             reject_optional_in_extern_c_signatures(&output_header);
+            reject_cell_handles_in_signatures(&output_header);
         },
     );
 }
@@ -2774,8 +2816,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         dom_config,
         &[
             manifest_dir.join("src/dom/element_core.rs"),
+            manifest_dir.join("src/dom/hooks.rs"),
+            manifest_dir.join("src/dom/links.rs"),
             manifest_dir.join("src/dom/node_core.rs"),
+            manifest_dir.join("src/dom/node_ref.rs"),
             manifest_dir.join("src/dom/pre_insert.rs"),
+            manifest_dir.join("src/dom/remove.rs"),
         ],
         &out_dir,
         Path::new("DOM/RustFFI.h"),
