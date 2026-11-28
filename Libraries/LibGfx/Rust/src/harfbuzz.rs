@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The HarfBuzz functions, types and values that text layout uses, as HarfBuzz 10.2 declares them.
+//! The HarfBuzz functions, types and values that text layout and fonts use, as HarfBuzz 10.2 declares them.
 //!
 //! The crate does not link HarfBuzz itself: every library and executable that links the crate links the HarfBuzz that
 //! CMake found for LibGfx, so that there is one HarfBuzz in a process. LibGfx/TextLayout.cpp checks the layouts and
@@ -21,6 +21,12 @@ pub struct HbBuffer {
 /// `hb_font_t`
 #[repr(C)]
 pub struct HbFont {
+    _private: [u8; 0],
+}
+
+/// `hb_face_t`
+#[repr(C)]
+pub struct HbFace {
     _private: [u8; 0],
 }
 
@@ -76,6 +82,25 @@ pub struct HbGlyphExtents {
     pub y_bearing: i32,
     pub width: i32,
     pub height: i32,
+}
+
+/// `hb_ot_math_glyph_variant_t`, with the advance in the units of the font scale.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct HbOtMathGlyphVariant {
+    pub glyph: u32,
+    pub advance: i32,
+}
+
+/// `hb_ot_math_glyph_part_t`, with the lengths in the units of the font scale.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct HbOtMathGlyphPart {
+    pub glyph: u32,
+    pub start_connector_length: i32,
+    pub end_connector_length: i32,
+    pub full_advance: i32,
+    pub flags: u32,
 }
 
 /// `hb_draw_state_t`
@@ -135,6 +160,8 @@ pub type HbDestroyFunc = unsafe extern "C" fn(user_data: *mut c_void);
 pub const DIRECTION_LTR: u32 = 4;
 /// `HB_DIRECTION_RTL` of `hb_direction_t`
 pub const DIRECTION_RTL: u32 = 5;
+/// `HB_DIRECTION_BTT` of `hb_direction_t`
+pub const DIRECTION_BTT: u32 = 7;
 
 /// `HB_SCRIPT_COMMON` of `hb_script_t`, the tag `Zyyy`
 pub const SCRIPT_COMMON: u32 = 0x5A797979;
@@ -164,6 +191,19 @@ pub const GLYPH_FLAG_DEFINED: u32 = 0x7;
 
 /// `HB_FEATURE_GLOBAL_END`
 pub const FEATURE_GLOBAL_END: c_uint = 0xFFFFFFFF;
+
+/// `HB_OT_MATH_CONSTANT_SCRIPT_PERCENT_SCALE_DOWN` of `hb_ot_math_constant_t`
+pub const OT_MATH_CONSTANT_SCRIPT_PERCENT_SCALE_DOWN: u32 = 0;
+/// `HB_OT_MATH_CONSTANT_SCRIPT_SCRIPT_PERCENT_SCALE_DOWN`
+pub const OT_MATH_CONSTANT_SCRIPT_SCRIPT_PERCENT_SCALE_DOWN: u32 = 1;
+/// `HB_OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT`, the last constant
+pub const OT_MATH_CONSTANT_RADICAL_DEGREE_BOTTOM_RAISE_PERCENT: u32 = 55;
+
+/// `HB_OT_MATH_GLYPH_PART_FLAG_EXTENDER` of `hb_ot_math_glyph_part_flags_t`
+pub const OT_MATH_GLYPH_PART_FLAG_EXTENDER: u32 = 0x1;
+
+/// `HB_OT_METRICS_TAG_UNDERLINE_SIZE` of `hb_ot_metrics_tag_t`, the tag `unds`
+pub const OT_METRICS_TAG_UNDERLINE_SIZE: u32 = 0x756E6473;
 
 /// `HB_TAG()`: the four characters of a tag, the first in the highest byte.
 #[must_use]
@@ -225,7 +265,10 @@ mod ffi {
 
         pub fn hb_shape(font: *mut HbFont, buffer: *mut HbBuffer, features: *const HbFeature, num_features: c_uint);
 
+        pub fn hb_font_get_face(font: *mut HbFont) -> *mut HbFace;
         pub fn hb_font_get_scale(font: *mut HbFont, x_scale: *mut c_int, y_scale: *mut c_int);
+        pub fn hb_font_get_nominal_glyph(font: *mut HbFont, code_point: u32, glyph: *mut u32) -> c_int;
+        pub fn hb_font_get_glyph_h_advance(font: *mut HbFont, glyph: u32) -> i32;
         pub fn hb_font_get_glyph_extents(font: *mut HbFont, glyph: u32, extents: *mut HbGlyphExtents) -> c_int;
         pub fn hb_font_draw_glyph(font: *mut HbFont, glyph: u32, draw_funcs: *mut HbDrawFuncs, draw_data: *mut c_void);
 
@@ -249,6 +292,28 @@ mod ffi {
             destroy: Option<HbDestroyFunc>,
         );
         pub fn hb_draw_funcs_make_immutable(draw_funcs: *mut HbDrawFuncs);
+
+        pub fn hb_ot_math_has_data(face: *mut HbFace) -> c_int;
+        pub fn hb_ot_math_get_constant(font: *mut HbFont, constant: u32) -> i32;
+        pub fn hb_ot_math_get_min_connector_overlap(font: *mut HbFont, direction: u32) -> i32;
+        pub fn hb_ot_math_get_glyph_variants(
+            font: *mut HbFont,
+            glyph: u32,
+            direction: u32,
+            start_offset: c_uint,
+            variants_count: *mut c_uint,
+            variants: *mut HbOtMathGlyphVariant,
+        ) -> c_uint;
+        pub fn hb_ot_math_get_glyph_assembly(
+            font: *mut HbFont,
+            glyph: u32,
+            direction: u32,
+            start_offset: c_uint,
+            parts_count: *mut c_uint,
+            parts: *mut HbOtMathGlyphPart,
+            italics_correction: *mut i32,
+        ) -> c_uint;
+        pub fn hb_ot_metrics_get_position(font: *mut HbFont, metrics_tag: u32, position: *mut i32) -> c_int;
 
         pub fn hb_unicode_funcs_get_default() -> *mut HbUnicodeFuncs;
         pub fn hb_unicode_script(unicode_funcs: *mut HbUnicodeFuncs, code_point: u32) -> u32;

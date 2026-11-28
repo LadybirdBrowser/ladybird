@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::harfbuzz::HbFont;
+use crate::harfbuzz::{self, HbFont};
+use crate::math_table::MathData;
 use std::borrow::Cow;
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -12,10 +13,7 @@ use std::sync::Arc;
 
 unsafe extern "C" {
     fn ladybird_gfx_font_snapshot(font: *const c_void, out_snapshot: *mut FfiFontSnapshot);
-    fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
-    fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
     fn ladybird_gfx_font_is_emoji_font(font: *const c_void) -> bool;
-    fn ladybird_gfx_font_is_invisible(font: *const c_void) -> bool;
     fn ladybird_gfx_font_cascade_list_font_for_code_point(
         list: *const c_void,
         code_point: u32,
@@ -80,12 +78,17 @@ pub struct FfiFontSnapshot {
     pub x_height: f32,
     pub cap_height: f32,
     pub zero_advance: f32,
+    pub average_character_advance: f32,
+    pub maximum_character_advance: f32,
     pub pixel_size: f32,
     pub point_size: f32,
     pub has_bounding_box_of_all_glyphs: bool,
     pub bounding_box_of_all_glyphs: BoundingBoxInFontUnits,
     pub synthetic_slant: f32,
     pub has_synthetic_bold: bool,
+    /// Whether the font stands in for one that is still loading, whose glyphs draw nothing.
+    pub is_invisible: bool,
+    pub glyph_count: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -99,6 +102,8 @@ pub struct FontFacts {
     pub x_height: f32,
     pub cap_height: f32,
     pub zero_advance: f32,
+    /// The average and maximum horizontal advances in pixels. A missing metric is zero.
+    pub character_advances: (f32, f32),
     pub pixel_size: f32,
     pub point_size: f32,
     /// None where the face records no box or an empty one, as bitmap-only faces do.
@@ -117,7 +122,9 @@ struct FontEntry {
     raw: NonNull<c_void>,
     facts: FontFacts,
     shaping: FfiShapingFont,
-    character_advances: std::sync::OnceLock<(f32, f32)>,
+    is_invisible: bool,
+    glyph_count: u32,
+    math_data: std::sync::OnceLock<Box<MathData>>,
     // What the font answers about itself that text chunking asks for every character: whether it is an emoji font,
     // and whether it has a glyph for U+0020 SPACE. Each is unknown until first asked.
     is_emoji_font: LazyVerdict,
@@ -149,9 +156,9 @@ impl LazyVerdict {
 
 // SAFETY: Gfx::Font is atomically reference counted, and the retained reference this entry owns
 // keeps it live. Everything the entry answers with is fixed at construction: the snapshot it
-// copied, and the typeface tables the glyph queries read. The font's lazily filled members are
-// each internally synchronized - the HarfBuzz font behind `call_once`, the emoji verdict and the
-// hinting memo behind an atomic word. The HarfBuzz font and the features the entry lends for
+// copied, and the font tables that the glyph queries read through HarfBuzz. The font's lazily
+// filled members are each internally synchronized - the emoji verdict and the hinting memo behind
+// an atomic word. The HarfBuzz font and the features the entry lends for
 // shaping are made before the font is shared and never change: the font made its hb_font_t
 // immutable, and HarfBuzz lets any number of threads shape with, measure and draw from an
 // immutable font at once, since it loads the tables and shaping data it keeps on first use with
@@ -195,6 +202,7 @@ impl FontHandle {
                 x_height: snapshot.x_height,
                 cap_height: snapshot.cap_height,
                 zero_advance: snapshot.zero_advance,
+                character_advances: (snapshot.average_character_advance, snapshot.maximum_character_advance),
                 pixel_size: snapshot.pixel_size,
                 point_size: snapshot.point_size,
                 bounding_box_of_all_glyphs: snapshot
@@ -204,7 +212,9 @@ impl FontHandle {
                 has_synthetic_bold: snapshot.has_synthetic_bold,
             },
             shaping: snapshot.shaping,
-            character_advances: std::sync::OnceLock::new(),
+            is_invisible: snapshot.is_invisible,
+            glyph_count: snapshot.glyph_count,
+            math_data: std::sync::OnceLock::new(),
             is_emoji_font: LazyVerdict::default(),
             contains_space_glyph: LazyVerdict::default(),
         }))
@@ -232,20 +242,6 @@ impl FontHandle {
         &self.0.facts
     }
 
-    /// The average and maximum horizontal advances in pixels. A missing metric is zero.
-    pub fn character_advances(&self) -> (f32, f32) {
-        unsafe extern "C" {
-            fn ladybird_gfx_font_character_advances(font: *const c_void, average: *mut f32, maximum: *mut f32);
-        }
-        *self.0.character_advances.get_or_init(|| {
-            let mut average = 0.0;
-            let mut maximum = 0.0;
-            // SAFETY: The entry owns a reference to the font, and both out-pointers address local variables.
-            unsafe { ladybird_gfx_font_character_advances(self.as_raw(), &raw mut average, &raw mut maximum) };
-            (average, maximum)
-        })
-    }
-
     #[inline]
     pub fn as_raw(&self) -> *const c_void {
         self.0.raw.as_ptr()
@@ -259,9 +255,9 @@ impl FontHandle {
     }
 
     /// Whether the font stands in for one that is still loading, whose glyphs draw nothing.
+    #[inline]
     pub fn is_invisible(&self) -> bool {
-        // SAFETY: The entry's retained reference keeps the font live.
-        unsafe { ladybird_gfx_font_is_invisible(self.as_raw()) }
+        self.0.is_invisible
     }
 
     pub fn glyph_width(&self, code_point: u32) -> f32 {
@@ -280,16 +276,22 @@ impl FontHandle {
         )
     }
 
+    /// The glyph that the font has for a code point, or zero if it has none.
     pub fn glyph_id_for_code_point(&self, code_point: u32) -> u32 {
-        // SAFETY: The entry's retained reference keeps the font live.
-        unsafe { ladybird_gfx_font_glyph_id(self.as_raw(), code_point) }
+        let mut glyph_id = 0;
+        // SAFETY: The handle keeps its immutable HarfBuzz font live, and the out-pointer addresses a local.
+        let found =
+            unsafe { harfbuzz::hb_font_get_nominal_glyph(self.harfbuzz_font(), code_point, &raw mut glyph_id) } != 0;
+        // A cmap can name a glyph that the face does not have. Such a code point has no glyph.
+        if found && glyph_id < self.0.glyph_count {
+            glyph_id
+        } else {
+            0
+        }
     }
 
     pub fn contains_glyph(&self, code_point: u32) -> bool {
-        let ask = || {
-            // SAFETY: The entry's retained reference keeps the font live.
-            unsafe { ladybird_gfx_font_contains_glyph(self.as_raw(), code_point) }
-        };
+        let ask = || self.glyph_id_for_code_point(code_point) > 0;
         if code_point == u32::from(' ') {
             return self.0.contains_space_glyph.get(ask);
         }
@@ -305,6 +307,11 @@ impl FontHandle {
     #[inline]
     pub(crate) fn harfbuzz_font(&self) -> *mut HbFont {
         self.0.shaping.harfbuzz_font.cast()
+    }
+
+    #[inline]
+    pub(crate) fn math_data_cell(&self) -> &std::sync::OnceLock<Box<MathData>> {
+        &self.0.math_data
     }
 
     /// The OpenType features the font is shaped with.

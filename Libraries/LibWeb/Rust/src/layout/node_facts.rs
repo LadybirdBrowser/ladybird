@@ -132,7 +132,7 @@ impl ReplacedContentStyle {
             } => style
                 .font()
                 .first_available_font()
-                .map_or((0.0, 0.0), |font| font.character_advances()),
+                .map_or((0.0, 0.0), |font| font.facts().character_advances),
             _ => (0.0, 0.0),
         };
         Self {

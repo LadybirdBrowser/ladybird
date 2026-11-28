@@ -41,6 +41,10 @@ struct FontPixelMetrics {
 
     // Number of pixels the font recommends as extra spacing between lines.
     float line_gap { 0 };
+
+    // The average and maximum horizontal advances of the font. A font that does not give one has 0.
+    float average_character_advance { 0 };
+    float maximum_character_advance { 0 };
 };
 
 // https://learn.microsoft.com/en-us/typography/opentype/spec/os2#uswidthclass
@@ -92,8 +96,6 @@ public:
     bool is_emoji_font() const;
 
     // The constants of the OpenType MATH table and the underline thickness of the post table, read on first use.
-    struct MathData;
-    MathData const& math_data() const;
 
     // Called by AtomicRefCounted when the last reference goes away.
     void will_be_destroyed() const;
@@ -119,9 +121,6 @@ private:
     // font, so the verdict is a single atomic byte. Either winner is correct: the classification
     // reads only the face's immutable tables.
     mutable Atomic<TriState> m_is_emoji_font { TriState::Unknown };
-
-    mutable OnceFlag m_math_data_once;
-    mutable OwnPtr<MathData> m_math_data;
 
     NonnullRefPtr<Typeface const> m_typeface;
     float m_point_width { 0.0f };

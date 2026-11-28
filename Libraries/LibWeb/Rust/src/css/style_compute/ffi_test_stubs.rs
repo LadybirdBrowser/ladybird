@@ -210,18 +210,6 @@ unsafe extern "C" fn ladybird_gfx_font_snapshot(
         }
     };
 }
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_gfx_font_character_advances(
-    _font: *const std::ffi::c_void,
-    average: *mut f32,
-    maximum: *mut f32,
-) {
-    // SAFETY: The caller provides valid out-pointers. Test fonts have no font tables.
-    unsafe {
-        *average = 0.0;
-        *maximum = 0.0;
-    }
-}
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn unicode_rust_idna_to_ascii(

@@ -16,7 +16,7 @@ use crate::text_layout::{JoiningContext, ShapedGlyph, TextType};
 use std::ffi::{c_int, c_uint, c_void};
 
 /// HarfBuzz positions glyphs in 1/64ths of a pixel, as `Gfx::text_shaping_resolution` says.
-const TEXT_SHAPING_RESOLUTION: f32 = 64.0;
+pub(crate) const TEXT_SHAPING_RESOLUTION: f32 = 64.0;
 
 unsafe extern "C" {
     fn ladybird_gfx_code_point_has_cursive_script_extension(code_point: u32) -> bool;
