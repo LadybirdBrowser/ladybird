@@ -1951,6 +1951,14 @@ void CanonicalTraversable::did_receive_child_navigable_unload_request(WebContent
     });
 }
 
+void CanonicalTraversable::replace_populated_document_of_history_jobs(CanonicalNavigable const& navigable, CanonicalDocument const& populated_document, NonnullRefPtr<CanonicalDocument> replacement)
+{
+    for (auto& entry : m_history_operations) {
+        if (auto* changing_navigable = entry.value->pending_changing_job(navigable.id()); changing_navigable && changing_navigable->populated_document == &populated_document)
+            changing_navigable->populated_document = replacement;
+    }
+}
+
 void CanonicalTraversable::end_history_jobs(CanonicalNavigable const& navigable, CanonicalDocument const* populated_document)
 {
     // NB: A job ends now, but its run goes on later: It can go on to dispatch other jobs, which must not see the tree
