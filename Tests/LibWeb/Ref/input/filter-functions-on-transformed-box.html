@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/filter-functions-on-transformed-box-ref.html">
+<style>
+    body { margin: 0; }
+    div {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        background: green;
+        filter: drop-shadow(10px 0 0 blue);
+    }
+    #scaled { left: 0; top: 0; transform-origin: 0 0; transform: scale(2); }
+    #turned { left: 200px; top: 50px; transform: rotate(90deg); }
+</style>
+<!-- A filter runs in the box's own coordinate system, so its shadow scales and turns with the box. -->
+<div id="scaled"></div>
+<div id="turned"></div>

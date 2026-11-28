@@ -74,9 +74,6 @@ pub(crate) struct BoxFacts {
     pub establishes_or_extends_3d_rendering_context: bool,
     pub may_have_clip: bool,
     pub default_scroll_shift_anchor: NodeSlotId,
-    /// Whether the box's filter references an SVG `<filter>`, whose region and subregions are in the box's own
-    /// coordinate system.
-    pub filter_references_svg_filter: bool,
 }
 
 impl BoxFacts {
@@ -98,22 +95,16 @@ impl BoxFacts {
     }
 
     /// Whether the box's effects layer sits under its transform, clip and mask nodes, rather than above them: for a
-    /// backdrop filter, and for a filter the box's clip-path, clip or mask has to apply to.
+    /// filter or a backdrop filter.
     pub(crate) fn effects_layer_is_inside_transform_and_clips(&self) -> bool {
-        self.effects.as_ref().is_some_and(|effects| {
-            // https://drafts.csswg.org/filter-effects-1/#placement
-            // "The compositing model follows the SVG compositing model: first any filter effect is applied, then any
-            // clipping, masking and opacity."
-            // https://drafts.csswg.org/filter-effects-1/#FilterEffectsRegion
-            // NB: An SVG filter's region and primitive subregions are rects in the box's local coordinate system, so
-            //     its graph has to run under the box's transform.
-            effects.backdrop_filter.is_some()
-                || (effects.filter.is_some()
-                    && (self.filter_references_svg_filter
-                        || self.clip_path.is_some()
-                        || self.css_clip.is_some()
-                        || !self.mask_layers.is_empty()))
-        })
+        // https://drafts.csswg.org/filter-effects-1/#placement
+        // "The compositing model follows the SVG compositing model: first any filter effect is applied, then any
+        // clipping, masking and opacity."
+        // NB: The lengths of a filter are in the box's local coordinate system, so it also runs under the box's
+        //     transform.
+        self.effects
+            .as_ref()
+            .is_some_and(|effects| effects.filter.is_some() || effects.backdrop_filter.is_some())
     }
 
     /// Gathers a box's facts for the visual context update, with the bounds of the SVG filter the box references,
@@ -136,11 +127,9 @@ impl BoxFacts {
             pixel_ratio,
             default_scroll_shift_anchor,
             |layout_arena| {
-                let Some(resolved) = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio) else {
-                    return (None, false);
-                };
+                let resolved = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio)?;
                 svg_filter_bounds = resolved.svg_filter_bounds;
-                (resolved.effects, resolved.references_svg_filter)
+                resolved.effects
             },
         );
         (facts, svg_filter_bounds)
@@ -155,11 +144,9 @@ impl BoxFacts {
     ) -> (Self, Option<crate::layout::used_values::FfiCssPixelRect>) {
         let mut svg_filter_bounds = None;
         let facts = Self::gather_with_effects(layout_arena, slot, pixel_ratio, NodeSlotId::INVALID, |layout_arena| {
-            let Some(resolved) = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio) else {
-                return (None, false);
-            };
+            let resolved = super::node_values::resolve_effects_data(layout_arena, slot, pixel_ratio)?;
             svg_filter_bounds = resolved.svg_filter_bounds;
-            (resolved.effects, resolved.references_svg_filter)
+            resolved.effects
         });
         (facts, svg_filter_bounds)
     }
@@ -169,7 +156,7 @@ impl BoxFacts {
         slot: NodeSlotId,
         pixel_ratio: f64,
         default_scroll_shift_anchor: NodeSlotId,
-        effects: impl FnOnce(&Arena) -> (Option<EffectsData>, bool),
+        effects: impl FnOnce(&Arena) -> Option<EffectsData>,
     ) -> Self {
         let mut facts = Self {
             needs_compositor_background_color_effect: layout_arena.node_has_compositor_animation_frame(
@@ -192,7 +179,6 @@ impl BoxFacts {
             establishes_or_extends_3d_rendering_context: false,
             may_have_clip: false,
             default_scroll_shift_anchor,
-            filter_references_svg_filter: false,
         };
         if let Some((transform, transform_is_invertible)) =
             super::node_values::compute_transform(layout_arena, slot, pixel_ratio)
@@ -201,9 +187,7 @@ impl BoxFacts {
             facts.transform_is_invertible = transform_is_invertible;
         }
         facts.perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
-        let (effects, filter_references_svg_filter) = effects(layout_arena);
-        facts.effects = effects.map(std::rc::Rc::new);
-        facts.filter_references_svg_filter = filter_references_svg_filter;
+        facts.effects = effects(layout_arena).map(std::rc::Rc::new);
         facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
         let node = slot;
         facts.establishes_or_extends_3d_rendering_context =
@@ -215,7 +199,10 @@ impl BoxFacts {
         facts.clip_path = super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, slot, pixel_ratio)
             .map(|(path, bounding_rect, fill_rule)| (std::sync::Arc::new(path), bounding_rect, fill_rule));
         let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
-        let masks_backdrop = facts.effects_layer_is_inside_transform_and_clips();
+        let masks_backdrop = facts
+            .effects
+            .as_ref()
+            .is_some_and(|effects| effects.backdrop_filter.is_some());
         facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, slot)
             .into_iter()
             .map(|layer| MaskData {
