@@ -9,6 +9,7 @@
 #include <AK/ConditionVariable.h>
 #include <AK/Mutex.h>
 #include <AK/Queue.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <AudioServer/PulseAudioWrappers.h>
 #include <LibAudio/PlaybackStream.h>
 
@@ -28,11 +29,14 @@ public:
     virtual void notify_data_available() override;
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
+    virtual void set_on_output_lost(Function<void()>) override;
 
 private:
     // This struct is kept alive until the control thread exits to prevent a use-after-free without blocking on
-    // the UI thread.
-    class InternalState : public AtomicRefCounted<InternalState> {
+    // the UI thread. The PulseAudio main loop reaches it only through a weak reference.
+    class InternalState
+        : public AtomicRefCounted<InternalState>
+        , public ThreadSafeWeakable<InternalState> {
     public:
         void set_stream(NonnullRefPtr<PulseAudioStream>&&);
         RefPtr<PulseAudioStream> const& stream();
@@ -42,6 +46,10 @@ private:
         ErrorOr<void> check_is_running();
         void exit();
 
+        // Main thread.
+        void set_on_output_lost(Function<void()>);
+        void output_lost();
+
     private:
         RefPtr<PulseAudioStream> m_stream { nullptr };
 
@@ -50,6 +58,8 @@ private:
         ConditionVariable m_wake_condition { m_mutex };
 
         Atomic<bool> m_exit { false };
+
+        Function<void()> m_on_output_lost;
     };
 
     PlaybackStreamPulseAudio(NonnullRefPtr<InternalState>);

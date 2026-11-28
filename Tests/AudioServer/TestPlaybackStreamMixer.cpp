@@ -340,6 +340,42 @@ TEST_CASE(drain_completes_once_the_ring_has_played_out)
     EXPECT(!fixture.device->is_playing());
 }
 
+TEST_CASE(losing_the_device_removes_every_client_and_opens_another)
+{
+    MixerFixture fixture;
+    auto playing = fixture.add_client(1);
+    fixture.mixer->resume_client(1);
+    auto draining = fixture.add_client(2);
+    EXPECT_EQ(draining.try_push(constant_frames(32, 1.0f)), 32u);
+    fixture.mixer->resume_client(2);
+    bool drained = false;
+    fixture.mixer->drain_client(2, [&] { drained = true; });
+    auto suspended = fixture.add_client(3);
+    EXPECT(fixture.device->is_playing());
+
+    bool device_lost = false;
+    fixture.mixer->on_device_lost = [&] {
+        device_lost = true;
+        // The clients are gone by the time the owner hears of it.
+        EXPECT(!fixture.mixer->has_clients());
+    };
+    auto lost_device = fixture.device;
+    lost_device->lose_output();
+    EXPECT(device_lost);
+    EXPECT(drained);
+    EXPECT_EQ(fixture.mixer->active_client_count(), 0u);
+
+    // The replacement opens suspended, and new clients play on it.
+    EXPECT(fixture.device != lost_device);
+    EXPECT(!fixture.device->is_playing());
+    EXPECT(fixture.mixer->device_sample_specification().has_value());
+    auto replacement = fixture.add_client(4);
+    EXPECT_EQ(replacement.try_push(constant_frames(32, 0.5f)), 32u);
+    fixture.mixer->resume_client(4);
+    EXPECT(fixture.device->is_playing());
+    fixture.expect_render_of(32, 0.5f);
+}
+
 TEST_CASE(draining_a_suspended_client_completes_at_once)
 {
     MixerFixture fixture;

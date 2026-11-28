@@ -56,8 +56,9 @@ public:
 
     virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double volume) = 0;
 
-    // Runs once, on the creating thread, when the output device can no longer play this stream.
-    Function<void()> on_output_lost;
+    // Unlike the control functions, this must be called on the creating thread, where the callback runs once when the
+    // output device can no longer play this stream. Streams whose device is never lost may drop it.
+    virtual void set_on_output_lost(Function<void()>) = 0;
 };
 
 }

@@ -38,7 +38,14 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
         registered_atexit_callback = true;
     }
 
-    RefPtr<PulseAudioContext> strong_instance_pointer = RefPtr<PulseAudioContext>(s_pulse_audio_context);
+    // The last reference to the instance may be gone while its destructor waits for the mutex.
+    RefPtr<PulseAudioContext> strong_instance_pointer;
+    if (s_pulse_audio_context != nullptr && s_pulse_audio_context->try_ref())
+        strong_instance_pointer = adopt_ref(*s_pulse_audio_context);
+
+    // A daemon that went away leaves the context failed for good, so the next user connects anew.
+    if (strong_instance_pointer != nullptr && !strong_instance_pointer->connection_is_good())
+        strong_instance_pointer = nullptr;
 
     if (strong_instance_pointer == nullptr) {
         auto* main_loop = pa_threaded_mainloop_new();
@@ -58,8 +65,13 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
         // Set a callback to signal ourselves to wake when the state changes, so that we can
         // synchronously wait for the connection.
         pa_context_set_state_callback(
-            context, [](pa_context*, void* user_data) {
-                static_cast<PulseAudioContext*>(user_data)->signal_to_wake();
+            context, [](pa_context* context, void* user_data) {
+                auto& context_wrapper = *static_cast<PulseAudioContext*>(user_data);
+                context_wrapper.signal_to_wake();
+                if (PA_CONTEXT_IS_GOOD(pa_context_get_state(context)))
+                    return;
+                if (auto on_connection_lost = move(context_wrapper.m_on_connection_lost))
+                    on_connection_lost();
             },
             strong_instance_pointer.ptr());
 
@@ -142,7 +154,8 @@ PulseAudioContext::~PulseAudioContext()
     pa_threaded_mainloop_stop(m_main_loop);
     pa_threaded_mainloop_free(m_main_loop);
 
-    s_pulse_audio_context = nullptr;
+    if (s_pulse_audio_context == this)
+        s_pulse_audio_context = nullptr;
 }
 
 bool PulseAudioContext::current_thread_is_main_loop_thread()
@@ -264,10 +277,11 @@ ErrorOr<void> PulseAudioContext::wait_for_operation(pa_operation* operation, Str
     return {};
 }
 
-ErrorOr<void> PulseAudioContext::watch_devices(Function<void()> on_devices_changed)
+ErrorOr<void> PulseAudioContext::watch_devices(Function<void()> on_devices_changed, Function<void()> on_connection_lost)
 {
     auto locker = main_loop_locker();
     m_on_devices_changed = move(on_devices_changed);
+    m_on_connection_lost = move(on_connection_lost);
 
     pa_context_set_subscribe_callback(
         m_context, [](pa_context*, pa_subscription_event_type_t event_type, uint32_t, void* user_data) {
@@ -391,7 +405,7 @@ ErrorOr<void> PulseAudioContext::enumerate_audio_devices(Vector<AudioDeviceInfo>
     },                                                                          \
         (stream)
 
-ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(OutputState initial_state, u32 target_latency_ms, PulseAudioDataRequestCallback write_callback)
+ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(OutputState initial_state, u32 target_latency_ms, PulseAudioDataRequestCallback write_callback, Function<void()> on_connection_lost)
 {
     auto locker = main_loop_locker();
 
@@ -491,7 +505,19 @@ ErrorOr<NonnullRefPtr<PulseAudioStream>> PulseAudioContext::create_stream(Output
         wait_for_signal();
     }
 
-    pa_stream_set_state_callback(stream, nullptr, nullptr);
+    // The main loop is locked, so the stream cannot change states before this callback takes over.
+    stream_wrapper->m_on_connection_lost = move(on_connection_lost);
+    pa_stream_set_state_callback(
+        stream, [](pa_stream* stream, void* user_data) {
+            auto& stream_wrapper = *static_cast<PulseAudioStream*>(user_data);
+            // Wake anything waiting on an operation, which the stream's failure cancels.
+            stream_wrapper.m_context->signal_to_wake();
+            if (PA_STREAM_IS_GOOD(pa_stream_get_state(stream)))
+                return;
+            if (auto on_connection_lost = move(stream_wrapper.m_on_connection_lost))
+                on_connection_lost();
+        },
+        stream_wrapper.ptr());
 
     return stream_wrapper;
 }
@@ -642,6 +668,7 @@ PulseAudioStream::~PulseAudioStream()
     auto locker = m_context->main_loop_locker();
     pa_stream_set_write_callback(m_stream, nullptr, nullptr);
     pa_stream_set_started_callback(m_stream, nullptr, nullptr);
+    pa_stream_set_state_callback(m_stream, nullptr, nullptr);
     pa_stream_disconnect(m_stream);
     pa_stream_unref(m_stream);
 }
@@ -689,6 +716,9 @@ void PulseAudioStream::on_write_requested(size_t bytes_to_write)
 {
     VERIFY(m_write_callback);
     if (m_suspended)
+        return;
+    // A write queued before the stream failed has nowhere to go.
+    if (!connection_is_good())
         return;
     auto callback_state = m_callback_state.load();
     if (callback_state == CallbackState::Parked)
@@ -754,6 +784,11 @@ StringView pulse_audio_error_to_string(PulseAudioErrorCode code)
 
 ErrorOr<void> PulseAudioStream::wait_for_operation(pa_operation* operation, StringView error_message)
 {
+    // Operations on a stream or context that has failed are refused without one.
+    if (operation == nullptr) {
+        warnln("{} with error: {}", error_message, pulse_audio_error_to_string(m_context->get_last_error()));
+        return Error::from_string_view(error_message);
+    }
     while (pa_operation_get_state(operation) == PA_OPERATION_RUNNING)
         m_context->wait_for_signal();
     pa_operation_unref(operation);

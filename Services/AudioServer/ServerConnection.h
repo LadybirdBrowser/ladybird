@@ -39,6 +39,9 @@ public:
     // devices by their existence alone, and the capture streams it has are closed.
     void set_capture_permitted(bool);
 
+    // The mixer lost its device and every stream with it; the client hears so for each of its streams.
+    void device_lost();
+
 private:
     ServerConnection(NonnullOwnPtr<IPC::Transport>, int client_id, NonnullRefPtr<PlaybackStreamMixer>, NonnullRefPtr<CaptureDevices>, CapturePermissionRequest);
 
@@ -70,6 +73,8 @@ private:
         MixerClientId mixer_client_id { 0 };
         u64 session_id { 0 };
         bool has_ring { false };
+        // Requests that the client sent before hearing of the loss are answered as though they were carried out.
+        bool is_lost { false };
         float volume { 1 };
     };
     StreamState* find_stream(u64 stream_id, StringView operation);
