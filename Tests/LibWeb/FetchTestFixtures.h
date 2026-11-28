@@ -436,7 +436,8 @@ struct FetchHarness {
 };
 
 // What a RequestServer the test stands in for has been sent: each message, in the order it came, as
-// "start <id> <method> <path>", "stop <id>", "release lease <id>", or the message's name.
+// "start <id> <method> <path>", "stop <id>", "release lease <id>", or the message's name. A Known HSTS Host lookup is
+// not recorded, and is answered that the host is not known unless lookups are held.
 struct RequestServerMessages : RefCounted<RequestServerMessages> {
     GC_HOLDS_NO_CELL_EDGES;
 
@@ -454,6 +455,14 @@ struct RequestServerMessages : RefCounted<RequestServerMessages> {
             } else if (message_id == Messages::RequestServer::StopRequest::static_message_id()) {
                 auto const& stop = static_cast<Messages::RequestServer::StopRequest&>(*message);
                 messages.append(ByteString::formatted("stop {}", stop.request_id()));
+            } else if (message_id == Messages::RequestServer::LookUpKnownHstsHost::static_message_id()) {
+                auto const& look_up = static_cast<Messages::RequestServer::LookUpKnownHstsHost&>(*message);
+                if (holds_known_hsts_host_lookups) {
+                    held_known_hsts_host_lookup_ids.append(look_up.lookup_id());
+                } else {
+                    auto answer = MUST(Messages::RequestClient::LookedUpKnownHstsHost::static_encode(look_up.lookup_id(), false));
+                    MUST(answer.transfer_message(*transport));
+                }
             } else if (message_id == Messages::RequestServer::ReleaseRequestTransferLease::static_message_id()) {
                 auto const& release = static_cast<Messages::RequestServer::ReleaseRequestTransferLease&>(*message);
                 messages.append(ByteString::formatted("release lease {}", release.source_request_id()));
@@ -464,6 +473,8 @@ struct RequestServerMessages : RefCounted<RequestServerMessages> {
     }
 
     IPC::Transport* transport { nullptr };
+    bool holds_known_hsts_host_lookups { false };
+    Vector<u64> held_known_hsts_host_lookup_ids;
     Vector<ByteString> messages;
     Vector<u64> started_ids;
     Vector<ByteString> started_methods;
@@ -528,6 +539,27 @@ public:
             received->read();
             return received->messages.contains_slow(expected);
         }));
+    }
+
+    void hold_known_hsts_host_lookups() { m_received->holds_known_hsts_host_lookups = true; }
+
+    void wait_for_known_hsts_host_lookup()
+    {
+        auto wake_timer = Core::Timer::create_repeating(AK::Duration::from_milliseconds(10), [] { });
+        wake_timer->start();
+        m_harness.run_tasks_until(GC::create_function(m_harness.realm->heap(), GC::captures(m_received), [](auto& received) {
+            received->read();
+            return !received->held_known_hsts_host_lookup_ids.is_empty();
+        }));
+        VERIFY(!m_received->held_known_hsts_host_lookup_ids.is_empty());
+    }
+
+    void answer_known_hsts_host_lookups(bool is_known)
+    {
+        m_received->read();
+        for (auto lookup_id : m_received->held_known_hsts_host_lookup_ids)
+            send(MUST(Messages::RequestClient::LookedUpKnownHstsHost::static_encode(lookup_id, is_known)));
+        m_received->held_known_hsts_host_lookup_ids.clear();
     }
 
     // The value of the header that RequestServer was sent with the started request, if any.

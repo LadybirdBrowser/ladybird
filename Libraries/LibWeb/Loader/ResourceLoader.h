@@ -82,6 +82,10 @@ public:
     void preconnect(GC::Ptr<DOM::Document>, URL::URL const&, URL::URL const& source_url);
 
     static bool is_known_hsts_host(Page&, String const& host);
+    static bool is_preloaded_hsts_host(String const& host);
+
+    // Calls back with true when no RequestServer serves the key's requests.
+    void look_up_known_hsts_host(Optional<HTTP::NetworkIsolationKey> const&, String const& host, Function<void(bool is_known)> on_answer);
 
     // The engine the navigator claims to be. A process-wide setting, readable before the loader exists: the bindings
     // consult it while they build a realm's global object.

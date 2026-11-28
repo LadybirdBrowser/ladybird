@@ -56,7 +56,8 @@ void append_accept_language_header_if_missing(Infrastructure::Request&, LoaderCo
 // The controller of the fetch the fetch params are for, on the agent that started the fetch, while the fetch runs.
 [[nodiscard]] WEB_API GC::Ref<Infrastructure::FetchController> fetch_controller_of(Infrastructure::FetchParams const&);
 RefPtr<PendingResponse> main_fetch(Infrastructure::FetchParams const&, ContentSecurityPolicy::ViolationReporter const&, Engine::KnownHSTSHostProvider&, Recursive recursive = Recursive::No);
-void upgrade_request_to_https_for_known_hsts_host_if_appropriate(Infrastructure::Request&, Function<bool(String const&)> const& is_known_hsts_host);
+[[nodiscard]] Optional<String> host_to_match_against_known_hsts_hosts(Infrastructure::Request const&);
+void upgrade_request_to_https(Infrastructure::Request&);
 void run_main_fetch_parallel_steps(Engine::MainFetchInput, NonnullRefPtr<Engine::FetchEngineRecord>);
 void populate_request_from_client(Infrastructure::Request&, Optional<HTML::FetchClient> const& client);
 void fetch_response_handover(Infrastructure::FetchParams const&, Infrastructure::Response&);

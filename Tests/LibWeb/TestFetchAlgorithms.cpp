@@ -1210,6 +1210,59 @@ TEST_CASE(a_body_that_ends_after_its_response_is_handed_over_reports_the_end_tim
     EXPECT_EQ(delivered.controller->control_block().end_time(), 1);
 }
 
+TEST_CASE(a_fetch_stopped_while_it_looks_up_a_known_hsts_host_is_stopped_once_it_starts)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+    request_server.hold_known_hsts_host_lookups();
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://localhost:8000/looked-up"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    request_server.wait_for_known_hsts_host_lookup();
+    EXPECT(commands->steps.is_empty());
+
+    controller->stop_fetch();
+    request_server.answer_known_hsts_host_lookups(false);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "stop 1", "end of fetch 1" }));
+    EXPECT(record->responses.is_empty());
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /looked-up", "stop 0" }));
+}
+
+TEST_CASE(a_redirect_whose_fetch_stops_while_it_looks_up_a_known_hsts_host_is_not_fetched)
+{
+    Core::EventLoop event_loop;
+    install_font_plugin();
+    FetchHarness harness;
+    auto commands = harness.record_commands();
+    StandInRequestServer request_server { harness };
+
+    auto record = make_ref_counted<AlgorithmCalls>();
+    auto request = harness.create_request_for("http://127.0.0.1:8000/redirects-to-a-looked-up-host"sv);
+    auto controller = GC::make_root(harness.fetch(request, recording_responses(harness.realm->heap(), record)));
+    auto request_id = request_server.wait_for_request("GET"sv);
+    request_server.hold_known_hsts_host_lookups();
+    request_server.send_headers(request_id, 302, { { "Location"sv, "http://localhost:8000/looked-up"sv } });
+    request_server.send_finished(request_id);
+    request_server.wait_for_known_hsts_host_lookup();
+
+    controller->stop_fetch();
+    harness.run_until_step(commands, "stop 1"sv);
+    request_server.answer_known_hsts_host_lookups(false);
+    harness.run_until_step(commands, "end of fetch 1"sv);
+    harness.settle();
+
+    EXPECT_EQ(commands->steps, (Vector<ByteString> { "start fetch 1", "stop 1", "end of fetch 1" }));
+    EXPECT(record->responses.is_empty());
+    EXPECT_EQ(request_server.messages(), (Vector<ByteString> { "start 0 GET /redirects-to-a-looked-up-host" }));
+}
+
 TEST_CASE(a_stopped_fetch_no_longer_awaits_the_end_of_its_body)
 {
     Core::EventLoop event_loop;
