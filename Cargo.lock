@@ -2273,6 +2273,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "libwebview_rust"
+version = "0.1.0"
+dependencies = [
+ "ak",
+ "cbindgen",
+ "ladybird_allocator",
+ "libcrypto_rust",
+ "rustc-demangle",
+]
+
+[[package]]
 name = "libxml_rust"
 version = "0.1.0"
 dependencies = [

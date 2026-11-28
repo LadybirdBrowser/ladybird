@@ -186,6 +186,18 @@ endif()
 target_link_libraries(LibWebView PUBLIC LibCompositing LibPlatformFeatures LibSandbox LibWebCommon)
 target_link_libraries(LibWebView PRIVATE LibCore LibCrypto LibDatabase LibDevTools LibFileSystem LibGfx LibHTTP LibImageDecoderClient LibIPC LibRequests LibMedia LibMediaClient LibUnicode LibURL LibTextCodec LibThreading)
 
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebview_rust FEATURES allocator FFI_HEADER RustFFI.h)
+# The crate calls OpenSSL through libcrypto_rust, which leaves linking it to its users.
+target_link_libraries(libwebview_rust INTERFACE OpenSSL::Crypto)
+target_link_libraries(LibWebView PRIVATE libwebview_rust)
+if ((LINUX OR BSD) AND BUILD_SHARED_LIBS)
+    # NB: The crate is an implementation detail of this library. Keep its symbols, including its copy of the Rust
+    #     standard library, out of the dynamic symbol table, as ELF symbol interposition would otherwise let the other
+    #     copies in the process bind to this one.
+    target_link_options(LibWebView PRIVATE LINKER:--exclude-libs=liblibwebview_rust.a)
+endif()
+test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libwebview_rust)
+
 if (LINUX)
     # The connect broker asks the audio library where the daemon is before connecting a helper to it.
     include(audio)
