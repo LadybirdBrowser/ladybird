@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -130,29 +131,42 @@ struct WEBCOMMON_API AccessibilityTextStyle {
 struct WEBCOMMON_API AccessibilityTextGeometry {
     // Builds the geometry from each character's (x, y) offset in CSS pixels from the top-left of the node's bounds, and
     // the character offset, top and height of each line the text renders on.
-    static AccessibilityTextGeometry create(ReadonlySpan<Gfx::IntPoint> character_offsets, Vector<i32> line_break_character_offsets, Vector<i32> line_tops, Vector<i32> line_heights);
+    static AccessibilityTextGeometry create(ReadonlySpan<Gfx::IntPoint> character_offsets, ReadonlySpan<i32> line_break_character_offsets, ReadonlySpan<i32> line_tops, ReadonlySpan<i32> line_heights);
 
     // One entry per character: the top-left position where character N starts.
-    size_t character_count() const { return character_x.size(); }
+    size_t character_count() const { return layout().character_count; }
     Gfx::IntPoint character_offset(size_t index) const;
 
     // The line that the character at `index` is on: the last one that starts at or before it.
     size_t line_of(size_t index) const;
 
-    // Each character's x. Its y is the top of its line, unless character_y lists it.
-    Vector<i32> character_x;
-    // Every character's y, only when some character's isn't the top of its line.
-    Vector<i32> character_y;
-
     // Character offsets where a new line begins in the rendered layout. Entry 0 is always 0 (the first line starts at the
     // first character).
-    Vector<i32> line_break_character_offsets;
+    ReadonlySpan<i32> line_break_character_offsets() const { return section(0); }
     // Per-line top and height in CSS pixels (index matches line_break_character_offsets). The heights give the vertical
     // extent of per-character rectangles for wrapping text.
-    Vector<i32> line_tops;
-    Vector<i32> line_heights;
+    ReadonlySpan<i32> line_tops() const { return section(1); }
+    ReadonlySpan<i32> line_heights() const { return section(2); }
+
+    // OPTIMIZATION: Most text leaves are a few words on one line, so all of it is in one allocation: the line count,
+    //               whether every character's y follows (1) or each character's y is the top of its line (0), then
+    //               each line's start, top and height, then each character's x, then, when they follow, each
+    //               character's y.
+    Vector<i32> data;
 
     bool operator==(AccessibilityTextGeometry const&) const = default;
+
+private:
+    static constexpr size_t HEADER_SIZE = 2;
+    struct Layout {
+        size_t line_count { 0 };
+        size_t character_count { 0 };
+        bool has_character_y { false };
+    };
+    // How the data is laid out, or nothing in it when it doesn't fit that layout (it comes from WebContent).
+    Layout layout() const;
+    // The line starts (0), tops (1) or heights (2).
+    ReadonlySpan<i32> section(size_t index) const;
 };
 
 struct WEBCOMMON_API AccessibilityNodeData {
@@ -160,7 +174,8 @@ struct WEBCOMMON_API AccessibilityNodeData {
     i64 parent_id { -1 };
     Vector<i64> child_ids;
 
-    String role;
+    // OPTIMIZATION: Interned, since a handful of roles is all the nodes of a tree have between them.
+    FlyString role;
     String name;
 
     // The node's box in CSS pixels, relative to the viewport (getBoundingClientRect). A text leaf's is the union of its

@@ -387,7 +387,7 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
         // A trailing run that renders on no line, likewise.
         while (rendered_end.has_value() && character_offsets.size() < view.length())
             character_offsets.append(*rendered_end);
-        node_data.text_geometry.set(WebView::AccessibilityTextGeometry::create(character_offsets, move(line_break_character_offsets), move(line_tops), move(line_heights)));
+        node_data.text_geometry.set(WebView::AccessibilityTextGeometry::create(character_offsets, line_break_character_offsets, line_tops, line_heights));
         return true;
     }
     if (font) {
@@ -400,7 +400,7 @@ static bool fill_text_geometry(WebView::AccessibilityNodeData& node_data, DOM::T
             character_offsets.append(Gfx::IntPoint { static_cast<i32>(cumulative), 0 });
             cumulative += glyph_advance(*font, code_point);
         }
-        node_data.text_geometry.set(WebView::AccessibilityTextGeometry::create(character_offsets, move(line_break_character_offsets), move(line_tops), move(line_heights)));
+        node_data.text_geometry.set(WebView::AccessibilityTextGeometry::create(character_offsets, line_break_character_offsets, line_tops, line_heights));
     }
     return false;
 }
