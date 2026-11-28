@@ -76,7 +76,7 @@ ladybird_lib(LibGfx gfx)
 
 target_link_libraries(LibGfx PRIVATE LibCore LibCrypto LibFileSystem LibTextCodec LibIPC LibUnicode)
 
-target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG harfbuzz)
+target_link_libraries(LibGfx PRIVATE JPEG::JPEG harfbuzz)
 
 import_rust_crate(
     MANIFEST_PATH Rust/Cargo.toml
