@@ -1801,16 +1801,6 @@ void PageClient::page_did_request_clear_storage_for_testing(Web::StorageAPI::Sto
         test_connection->did_request_clear_storage_for_testing(m_id, storage_endpoint, environment.id);
 }
 
-bool PageClient::page_did_is_known_hsts_host(String const& domain)
-{
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidIsKnownHstsHost>(domain);
-    if (!response) {
-        dbgln("WebContent client disconnected during DidIsKnownHstsHost. Exiting peacefully.");
-        Core::Process::terminate_immediately(0);
-    }
-    return response->result();
-}
-
 u64 PageClient::page_did_request_storage_usage(Web::HTML::EnvironmentId const& environment_id)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageUsage>(m_id, environment_id);

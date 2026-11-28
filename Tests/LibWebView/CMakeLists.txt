@@ -109,7 +109,6 @@ set(TEST_SOURCES
     TestTabPerformanceStats.cpp
     TestWebDriverBiDiNetwork.cpp
     TestWebViewURL.cpp
-    TestWebWorkerClient.cpp
 )
 
 if (LADYBIRD_ENABLE_UPDATE_CHECK)
