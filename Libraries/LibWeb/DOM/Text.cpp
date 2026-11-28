@@ -17,7 +17,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Text) == 136);
+static_assert(sizeof(Text) == 128);
 #endif
 
 struct Text::RareData final
@@ -62,12 +62,14 @@ Text::Text(Document& document, Utf16String data)
 Text::Text(Document& document, NodeType type, Utf16String data)
     : CharacterData(document, type, move(data))
 {
-    // NB: libweb_rust finds the core of a Text node at this offset into the node's cell.
-    static_assert(offsetof(Text, m_text_core) == RustFFI::TEXT_CORE_OFFSET);
-}
+    // NB: libweb_rust reads a Text node as the TextPrefix it starts with.
+    static_assert(sizeof(Text) == sizeof(RustFFI::TextPrefix));
+    static_assert(offsetof(Text, m_text_core) == offsetof(RustFFI::TextPrefix, core));
 
-static_assert(sizeof(RustFFI::TextCore) == 4 && alignof(RustFFI::TextCore) == 4);
-static_assert(offsetof(RustFFI::TextCore, assigned_slot) == 0);
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Text, m_text_core) >= sizeof(CharacterData));
+}
 
 GC::Ref<Text> Text::create(Document& document, Utf16String data)
 {

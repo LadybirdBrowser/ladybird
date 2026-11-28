@@ -210,10 +210,6 @@ impl NodeListField {
     }
 }
 
-/// Where HTML::HTMLSlotElement embeds its core, in bytes from the start of the slot's cell, which HTMLSlotElement.cpp
-/// asserts.
-pub const SLOT_CORE_OFFSET: usize = 320;
-
 /// Whether the slot's assigned nodes are to be recomputed before they are read, see the module documentation.
 pub const SLOT_NEEDS_ASSIGNMENT: u8 = 1 << 0;
 
@@ -230,12 +226,6 @@ pub struct SlotCore {
     /// The SLOT_* flags.
     flags: Cell<u8>,
 }
-
-const _: () = assert!(size_of::<SlotCore>() == 48 && align_of::<SlotCore>() == 8);
-const _: () = assert!(offset_of!(SlotCore, name) == 0);
-const _: () = assert!(offset_of!(SlotCore, assigned_nodes) == 8);
-const _: () = assert!(offset_of!(SlotCore, manually_assigned_nodes) == 24);
-const _: () = assert!(offset_of!(SlotCore, flags) == 40);
 
 impl SlotCore {
     #[inline(always)]
@@ -256,10 +246,6 @@ impl SlotCore {
         &self.manually_assigned_nodes
     }
 }
-
-/// Where DOM::ShadowRoot embeds its core, in bytes from the start of the shadow root's cell, which ShadowRoot.cpp
-/// asserts.
-pub const SHADOW_ROOT_CORE_OFFSET: usize = 120;
 
 /// Whether a slot of the shadow tree has SLOT_NEEDS_ASSIGNMENT.
 pub const SHADOW_ROOT_HAS_SLOTS_NEEDING_ASSIGNMENT: u8 = 1 << 0;
@@ -288,14 +274,19 @@ pub struct ShadowRootCore {
     ids: IdMapField,
 }
 
-const _: () = assert!(size_of::<ShadowRootCore>() == 48 && align_of::<ShadowRootCore>() == 8);
-const _: () = assert!(offset_of!(ShadowRootCore, slots) == 0);
-const _: () = assert!(offset_of!(ShadowRootCore, slots_needing_assignment) == 16);
-const _: () = assert!(offset_of!(ShadowRootCore, slot_assignment) == 32);
-const _: () = assert!(offset_of!(ShadowRootCore, flags) == 33);
-const _: () = assert!(offset_of!(ShadowRootCore, ids) == 40);
-
 impl ShadowRootCore {
+    /// The core of a shadow root of a test tree, whose shadow tree has no slots, and whose slot assignment is "named".
+    #[cfg(test)]
+    pub(crate) const fn empty_for_test() -> Self {
+        Self {
+            slots: NodeListField::new_for_test(),
+            slots_needing_assignment: NodeListField::new_for_test(),
+            slot_assignment: Cell::new(SLOT_ASSIGNMENT_NAMED),
+            flags: Cell::new(0),
+            ids: IdMapField::empty_for_test(),
+        }
+    }
+
     #[inline(always)]
     pub(super) fn slots(&self) -> &NodeListField {
         &self.slots

@@ -7,10 +7,10 @@
 //! Elements as Rust reaches them: nodes whose cells embed an element core, which Rust reads in place.
 
 use super::element_core::Attribute;
-use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
 use super::node::Node;
-use super::node::NodeCell;
+use super::prefix::ElementPrefix;
+use super::prefix::prefix_of;
 use super::strings::FlyStringField;
 
 /// An element of the DOM, borrowed on the main thread for `'a`, during which the DOM does not change. Made from a node
@@ -36,13 +36,8 @@ impl<'a> Element<'a> {
 
     #[inline(always)]
     pub fn core(self) -> &'a ElementCore {
-        // SAFETY: Every element embeds its core ELEMENT_CORE_OFFSET bytes into its cell, which Element.cpp asserts. An
-        //         element's cell starts with its node, which is where the handle points.
-        unsafe {
-            &*(self.node.cell() as *const NodeCell)
-                .byte_add(ELEMENT_CORE_OFFSET)
-                .cast::<ElementCore>()
-        }
+        // SAFETY: Every element starts with an ElementPrefix, which Element.cpp asserts.
+        &unsafe { prefix_of::<ElementPrefix, _>(self.node.cell()) }.core
     }
 
     /// https://dom.spec.whatwg.org/#concept-element-local-name

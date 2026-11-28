@@ -164,6 +164,16 @@ static Optional<Utf16View> optional_utf16_view(Optional<Utf16String> const& stri
 HTMLElement::HTMLElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : Element(document, move(qualified_name))
 {
+    // NB: libweb_rust reads a slot as the HTMLSlotElementPrefix it starts with, which starts with an HTMLElementPrefix.
+    static_assert(sizeof(HTMLElement) == sizeof(DOM::RustFFI::HTMLElementPrefix));
+    static_assert(offsetof(HTMLElement, m_content_editable_state) == offsetof(DOM::RustFFI::HTMLElementPrefix, content_editable_state));
+    static_assert(offsetof(HTMLElement, m_click_in_progress) == offsetof(DOM::RustFFI::HTMLElementPrefix, click_in_progress));
+    static_assert(offsetof(HTMLElement, m_popover_visibility_state) == offsetof(DOM::RustFFI::HTMLElementPrefix, popover_visibility_state));
+    static_assert(offsetof(HTMLElement, m_popover_showing_or_hiding) == offsetof(DOM::RustFFI::HTMLElementPrefix, popover_showing_or_hiding));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(HTMLElement, m_content_editable_state) >= sizeof(DOM::Element));
 }
 
 HTMLElement::~HTMLElement() = default;

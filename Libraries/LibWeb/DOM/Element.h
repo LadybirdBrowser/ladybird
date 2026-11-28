@@ -183,7 +183,7 @@ WEB_API GC::Ptr<Element> get_the_attribute_associated_element(Element const& ele
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#attr-associated-elements
 WEB_API Optional<GC::RootVector<GC::Ref<Element>>> get_the_attribute_associated_elements(Element const& element, Function<Optional<Utf16String>()> const& get_the_content_attribute, Optional<Vector<GC::Weak<Element>> const&> explicitly_set_attribute_elements);
 
-class WEB_API Element
+class WEB_API AK_COMPACT_EMPTY_BASES Element
     : public ParentNode
     , public ChildNode<Element>
     , public NonDocumentTypeChildNode<Element>

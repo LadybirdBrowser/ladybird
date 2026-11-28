@@ -31,6 +31,7 @@ pub mod node_class;
 pub mod node_core;
 pub mod node_ref;
 pub mod pre_insert;
+pub mod prefix;
 pub mod qualified_name;
 pub mod queries;
 pub mod range;

@@ -213,16 +213,18 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(EventTarget);
 
-static_assert(sizeof(RustFFI::EventTargetCore) == 6 && alignof(RustFFI::EventTargetCore) == 2);
-static_assert(offsetof(RustFFI::EventTargetCore, flags) == 0);
-static_assert(offsetof(RustFFI::EventTargetCore, capture_listener_types) == 2);
-static_assert(offsetof(RustFFI::EventTargetCore, bubble_listener_types) == 4);
 EventTarget::EventTarget()
 {
-    // NB: libweb_rust finds the core of an event target at this offset into the target's cell, and its event listener
-    //     list at the start of the data this one points to.
-    static_assert(offsetof(EventTarget, m_event_target_core) == RustFFI::EVENT_TARGET_CORE_OFFSET);
-    static_assert(offsetof(EventTarget, m_data) == RustFFI::EVENT_TARGET_DATA_OFFSET);
+    // NB: libweb_rust reads an event target as the EventTargetPrefix it starts with, and finds the target's event
+    //     listener list at the start of the data the prefix points to.
+    static_assert(sizeof(EventTarget) == sizeof(RustFFI::EventTargetPrefix));
+    static_assert(offsetof(EventTarget, m_event_target_core) == offsetof(RustFFI::EventTargetPrefix, core));
+    static_assert(offsetof(EventTarget, m_data) == offsetof(RustFFI::EventTargetPrefix, data));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(EventTarget, m_event_target_core) >= sizeof(Bindings::GCAllocatedWrappable));
+
     static_assert(sizeof(OwnPtr<Data>) == sizeof(Data*));
     static_assert(offsetof(Data, event_listener_list) == 0);
 }

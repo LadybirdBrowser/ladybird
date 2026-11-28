@@ -189,22 +189,6 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 static_assert(sizeof(Element) == 296);
 #endif
 
-// NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::ElementCore) == 80 && alignof(RustFFI::ElementCore) == 8);
-static_assert(offsetof(RustFFI::ElementCore, qualified_name) == 0);
-static_assert(offsetof(RustFFI::ElementCore, id) == 8);
-static_assert(offsetof(RustFFI::ElementCore, classes) == 16);
-static_assert(offsetof(RustFFI::ElementCore, attributes) == 40);
-static_assert(offsetof(RustFFI::ElementCore, subtree_name_filter) == 48);
-static_assert(offsetof(RustFFI::ElementCore, style_attribute_is_dirty) == 56);
-static_assert(offsetof(RustFFI::ElementCore, flags) == 57);
-static_assert(offsetof(RustFFI::ElementCore, reflection_flags) == 58);
-static_assert(offsetof(RustFFI::ElementCore, shadow_root) == 60);
-static_assert(offsetof(RustFFI::ElementCore, parent_child_index_generation) == 64);
-static_assert(offsetof(RustFFI::ElementCore, child_index) == 68);
-static_assert(offsetof(RustFFI::ElementCore, child_index_of_type) == 72);
-static_assert(offsetof(RustFFI::ElementCore, assigned_slot) == 76);
-
 Element::RareData::~RareData() = default;
 
 void Element::RareData::visit_edges(Cell::Visitor& visitor)
@@ -366,8 +350,21 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .assigned_slot = {},
     }
 {
-    // NB: libweb_rust finds the core of an element at this offset into the element's cell, which starts with its node.
-    static_assert(offsetof(Element, m_element_core) == RustFFI::ELEMENT_CORE_OFFSET);
+    // NB: libweb_rust reads an element as the ElementPrefix it starts with.
+    static_assert(sizeof(Element) == sizeof(RustFFI::ElementPrefix));
+    static_assert(offsetof(Element, m_element_core) == offsetof(RustFFI::ElementPrefix, core));
+    static_assert(offsetof(Element, m_inline_declarations) == offsetof(RustFFI::ElementPrefix, inline_declarations));
+    static_assert(offsetof(Element, m_installed_style) == offsetof(RustFFI::ElementPrefix, installed_style));
+    static_assert(offsetof(Element, m_animation_style_generation) == offsetof(RustFFI::ElementPrefix, animation_style_generation));
+    static_assert(offsetof(Element, m_animation_subtree_style_generation) == offsetof(RustFFI::ElementPrefix, animation_subtree_style_generation));
+    static_assert(offsetof(Element, m_published_presentational_hint_properties) == offsetof(RustFFI::ElementPrefix, published_presentational_hint_properties));
+    static_assert(offsetof(Element, m_custom_element_state) == offsetof(RustFFI::ElementPrefix, custom_element_state));
+    static_assert(offsetof(Element, m_inline_style) == offsetof(RustFFI::ElementPrefix, inline_style));
+    static_assert(offsetof(Element, m_lang_value) == offsetof(RustFFI::ElementPrefix, lang_value));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(Element, m_element_core) >= sizeof(ParentNode));
 }
 
 Element::~Element() = default;

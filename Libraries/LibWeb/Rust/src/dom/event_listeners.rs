@@ -38,10 +38,6 @@ use super::node_core::member_write_barrier;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
-/// Where DOM::EventTarget keeps the pointer to its DOM::EventTarget::Data, in bytes from the start of the target's
-/// cell, which EventTarget.cpp asserts. The data starts with the target's event listener list.
-pub const EVENT_TARGET_DATA_OFFSET: usize = 32;
-
 /// Where DOM::IDLEventListener keeps its GC::Ref<WebIDL::CallbackType>, in bytes from the start of its cell, which
 /// IDLEventListener.cpp asserts.
 pub const IDL_EVENT_LISTENER_CALLBACK_OFFSET: usize = 16;
@@ -349,16 +345,9 @@ pub(super) fn event_type_summary_bit(type_raw: usize) -> u16 {
 /// The event listener list of `target`, if it ever needed one.
 #[inline(always)]
 fn listener_list(target: &EventTargetRef) -> Option<&EventListenerList> {
-    // SAFETY: Every event target keeps the pointer to its data EVENT_TARGET_DATA_OFFSET bytes into its cell, which
-    //         EventTarget.cpp asserts, and the data starts with the list. The target is alive for as long as the
-    //         reference is held.
-    unsafe {
-        let data = *target
-            .as_ptr()
-            .byte_add(EVENT_TARGET_DATA_OFFSET)
-            .cast::<*const EventListenerList>();
-        data.as_ref()
-    }
+    // SAFETY: The target is alive for as long as the reference is held, and C++ gives it no new data while it is
+    //         borrowed.
+    unsafe { target.prefix().data.listener_list() }
 }
 
 /// Works the listener type summaries of `target`'s core out again from its listeners.

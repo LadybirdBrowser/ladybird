@@ -15,14 +15,14 @@ use core::marker::PhantomPinned;
 use core::ptr::NonNull;
 
 use super::node_class::NodeClassId;
-use super::node_core::CHARACTER_DATA_CORE_OFFSET;
-use super::node_core::CharacterDataCore;
-use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
 use super::node_core::DocumentFragmentCore;
-use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
+use super::prefix::CharacterDataPrefix;
+use super::prefix::DocumentFragmentPrefix;
+use super::prefix::NodePrefix;
+use super::prefix::prefix_of;
 use super::strings::StringField;
 use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
@@ -94,7 +94,7 @@ pub(super) unsafe fn set_heap_region_base_for_test(base: usize) {
     unsafe { *HEAP_REGION_BASE.0.get() = base };
 }
 
-/// A DOM::Node as C++ allocates it: the start of the node's cell, with the node's core NODE_CORE_OFFSET bytes into it.
+/// A DOM::Node as C++ allocates it: the start of the node's cell, which starts with a NodePrefix.
 /// FFI entry points take and return nodes as references to it, which C++ sees as DOM::Node pointers.
 #[repr(C)]
 pub struct NodeCell {
@@ -166,12 +166,8 @@ impl<'a> Node<'a> {
 
     #[inline(always)]
     pub fn core(self) -> &'a NodeCore {
-        // SAFETY: Every node embeds its core NODE_CORE_OFFSET bytes into its cell, which Node.h asserts.
-        unsafe {
-            &*(self.cell as *const NodeCell)
-                .byte_add(NODE_CORE_OFFSET)
-                .cast::<NodeCore>()
-        }
+        // SAFETY: Every node starts with a NodePrefix, which Node.h asserts.
+        &unsafe { prefix_of::<NodePrefix, _>(self.cell) }.core
     }
 
     #[inline(always)]
@@ -209,14 +205,8 @@ impl<'a> Node<'a> {
                 | NodeType::PROCESSING_INSTRUCTION_NODE
                 | NodeType::COMMENT_NODE
         ));
-        // SAFETY: Every CharacterData node embeds its core CHARACTER_DATA_CORE_OFFSET bytes into its cell, which
-        //         CharacterData.cpp asserts.
-        let core = unsafe {
-            &*(self.cell as *const NodeCell)
-                .byte_add(CHARACTER_DATA_CORE_OFFSET)
-                .cast::<CharacterDataCore>()
-        };
-        core.data()
+        // SAFETY: Every CharacterData node starts with a CharacterDataPrefix, which CharacterData.cpp asserts.
+        unsafe { prefix_of::<CharacterDataPrefix, _>(self.cell) }.core.data()
     }
 
     /// The compressed pointer that names the node.
@@ -263,13 +253,8 @@ impl<'a> Node<'a> {
     #[inline(always)]
     fn fragment_core(self) -> &'a DocumentFragmentCore {
         assert!(self.node_type() == NodeType::DOCUMENT_FRAGMENT_NODE);
-        // SAFETY: Every DocumentFragment embeds its core DOCUMENT_FRAGMENT_CORE_OFFSET bytes into its cell, which
-        //         DocumentFragment.cpp asserts.
-        unsafe {
-            &*(self.cell as *const NodeCell)
-                .byte_add(DOCUMENT_FRAGMENT_CORE_OFFSET)
-                .cast::<DocumentFragmentCore>()
-        }
+        // SAFETY: Every DocumentFragment starts with a DocumentFragmentPrefix, which DocumentFragment.cpp asserts.
+        &unsafe { prefix_of::<DocumentFragmentPrefix, _>(self.cell) }.core
     }
 
     /// https://dom.spec.whatwg.org/#concept-tree-parent

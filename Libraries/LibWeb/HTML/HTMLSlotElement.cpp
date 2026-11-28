@@ -33,7 +33,9 @@ HTMLSlotElement::~HTMLSlotElement()
 
 void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
 {
-    static_assert(offsetof(HTMLSlotElement, m_slot_core) == DOM::RustFFI::SLOT_CORE_OFFSET);
+    // NB: libweb_rust reads a slot as the HTMLSlotElementPrefix it starts with.
+    static_assert(sizeof(HTMLSlotElement) == sizeof(DOM::RustFFI::HTMLSlotElementPrefix));
+    static_assert(offsetof(HTMLSlotElement, m_slot_core) == offsetof(DOM::RustFFI::HTMLSlotElementPrefix, core));
     Base::visit_edges(visitor);
     // NB: The lists' buffers are allocated by libweb_rust, which holds the nodes in them strongly.
     for (auto const& node : assigned_nodes_internal())

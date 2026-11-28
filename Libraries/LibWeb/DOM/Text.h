@@ -34,14 +34,24 @@ public:
 
     virtual Node& slottable_as_node() override { return *this; }
 
-    Optional<size_t> max_length() const { return m_max_length; }
-    void set_max_length(Optional<size_t> max_length) { m_max_length = move(max_length); }
+    Optional<size_t> max_length() const
+    {
+        if (m_text_core.max_length == RustFFI::TEXT_NO_MAX_LENGTH)
+            return {};
+        return m_text_core.max_length;
+    }
+    // NB: A form control's maximum length is a non-negative WebIDL long.
+    void set_max_length(Optional<size_t> max_length)
+    {
+        VERIFY(!max_length.has_value() || *max_length < RustFFI::TEXT_NO_MAX_LENGTH);
+        m_text_core.max_length = max_length.has_value() ? static_cast<u32>(*max_length) : RustFFI::TEXT_NO_MAX_LENGTH;
+    }
 
     WebIDL::ExceptionOr<GC::Ref<Text>> split_text(size_t offset);
     Utf16String whole_text();
 
-    bool is_password_input() const { return m_is_password_input; }
-    void set_is_password_input(Badge<HTML::HTMLInputElement>, bool b) { m_is_password_input = b; }
+    bool is_password_input() const { return m_text_core.is_password_input; }
+    void set_is_password_input(Badge<HTML::HTMLInputElement>, bool b) { m_text_core.is_password_input = b; }
 
     // https://dom.spec.whatwg.org/#slotable-assigned-slot, which the Text node keeps in its core.
     // NB: This hides SlottableMixin::assigned_slot_internal(), which has to find the core first. It is defined in
@@ -69,11 +79,7 @@ private:
     virtual SlottableMixin::RareData const* slottable_rare_data() const override;
     virtual SlottableMixin::RareData& ensure_slottable_rare_data() override;
 
-    Optional<size_t> m_max_length {};
-    bool m_is_password_input { false };
-
-    // NB: The core comes last, so that it fills the padding at the end of the cell.
-    RustFFI::TextCore m_text_core {};
+    RustFFI::TextCore m_text_core { .assigned_slot = {}, .max_length = RustFFI::TEXT_NO_MAX_LENGTH, .is_password_input = false };
 };
 
 }

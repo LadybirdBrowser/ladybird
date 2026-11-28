@@ -4,88 +4,56 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Trees of nodes for unit tests: real cores, in cells of an arena that stands in for the GC heap region, which the
+//! Trees of nodes for unit tests: real prefixes, in cells of an arena that stands in for the GC heap region, which the
 //! nodes' compressed pointers are offsets into.
 
 use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
-use core::mem::offset_of;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
 use super::element::Element;
-use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
 use super::links::append_child_for_test;
 use super::node::Node;
 use super::node::NodeCell;
 use super::node::compress;
-use super::node_class::NODE_CLASS_ID_OFFSET;
 use super::node_class::NodeClassId;
-use super::node_core::CHARACTER_DATA_CORE_OFFSET;
 use super::node_core::CharacterDataCore;
-use super::node_core::DOCUMENT_CORE_OFFSET;
-use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
 use super::node_core::DocumentCore;
 use super::node_core::DocumentFragmentCore;
-use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
-use super::node_core::PARENT_NODE_CORE_OFFSET;
 use super::node_core::ParentNodeCore;
-use super::node_core::TEXT_CORE_OFFSET;
 use super::node_core::TextCore;
 use super::node_ref::NodeRef;
+use super::prefix::CharacterDataPrefix;
+use super::prefix::DocumentFragmentPrefix;
+use super::prefix::DocumentPrefix;
+use super::prefix::ElementPrefix;
+use super::prefix::NodePrefix;
+use super::prefix::ParentNodePrefix;
+use super::prefix::ShadowRootPrefix;
+use super::prefix::TextPrefix;
 use super::qualified_name::QualifiedNameField;
+use super::slots::ShadowRootCore;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
 
-/// A node's cell, with its core where DOM::Node has it, then either a character data core where DOM::CharacterData has
-/// it, which only a CharacterData node's cell holds, or a parent node core where DOM::ParentNode has it, which the cell
-/// of every other node holds, a fragment core where DOM::DocumentFragment has it, and then either a document core where
-/// DOM::Document has it, which only a document's cell holds, or an element core where DOM::Element has it, which only an
-/// element's cell holds.
+/// A node's cell: the prefix of the node's class, and zeros after it.
 #[repr(C, align(8))]
-struct TestCell {
-    header: [u8; NODE_CORE_OFFSET],
-    core: NodeCore,
-    fields: [u8; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
-    middle: TestCellMiddle,
-    fragment_core: DocumentFragmentCore,
-    fragment_fields: [u8; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
-    tail: TestCellTail,
+union TestCell {
+    node: ManuallyDrop<NodePrefix>,
+    character_data: ManuallyDrop<CharacterDataPrefix>,
+    text: ManuallyDrop<TextPrefix>,
+    document_fragment: ManuallyDrop<DocumentFragmentPrefix>,
+    shadow_root: ManuallyDrop<ShadowRootPrefix>,
+    document: ManuallyDrop<DocumentPrefix>,
+    element: ManuallyDrop<ElementPrefix>,
 }
-
-/// What a CharacterData node's cell and a ParentNode's cell hold past the node core, where the two overlap.
-#[repr(C)]
-union TestCellMiddle {
-    character_data_core: ManuallyDrop<MaybeUninit<CharacterDataCore>>,
-    parent_node_core: ManuallyDrop<ParentNodeCore>,
-}
-
-/// What a document's cell and an element's cell hold past the fragment core, where the two overlap.
-#[repr(C)]
-union TestCellTail {
-    document_core: ManuallyDrop<DocumentCore>,
-    element: ManuallyDrop<ElementTail>,
-}
-
-#[repr(C)]
-struct ElementTail {
-    fields: [u8; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET],
-    core: MaybeUninit<ElementCore>,
-}
-
-const _: () = assert!(offset_of!(TestCell, core) == NODE_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, middle) == CHARACTER_DATA_CORE_OFFSET);
-const _: () = assert!(PARENT_NODE_CORE_OFFSET == CHARACTER_DATA_CORE_OFFSET);
-const _: () = assert!(size_of::<TestCellMiddle>() == DOCUMENT_FRAGMENT_CORE_OFFSET - CHARACTER_DATA_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, fragment_core) == DOCUMENT_FRAGMENT_CORE_OFFSET);
-const _: () = assert!(offset_of!(TestCell, tail) == DOCUMENT_CORE_OFFSET);
-const _: () = assert!(DOCUMENT_CORE_OFFSET + offset_of!(ElementTail, core) == ELEMENT_CORE_OFFSET);
 
 const ARENA_CELLS: usize = 1 << 14;
 
@@ -145,17 +113,11 @@ pub(crate) fn node<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType) -> 
 /// assigned slot.
 pub(crate) fn character_data<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType, data: &str) -> Node<'a> {
     let node = new_node(main_thread, node_type, class_of(node_type), |_| {}, None);
-    // SAFETY: Every node of a test tree is a TestCell, and no reference to this one's character data core exists yet.
+    // SAFETY: Every CharacterData node of a test tree starts with a CharacterDataPrefix, and no reference to this one's
+    //         core exists yet.
     unsafe {
-        (*(node.cell() as *const NodeCell as *mut TestCell)).middle = TestCellMiddle {
-            character_data_core: ManuallyDrop::new(MaybeUninit::new(CharacterDataCore::for_test(data))),
-        };
-        if matches!(node_type, NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE) {
-            (node.cell() as *const NodeCell as *mut u8)
-                .add(TEXT_CORE_OFFSET)
-                .cast::<TextCore>()
-                .write(TextCore::null_for_test());
-        }
+        let cell = node.cell() as *const NodeCell as *mut TestCell;
+        (&raw mut (*(*cell).character_data).core).write(CharacterDataCore::for_test(data));
     }
     node
 }
@@ -216,21 +178,21 @@ pub(crate) fn set_assigned_slot(slottable: Node<'_>, slot: Node<'_>) {
         slottable.node_type(),
         NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE
     ));
-    // SAFETY: Every Text node of a test tree has a Text core at this offset.
-    let core = unsafe {
-        &*(slottable.cell() as *const NodeCell as *const u8)
-            .add(TEXT_CORE_OFFSET)
-            .cast::<TextCore>()
-    };
-    core.set_assigned_slot_for_test(Some(pointer_of(slot)));
+    // SAFETY: Every Text node of a test tree starts with a TextPrefix.
+    let cell = unsafe { &*(slottable.cell() as *const NodeCell as *const TestCell) };
+    unsafe { &cell.text }
+        .core
+        .set_assigned_slot_for_test(Some(pointer_of(slot)));
 }
 
 /// Sets the host of a DocumentFragment node.
 pub(crate) fn set_host(fragment: Node<'_>, host: Node<'_>) {
     assert_eq!(fragment.node_type(), NodeType::DOCUMENT_FRAGMENT_NODE);
-    // SAFETY: Every node of a test tree is a TestCell.
+    // SAFETY: Every DocumentFragment of a test tree starts with a DocumentFragmentPrefix.
     let cell = unsafe { &*(fragment.cell() as *const NodeCell as *const TestCell) };
-    cell.fragment_core.set_host_for_test(Some(pointer_of(host)));
+    unsafe { &cell.document_fragment }
+        .core
+        .set_host_for_test(Some(pointer_of(host)));
 }
 
 /// The class of a node of `node_type` that is no shadow root, as the test trees have it.
@@ -275,44 +237,63 @@ fn new_node<'a>(
     let pointer = compress(unsafe { &*(cell as *mut MaybeUninit<TestCell> as *const NodeCell) });
     let mut core = NodeCore::for_test(node_type, pointer, document.unwrap_or(pointer));
     initialize(&mut core);
-    let tail = match element_core {
-        Some(element_core) => TestCellTail {
-            element: ManuallyDrop::new(ElementTail {
-                fields: [0; ELEMENT_CORE_OFFSET - DOCUMENT_CORE_OFFSET],
-                core: MaybeUninit::new(element_core),
+    let node = NodePrefix::for_test(class_id, core);
+    let parent_node = |node| ParentNodePrefix {
+        node,
+        core: ParentNodeCore::for_test(),
+    };
+    let character_data = |node| CharacterDataPrefix {
+        node,
+        core: CharacterDataCore::for_test(""),
+    };
+    // SAFETY: The cell is this node's alone. The zeros past the prefix stand for the fields of C++, which no test reads.
+    unsafe { cell.as_mut_ptr().write_bytes(0, 1) };
+    let cell = cell.write(match node_type {
+        NodeType::ELEMENT_NODE => TestCell {
+            element: ManuallyDrop::new(ElementPrefix::for_test(
+                parent_node(node),
+                element_core.expect("an element has a core"),
+            )),
+        },
+        NodeType::DOCUMENT_NODE => TestCell {
+            document: ManuallyDrop::new(DocumentPrefix::for_test(parent_node(node), DocumentCore::for_test())),
+        },
+        NodeType::DOCUMENT_FRAGMENT_NODE if class_id == NodeClassId::ShadowRoot => TestCell {
+            shadow_root: ManuallyDrop::new(ShadowRootPrefix {
+                document_fragment: DocumentFragmentPrefix {
+                    parent_node: parent_node(node),
+                    core: DocumentFragmentCore::null_for_test(),
+                },
+                core: ShadowRootCore::empty_for_test(),
             }),
         },
-        None => TestCellTail {
-            document_core: ManuallyDrop::new(DocumentCore::for_test()),
+        NodeType::DOCUMENT_FRAGMENT_NODE => TestCell {
+            document_fragment: ManuallyDrop::new(DocumentFragmentPrefix {
+                parent_node: parent_node(node),
+                core: DocumentFragmentCore::null_for_test(),
+            }),
         },
-    };
-    let mut header = [0; NODE_CORE_OFFSET];
-    header[NODE_CLASS_ID_OFFSET..NODE_CLASS_ID_OFFSET + 2].copy_from_slice(&class_id.raw_for_test().to_ne_bytes());
-    let cell = cell.write(TestCell {
-        header,
-        core,
-        fields: [0; CHARACTER_DATA_CORE_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
-        middle: TestCellMiddle {
-            parent_node_core: ManuallyDrop::new(ParentNodeCore::for_test()),
+        NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE => TestCell {
+            text: ManuallyDrop::new(TextPrefix::for_test(character_data(node), TextCore::null_for_test())),
         },
-        fragment_core: DocumentFragmentCore::null_for_test(),
-        fragment_fields: [0; DOCUMENT_CORE_OFFSET - DOCUMENT_FRAGMENT_CORE_OFFSET - size_of::<DocumentFragmentCore>()],
-        tail,
+        NodeType::PROCESSING_INSTRUCTION_NODE | NodeType::COMMENT_NODE => TestCell {
+            character_data: ManuallyDrop::new(character_data(node)),
+        },
+        _ => TestCell {
+            node: ManuallyDrop::new(node),
+        },
     });
     // SAFETY: The cell lives for the rest of the process, and only the test that made it changes its tree, which it
     //         does not while it reads it.
-    unsafe { Node::from_cell(&*(cell as *const TestCell as *const NodeCell), main_thread) }
+    unsafe { Node::from_cell(&*(cell as *mut TestCell as *const NodeCell), main_thread) }
 }
 
 /// The core of a document of a test tree.
 pub(crate) fn document_core<'a>(document: Node<'a>) -> &'a DocumentCore {
     assert_eq!(document.node_type(), NodeType::DOCUMENT_NODE);
-    // SAFETY: Every node of a test tree is a TestCell, and a document's holds a document core.
-    unsafe {
-        &(*(document.cell() as *const NodeCell as *const TestCell))
-            .tail
-            .document_core
-    }
+    // SAFETY: Every document of a test tree starts with a DocumentPrefix.
+    let cell = unsafe { &*(document.cell() as *const NodeCell as *const TestCell) };
+    &unsafe { &cell.document }.core
 }
 
 /// Makes `document` the node document of `node`.
@@ -329,9 +310,11 @@ pub(crate) fn set_style_node_id(node: Node<'_>, style_node_id: Option<StyleNodeI
 /// Numbers the tree scope of a shadow root.
 pub(crate) fn set_style_engine_tree_scope(shadow_root: Node<'_>, tree_scope: TreeScopeID) {
     assert!(shadow_root.is_shadow_root());
-    // SAFETY: Every node of a test tree is a TestCell.
+    // SAFETY: Every DocumentFragment of a test tree starts with a DocumentFragmentPrefix.
     let cell = unsafe { &*(shadow_root.cell() as *const NodeCell as *const TestCell) };
-    cell.fragment_core.set_style_engine_tree_scope_for_test(tree_scope);
+    unsafe { &cell.document_fragment }
+        .core
+        .set_style_engine_tree_scope_for_test(tree_scope);
 }
 
 /// Appends `child`, the root of a tree of its own, to `parent`'s children.

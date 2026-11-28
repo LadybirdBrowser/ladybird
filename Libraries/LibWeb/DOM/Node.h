@@ -701,24 +701,14 @@ private:
     mutable OwnPtr<RareData> m_rare_data;
 };
 
-// NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::NodeCore) == 40 && alignof(RustFFI::NodeCore) == 4);
-static_assert(offsetof(RustFFI::NodeCore, parent) == 0);
-static_assert(offsetof(RustFFI::NodeCore, first_child) == 4);
-static_assert(offsetof(RustFFI::NodeCore, last_child) == 8);
-static_assert(offsetof(RustFFI::NodeCore, next_sibling) == 12);
-static_assert(offsetof(RustFFI::NodeCore, previous_sibling) == 16);
-static_assert(offsetof(RustFFI::NodeCore, document) == 20);
-static_assert(offsetof(RustFFI::NodeCore, root) == 24);
-static_assert(offsetof(RustFFI::NodeCore, style_node_id) == 28);
-static_assert(offsetof(RustFFI::NodeCore, node_type) == 32);
-static_assert(offsetof(RustFFI::NodeCore, flags) == 34);
-static_assert(offsetof(RustFFI::NodeCore, cpp_flags) == 35);
-static_assert(offsetof(RustFFI::NodeCore, child_index_generation) == 36);
-// NB: libweb_rust finds the core of a node at this offset into the node's cell.
-static_assert(Node::parent_node_offset().value == RustFFI::NODE_CORE_OFFSET + offsetof(RustFFI::NodeCore, parent));
-// NB: libweb_rust finds the class id of an event target at this offset into the target's cell.
-static_assert(GC::Cell::embedder_type_id_offset() == RustFFI::NODE_CLASS_ID_OFFSET);
+static_assert(Node::parent_node_offset().value == offsetof(RustFFI::NodePrefix, core) + offsetof(RustFFI::NodeCore, parent));
+// NB: libweb_rust reads the class id and the wrapper preservation flags of an event target from the WrappablePrefix the
+//     target starts with, where they are the embedder type id and flags of the cell.
+static_assert(sizeof(Bindings::Wrappable) == sizeof(RustFFI::WrappablePrefix));
+static_assert(GC::Cell::embedder_flags_offset() == offsetof(RustFFI::WrappablePrefix, preservation_flags));
+static_assert(GC::Cell::embedder_type_id_offset() == offsetof(RustFFI::WrappablePrefix, class_id));
+static_assert(Bindings::Wrappable::main_world_wrapper_offset() == offsetof(RustFFI::WrappablePrefix, main_world_wrapper));
+static_assert(Bindings::Wrappable::main_world_wrapper_offset() >= sizeof(JS::Cell));
 
 }
 
