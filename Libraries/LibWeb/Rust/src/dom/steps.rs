@@ -14,11 +14,11 @@
 //! When none of that changes either, the steps are skipped. The editable flag, which the cores keep, is written here
 //! instead.
 //!
-//! The steps are those of DOM::Node, DOM::Element and HTML::HTMLElement. An element whose class adds steps of its own,
-//! or that is a body or frameset element, whose moving steps tell the page, has ELEMENT_HAS_OWN_TREE_STEPS, which
-//! GC::CellConstructionHook in DOM/Node.h sets from the class's overrides as the element is constructed, and which also
-//! makes sure that character data and doctypes add none. What the steps do for a node that is not connected, and why
-//! that is nothing under the conditions below:
+//! The steps are those of DOM::Node, DOM::Element and HTML::HTMLElement. The steps a class adds of its own, or that a
+//! form-associated, body or frameset element has, its NODE_CLASS_HAS_* bits say (see node_class.rs), which
+//! DOM/NodeClassSteps.cpp works out from the class's overrides, and where it also makes sure that character data and
+//! doctypes add none. A form-associated custom element has ELEMENT_IS_FORM_ASSOCIATED_CUSTOM. What the steps do for a
+//! node that is not connected, and why that is nothing under the conditions below:
 //!
 //! - Node::inserted() sets the node's connected flag from its parent's, which is false, and it is already false. What
 //!   it records for the style engine and the page, and the paint facts it publishes, are for a connected node or a node
@@ -44,12 +44,16 @@
 //!   animations of elements the style engine tracked, which are connected.
 
 use super::element_core::ELEMENT_HAS_CONTENT_EDITABLE_STATE;
-use super::element_core::ELEMENT_HAS_OWN_TREE_STEPS;
-use super::element_core::ELEMENT_IS_HTML_ELEMENT;
+use super::element_core::ELEMENT_IS_FORM_ASSOCIATED_CUSTOM;
 use super::element_core::ELEMENT_IS_INERT;
 use super::element_core::ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS;
 use super::hooks::IsSubtreeRoot;
 use super::hooks::RemovalFacts;
+use super::node_class::NODE_CLASS_HAS_INSERTION_STEPS;
+use super::node_class::NODE_CLASS_HAS_MOVING_STEPS;
+use super::node_class::NODE_CLASS_HAS_POST_CONNECTION_STEPS;
+use super::node_class::NODE_CLASS_HAS_REMOVING_STEPS;
+use super::node_class::NodeClassId;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 
@@ -72,9 +76,8 @@ fn is_character_data_or_doctype(node: NodeRef) -> bool {
 fn nearest_html_element_is_inert(node: NodeRef) -> bool {
     let mut current = Some(node);
     while let Some(node) = current {
-        if let Some(core) = node.element_core()
-            && core.flags() & ELEMENT_IS_HTML_ELEMENT != 0
-        {
+        if node.class_id().is_a(NodeClassId::HTMLElement) {
+            let core = node.element_core().expect("an HTML element is an element");
             return core.flags() & ELEMENT_IS_INERT != 0;
         }
         current = match node.is_shadow_root() {
@@ -85,21 +88,24 @@ fn nearest_html_element_is_inert(node: NodeRef) -> bool {
     false
 }
 
-/// Whether the steps that every element runs, and every HTML element, have nothing to do for `element`, which is not
-/// connected, with the nearest HTML element of `old_or_new_parent` deciding its inertness, besides what the steps would
-/// do to the editable flag.
+/// Whether `element`, which is not connected, has none of the steps `class_steps` beyond those of every element and
+/// every HTML element, and those have nothing to do for it, with the nearest HTML element of `old_or_new_parent`
+/// deciding its inertness, besides what the steps would do to the editable flag.
 #[inline(always)]
-fn element_steps_do_nothing(element: NodeRef, old_or_new_parent: NodeRef, extra_flags: u8) -> bool {
+fn element_steps_do_nothing(element: NodeRef, old_or_new_parent: NodeRef, class_steps: u8, extra_flags: u8) -> bool {
     let Some(core) = element.element_core() else {
         return false;
     };
+    if element.class_id().steps() & class_steps != 0 {
+        return false;
+    }
     let flags = core.flags();
-    if flags & (ELEMENT_HAS_OWN_TREE_STEPS | ELEMENT_HAS_CONTENT_EDITABLE_STATE | extra_flags) != 0
+    if flags & (ELEMENT_IS_FORM_ASSOCIATED_CUSTOM | ELEMENT_HAS_CONTENT_EDITABLE_STATE | extra_flags) != 0
         || core.shadow_root().is_some()
     {
         return false;
     }
-    flags & ELEMENT_IS_HTML_ELEMENT == 0 || !nearest_html_element_is_inert(old_or_new_parent)
+    !element.class_id().is_a(NodeClassId::HTMLElement) || !nearest_html_element_is_inert(old_or_new_parent)
 }
 
 /// Whether the insertion steps with `node`, which is in a subtree that has just joined its parent's children, and the
@@ -117,7 +123,15 @@ pub(super) fn insertion_steps_do_nothing(node: NodeRef) -> bool {
     if node.core().style_node_id().is_some() || node.document_core().may_have_blocking_wheel_event_listener() {
         return false;
     }
-    if !is_character_data_or_doctype(node) && !element_steps_do_nothing(node, parent, 0) {
+    // NB: The post-connection steps of a node are only collected where its insertion steps run.
+    if !is_character_data_or_doctype(node)
+        && !element_steps_do_nothing(
+            node,
+            parent,
+            NODE_CLASS_HAS_INSERTION_STEPS | NODE_CLASS_HAS_POST_CONNECTION_STEPS,
+            0,
+        )
+    {
         return false;
     }
     node.core().set_in_editable_subtree(false);
@@ -137,7 +151,12 @@ pub(super) fn removing_steps_do_nothing(node: NodeRef, parent: NodeRef, parent_r
         return false;
     }
     if !is_character_data_or_doctype(node)
-        && !element_steps_do_nothing(node, parent, ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS)
+        && !element_steps_do_nothing(
+            node,
+            parent,
+            NODE_CLASS_HAS_REMOVING_STEPS,
+            ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS,
+        )
     {
         return false;
     }
@@ -167,7 +186,7 @@ pub(super) fn moving_steps_do_nothing(node: NodeRef, is_subtree_root: IsSubtreeR
             return false;
         }
         // NB: An inert HTML element stops being inert when its new parent is not.
-        if !element_steps_do_nothing(node, parent, ELEMENT_IS_INERT) {
+        if !element_steps_do_nothing(node, parent, NODE_CLASS_HAS_MOVING_STEPS, ELEMENT_IS_INERT) {
             return false;
         }
     }
@@ -214,6 +233,7 @@ mod tests {
     use super::super::qualified_name::QualifiedNameField;
     use super::super::test_tree::append_child;
     use super::super::test_tree::element;
+    use super::super::test_tree::element_of_class;
     use super::super::test_tree::node;
     use super::super::test_tree::set_style_node_id;
     use super::super::test_tree::shadow_root;
@@ -221,16 +241,28 @@ mod tests {
     use crate::css::style::tree::StyleNodeID;
     use crate::stage::MainThread;
 
-    fn element_with_flags<'a>(main_thread: &'a MainThread<'_>, flags: u8) -> Node<'a> {
-        element(
+    /// An HTML element of the class `class_id` with the element flags `flags`.
+    fn html_element_of_class<'a>(main_thread: &'a MainThread<'_>, class_id: NodeClassId, flags: u8) -> Node<'a> {
+        element_of_class(
             main_thread,
+            class_id,
             ElementCore::for_test(QualifiedNameField::for_test("div", None)).with_flags_for_test(flags),
         )
         .node()
     }
 
+    /// An HTML element with the element flags `flags`, whose class has no steps of its own.
+    fn element_with_flags<'a>(main_thread: &'a MainThread<'_>, flags: u8) -> Node<'a> {
+        html_element_of_class(main_thread, NodeClassId::HTMLElement, flags)
+    }
+
+    /// An HTML element whose class has every step of its own, as the unit tests take an input element to have.
+    fn element_with_steps<'a>(main_thread: &'a MainThread<'_>) -> Node<'a> {
+        html_element_of_class(main_thread, NodeClassId::HTMLInputElement, 0)
+    }
+
     fn html_element<'a>(main_thread: &'a MainThread<'_>) -> Node<'a> {
-        element_with_flags(main_thread, ELEMENT_IS_HTML_ELEMENT)
+        element_with_flags(main_thread, 0)
     }
 
     /// `child`, appended to `parent`, as the insertion steps see it.
@@ -276,7 +308,7 @@ mod tests {
             node(&main_thread, NodeType::TEXT_NODE)
         )));
 
-        let inert = element_with_flags(&main_thread, ELEMENT_IS_HTML_ELEMENT | ELEMENT_IS_INERT);
+        let inert = element_with_flags(&main_thread, ELEMENT_IS_INERT);
         let other = node(&main_thread, NodeType::ELEMENT_NODE);
         append_child(inert, other);
         assert!(!insertion_steps_do_nothing(appended(other, html_element(&main_thread))));
@@ -300,12 +332,12 @@ mod tests {
     fn elements_with_steps_of_their_own_run_the_insertion_steps() {
         let main_thread = MainThread::for_test();
         let parent = html_element(&main_thread);
-        for flags in [ELEMENT_HAS_OWN_TREE_STEPS, ELEMENT_HAS_CONTENT_EDITABLE_STATE] {
-            let child = appended(
-                parent,
-                element_with_flags(&main_thread, ELEMENT_IS_HTML_ELEMENT | flags),
-            );
-            assert!(!insertion_steps_do_nothing(child));
+        for child in [
+            element_with_steps(&main_thread),
+            element_with_flags(&main_thread, ELEMENT_IS_FORM_ASSOCIATED_CUSTOM),
+            element_with_flags(&main_thread, ELEMENT_HAS_CONTENT_EDITABLE_STATE),
+        ] {
+            assert!(!insertion_steps_do_nothing(appended(parent, child)));
         }
 
         let host = html_element(&main_thread);
@@ -332,9 +364,11 @@ mod tests {
         assert!(removing_steps_do_nothing(element, parent, parent));
         let with_pseudo_elements = NodeRef::from(element_with_flags(
             &main_thread,
-            ELEMENT_IS_HTML_ELEMENT | ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS,
+            ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS,
         ));
         assert!(!removing_steps_do_nothing(with_pseudo_elements, parent, parent));
+        let with_steps = NodeRef::from(element_with_steps(&main_thread));
+        assert!(!removing_steps_do_nothing(with_steps, parent, parent));
 
         parent.core().set_is_connected_for_test();
         assert!(!removing_steps_do_nothing(text, parent, parent));
@@ -376,15 +410,9 @@ mod tests {
         // NB: The element a move starts from repositions the form-associated elements of its subtree.
         assert!(!moving_steps_do_nothing(moved, IsSubtreeRoot::Yes));
 
-        let inert = appended(
-            parent,
-            element_with_flags(&main_thread, ELEMENT_IS_HTML_ELEMENT | ELEMENT_IS_INERT),
-        );
+        let inert = appended(parent, element_with_flags(&main_thread, ELEMENT_IS_INERT));
         assert!(!moving_steps_do_nothing(inert, IsSubtreeRoot::No));
-        let with_steps = appended(
-            parent,
-            element_with_flags(&main_thread, ELEMENT_IS_HTML_ELEMENT | ELEMENT_HAS_OWN_TREE_STEPS),
-        );
+        let with_steps = appended(parent, element_with_steps(&main_thread));
         assert!(!moving_steps_do_nothing(with_steps, IsSubtreeRoot::No));
 
         NodeRef::from(parent).core().set_is_connected_for_test();

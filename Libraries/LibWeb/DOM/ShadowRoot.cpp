@@ -45,7 +45,6 @@ ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
     , m_style_scope(*this)
 {
     static_assert(offsetof(ShadowRoot, m_shadow_root_core) == RustFFI::SHADOW_ROOT_CORE_OFFSET);
-    m_core.flags |= RustFFI::NODE_IS_SHADOW_ROOT;
     if (mode == ShadowRootMode::Closed)
         m_core.flags |= RustFFI::NODE_IS_CLOSED_SHADOW_ROOT;
     document.register_shadow_root({}, *this);

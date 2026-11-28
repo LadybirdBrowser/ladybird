@@ -222,7 +222,6 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
 Node::Node(Document& document, NodeType type)
     : EventTarget()
 {
-    set_event_target_core_flag(RustFFI::EVENT_TARGET_IS_NODE);
     m_core.document = &document;
     m_core.root = this;
     m_core.node_type = type;
@@ -3624,16 +3623,15 @@ public:
 
     // https://dom.spec.whatwg.org/#concept-node-insert
     template<RustFFI::InsertionKind kind>
-    static bool run_insertion_steps(Node* inclusive_descendant)
+    static void run_insertion_steps(Node* inclusive_descendant)
     {
         // 1. Run the insertion steps with inclusiveDescendant.
         inclusive_descendant->inserted();
-        auto has_post_connection_steps = inclusive_descendant->has_post_connection_steps();
 
         // 2. If inclusiveDescendant is not connected, then continue.
         // NB: The parser's insertions leave out the custom element steps below, see RustFFI::InsertionKind::Parser.
         if (kind == RustFFI::InsertionKind::Parser || !inclusive_descendant->is_connected())
-            return has_post_connection_steps;
+            return;
 
         // 3. If inclusiveDescendant is an element and inclusiveDescendant’s custom element registry is non-null:
         // INTEROP: Already-custom elements still receive connectedCallback after adoption into a document with
@@ -3666,7 +3664,6 @@ public:
 
             shadow_root->custom_element_registry()->append_scoped_document(shadow_root->document());
         }
-        return has_post_connection_steps;
     }
 
     // https://dom.spec.whatwg.org/#concept-node-insert

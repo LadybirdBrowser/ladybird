@@ -300,13 +300,11 @@ const _: () = assert!(size_of::<AttributeListField>() == 8 && align_of::<Attribu
 
 // The flags of an element's core, a bit each in its flags byte, which C++ sets where the state they stand for changes.
 
-/// Whether the element is a DOM::HTMLElement, which C++ sets as it constructs one, and never changes.
-pub const ELEMENT_IS_HTML_ELEMENT: u8 = 1 << 0;
-/// Whether the element has insertion steps, removing steps, moving steps or post-connection steps beyond those of every
-/// element and every HTML element, as its class has, or as a form-associated, body or frameset element has. C++ sets it
-/// as it constructs an element of such a class, and as a form-associated custom element definition is attached to an
-/// element. It is never cleared.
-pub const ELEMENT_HAS_OWN_TREE_STEPS: u8 = 1 << 1;
+/// Whether the element is a form-associated custom element, which has the insertion steps, removing steps, moving
+/// steps and attribute change steps of a form-associated element. C++ keeps it as the element's custom element
+/// definition changes.
+/// https://html.spec.whatwg.org/multipage/custom-elements.html#form-associated-custom-element
+pub const ELEMENT_IS_FORM_ASSOCIATED_CUSTOM: u8 = 1 << 1;
 /// Whether the element is an inert HTML element.
 /// https://html.spec.whatwg.org/multipage/interaction.html#inert
 pub const ELEMENT_IS_INERT: u8 = 1 << 2;
@@ -317,11 +315,6 @@ pub const ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS: u8 = 1 << 4;
 /// Whether the element is custom, which C++ keeps as the element's custom element state changes.
 /// https://dom.spec.whatwg.org/#concept-element-custom
 pub const ELEMENT_IS_CUSTOM: u8 = 1 << 5;
-/// Whether the element has attribute change steps beyond those of every element and every HTML element, whose names
-/// attributes.rs knows, as its class has, or as a form-associated element has. C++ sets it as it constructs an element
-/// of such a class, and as a form-associated custom element definition is attached to an element. It is never
-/// cleared.
-pub const ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS: u8 = 1 << 6;
 /// Whether the element may have Attr nodes, which C++ sets as it makes the element's NamedNodeMap, and never clears.
 pub const ELEMENT_MAY_HAVE_ATTRIBUTE_NODES: u8 = 1 << 7;
 

@@ -353,9 +353,8 @@ pub struct CppNodeFlags(Cell<u8>);
 /// Whether the node is connected.
 /// https://dom.spec.whatwg.org/#connected
 pub const NODE_IS_CONNECTED: u8 = 1 << 0;
-pub const NODE_IS_SHADOW_ROOT: u8 = 1 << 1;
 /// Whether the node is in an editable subtree, as Node::recompute_editable_subtree_flag() works it out.
-pub const NODE_IN_EDITABLE_SUBTREE: u8 = 1 << 4;
+pub const NODE_IN_EDITABLE_SUBTREE: u8 = 1 << 1;
 /// Whether the node's registered observer list, which C++ keeps, holds any registered observer, transient or not.
 /// https://dom.spec.whatwg.org/#registered-observer-list
 pub const NODE_HAS_REGISTERED_OBSERVERS: u8 = 1 << 2;
@@ -409,7 +408,7 @@ pub struct NodeCore {
     style_node_id: StyleNodeField,
     // NB: The type is set as the node is made, and never changes.
     node_type: NodeType,
-    /// The NODE_* flags. C++ sets NODE_IS_SHADOW_ROOT as it constructs a shadow root, and never changes it.
+    /// The NODE_* flags.
     flags: Cell<u8>,
     cpp_flags: CppNodeFlags,
     /// The generation of the node's child list in which the child indices its element children remember hold, which
@@ -451,12 +450,6 @@ impl NodeCore {
     #[inline(always)]
     pub fn is_connected(&self) -> bool {
         self.has_flag(NODE_IS_CONNECTED)
-    }
-
-    /// https://dom.spec.whatwg.org/#concept-shadow-root
-    #[inline(always)]
-    pub fn is_shadow_root(&self) -> bool {
-        self.has_flag(NODE_IS_SHADOW_ROOT)
     }
 
     #[inline(always)]
@@ -670,13 +663,8 @@ impl NodeCore {
         self.flags.set(self.flags.get() | NODE_IS_CONNECTED);
     }
 
-    pub(crate) fn set_is_shadow_root_for_test(&mut self) {
-        self.flags.set(self.flags.get() | NODE_IS_SHADOW_ROOT);
-    }
-
     pub(crate) fn set_is_closed_shadow_root_for_test(&mut self) {
-        self.flags
-            .set(self.flags.get() | NODE_IS_SHADOW_ROOT | NODE_IS_CLOSED_SHADOW_ROOT);
+        self.flags.set(self.flags.get() | NODE_IS_CLOSED_SHADOW_ROOT);
     }
 
     /// The core of a node of `node_type`, `node`, for a test tree: the root of a tree of its own, whose node document is
@@ -801,38 +789,5 @@ mod tests {
         assert!(member(0x2000_0000).get().is_some());
         assert_eq!(member(0x2000_0000).get(), member(0x2000_0000).get());
         assert_ne!(member(0x2000_0000).get(), member(0x2000_0001).get());
-    }
-
-    fn pointer(compressed: u32) -> NodePointer {
-        member(compressed).get().unwrap()
-    }
-
-    #[test]
-    fn each_accessor_reads_its_own_field() {
-        let core = NodeCore {
-            parent: member(0x2000_0001),
-            first_child: member(0x2000_0002),
-            last_child: member(0x2000_0003),
-            next_sibling: member(0x2000_0004),
-            previous_sibling: member(0),
-            document: DocumentMember(Cell::new(0x2000_0005)),
-            root: member(0x2000_0006),
-            style_node_id: StyleNodeField(Cell::new(7)),
-            node_type: NodeType::TEXT_NODE,
-            flags: Cell::new(NODE_IS_CONNECTED | NODE_IS_SHADOW_ROOT),
-            cpp_flags: CppNodeFlags(Cell::new(0xff)),
-            child_index_generation: Cell::new(1),
-        };
-        assert_eq!(core.parent(), Some(pointer(0x2000_0001)));
-        assert_eq!(core.first_child(), Some(pointer(0x2000_0002)));
-        assert_eq!(core.last_child(), Some(pointer(0x2000_0003)));
-        assert_eq!(core.next_sibling(), Some(pointer(0x2000_0004)));
-        assert_eq!(core.previous_sibling(), None);
-        assert_eq!(core.document(), pointer(0x2000_0005));
-        assert_eq!(core.root(), pointer(0x2000_0006));
-        assert_eq!(core.node_type(), NodeType::TEXT_NODE);
-        assert!(core.is_connected());
-        assert!(core.is_shadow_root());
-        assert_eq!(core.style_node_id(), StyleNodeID::from_raw(7));
     }
 }

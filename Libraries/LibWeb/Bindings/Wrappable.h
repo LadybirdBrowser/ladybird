@@ -162,7 +162,7 @@ public:
     static constexpr size_t main_world_wrapper_offset() { return offsetof(Wrappable, m_main_world_wrapper); }
 
     // The class of the node this is, or DOM::NodeClassId::NotANode if it is no node. See DOM/NodeClassId.h. It is the
-    // embedder type id of the cell.
+    // embedder type id of the cell, where libweb_rust reads it.
     DOM::NodeClassId node_class_id() const { return static_cast<DOM::NodeClassId>(embedder_type_id()); }
 
 protected:

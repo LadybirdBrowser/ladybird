@@ -19,6 +19,7 @@ use core::ptr::NonNull;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node::decompress;
+use super::node_class::NodeClassId;
 use super::node_core::NodePointer;
 use super::node_core::member_write_barrier;
 use super::node_ref::NodeRef;
@@ -36,14 +37,9 @@ pub const EVENT_TARGET_CORE_OFFSET: usize = 24;
 // The flags of an event target's core, a bit each in its flags byte, which C++ sets as it constructs the target, from
 // which virtual functions its class overrides, and never changes.
 
-/// Whether the target is a DOM::Node.
-pub const EVENT_TARGET_IS_NODE: u8 = 1 << 0;
-/// Whether the target's class overrides has_activation_behavior(), which only then can answer true.
-/// https://dom.spec.whatwg.org/#eventtarget-activation-behavior
-pub const EVENT_TARGET_HAS_ACTIVATION_BEHAVIOR: u8 = 1 << 2;
 /// Whether the target is no node, and its class overrides get_parent(), which only then can answer anything but null.
 /// https://dom.spec.whatwg.org/#get-the-parent
-pub const EVENT_TARGET_HAS_GET_THE_PARENT: u8 = 1 << 1;
+pub const EVENT_TARGET_HAS_GET_THE_PARENT: u8 = 1 << 0;
 
 /// The state of an event target that dispatch reads, which C++ embeds in DOM::EventTarget as its only storage of it.
 ///
@@ -158,6 +154,13 @@ impl EventTargetRef {
         core::ptr::with_exposed_provenance(address)
     }
 
+    /// The class of the node the target is, or NodeClassId::NotANode if it is no node.
+    #[inline(always)]
+    pub(super) fn class_id(&self) -> NodeClassId {
+        // SAFETY: The target is alive for as long as the reference is held.
+        unsafe { NodeClassId::of_cell(self.pinned_cell()) }
+    }
+
     /// The target's core, read for as long as the reference is borrowed, during which nothing may call into C++.
     #[inline(always)]
     pub(super) fn core(&self) -> &EventTargetCore {
@@ -174,7 +177,7 @@ impl EventTargetRef {
     /// The node the target is, or none if it is no node.
     #[inline(always)]
     pub(super) fn as_node(self) -> Option<NodeRef> {
-        if self.core().flags() & EVENT_TARGET_IS_NODE == 0 {
+        if self.class_id() == NodeClassId::NotANode {
             return None;
         }
         // SAFETY: A node starts with its event target, and the target is alive for as long as the reference is held.

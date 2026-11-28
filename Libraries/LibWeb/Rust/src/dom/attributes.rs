@@ -22,9 +22,8 @@
 use core::ptr::NonNull;
 
 use super::collection::collection_attributes_changed;
-use super::element_core::ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS;
 use super::element_core::ELEMENT_IS_CUSTOM;
-use super::element_core::ELEMENT_IS_HTML_ELEMENT;
+use super::element_core::ELEMENT_IS_FORM_ASSOCIATED_CUSTOM;
 use super::element_core::ELEMENT_MAY_HAVE_ATTRIBUTE_NODES;
 use super::element_core::ELEMENT_REFLECTION_HAS_CLASS_LIST;
 use super::hooks;
@@ -40,6 +39,8 @@ use super::hooks::ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE;
 use super::id_map;
 use super::mutation_observers::attribute_mutation_record_is_heard;
 use super::node::NodeCell;
+use super::node_class::NODE_CLASS_HAS_ATTRIBUTE_CHANGE_STEPS;
+use super::node_class::NodeClassId;
 use super::node_core::DOCUMENT_HAS_EDITING_HISTORY;
 use super::node_core::DOCUMENT_IS_HTML_DOCUMENT;
 use super::node_ref::NodeRef;
@@ -134,7 +135,7 @@ fn lowercases_qualified_names(element: NodeRef) -> bool {
         return false;
     }
     let core = element.element_core().expect("only an element has attributes");
-    core.flags() & ELEMENT_IS_HTML_ELEMENT != 0
+    element.class_id().is_a(NodeClassId::HTMLElement)
         || core
             .qualified_name()
             .namespace()
@@ -442,13 +443,19 @@ fn handle_attribute_changes(
     // NB: The style engine hears of a change to an attribute of an element that is connected or that it styles, which
     //     the attribute change steps tell it of where they run.
     let style_engine_hears = element.is_connected() || element.core().style_node_id().is_some();
+    let has_own_steps = has_own_attribute_change_steps(element, element_flags);
     if !style_engine_hears
-        && element_flags & ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS == 0
+        && !has_own_steps
         && parts.namespace().is_none()
         && run_core_attribute_change_steps(element, parts.local_name().units(), new_value, value_changed)
     {
         // NB: These were all the attribute change steps for the change.
-    } else if has_attribute_change_steps(element_flags, parts, value_changed) {
+    } else if has_attribute_change_steps(
+        has_own_steps,
+        element.class_id().is_a(NodeClassId::HTMLElement),
+        parts,
+        value_changed,
+    ) {
         steps |= ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS;
     } else if value_changed && style_engine_hears {
         steps |= ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE;
@@ -677,23 +684,33 @@ fn bump_dom_tree_version_for_attribute_change(main_thread: &mut MainThread<'_>, 
     }
 }
 
-/// Whether the attribute change steps for a change to the attribute named `name` of `element`, which changes its
-/// value where `value_changed` says so, do anything, which they do in C++: those of the element's class, and those
-/// that every element and every HTML element has for the names they act on.
+/// Whether `element`, whose element flags are `element_flags`, has attribute change steps beyond those of every
+/// element and every HTML element: those of its class, or those of a form-associated custom element.
 #[inline(always)]
-fn has_attribute_change_steps(element_flags: u8, name: &QualifiedNameImpl, value_changed: bool) -> bool {
-    if element_flags & ELEMENT_HAS_OWN_ATTRIBUTE_CHANGE_STEPS != 0 {
+fn has_own_attribute_change_steps(element: NodeRef, element_flags: u8) -> bool {
+    element.class_id().steps() & NODE_CLASS_HAS_ATTRIBUTE_CHANGE_STEPS != 0
+        || element_flags & ELEMENT_IS_FORM_ASSOCIATED_CUSTOM != 0
+}
+
+/// Whether the attribute change steps for a change to the attribute named `name` of an element, which changes its
+/// value where `value_changed` says so, do anything, which they do in C++: those of the element itself where
+/// `has_own_steps` says it has some, and those that every element, and every HTML element where `is_html_element` says
+/// it is one, has for the names they act on.
+#[inline(always)]
+fn has_attribute_change_steps(
+    has_own_steps: bool,
+    is_html_element: bool,
+    name: &QualifiedNameImpl,
+    value_changed: bool,
+) -> bool {
+    if has_own_steps {
         return true;
     }
     // NB: Every namespaced attribute's change runs in C++, which xml:lang's needs.
     if name.namespace().is_some() {
         return true;
     }
-    has_base_attribute_change_steps(
-        name.local_name().units(),
-        element_flags & ELEMENT_IS_HTML_ELEMENT != 0,
-        value_changed,
-    )
+    has_base_attribute_change_steps(name.local_name().units(), is_html_element, value_changed)
 }
 
 /// Whether the attribute change steps of every element, or of every HTML element where `is_html_element` says so, do

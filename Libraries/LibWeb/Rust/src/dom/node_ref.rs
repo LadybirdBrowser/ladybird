@@ -40,6 +40,7 @@ use super::node::Node;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node::decompress;
+use super::node_class::NodeClassId;
 use super::node_core::DOCUMENT_CORE_OFFSET;
 use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
 use super::node_core::DocumentCore;
@@ -195,6 +196,13 @@ impl NodeRef {
         self.core().node_type()
     }
 
+    /// The class of the node, see node_class.rs.
+    #[inline(always)]
+    pub fn class_id(self) -> NodeClassId {
+        // SAFETY: The node is a live event target for as long as the reference is held.
+        unsafe { NodeClassId::of_cell(self.pinned_cell()) }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-element
     #[inline(always)]
     pub fn is_element(self) -> bool {
@@ -204,7 +212,7 @@ impl NodeRef {
     /// https://dom.spec.whatwg.org/#concept-shadow-root
     #[inline(always)]
     pub fn is_shadow_root(self) -> bool {
-        self.core().is_shadow_root()
+        self.class_id().is_a(NodeClassId::ShadowRoot)
     }
 
     /// Whether the node is a shadow root whose mode is "closed".

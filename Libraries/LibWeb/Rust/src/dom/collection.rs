@@ -29,9 +29,9 @@ use core::mem::offset_of;
 use super::child_index::element_children_stamp;
 use super::element::Element;
 use super::element_core::ClassNamesField;
-use super::element_core::ELEMENT_IS_HTML_ELEMENT;
 use super::hooks;
 use super::node::NodeCell;
+use super::node_class::NodeClassId;
 use super::node_core::COLLECTION_ATTRIBUTE_TYPE_COUNT;
 use super::node_core::NodeMember;
 use super::node_ref::NodeRef;
@@ -386,7 +386,7 @@ fn element_matches(collection: &CollectionCell, element: Element<'_>) -> bool {
         CollectionFilter::QualifiedName => qualified_name() == name().raw_identity(),
         CollectionFilter::QualifiedNameInHtmlDocument => {
             // NB: An element is in the HTML namespace exactly when it is an HTMLElement.
-            let is_html = element.core().flags() & ELEMENT_IS_HTML_ELEMENT != 0;
+            let is_html = element.node().class_id().is_a(NodeClassId::HTMLElement);
             qualified_name() == if is_html { other_name() } else { name() }.raw_identity()
         }
         CollectionFilter::LocalName => element.local_name().raw_identity() == name().raw_identity(),

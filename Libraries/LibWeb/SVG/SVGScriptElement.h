@@ -23,7 +23,6 @@ class SVGScriptElement
 public:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void post_connection() override;
-    virtual bool has_post_connection_steps() const override { return true; }
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 

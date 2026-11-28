@@ -4798,11 +4798,10 @@ void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinitio
         ensure_element_rare_data().custom_element_definition = definition;
     }
 
-    // NB: A form-associated custom element runs the insertion and removing steps of a form-associated element.
-    if (is_form_associated) {
-        set_has_own_tree_steps();
-        set_has_own_attribute_change_steps();
-    }
+    // NB: A form-associated custom element runs the tree steps and attribute change steps of a form-associated
+    //     element, which libweb_rust otherwise skips for some elements (see Rust/src/dom/steps.rs and
+    //     Rust/src/dom/attributes.rs).
+    set_element_core_flag(RustFFI::ELEMENT_IS_FORM_ASSOCIATED_CUSTOM, is_form_associated);
 
     if (was_form_associated != is_form_associated)
         document().bump_form_controls_version();

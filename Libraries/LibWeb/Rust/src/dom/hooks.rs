@@ -203,7 +203,7 @@ pub const SLOT_CHANGE_INVALIDATE: u8 = 1 << 2;
 #[repr(C)]
 pub struct IdMapHooks {
     /// See [`create_weak`].
-    pub create_weak: unsafe extern "C" fn(node: NodeRef) -> NonNull<c_void>,
+    pub create_weak: unsafe extern "C" fn(node: RawNodeRef) -> NonNull<c_void>,
     /// See [`release_weak`].
     pub release_weak: unsafe extern "C" fn(weak: NonNull<c_void>),
 }
@@ -218,7 +218,7 @@ pub struct InsertionHooks {
     pub inserted_into_children:
         unsafe extern "C" fn(parent: RawNodeRef, node: RawNodeRef, any_node_has_post_connection_steps: &mut bool),
     /// See [`run_insertion_steps`].
-    pub run_insertion_steps: unsafe extern "C" fn(node: RawNodeRef) -> bool,
+    pub run_insertion_steps: unsafe extern "C" fn(node: RawNodeRef),
     /// See [`end_insertion`].
     pub end_insertion: unsafe extern "C" fn(
         parent: RawNodeRef,
@@ -449,11 +449,10 @@ pub(crate) fn inserted_into_children<I: Inserter>(
 }
 
 /// Runs the insertion steps with `node`, then, if it is connected, step 7.7.1 or 7.7.2 of inserting nodes for it.
-/// Answers whether `node` has post-connection steps.
 ///
 /// Can run script, allocate and change the tree.
 #[inline]
-pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>, node: NodeRef) -> bool {
+pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>, node: NodeRef) {
     // SAFETY: The callback is called on the main thread with a live node.
     unsafe { (insertion_hooks::<I>(main_thread).run_insertion_steps)(node) }
 }

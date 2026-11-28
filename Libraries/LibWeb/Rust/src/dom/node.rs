@@ -14,6 +14,7 @@ use core::marker::PhantomData;
 use core::marker::PhantomPinned;
 use core::ptr::NonNull;
 
+use super::node_class::NodeClassId;
 use super::node_core::CHARACTER_DATA_CORE_OFFSET;
 use super::node_core::CharacterDataCore;
 use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
@@ -178,6 +179,13 @@ impl<'a> Node<'a> {
         self.core().node_type()
     }
 
+    /// The class of the node, see node_class.rs.
+    #[inline(always)]
+    pub fn class_id(self) -> NodeClassId {
+        // SAFETY: A node is a live event target for 'a.
+        unsafe { NodeClassId::of_cell(self.cell as *const NodeCell) }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-element
     #[inline(always)]
     pub fn is_element(self) -> bool {
@@ -187,7 +195,7 @@ impl<'a> Node<'a> {
     /// https://dom.spec.whatwg.org/#concept-shadow-root
     #[inline(always)]
     pub fn is_shadow_root(self) -> bool {
-        self.core().is_shadow_root()
+        self.class_id().is_a(NodeClassId::ShadowRoot)
     }
 
     /// The data of a CharacterData node, which DOM::CharacterData keeps in its core.
