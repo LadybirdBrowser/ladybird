@@ -13,11 +13,18 @@
 #include <AK/Utf16String.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontTable.h>
-#include <LibGfx/TextLayout.h>
 #include <RustFFI.h>
 
 #include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
+
+// NB: Rust reads the features of a font as these.
+static_assert(sizeof(Gfx::FFI::FfiShapeFeature) == sizeof(Gfx::ShapeFeature));
+static_assert(alignof(Gfx::FFI::FfiShapeFeature) == alignof(Gfx::ShapeFeature));
+static_assert(offsetof(Gfx::FFI::FfiShapeFeature, tag) == offsetof(Gfx::ShapeFeature, tag));
+static_assert(offsetof(Gfx::FFI::FfiShapeFeature, value) == offsetof(Gfx::ShapeFeature, value));
+static_assert(offsetof(Gfx::FFI::FfiShapeFeature, set_by_feature_settings) == offsetof(Gfx::ShapeFeature, set_by_feature_settings));
+static_assert(IsTriviallyCopyable<Gfx::ShapeFeature>);
 
 extern "C" {
 void ladybird_gfx_font_snapshot(void const*, Gfx::FFI::FfiFontSnapshot*);
@@ -143,7 +150,27 @@ Optional<float> Font::vertical_advance_of_code_point(u32 code_point) const
     return static_cast<float>(advance < 0 ? -advance : advance) / text_shaping_resolution;
 }
 
-float Font::width(Utf16View const& view) const { return measure_text_width(view, *this); }
+// What shaping in Rust needs of the font: its immutable HarfBuzz font and its features, which it lends for as long as
+// it lives.
+static FFI::FfiShapingFont shaping_font_of(Font const& font)
+{
+    auto const& features = font.features();
+    return {
+        .harfbuzz_font = font.harfbuzz_font(),
+        .features = reinterpret_cast<FFI::FfiShapeFeature const*>(features.data()),
+        .feature_count = features.size(),
+    };
+}
+
+float Font::width(Utf16View const& view) const
+{
+    // NB: Shaping takes ASCII text as Latin script and left to right without asking HarfBuzz, so the storage matters.
+    if (view.has_latin1_storage()) {
+        auto storage = view.has_ascii_storage() ? FFI::TextStorage::Ascii : FFI::TextStorage::Latin1;
+        return FFI::ladybird_gfx_font_measure_text_width(shaping_font_of(*this), storage, view.latin1_span().data(), view.length_in_code_units());
+    }
+    return FFI::ladybird_gfx_font_measure_text_width(shaping_font_of(*this), FFI::TextStorage::Utf16, view.utf16_span().data(), view.length_in_code_units());
+}
 
 NonnullRefPtr<Font> Font::invisible_variant() const
 {
@@ -295,6 +322,7 @@ extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSn
     auto bounding_box_of_all_glyphs = typed_font.typeface().bounding_box_in_font_units();
     *out_snapshot = {
         .id = typed_font.id(),
+        .shaping = Gfx::shaping_font_of(typed_font),
         .ascent = metrics.ascent,
         .descent = metrics.descent,
         .line_gap = metrics.line_gap,
