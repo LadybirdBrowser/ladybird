@@ -31,6 +31,7 @@ static constexpr u32 SESSIONS_SCHEMA_RESTART_VERSION = 10u;
 static constexpr u32 SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_VERSION = 11u;
 static constexpr u32 SESSIONS_SCHEMA_LOCAL_FILE_ROOTS_VERSION = 12u;
 static constexpr u32 SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_AGAIN_VERSION = 13u;
+static constexpr u32 SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_FROM_ORIGIN_VERSION = 14u;
 
 // After this many unclean exits in a row, launch restore stops, so a session that crashes the browser doesn't restore
 // into the same crash every time.
@@ -322,6 +323,16 @@ ErrorOr<Database::MigrationOutcome> SessionStore::PersistedStorage::migrate_sche
                 UPDATE SessionEntries SET held_local_file_content = 1 WHERE local_file_root_path IS NOT NULL;
                 ALTER TABLE SessionEntries DROP COLUMN local_file_root_scope;
                 ALTER TABLE SessionEntries DROP COLUMN local_file_root_path;
+            )#"sv,
+        },
+        // Entries saved before SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_VERSION came out of migration with the flag off.
+        // A file: entry held local file content if it showed the file, with a file origin, or the PDF viewer for it,
+        // which had a resource origin. A page shown in place of a file that could not be loaded has an opaque origin.
+        {
+            .version = SESSIONS_SCHEMA_LOCAL_FILE_CONTENT_FROM_ORIGIN_VERSION,
+            .sql = R"#(
+                UPDATE SessionEntries SET held_local_file_content = 1
+                WHERE url LIKE 'file:%' AND (origin_kind IN (2, 4) OR (origin_kind = 3 AND origin_scheme IN ('file', 'resource')));
             )#"sv,
         },
     });
