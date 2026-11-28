@@ -2197,7 +2197,7 @@ void ConnectionFromClient::perform_accessibility_action(Web::PageId page_id, i64
 
         // Push a fresh tree after the action — what it moved (the focus, a scroll position) isn't a DOM mutation, so no
         // other path would push it.
-        page->schedule_accessibility_tree_update();
+        page->schedule_accessibility_tree_update(PageClient::AccessibilityUpdateDelay::Minimum);
     }
 }
 
@@ -2288,7 +2288,7 @@ void ConnectionFromClient::perform_accessibility_text_action(Web::PageId page_id
         }
     }
 
-    page->schedule_accessibility_tree_update();
+    page->schedule_accessibility_tree_update(PageClient::AccessibilityUpdateDelay::Minimum);
 }
 
 void ConnectionFromClient::get_hovered_node_id(Web::PageId page_id)
