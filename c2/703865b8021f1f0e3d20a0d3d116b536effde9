@@ -1,0 +1,6 @@
+When find ends, Ladybird makes an active match in a text control the
+control’s selection. Chromium does the same for a match in an <input> or
+a <textarea>, in TextFinder::SetFindEndstateFocusAndSelection(), and it
+also focuses the control, where Ladybird leaves the focus as it was. The
+report says that Firefox puts the caret at the start of the match
+instead. From reading Chromium’s source.
