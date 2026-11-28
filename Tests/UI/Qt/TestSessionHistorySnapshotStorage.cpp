@@ -615,7 +615,7 @@ TEST_CASE(snapshot_entries_saved_before_the_user_agent_initiated_column_load_as_
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 13u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 14u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 42, 0));
     EXPECT_EQ(loaded.entries.size(), 1uz);
@@ -652,7 +652,7 @@ TEST_CASE(snapshot_policy_containers_saved_before_the_insecure_requests_policy_l
     )#"sv));
 
     auto migrated_statements = prepare_snapshot_tables(*database);
-    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 13u });
+    EXPECT_EQ(TRY_OR_FAIL(database->schema_version("Sessions"sv)), Optional<u32> { 14u });
 
     auto loaded = TRY_OR_FAIL(load_session_history_snapshot(*database, migrated_statements, 27, 0));
     auto const* container = loaded.entries[0].document_state.history_policy_container.get_pointer<Web::HTML::SerializedPolicyContainer>();
