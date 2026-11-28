@@ -60,7 +60,6 @@ enum ReadyState {
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#eventsource
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct EventSource {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

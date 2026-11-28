@@ -21,7 +21,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 // https://svgwg.org/specs/animations/#InterfaceTimeEvent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TimeEvent {
     event: CppEvent,
     view: Cell<Option<CppInterface>>,

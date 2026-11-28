@@ -23,7 +23,6 @@ use crate::performance_timeline::performance_observer::PerformanceObserverInit;
 
 /// https://w3c.github.io/event-timing/#sec-performance-event-timing
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceEventTiming {
     // NB: An entry is "event", unless it is the copy of an entry that is queued as the first input.
     entry: PerformanceEntry,

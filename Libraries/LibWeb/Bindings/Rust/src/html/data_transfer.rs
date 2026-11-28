@@ -23,7 +23,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 use crate::file_api::file_list::FileList;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DataTransfer {
     #[gc(untraced)]
     store: RefCell<Option<Rc<DragDataStore>>>,

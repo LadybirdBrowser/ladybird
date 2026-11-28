@@ -21,7 +21,6 @@ use std::rc::Rc;
 const FONT_FACE_AT_RULE: u8 = 0;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSFontFaceRule {
     rule: CSSRule,
 }

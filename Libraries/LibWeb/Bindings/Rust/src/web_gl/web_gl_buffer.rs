@@ -14,7 +14,6 @@ use super::web_gl_object::WebGLObject;
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLBuffer {
     object: WebGLObject,
     #[gc(untraced)]

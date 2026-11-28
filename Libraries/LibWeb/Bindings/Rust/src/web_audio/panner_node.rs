@@ -28,7 +28,6 @@ pub(crate) use libweb_rust::web_audio::rendering::node_message::{DistanceModelTy
 
 // https://webaudio.github.io/web-audio-api/#PannerNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PannerNode {
     node: AudioNode,
 

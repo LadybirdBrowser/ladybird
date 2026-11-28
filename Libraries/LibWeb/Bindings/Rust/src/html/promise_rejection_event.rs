@@ -29,7 +29,6 @@ pub(crate) struct PromiseRejectionEventInit {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#promiserejectionevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PromiseRejectionEvent {
     event: CppEvent,
     promise: Gc<Object>,

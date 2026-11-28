@@ -24,7 +24,6 @@ pub(crate) struct FunctionParameter {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSFunctionRule {
     grouping_rule: CSSGroupingRule,
 }

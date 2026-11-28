@@ -28,7 +28,7 @@ use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::root::MarkedVec;
 use crate::gc::sweep::Sweep;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::gc::weak::SweptAfterCollection;
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
@@ -65,7 +65,7 @@ use crate::source_code::SourceCode;
 use crate::source_range::{Position, SourceRange};
 use crate::utf16::Utf16View;
 use crate::utf16::to_utf16_fly_string;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 /// The contents of a cache entry, copied out of the cache so that no reference into its storage outlives a call that
 /// may update the cache and free that storage.

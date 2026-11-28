@@ -42,7 +42,6 @@ impl TransactionChanges {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 enum Entry {
     ObjectStoreCreated,
     ObjectStoreDeleted,
@@ -90,7 +89,6 @@ enum Entry {
 // and ObjectStoreDeleted is always last (if present). Index schema entries appear in order between
 // data mutations.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MutationLog {
     entries: GcRefCell<Vec<Entry>>,
 }

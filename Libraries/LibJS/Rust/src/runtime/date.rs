@@ -12,7 +12,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, ToPrimitive};
 

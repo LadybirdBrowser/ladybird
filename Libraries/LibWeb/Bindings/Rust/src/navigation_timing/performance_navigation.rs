@@ -20,7 +20,6 @@ const TYPE_BACK_FORWARD: u16 = 2;
 
 /// https://w3c.github.io/navigation-timing/#the-performancenavigation-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceNavigation {
     window: CppWindow,
 }

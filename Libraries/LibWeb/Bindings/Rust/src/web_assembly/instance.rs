@@ -37,7 +37,6 @@ use crate::web_assembly::values::to_webassembly_value;
 use crate::web_assembly::{Agent, CompiledModule, EntityRef, throw_of_instantiation_error};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Instance {
     // [[Instance]]
     instance: EntityRef<CoreInstance>,

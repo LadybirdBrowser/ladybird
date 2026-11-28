@@ -24,7 +24,6 @@ use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSUnitValue {
     numeric_value: CSSNumericValue,
     #[gc(untraced)]

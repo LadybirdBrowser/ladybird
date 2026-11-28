@@ -28,7 +28,6 @@ use crate::streams::transformer::Transformer;
 
 // https://streams.spec.whatwg.org/#transformstreamdefaultcontroller
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TransformStreamDefaultController {
     // https://streams.spec.whatwg.org/#transformstreamdefaultcontroller-cancelalgorithm
     cancel_algorithm: GcRefCell<Option<CancelAlgorithm>>,

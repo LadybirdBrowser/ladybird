@@ -31,7 +31,6 @@ const REFERENCE_TAG_MASK: u64 = 0b11;
 
 /// A JavaScript value that is not a cell, boxed so that WebAssembly can refer to it as a host value.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ExternValueBox {
     value: Value,
 }

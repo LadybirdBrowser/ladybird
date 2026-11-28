@@ -32,7 +32,6 @@ pub(crate) use libweb_rust::web_audio::rendering::biquad_coefficients::BiquadFil
 
 // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct BiquadFilterNode {
     node: AudioNode,
     #[gc(untraced)]

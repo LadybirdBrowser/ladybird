@@ -84,7 +84,6 @@ pub(crate) fn read_back_current_video_frame(video: CppInterface, color_space: Co
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CanvasPattern {
     /// The frame of the image when createPattern() was called, if the image had one.
     #[gc(untraced)]

@@ -29,7 +29,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSKeyframesRule {
     rule: CSSRule,
     rules: GcRefCell<Option<Ref<CSSRuleList>>>,

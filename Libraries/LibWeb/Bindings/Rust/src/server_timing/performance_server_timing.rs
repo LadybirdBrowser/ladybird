@@ -88,7 +88,6 @@ pub(crate) fn parse_a_server_timing_header_field(field: &[u8]) -> Option<Perform
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceServerTiming {
     // https://w3c.github.io/server-timing/#dfn-metric-name
     metric_name: String,

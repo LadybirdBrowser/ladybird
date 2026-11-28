@@ -30,7 +30,6 @@ unsafe extern "C" {
 
 /// https://w3c.github.io/gamepad/#internal-slots
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct NavigatorGamepad {
     // https://w3c.github.io/gamepad/#dfn-hasgamepadgesture
     // A flag indicating that a gamepad user gesture has been observed
@@ -179,7 +178,6 @@ pub(crate) fn select_an_unused_gamepad_index(vm: &Vm, navigator: &NavigatorGamep
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct GamepadConnection {
     window: CppWindow,
     document: CppDocument,
@@ -241,7 +239,6 @@ pub(crate) fn handle_gamepad_connected(vm: &Vm, window: &CppWindow, description:
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct GamepadUpdate {
     window: CppWindow,
     #[gc(untraced)]

@@ -21,7 +21,6 @@ use crate::web_locks::lock_table::{self, AgentId, Entry, EntryId, LockManagerKey
 // https://w3c.github.io/web-locks/#lock-request
 // NB: The lock table has the request's agent, clientId, manager, name and mode as well, under its id.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct LockRequest {
     #[gc(untraced)]
     pub(crate) id: EntryId,

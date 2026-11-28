@@ -42,7 +42,6 @@ enum ObserverType {
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceObserver {
     realm: Gc<Realm>,
 

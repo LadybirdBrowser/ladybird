@@ -29,7 +29,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSGroupingRule {
     rule: CSSRule,
     /// The list of the child rules, which the first read makes, as most style rules nest none.

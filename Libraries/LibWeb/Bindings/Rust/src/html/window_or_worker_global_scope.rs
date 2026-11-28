@@ -56,7 +56,6 @@ pub(crate) fn trusted_types(global_object: Gc<Object>) -> Ref<TrustedTypePolicyF
 
 /// https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppWindowOrWorkerGlobalScope(pub(crate) Gc<Object>);
 
 impl CppWindowOrWorkerGlobalScope {

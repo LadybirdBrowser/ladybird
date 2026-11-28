@@ -17,7 +17,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 // https://w3c.github.io/FileAPI/#FileReaderSync
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FileReaderSync;
 
 impl Wrappable for FileReaderSync {}

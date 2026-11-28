@@ -23,7 +23,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#GainNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GainNode {
     node: AudioNode,
 

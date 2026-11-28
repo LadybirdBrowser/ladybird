@@ -19,7 +19,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::dom::element::{CppElement, is_valid_attribute_local_name};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DOMStringMap {
     // https://html.spec.whatwg.org/multipage/dom.html#concept-domstringmap-element
     associated_element: CppElement,

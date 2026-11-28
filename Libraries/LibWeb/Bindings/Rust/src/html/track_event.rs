@@ -31,7 +31,6 @@ pub(crate) struct TrackEventInit {
 
 // https://html.spec.whatwg.org/multipage/media.html#trackevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TrackEvent {
     event: CppEvent,
     track: Option<CppCell>,

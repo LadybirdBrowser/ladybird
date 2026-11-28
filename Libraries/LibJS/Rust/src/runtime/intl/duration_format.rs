@@ -9,7 +9,7 @@ use core::ops::Deref;
 
 use ak::Utf16String;
 use ak::math;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 use num_traits::FromPrimitive;
 
 use crate::gc::class::{GcCell, define_cell};

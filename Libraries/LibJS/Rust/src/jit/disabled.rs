@@ -179,7 +179,7 @@ pub mod translate {
     use crate::layout::function_object::FunctionObject;
     use crate::layout::value::Value;
 
-    #[derive(Clone, libjs_runtime_macros::Trace)]
+    #[derive(Clone, libgc_api::Trace)]
     pub struct CallSiteFrame {
         pub function: Gc<FunctionObject>,
         pub executable: Gc<Executable>,

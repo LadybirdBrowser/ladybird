@@ -7,7 +7,6 @@
 use core::cell::Cell;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
 
 use crate::console::Console;
 use crate::gc::class::{GcCell, cast_ref, define_cell};
@@ -25,7 +24,7 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 
 #[repr(C)]
-#[derive(Trace)]
+#[derive(libgc_api::Trace)]
 pub struct ConsoleObject {
     base: Object,
     console: Cell<Option<Gc<Console>>>,

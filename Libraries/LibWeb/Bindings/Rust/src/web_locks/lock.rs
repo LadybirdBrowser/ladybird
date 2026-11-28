@@ -16,7 +16,6 @@ use crate::web_locks::lock_manager::LockMode;
 use crate::web_locks::lock_table::{self, EntryId, LockManagerKey};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Lock {
     lock: LockDataRef,
 }
@@ -44,7 +43,6 @@ impl Lock {
 // https://w3c.github.io/web-locks/#lock
 // NB: The lock table has the lock's agent, clientId, manager, name and mode as well, under its id.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct LockData {
     #[gc(untraced)]
     pub(crate) id: EntryId,

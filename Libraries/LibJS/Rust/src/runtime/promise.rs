@@ -8,7 +8,7 @@ use core::cell::Cell;
 use core::ops::Deref;
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::embedding::host::host_object::host_object_has_impure_lookup_internal_methods;
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};

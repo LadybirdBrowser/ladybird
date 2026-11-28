@@ -32,7 +32,6 @@ pub(crate) struct TextMeasurements {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TextMetrics {
     #[gc(untraced)]
     measurements: TextMeasurements,

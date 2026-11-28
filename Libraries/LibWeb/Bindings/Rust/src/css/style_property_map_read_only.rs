@@ -84,7 +84,6 @@ impl Property {
 /// https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-declarations-slot
 /// NB: We just directly refer to our source, at least for now.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 enum Declarations {
     /// The Element whose computed style this reflects.
     ComputedStyle(CppCell),
@@ -94,7 +93,6 @@ enum Declarations {
 
 /// The value pairs of a style map when an iteration started.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ValuePairs {
     pairs: Vec<(Value, Value)>,
 }
@@ -107,7 +105,6 @@ impl EmbedderValue for ValuePairs {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymapreadonly
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StylePropertyMapReadOnly {
     declarations: Declarations,
 }

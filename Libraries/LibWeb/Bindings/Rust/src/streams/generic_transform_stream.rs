@@ -33,7 +33,6 @@ type FlushEntry = unsafe fn(&CallContext, NonNull<c_void>, Ref<TransformStream>)
 /// The steps of an implementation of TransformSteps, with the stream that they were set up for. The steps run in the
 /// realm of the stream, as the callbacks of a transformer run in their own realm, so what they enqueue is created there.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RustTransformSteps {
     steps: ForeignCellSlot,
     stream: Ref<TransformStream>,

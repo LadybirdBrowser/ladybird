@@ -5,8 +5,8 @@
  */
 
 use ak::{Utf16FlyString, Utf16String};
+use libgc_api::Trace;
 use libjs_abi::Builtin;
-use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};

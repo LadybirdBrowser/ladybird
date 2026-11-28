@@ -55,7 +55,6 @@ unsafe extern "C" fn on_attribute(callback: *mut c_void, name: usize, value: usi
 
 /// https://dom.spec.whatwg.org/#concept-element
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppElement(CppCell);
 
 impl CppElement {

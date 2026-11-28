@@ -25,7 +25,8 @@ use core::ffi::c_int;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex, PoisonError, Weak};
 
-use crate::gc::capi::GCPrimitiveStorageHandle;
+use libgc_api::capi::GCPrimitiveStorageHandle;
+
 use crate::gc::primitive_storage::{OutOfMemory, OwnedPrimitiveStorage, ZeroFillNewBytes};
 use crate::random::get_random_u64;
 

@@ -23,7 +23,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DynamicsCompressorNode {
     node: AudioNode,
 

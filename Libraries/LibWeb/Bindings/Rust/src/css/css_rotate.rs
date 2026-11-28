@@ -23,7 +23,6 @@ use crate::geometry::dom_matrix_read_only::DOMMatrixReadOnly;
 use crate::geometry::matrix::Matrix4;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSRotate {
     transform_component: CSSTransformComponent,
     x: GcRefCell<AnyCSSNumericValue>,

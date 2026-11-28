@@ -14,7 +14,6 @@ use crate::bindings::structured_data::{Serializable, SerializationReader, Serial
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DOMRect {
     rect: DOMRectReadOnly,
 }

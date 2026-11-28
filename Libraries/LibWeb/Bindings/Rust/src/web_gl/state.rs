@@ -104,7 +104,6 @@ impl<V: Version> Wrappable for RenderingContext<V> {
 }
 
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum ContextRef {
     WebGL1(Ref<RenderingContext<WebGL1>>),
     WebGL2(Ref<RenderingContext<WebGL2>>),
@@ -120,7 +119,6 @@ impl ContextRef {
 }
 
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum VertexArrayBinding {
     WebGL2(Ref<WebGLVertexArrayObject>),
     Oes(Ref<WebGLVertexArrayObjectOES>),
@@ -136,7 +134,6 @@ pub(crate) enum VertexAttribValueType {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ContextState {
     #[gc(untraced)]
     pub(crate) proxy: Proxy<RemoteContext>,

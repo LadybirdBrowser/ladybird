@@ -52,7 +52,6 @@ unsafe extern "C" {
 /// A message that a BroadcastChannel posted, in this agent or in another process: what the tasks that steps 6 to 9 of
 /// postMessage() queue read.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct BroadcastChannelMessage {
     #[gc(untraced)]
     pub(crate) storage_key: StorageKey,
@@ -74,7 +73,6 @@ pub(crate) type BroadcastChannelMessageRef = Gc<EmbedderCell<BroadcastChannelMes
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#broadcastchannel
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct BroadcastChannel {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

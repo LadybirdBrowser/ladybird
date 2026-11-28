@@ -7,7 +7,7 @@
 #![allow(unused, clippy::all)]
 
 use js::{Cell, Gc, GcRefCell, GcWeak, Value, Visitor};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 #[derive(Trace)]
 pub struct Traced {

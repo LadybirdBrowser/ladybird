@@ -28,7 +28,6 @@ use crate::streams::writable_stream_default_controller::{
 
 // https://streams.spec.whatwg.org/#writablestreamdefaultwriter
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WritableStreamDefaultWriter {
     // https://streams.spec.whatwg.org/#writablestreamdefaultwriter-closedpromise
     closed_promise: Cell<Option<WebIdlPromise>>,

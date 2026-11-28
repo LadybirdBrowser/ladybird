@@ -33,7 +33,6 @@ pub(crate) struct PictureInPictureEventInit {
 
 // https://w3c.github.io/picture-in-picture/#pictureinpictureevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PictureInPictureEvent {
     event: CppEvent,
     picture_in_picture_window: CppCell,

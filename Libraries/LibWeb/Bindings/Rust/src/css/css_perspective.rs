@@ -25,7 +25,6 @@ use crate::geometry::matrix::Matrix4;
 // https://drafts.css-houdini.org/css-typed-om-1/#typedefdef-cssperspectivevalue
 // NB: CSSKeywordish is flattened here, because our bindings generator flattens nested variants.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CSSPerspectiveValue {
     CSSNumericValue(AnyCSSNumericValue),
     DOMString(#[gc(untraced)] Utf16String),
@@ -33,7 +32,6 @@ pub(crate) enum CSSPerspectiveValue {
 }
 
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CSSPerspectiveValueInternal {
     CSSNumericValue(AnyCSSNumericValue),
     CSSKeywordValue(Ref<CSSKeywordValue>),
@@ -73,7 +71,6 @@ fn to_internal(vm: &Vm, value: CSSPerspectiveValue) -> WebIdlResult<CSSPerspecti
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSPerspective {
     transform_component: CSSTransformComponent,
     length: GcRefCell<CSSPerspectiveValueInternal>,

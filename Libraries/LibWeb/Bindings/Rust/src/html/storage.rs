@@ -58,7 +58,6 @@ unsafe impl Trace for StorageType {
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#storage-2
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Storage {
     realm: Gc<Realm>,
     storage_type: StorageType,
@@ -73,7 +72,6 @@ impl Wrappable for Storage {
 
 /// The key, values and URL of a change to a storage area, which the storage events for it carry.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct StorageChange {
     key: Option<Utf16String>,
     old_value: Option<Utf16String>,

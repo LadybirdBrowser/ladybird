@@ -12,7 +12,6 @@ use crate::bindings::cpp_cell::CppCell;
 
 /// https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppNavigable(CppCell);
 
 impl CppNavigable {

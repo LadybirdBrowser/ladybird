@@ -170,7 +170,6 @@ pub(crate) fn element_of_wrapper(element: CppInterface) -> NonNull<c_void> {
 
 /// An object script sees of a timeline, of the interface that inherits from AnimationTimeline it is of.
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 #[allow(clippy::enum_variant_names, reason = "the variants have the interfaces’ names")]
 pub(crate) enum AnyAnimationTimeline {
     AnimationTimeline(Ref<AnimationTimeline>),

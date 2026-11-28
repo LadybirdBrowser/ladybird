@@ -144,6 +144,7 @@ impl_lint_pass!(GcLints<'_> => [
 ]);
 
 const LIBJS_CRATE: &str = "libjs_rust";
+const GC_API_CRATE: &str = "libgc_api";
 
 fn def_path(tcx: TyCtxt<'_>, def_id: DefId) -> String {
     let mut path = tcx.crate_name(def_id.krate).to_string();
@@ -579,14 +580,14 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
         };
         self.enabled = true;
 
-        // Only implementations in the type's own crate count: libjs_rust implements Trace for Vec, Box and the like.
+        // Only implementations in the type's own crate count: libgc_api implements Trace for Vec, Box and the like.
         let collect = |path: &str, into: &mut FxHashSet<DefId>| {
-            let Some(trait_def_id) = tcx
-                .all_traits_including_private()
-                .find(|&def_id| def_id.krate == libjs && def_path(tcx, def_id) == path)
-            else {
+            let Some(trait_def_id) = tcx.all_traits_including_private().find(|&def_id| {
+                (def_id.krate == libjs || tcx.crate_name(def_id.krate).as_str() == GC_API_CRATE)
+                    && def_path(tcx, def_id) == path
+            }) else {
                 tcx.dcx().fatal(format!(
-                    "the Rust GC lints find GC types through `{path}`, which libjs_rust no longer has"
+                    "the Rust GC lints find GC types through `{path}`, which no longer exists"
                 ));
             };
             for implementation in tcx.all_impls(trait_def_id) {
@@ -609,7 +610,7 @@ impl<'tcx> LateLintPass<'tcx> for GcLints<'tcx> {
         let mut keeps_alive_types = FxHashSet::default();
         let mut defers_collections_types = FxHashSet::default();
         let mut traced_state_types = FxHashSet::default();
-        let trace = collect("libjs_rust::gc::visitor::Trace", &mut traced_types);
+        let trace = collect("libgc_api::visitor::Trace", &mut traced_types);
         // NB: #[derive(Trace)] traces the fields, which the type shows. A hand-written trace() can visit cells that
         //     the type hides, as PropertyKey does in a tagged usize.
         let hand_traced_types = tcx

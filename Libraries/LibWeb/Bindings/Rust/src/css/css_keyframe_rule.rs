@@ -19,7 +19,6 @@ use libweb_rust::typed_om::serialize_a_number;
 use std::rc::Rc;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSKeyframeRule {
     rule: CSSRule,
 }

@@ -24,7 +24,6 @@ use crate::streams::transform_stream::TransformStream;
 use crate::streams::writable_stream::WritableStream;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DecompressionStream {
     // https://streams.spec.whatwg.org/#generictransformstream-transform
     transform: Ref<TransformStream>,
@@ -64,7 +63,6 @@ impl DecompressionStream {
 
 /// https://compression.spec.whatwg.org/#compression-context, which the algorithms of the stream's transform run on.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct DecompressionContext {
     #[gc(untraced)]
     decompressor: RefCell<Decompressor>,

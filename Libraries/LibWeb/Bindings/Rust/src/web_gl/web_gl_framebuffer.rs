@@ -15,7 +15,6 @@ use super::web_gl_texture::WebGLTexture;
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Attachment {
     #[gc(untraced)]
     attachment: u32,
@@ -28,7 +27,6 @@ pub(crate) struct Attachment {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLFramebuffer {
     object: WebGLObject,
     attachments: GcRefCell<Vec<Attachment>>,

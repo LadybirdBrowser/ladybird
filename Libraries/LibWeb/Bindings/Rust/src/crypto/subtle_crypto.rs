@@ -50,7 +50,6 @@ use crate::crypto::crypto_bindings::{
 use crate::crypto::crypto_key::{CryptoKey, KeyType, KeyUsage};
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AlgorithmIdentifier {
     Object(Gc<Object>),
     DOMString(Utf16String),
@@ -76,7 +75,6 @@ pub(crate) enum ArrayBufferOrJsonWebKey {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Trace)]
-#[gc(crate = libjs_rust)]
 #[repr(u8)]
 pub(crate) enum KeyFormat {
     RawPublic,
@@ -130,7 +128,6 @@ type RegisteredAlgorithms = HashMap<&'static str, RegisteredAlgorithm>;
 type SupportedAlgorithmsMap = HashMap<&'static str, RegisteredAlgorithms>;
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 enum AlgorithmImplementation {
     Sha(Sha),
     Hmac(Hmac),
@@ -208,7 +205,6 @@ impl Deref for AlgorithmImplementation {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct NormalizedAlgorithmAndParameter {
     pub(crate) parameter: AlgorithmParams,
     methods: AlgorithmImplementation,
@@ -234,7 +230,6 @@ pub(super) fn get_a_copy_of_the_bytes(vm: &Vm, buffer_source: BufferSource) -> W
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SubtleCrypto;
 
 impl Wrappable for SubtleCrypto {}

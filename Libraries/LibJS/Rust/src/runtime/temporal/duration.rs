@@ -8,7 +8,7 @@
 
 use std::sync::LazyLock;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 use num_bigint::Sign as BigIntSign;
 use num_traits::{FromPrimitive, Signed, ToPrimitive, Zero};
 

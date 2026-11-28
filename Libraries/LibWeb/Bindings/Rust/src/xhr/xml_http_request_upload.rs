@@ -18,7 +18,6 @@ use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 
 // https://xhr.spec.whatwg.org/#xmlhttprequestupload
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct XMLHttpRequestUpload {
     target: XMLHttpRequestEventTarget,
 }

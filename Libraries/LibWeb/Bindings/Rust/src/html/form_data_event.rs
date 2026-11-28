@@ -28,7 +28,6 @@ pub(crate) struct FormDataEventInit {
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#formdataevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FormDataEvent {
     event: CppEvent,
     form_data: Ref<FormData>,

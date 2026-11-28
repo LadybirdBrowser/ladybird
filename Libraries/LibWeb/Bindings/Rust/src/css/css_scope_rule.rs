@@ -17,7 +17,6 @@ use libweb_rust::NativeRule;
 use std::rc::Rc;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSScopeRule {
     grouping_rule: CSSGroupingRule,
 }

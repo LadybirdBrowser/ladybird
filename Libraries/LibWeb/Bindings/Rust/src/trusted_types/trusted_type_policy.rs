@@ -126,7 +126,6 @@ fn stringify(vm: &Vm, trusted_type_name: TrustedTypeName, policy_value: Value) -
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trusted-type-policy
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TrustedTypePolicy {
     realm: Gc<Realm>,
     name: Utf16String,

@@ -15,7 +15,6 @@ use crate::html::message_port::MessagePort;
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#messagechannel
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MessageChannel {
     realm: Gc<Realm>,
     // Each MessageChannel object has an associated port 1 and an associated port 2, both MessagePort objects.

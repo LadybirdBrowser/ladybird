@@ -107,7 +107,6 @@ pub(crate) struct CookieStoreDeleteOptions {
 
 /// A cookie of the cookie store, as the UI process reports its changes.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Cookie {
     pub(crate) name: String,
     pub(crate) value: String,
@@ -127,7 +126,6 @@ enum FirstItemOnly {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct CookieListRequest {
     environment: CppEnvironmentSettingsObject,
     #[gc(untraced)]
@@ -140,7 +138,6 @@ struct CookieListRequest {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct CookieMutation {
     environment: CppEnvironmentSettingsObject,
     #[gc(untraced)]
@@ -161,7 +158,6 @@ struct CookieMutation {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct CookieDeletion {
     environment: CppEnvironmentSettingsObject,
     #[gc(untraced)]
@@ -316,7 +312,6 @@ fn complete_cookie_list_request(vm: &Vm, request: CookieListRequest, cookie_list
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct CookieListResult {
     #[gc(untraced)]
     list: Vec<CookieListItem>,
@@ -740,7 +735,6 @@ fn delete_a_cookie(
 
 // https://cookiestore.spec.whatwg.org/#cookie-change
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct CookieChange {
     cookie: Cookie,
     #[gc(untraced)]
@@ -811,7 +805,6 @@ fn prepare_lists(changes: &[CookieChange]) -> (Vec<CookieListItem>, Vec<CookieLi
 
 // https://cookiestore.spec.whatwg.org/#cookiestore
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CookieStore {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

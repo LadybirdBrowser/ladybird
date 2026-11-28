@@ -17,7 +17,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use ak::waiter_list::AgentWaiter;
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
+use libgc_api::capi::{self, GCVisitor};
 
 use super::dispatch_tables::VmDispatchTables;
 use super::interpreter_stack::InterpreterStackMemory;
@@ -31,7 +32,6 @@ use crate::bytecode::property_access::Strict;
 use crate::debugger::Debugger;
 use crate::embedding::hooks::Embedder;
 use crate::embedding::host::registry::HostClassRegistry;
-use crate::gc::capi::{self, GCVisitor};
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
@@ -40,7 +40,7 @@ use crate::gc::heap::Heap;
 use crate::gc::heap_function::HeapFunction;
 use crate::gc::root::{MarkedVec, Root, RootSet};
 use crate::gc::sweep::Sweep;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::gc::weak_container::WeakContainer;
 use crate::jit::code::INLINED_CALL_SITE_BIT;
 use crate::jit::options::Options as JitOptions;

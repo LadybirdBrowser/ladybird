@@ -22,7 +22,6 @@ pub(crate) struct TagType {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Tag {
     // [[Address]]
     address: EntityRef<TagInstance>,

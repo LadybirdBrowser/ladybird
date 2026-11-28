@@ -59,7 +59,6 @@ pub(crate) struct CSSNumericType {
 
 /// The union (double or CSSNumericValue) of CSS/CSSNumericValue.idl.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CSSNumberish {
     Double(#[gc(untraced)] f64),
     CSSNumericValue(AnyCSSNumericValue),
@@ -67,7 +66,6 @@ pub(crate) enum CSSNumberish {
 
 /// An object of CSSNumericValue or of an interface that inherits from it.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 #[expect(clippy::enum_variant_names, reason = "the variants are named after the interfaces")]
 pub(crate) enum AnyCSSNumericValue {
     CSSNumericValue(Ref<CSSNumericValue>),
@@ -462,7 +460,6 @@ pub(crate) fn rectify_a_numberish_value(vm: &Vm, numberish: &CSSNumberish, unit:
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSNumericValue {
     style_value: CSSStyleValue,
     // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-type

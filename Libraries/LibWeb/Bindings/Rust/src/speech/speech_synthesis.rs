@@ -18,7 +18,6 @@ use crate::bindings::interface::{Ref, Wrappable, allocate, cell_into_abi};
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SpeechSynthesis {
     event_target: CppEventTarget,
     pending: bool,

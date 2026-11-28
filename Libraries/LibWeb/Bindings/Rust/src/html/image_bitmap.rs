@@ -420,7 +420,6 @@ fn deserialize_bitmap_data(cx: &CallContext, serialized: &mut SerializationReade
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ImageBitmap {
     /// The bitmap data, which close() and the transfer steps unset.
     #[gc(untraced)]

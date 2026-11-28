@@ -11,7 +11,8 @@ use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 
-use super::capi::{self, GCRoot};
+use libgc_api::capi::{self, GCRoot};
+
 use super::gc_ref_cell::{GcRefCell, GcRefMut};
 use super::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;

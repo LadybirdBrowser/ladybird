@@ -56,7 +56,6 @@ fn change_declaration(change: impl FnOnce(*mut usize) -> u8) -> WebIdlResult<()>
 
 /// The union (CSSStyleValue or USVString) of CSS/StylePropertyMap.idl.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CSSStyleValueOrUSVString {
     CSSStyleValue(AnyCSSStyleValue),
     USVString(#[gc(untraced)] UsvString),
@@ -267,7 +266,6 @@ fn grid_track_size_list(property: &Property, values: &[RetainedStyleValue]) -> O
 
 // https://drafts.css-houdini.org/css-typed-om-1/#stylepropertymap
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StylePropertyMap {
     read_only: StylePropertyMapReadOnly,
 }

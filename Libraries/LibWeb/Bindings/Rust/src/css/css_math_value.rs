@@ -28,7 +28,6 @@ pub(crate) enum CSSMathOperator {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSMathValue {
     numeric_value: CSSNumericValue,
     #[gc(untraced)]

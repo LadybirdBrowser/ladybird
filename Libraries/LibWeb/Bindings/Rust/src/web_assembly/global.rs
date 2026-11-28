@@ -51,7 +51,6 @@ pub(crate) struct GlobalDescriptor {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Global {
     // [[Global]]
     address: EntityRef<GlobalInstance>,

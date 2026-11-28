@@ -22,7 +22,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#ChannelMergerNode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ChannelMergerNode {
     node: AudioNode,
     number_of_inputs: u32,

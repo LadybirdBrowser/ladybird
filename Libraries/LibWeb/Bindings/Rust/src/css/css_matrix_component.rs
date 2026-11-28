@@ -24,7 +24,6 @@ pub(crate) struct CSSMatrixComponentOptions {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSMatrixComponent {
     transform_component: CSSTransformComponent,
     matrix: GcRefCell<Ref<DOMMatrix>>,

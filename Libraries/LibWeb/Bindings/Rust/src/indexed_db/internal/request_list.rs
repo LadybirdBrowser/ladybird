@@ -17,7 +17,6 @@ use crate::indexed_db::internal::algorithms::queue_a_database_task;
 use crate::indexed_db::internal::function::{Function, call_function};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct Entry {
     #[gc(untraced = "the request is weak")]
     request: WeakIDBRequest,
@@ -25,7 +24,6 @@ struct Entry {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct RequestList {
     entries: GcRefCell<Vec<Entry>>,
     on_all_processed: Cell<Option<Function>>,

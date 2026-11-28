@@ -77,7 +77,6 @@ pub(crate) struct AnimationEventInit {
 
 // https://drafts.csswg.org/css-animations-2/#interface-animationevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AnimationEvent {
     event: CppEvent,
     #[gc(untraced)]

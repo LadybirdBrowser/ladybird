@@ -33,7 +33,6 @@ const CHANGE: &str = "change";
 
 // https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaQueryList {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

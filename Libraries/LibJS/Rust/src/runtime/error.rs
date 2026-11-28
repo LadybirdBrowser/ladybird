@@ -7,7 +7,7 @@
 use core::ops::Deref;
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use super::completion::{Throw, ThrowCompletionOr};
 use super::error_types::ErrorType;

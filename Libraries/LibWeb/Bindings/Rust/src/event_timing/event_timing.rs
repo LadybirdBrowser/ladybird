@@ -30,7 +30,6 @@ unsafe extern "C" {
 
 /// https://w3c.github.io/event-timing/#sec-modifications-HTML
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WindowEventTimingState {
     // entries to be queued, a list that stores PerformanceEventTiming objects, which will initially be empty.
     entries_to_be_queued: GcRefCell<Vec<Ref<PerformanceEventTiming>>>,

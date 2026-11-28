@@ -37,7 +37,6 @@ impl SharedMemory {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MessageRecord {
     #[gc(untraced)]
     pub(crate) bytes: Vec<u8>,

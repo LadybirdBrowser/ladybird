@@ -30,7 +30,6 @@ impl KeyedRecord for ObjectStoreRecord {
 
 // https://w3c.github.io/IndexedDB/#object-store-construct
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ObjectStore {
     // AD-HOC: An ObjectStore needs to know what Database it belongs to...
     database: DatabaseRef,

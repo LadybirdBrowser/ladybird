@@ -28,7 +28,6 @@ pub(crate) struct FontFaceSetLoadEventInit<'vm> {
 
 // https://drafts.csswg.org/css-font-loading/#fontfacesetloadevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FontFaceSetLoadEvent {
     event: CppEvent,
     fontfaces: Vec<CppFontFaceState>,

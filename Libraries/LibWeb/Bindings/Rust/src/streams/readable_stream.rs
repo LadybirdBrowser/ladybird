@@ -103,7 +103,6 @@ pub(crate) struct ReadableStreamIteratorOptions {
 
 /// https://streams.spec.whatwg.org/#typedefdef-readablestreamreader
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum ReadableStreamReader {
     ReadableStreamDefaultReader(Ref<ReadableStreamDefaultReader>),
     ReadableStreamBYOBReader(Ref<ReadableStreamBYOBReader>),
@@ -121,7 +120,6 @@ impl ReadableStreamReader {
 
 // https://streams.spec.whatwg.org/#readablestream
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStream {
     /// The realm of the stream, which its promises and the results of its operations are created in.
     realm: Cell<Gc<Realm>>,
@@ -446,7 +444,6 @@ impl ReadableStream {
 
 /// The state of an asynchronous iterator of a ReadableStream, https://streams.spec.whatwg.org/#rs-asynciterator
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStreamAsyncIteratorState {
     reader: Ref<ReadableStreamDefaultReader>,
     #[gc(untraced)]

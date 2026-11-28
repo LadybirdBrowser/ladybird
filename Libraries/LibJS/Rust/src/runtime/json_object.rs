@@ -10,13 +10,13 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::ref_cell_for_trace;
 use crate::gc::root::MarkedVec;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;

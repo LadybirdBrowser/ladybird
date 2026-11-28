@@ -42,7 +42,6 @@ pub(crate) struct OfflineAudioContextOptions {
 
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct OfflineAudioContext {
     context: BaseAudioContext,
     length: u32,

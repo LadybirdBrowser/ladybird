@@ -13,7 +13,6 @@ use crate::bindings::interface::Wrappable;
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SpeechRecognitionPhrase {
     phrase: Utf16String,
     boost: f32,

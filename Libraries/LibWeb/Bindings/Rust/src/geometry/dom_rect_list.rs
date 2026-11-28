@@ -13,7 +13,6 @@ use crate::bindings::interface::{Ref, Wrappable};
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DOMRectList {
     rects: Vec<Ref<DOMRect>>,
 }

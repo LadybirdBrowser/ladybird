@@ -25,7 +25,6 @@ unsafe extern "C" {
 /// `@import` rule arrives after its list was asked for. Both are gates on whether rules apply, so both have to say when
 /// the gate moves.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct MediaList {
     /// The collection of media queries, which the sheet or the rule reads as well.
     #[gc(untraced)]

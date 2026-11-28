@@ -24,7 +24,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#stereopannernode
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StereoPannerNode {
     node: AudioNode,
 

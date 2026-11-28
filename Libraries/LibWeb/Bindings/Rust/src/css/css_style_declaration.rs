@@ -53,7 +53,6 @@ unsafe extern "C" {
 /// What every interface that inherits from CSSStyleDeclaration has: the Web::CSS::CSSStyleDeclaration that holds the
 /// declarations.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleDeclaration {
     declaration: CppCell,
 }

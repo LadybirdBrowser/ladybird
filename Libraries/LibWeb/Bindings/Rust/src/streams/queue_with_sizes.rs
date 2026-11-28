@@ -17,7 +17,6 @@ use crate::streams::abstract_operations::is_non_negative_number;
 
 /// https://streams.spec.whatwg.org/#value-with-size
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ValueWithSize {
     pub(crate) value: Value,
     #[gc(untraced)]
@@ -27,7 +26,6 @@ pub(crate) struct ValueWithSize {
 /// The [[queue]] and [[queueTotalSize]] internal slots of a container,
 /// https://streams.spec.whatwg.org/#queue-with-sizes
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct QueueWithSizes {
     queue: GcRefCell<VecDeque<ValueWithSize>>,
     #[gc(untraced)]

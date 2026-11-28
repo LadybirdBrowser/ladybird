@@ -65,7 +65,6 @@ fn file_from_raw_descriptor(raw: c_int) -> File {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TransferRecord {
     pub(crate) serialized: GcRefCell<Option<MessageRecord>>,
     #[gc(untraced)]

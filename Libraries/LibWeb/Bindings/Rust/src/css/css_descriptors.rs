@@ -12,7 +12,6 @@
 macro_rules! descriptors_interface {
     ($interface:ident, $create:ident, $(($getter:ident, $setter:ident, $name:literal)),+ $(,)?) => {
         #[derive(libjs_rust::api::Trace)]
-        #[gc(crate = libjs_rust)]
         pub(crate) struct $interface {
             declaration: $crate::css::css_style_declaration::CSSStyleDeclaration,
         }

@@ -16,7 +16,6 @@ unsafe extern "C" {
 
 /// https://fetch.spec.whatwg.org/#concept-body
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppBody(CppCell);
 
 impl CppBody {

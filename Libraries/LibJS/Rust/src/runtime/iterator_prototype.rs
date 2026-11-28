@@ -8,7 +8,7 @@ use core::cell::Cell;
 use std::collections::VecDeque;
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;

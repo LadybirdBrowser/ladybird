@@ -320,7 +320,6 @@ impl GetTheParent for Animation {
 
 /// An object script sees of an animation, of the interface its kind picks.
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 #[allow(clippy::enum_variant_names, reason = "the variants have the interfaces’ names")]
 pub(crate) enum AnyAnimation {
     Animation(Ref<Animation>),

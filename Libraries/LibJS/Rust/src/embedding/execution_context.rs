@@ -21,11 +21,12 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use libgc_api::capi::GCVisitor;
+
 use crate::bytecode::executable::Executable;
 use crate::embedding::abi_types::{
     JSOwnedUtf16String, JSRealm, optional_cell_into_abi, owned_utf16_string_into_abi, vm_from_abi,
 };
-use crate::gc::capi::GCVisitor;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};

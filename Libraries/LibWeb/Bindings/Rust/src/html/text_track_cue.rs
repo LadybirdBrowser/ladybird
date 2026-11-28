@@ -29,7 +29,6 @@ unsafe extern "C" {
 
 // https://html.spec.whatwg.org/multipage/media.html#texttrackcue
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TextTrackCue {
     event_target: CppEventTarget,
 

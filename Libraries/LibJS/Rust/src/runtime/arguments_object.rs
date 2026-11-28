@@ -9,7 +9,7 @@ use core::ops::Deref;
 use std::rc::Rc;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;

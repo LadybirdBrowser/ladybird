@@ -26,7 +26,6 @@ use crate::streams::underlying_source::{ReadableStreamController, UnderlyingSour
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStreamDefaultController {
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-cancelalgorithm
     cancel_algorithm: GcRefCell<Option<CancelAlgorithm>>,

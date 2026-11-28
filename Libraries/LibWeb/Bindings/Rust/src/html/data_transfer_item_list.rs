@@ -18,7 +18,6 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::file_api::file::File;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DataTransferItemList {
     data_transfer: Ref<DataTransfer>,
 }

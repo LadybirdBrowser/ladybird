@@ -56,7 +56,6 @@ thread_local! {
 
 // https://w3c.github.io/geolocation/#dom-positionoptions
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PositionOptions {
     pub(crate) enable_high_accuracy: bool,
     pub(crate) timeout: u32,
@@ -64,7 +63,6 @@ pub(crate) struct PositionOptions {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 struct PositionRequestArguments {
     success_callback: CallbackFunction,
     error_callback: Option<CallbackFunction>,
@@ -73,7 +71,6 @@ struct PositionRequestArguments {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct WatchPositionData {
     success_callback: CallbackFunction,
     error_callback: Option<CallbackFunction>,
@@ -107,7 +104,6 @@ pub(crate) struct GeolocationPositionResultAbi {
 
 // https://w3c.github.io/geolocation/#geolocation_interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Geolocation {
     window: CppWindow,
 
@@ -131,7 +127,6 @@ pub(crate) struct Geolocation {
 impl Wrappable for Geolocation {}
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct PositionRequest {
     geolocation: Ref<Geolocation>,
     arguments: PositionRequestArguments,
@@ -153,7 +148,6 @@ impl EmbedderValue for PositionRequest {
 type PositionRequestRef = Gc<EmbedderCell<PositionRequest>>;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct VisibilityWait {
     geolocation: Ref<Geolocation>,
     arguments: PositionRequestArguments,

@@ -51,7 +51,6 @@ pub(crate) enum WritableStreamState {
 
 // https://streams.spec.whatwg.org/#pending-abort-request
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PendingAbortRequest {
     // https://streams.spec.whatwg.org/#pending-abort-request-promise
     pub(crate) promise: WebIdlPromise,
@@ -64,7 +63,6 @@ pub(crate) struct PendingAbortRequest {
 
 // https://streams.spec.whatwg.org/#writablestream
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WritableStream {
     /// The realm of the stream, which its promises and the results of its operations are created in.
     realm: Cell<Gc<Realm>>,

@@ -56,7 +56,6 @@ impl WebAssemblyInstantiatedSource {
 
 /// https://webassembly.github.io/spec/js-api/#dictdef-webassemblycompileoptions
 #[derive(Clone, Default, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebAssemblyCompileOptions {
     #[gc(untraced)]
     pub(crate) imported_string_constants: Option<UsvString>,

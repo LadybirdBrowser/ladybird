@@ -44,7 +44,6 @@ pub(crate) enum Is2D {
 
 /// An object of CSSTransformComponent or of an interface that inherits from it.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyCSSTransformComponent {
     CSSTransformComponent(Ref<CSSTransformComponent>),
     CSSMatrixComponent(Ref<CSSMatrixComponent>),
@@ -153,7 +152,6 @@ impl AnyCSSTransformComponent {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#csstransformcomponent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSTransformComponent {
     #[gc(untraced)]
     is_2d: Cell<bool>,

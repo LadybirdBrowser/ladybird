@@ -23,7 +23,6 @@ pub(crate) struct OfflineAudioCompletionEventInit {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct OfflineAudioCompletionEvent {
     pub(crate) event: CppEvent,
     rendered_buffer: Option<Ref<AudioBuffer>>,

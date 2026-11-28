@@ -37,7 +37,6 @@ pub(crate) struct IDBDatabaseInfo {
 
 // https://w3c.github.io/IndexedDB/#idbfactory
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBFactory {
     realm: Gc<Realm>,
 }

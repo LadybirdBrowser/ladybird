@@ -127,7 +127,6 @@ pub(crate) enum StorageBucketMode {
 // https://storage.spec.whatwg.org/#storage-bucket
 // A storage bucket is a place for storage endpoints to store data.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct StorageBucket {
     // NB: Only a local storage bucket has a mode.
     #[gc(untraced)]

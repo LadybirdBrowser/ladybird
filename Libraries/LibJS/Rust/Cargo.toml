@@ -25,6 +25,7 @@ indexmap = "2"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libc = "0.2"
 libcompress_rust = { path = "../../LibCompress/Rust" }
+libgc_api = { path = "../../LibGC/RustAPI" }
 libjs_abi = { path = "../ABI" }
 libjs_jit = { path = "../JIT/Rust", optional = true }
 libjs_parser = { path = "../Parser/Rust" }

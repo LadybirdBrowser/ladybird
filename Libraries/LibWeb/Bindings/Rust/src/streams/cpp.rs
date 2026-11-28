@@ -39,7 +39,6 @@ unsafe extern "C" {
 
 /// A promise-returning algorithm with no arguments that C++ set a stream up with, a pullAlgorithm or a flushAlgorithm.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppPromiseAlgorithm(CppCell);
 
 impl CppPromiseAlgorithm {
@@ -56,7 +55,6 @@ impl CppPromiseAlgorithm {
 /// A promise-returning algorithm with an argument that C++ set a stream up with, a cancelAlgorithm or a
 /// transformAlgorithm.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppPromiseAlgorithmWithArgument(CppCell);
 
 impl CppPromiseAlgorithmWithArgument {
@@ -77,7 +75,6 @@ impl CppPromiseAlgorithmWithArgument {
 
 /// A read request of LibWeb's C++ code, https://streams.spec.whatwg.org/#read-request
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppReadRequest(CppCell);
 
 impl CppReadRequest {
@@ -103,7 +100,6 @@ impl CppReadRequest {
 
 /// Steps of LibWeb's C++ code that take a byte sequence.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppBytesSteps(CppCell);
 
 impl CppBytesSteps {
@@ -119,7 +115,6 @@ impl CppBytesSteps {
 
 /// Steps of LibWeb's C++ code that take a JS value.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppValueSteps(CppCell);
 
 impl CppValueSteps {

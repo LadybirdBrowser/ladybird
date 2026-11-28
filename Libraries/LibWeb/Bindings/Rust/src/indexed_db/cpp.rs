@@ -48,7 +48,6 @@ unsafe extern "C" {
 
 /// A WebIDL::DOMException of LibWeb.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DomException(CppCell);
 
 impl DomException {

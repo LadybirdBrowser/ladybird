@@ -12,7 +12,7 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::console::{ConsoleClient, ConsoleClientMethods, LogLevel, PrinterArguments, Trace as ConsoleTrace};
 use crate::embedding::abi_types::{

@@ -6,13 +6,13 @@
 
 use core::ops::Deref;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::sweep::Sweep;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::gc::weak_container::WeakContainer;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};

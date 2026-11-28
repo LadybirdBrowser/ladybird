@@ -16,7 +16,6 @@ use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 use crate::bindings::{Exception, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSImageValue {
     style_value: CSSStyleValue,
 }

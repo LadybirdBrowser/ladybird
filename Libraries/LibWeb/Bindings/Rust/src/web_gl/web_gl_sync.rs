@@ -13,7 +13,6 @@ use super::web_gl_object::{InvalidOperation, WebGLObject};
 use crate::bindings::interface::{Inherits, Ref, Wrappable, allocate};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLSync {
     object: WebGLObject,
     /// The name of the sync object, which is no GL name of the kind that other objects have.

@@ -130,7 +130,6 @@ pub(crate) struct ContextParameters {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ContextState {
     canvas_cell: ForeignCellSlot,
     #[gc(untraced)]

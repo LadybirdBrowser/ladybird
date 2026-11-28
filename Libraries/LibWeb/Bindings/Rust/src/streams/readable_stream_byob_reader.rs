@@ -34,7 +34,6 @@ pub(crate) struct ReadableStreamBYOBReaderReadOptions {
 
 // https://streams.spec.whatwg.org/#readablestreambyobreader
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableStreamBYOBReader {
     generic: ReadableStreamGenericReader,
     // https://streams.spec.whatwg.org/#readablestreambyobreader-readintorequests

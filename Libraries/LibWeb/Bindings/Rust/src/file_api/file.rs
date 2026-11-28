@@ -24,7 +24,6 @@ pub(crate) struct FilePropertyBag {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct File {
     blob: Blob,
     // https://w3c.github.io/FileAPI/#dfn-name

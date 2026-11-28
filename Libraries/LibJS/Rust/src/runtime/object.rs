@@ -9,8 +9,8 @@ use core::ops::ControlFlow;
 use std::collections::HashSet;
 
 use ak::{Utf16FlyString, Utf16String};
+use libgc_api::Trace;
 use libjs_abi::{Builtin, PutKind};
-use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::property_access::{Strict, put_by_property_key};
@@ -20,7 +20,7 @@ use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, RuntimeClassAllocator, SizeClassAllocator};
 use crate::gc::root::MarkedVec;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellKind, CellState, Gc};
 use crate::layout::execution_context::ExecutionContext;

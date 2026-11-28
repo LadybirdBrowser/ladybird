@@ -7,8 +7,8 @@
 use core::cell::Cell;
 
 use ak::{ScopeGuard, Utf16FlyString};
+use libgc_api::Trace;
 use libjs_abi::ClassElementKind;
-use libjs_runtime_macros::Trace;
 
 use crate::bytecode::class_blueprint::{ClassBlueprint, ClassElementDescriptor};
 use crate::bytecode::executable::Executable;

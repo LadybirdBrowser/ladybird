@@ -18,7 +18,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 pub(crate) struct InvalidOperation;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct WebGLObject {
     context: ContextRef,
     #[gc(untraced)]
@@ -114,7 +113,6 @@ macro_rules! modules_of_interfaces_that_only_inherit_from_web_gl_object {
             use $crate::web_gl::web_gl_object::WebGLObject;
 
             #[derive(Trace)]
-            #[gc(crate = libjs_rust)]
             pub(crate) struct $interface {
                 object: WebGLObject,
             }

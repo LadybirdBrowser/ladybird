@@ -5,7 +5,7 @@
  */
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;

@@ -31,7 +31,6 @@ pub(crate) struct CommandEventInit {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#commandevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CommandEvent {
     event: CppEvent,
     source: Option<CppCell>,

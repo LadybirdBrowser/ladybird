@@ -49,7 +49,6 @@ pub(crate) enum IDBObjectStoreOrIDBIndexOrIDBCursor {
 
 /// The source of a request: an object store handle, an index handle, or a cursor, or none for an open request.
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum IDBRequestSource {
     Empty,
     ObjectStore(Ref<IDBObjectStore>),
@@ -59,7 +58,6 @@ pub(crate) enum IDBRequestSource {
 
 // https://w3c.github.io/IndexedDB/#request-api
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBRequest {
     event_target: CppEventTarget,
 
@@ -236,7 +234,6 @@ impl IDBRequest {
 }
 
 #[derive(Clone, Copy, PartialEq, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyIDBRequest {
     IDBRequest(Ref<IDBRequest>),
     IDBOpenDBRequest(Ref<IDBOpenDBRequest>),

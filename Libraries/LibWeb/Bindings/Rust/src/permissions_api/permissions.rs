@@ -161,7 +161,6 @@ pub(crate) fn request_permission_to_use<C: Trace + Clone + 'static>(
 
 // https://w3c.github.io/permissions/#permissions-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Permissions;
 
 impl Wrappable for Permissions {}

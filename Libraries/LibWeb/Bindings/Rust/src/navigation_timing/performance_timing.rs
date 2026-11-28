@@ -67,7 +67,6 @@ pub(crate) fn is_performance_timing_attribute(name: &Utf16String) -> bool {
 
 /// https://w3c.github.io/navigation-timing/#the-performancetiming-interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceTiming {
     window: CppWindow,
 }

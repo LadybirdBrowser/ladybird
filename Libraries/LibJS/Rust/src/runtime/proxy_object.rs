@@ -9,7 +9,7 @@ use core::ops::Deref;
 use std::collections::HashSet;
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;

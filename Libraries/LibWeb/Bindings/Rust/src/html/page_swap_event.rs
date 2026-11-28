@@ -29,7 +29,6 @@ pub(crate) struct PageSwapEventInit {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#pageswapevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PageSwapEvent {
     event: CppEvent,
     activation: Option<CppCell>,

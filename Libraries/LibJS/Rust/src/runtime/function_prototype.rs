@@ -5,8 +5,8 @@
  */
 
 use ak::Utf16String;
+use libgc_api::Trace;
 use libjs_abi::Builtin;
-use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::root::MarkedVec;

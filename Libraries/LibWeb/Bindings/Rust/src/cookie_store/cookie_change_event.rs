@@ -28,7 +28,6 @@ pub(crate) struct CookieChangeEventInit {
 
 // https://cookiestore.spec.whatwg.org/#cookiechangeevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CookieChangeEvent {
     event: CppEvent,
     #[gc(untraced)]

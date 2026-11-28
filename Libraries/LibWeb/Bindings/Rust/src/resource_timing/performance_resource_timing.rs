@@ -77,7 +77,6 @@ impl ResponseBodyInfoAbi {
 
 /// https://w3c.github.io/resource-timing/#dom-performanceresourcetiming
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceResourceTiming {
     entry: PerformanceEntry,
     initiator_type: Utf16String,

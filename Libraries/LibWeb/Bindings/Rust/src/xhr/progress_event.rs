@@ -29,7 +29,6 @@ pub(crate) struct ProgressEventInit {
 
 // https://xhr.spec.whatwg.org/#interface-progressevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ProgressEvent {
     event: CppEvent,
     length_computable: bool,

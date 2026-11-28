@@ -32,7 +32,6 @@ pub(crate) struct TransitionEventInit {
 
 // https://drafts.csswg.org/css-transitions-2/#interface-transitionevent-idl
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TransitionEvent {
     event: CppEvent,
     #[gc(untraced)]

@@ -16,7 +16,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 // https://w3c.github.io/gamepad/#dom-gamepadbutton
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GamepadButton {
     // https://w3c.github.io/gamepad/#dfn-pressed
     // A flag indicating that the button is pressed

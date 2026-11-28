@@ -24,7 +24,6 @@ pub(crate) struct CSSContainerCondition {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSContainerRule {
     condition_rule: CSSConditionRule,
 }

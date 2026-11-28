@@ -21,14 +21,12 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 /// The union (USVString or CSSVariableReferenceValue) of CSS/CSSUnparsedValue.idl.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CSSUnparsedSegment {
     USVString(#[gc(untraced)] UsvString),
     CSSVariableReferenceValue(Ref<CSSVariableReferenceValue>),
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSUnparsedValue {
     style_value: CSSStyleValue,
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssunparsedvalue-tokens-slot

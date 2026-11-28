@@ -32,7 +32,6 @@ const XLINK_NAMESPACE: &str = "http://www.w3.org/1999/xlink";
 
 /// https://w3c.github.io/trusted-types/dist/spec/#trustedtypepolicyfactory
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TrustedTypePolicyFactory {
     realm: Gc<Realm>,
 

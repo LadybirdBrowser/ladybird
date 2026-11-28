@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::layout::value::Value;
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
 

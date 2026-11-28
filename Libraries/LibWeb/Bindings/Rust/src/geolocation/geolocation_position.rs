@@ -15,7 +15,6 @@ use crate::geolocation::geolocation_coordinates::GeolocationCoordinates;
 
 // https://w3c.github.io/geolocation/#dom-geolocationposition
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GeolocationPosition {
     coords: Ref<GeolocationCoordinates>,
     #[gc(untraced)]

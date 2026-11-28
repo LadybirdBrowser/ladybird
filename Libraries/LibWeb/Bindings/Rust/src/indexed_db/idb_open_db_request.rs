@@ -20,7 +20,6 @@ use crate::indexed_db::idb_request::{IDBRequest, IDBRequestSource};
 
 // https://w3c.github.io/IndexedDB/#idbopendbrequest
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBOpenDBRequest {
     request: IDBRequest,
 }

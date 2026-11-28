@@ -26,7 +26,6 @@ unsafe extern "C" {
 
 /// An abort algorithm of LibWeb's C++ code, a GC::Function<void()>.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppAbortAlgorithm(CppCell);
 
 impl CppAbortAlgorithm {
@@ -41,7 +40,6 @@ impl CppAbortAlgorithm {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AbortAlgorithm {
     Cpp(CppAbortAlgorithm),
     Rust(Gc<NativeFunction>),
@@ -61,7 +59,6 @@ impl AbortAlgorithm {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AbortSignal {
     event_target: CppEventTarget,
     abort_reason: Cell<Value>,

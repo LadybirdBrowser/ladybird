@@ -18,7 +18,6 @@ use libweb_rust::cssom::{serialize_identifier, serialize_string_value};
 use std::rc::Rc;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSNamespaceRule {
     rule: CSSRule,
 }

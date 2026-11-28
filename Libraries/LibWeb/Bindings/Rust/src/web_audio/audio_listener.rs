@@ -14,7 +14,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 
 // https://webaudio.github.io/web-audio-api/#AudioListener
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioListener {
     pub(crate) forward_x: Ref<AudioParam>,
     pub(crate) forward_y: Ref<AudioParam>,

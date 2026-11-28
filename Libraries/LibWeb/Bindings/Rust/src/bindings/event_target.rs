@@ -87,7 +87,6 @@ unsafe extern "C" {
 
 /// The EventTarget that an object owns.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppEventTarget(CppCell);
 
 /// https://dom.spec.whatwg.org/#get-the-parent
@@ -228,7 +227,6 @@ impl CppEventTarget {
 
 /// An Event: a plain one, or the one that an object owns.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppEvent(CppCell);
 
 impl CppEvent {

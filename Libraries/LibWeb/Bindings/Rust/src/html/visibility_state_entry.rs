@@ -16,7 +16,6 @@ use crate::performance_timeline::performance_entry::{AnyPerformanceEntry, Perfor
 
 /// https://html.spec.whatwg.org/multipage/interaction.html#visibilitystateentry
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct VisibilityStateEntry {
     entry: PerformanceEntry,
 }

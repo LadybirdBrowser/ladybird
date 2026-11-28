@@ -16,7 +16,6 @@ use crate::bindings::{CallContext, WebIdlResult};
 use crate::streams::queuing_strategy_init::QueuingStrategyInit;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ByteLengthQueuingStrategy {
     high_water_mark: f64,
 }

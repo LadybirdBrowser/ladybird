@@ -27,7 +27,6 @@ use crate::user_timing::performance_measure::PerformanceMeasure;
 
 /// https://w3c.github.io/performance-timeline/#dom-performanceentry
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PerformanceEntry {
     name: Utf16String,
     entry_type: Utf16String,
@@ -96,7 +95,6 @@ impl PerformanceEntry {
 }
 
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum AnyPerformanceEntry {
     LargestContentfulPaint(Ref<LargestContentfulPaint>),
     PerformanceEventTiming(Ref<PerformanceEventTiming>),

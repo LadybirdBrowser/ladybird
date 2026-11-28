@@ -40,7 +40,6 @@ struct State {
 
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PeriodicWave {
     #[gc(untraced)]
     state: RefCell<State>,

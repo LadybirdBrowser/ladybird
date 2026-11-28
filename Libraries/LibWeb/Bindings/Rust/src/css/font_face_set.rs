@@ -182,7 +182,6 @@ fn take_font_faces<'vm>(vm: &'vm Vm, list: &GcRefCell<Vec<CppFontFaceState>>) ->
 
 // https://drafts.csswg.org/css-font-loading/#fontfaceset
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FontFaceSet {
     event_target: CppEventTarget,
     realm: Gc<Realm>,

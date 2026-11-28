@@ -9,20 +9,15 @@
 //! keep using the full-width `Gc`, which `get()` and `set()` convert from and to.
 //!
 //! The slot is an `UnsafeCell`, so that a collector can rewrite it behind a shared reference, and `set()` goes through
-//! a write barrier hook, which does nothing for now.
+//! libgc_api's write barrier. The encoding is libgc_api's, see its member module.
 
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use super::cell::Gc;
+use crate::layout_forward::gc_member::{COMPRESSED_POINTER_RANGE, COMPRESSED_POINTER_SHIFT, decompress, write_barrier};
 use crate::layout_forward::heap_region_base;
-
-/// How far a cell's offset into the heap region is shifted right to compress it: cells are 8-byte aligned.
-pub const COMPRESSED_POINTER_SHIFT: u32 = 3;
-
-/// The size of the heap region, which a compressed pointer covers whatever its 32 bits are.
-pub const COMPRESSED_POINTER_RANGE: u64 = 1 << (32 + COMPRESSED_POINTER_SHIFT);
 
 /// The compressed form of a pointer into the heap region. The region's base is aligned to its size, so the low 32 bits
 /// of the shifted address are the shifted offset, and compressing needs no base.
@@ -37,29 +32,10 @@ fn compress_address(address: usize) -> u32 {
 }
 
 /// The address a compressed pointer that is not null names, which is in the heap region whatever the 32 bits are.
-///
-/// Makes the compressed pointer live up to this point, and the decoded address from this point on. The conservative
-/// stack scan recognizes a cell by its address or by its compressed pointer in either half of a word, but not by its
-/// unshifted offset, which the compiler could otherwise keep instead while either is held across an allocation.
 #[inline(always)]
-pub(crate) fn decompress_address(compressed: u32) -> usize {
-    let mut address = heap_region_base() + ((compressed as usize) << COMPRESSED_POINTER_SHIFT);
-    // SAFETY: The assembly is empty: it only has the compiler put `compressed` and `address` in registers here.
-    unsafe {
-        core::arch::asm!(
-            "/* {compressed} {address} */",
-            compressed = in(reg) compressed as usize,
-            address = inout(reg) address,
-            options(nomem, nostack, preserves_flags),
-        );
-    }
-    address
+fn decompress_address(compressed: u32) -> usize {
+    decompress(heap_region_base(), compressed)
 }
-
-/// Where a collector that has to know about stores into cells, like a generational or incremental one, will hook in.
-/// It does nothing for now.
-#[inline(always)]
-fn write_barrier(_slot: &UnsafeCell<u32>, _compressed: u32) {}
 
 /// Ties a member to its cell type. The compressed pointer is the GC pointer, which the member traces itself, so the
 /// marker holds none. Like a `Gc`, a member stays on its thread.
@@ -93,7 +69,7 @@ impl<T> Member<T> {
     #[inline(always)]
     pub fn set(&self, cell: Gc<T>) {
         let compressed = compress_address(cell.as_ptr().addr());
-        write_barrier(&self.compressed, compressed);
+        write_barrier(self.compressed.get(), compressed);
         // SAFETY: Cells are only used from one thread, and no reference into the slot outlives a call.
         unsafe { *self.compressed.get() = compressed };
     }
@@ -197,7 +173,7 @@ impl<T> NullableMember<T> {
     #[inline(always)]
     pub fn set(&self, cell: Option<Gc<T>>) {
         let compressed = Self::compress(cell);
-        write_barrier(&self.compressed, compressed);
+        write_barrier(self.compressed.get(), compressed);
         // SAFETY: Cells are only used from one thread, and no reference into the slot outlives a call.
         unsafe { *self.compressed.get() = compressed };
     }

@@ -71,7 +71,6 @@ pub(crate) struct LockInfo {
 // https://w3c.github.io/web-locks/#lockmanager
 // NB: This is the LockManager object of an environment. The lock managers themselves are in the lock table.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct LockManager {
     environment: CppEnvironmentSettingsObject,
     pub(crate) realm: Gc<Realm>,

@@ -39,7 +39,6 @@ pub(crate) enum PerformTypeCheck {
 
 /// An object of CSSStyleValue or of an interface that inherits from it.
 #[derive(Clone, Copy, Trace)]
-#[gc(crate = libjs_rust)]
 #[expect(clippy::enum_variant_names, reason = "the variants are named after the interfaces")]
 pub(crate) enum AnyCSSStyleValue {
     CSSStyleValue(Ref<CSSStyleValue>),
@@ -160,7 +159,6 @@ impl ToJs for AnyCSSStyleValue {
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssstylevalue
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSStyleValue {
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-cssstylevalue-associatedproperty-slot
     #[gc(untraced)]

@@ -14,16 +14,16 @@ use core::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use core::time::Duration;
 use std::sync::Arc;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
+use libgc_api::capi::{GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle, gc_cell_type_info};
 use num_bigint::BigInt as NumBigInt;
 
-use crate::gc::capi::{GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle, gc_cell_type_info};
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::Heap;
 use crate::gc::primitive_storage::{ForeignPrimitiveStorage, OwnedPrimitiveStorage};
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;

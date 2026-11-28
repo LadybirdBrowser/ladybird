@@ -27,7 +27,6 @@ pub(crate) struct PageTransitionEventInit {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#pagetransitionevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PageTransitionEvent {
     event: CppEvent,
     persisted: bool,

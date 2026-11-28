@@ -15,7 +15,6 @@ use crate::indexed_db::idb_cursor::IDBCursor;
 
 // https://w3c.github.io/IndexedDB/#idbcursorwithvalue
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBCursorWithValue {
     cursor: IDBCursor,
 }

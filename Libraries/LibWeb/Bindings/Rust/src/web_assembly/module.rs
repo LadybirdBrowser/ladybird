@@ -87,7 +87,6 @@ fn kind_of_import(description: &ImportDescription) -> ExternalKind {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Module {
     // [[Module]]
     #[gc(untraced)]

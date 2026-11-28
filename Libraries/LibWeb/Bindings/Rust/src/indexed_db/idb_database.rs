@@ -58,7 +58,6 @@ pub(crate) enum ConnectionState {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct PendingTransactionWait {
     transactions: Vec<Ref<IDBTransaction>>,
     callback: Function,
@@ -67,7 +66,6 @@ struct PendingTransactionWait {
 // https://w3c.github.io/IndexedDB/#IDBDatabase-interface
 // https://w3c.github.io/IndexedDB/#database-connection
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBDatabase {
     event_target: CppEventTarget,
 

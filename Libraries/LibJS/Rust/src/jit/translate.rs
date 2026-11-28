@@ -23,11 +23,10 @@
 use core::ptr::NonNull;
 use std::collections::HashMap;
 
-use crate::layout::shape::Shape;
+use libgc_api::Trace;
 use libjs_abi::register;
 use libjs_jit::code::{CALLEE_SLOT, Repr, ResumeMode, SiteKind, ValueLocation, VirtualObjectDescriptorKind};
 use libjs_jit::snapshot::CellId;
-use libjs_runtime_macros::Trace;
 
 use super::allocation::{clone_function, sample_in};
 use super::code::{
@@ -46,6 +45,7 @@ use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
+use crate::layout::shape::Shape;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{create_mapped_arguments_object, create_unmapped_arguments_object};
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;

@@ -20,14 +20,12 @@ use crate::bindings::{CallContext, Exception, WebIdlResult};
 
 /// The union (DOMString or CSSKeywordValue) of CSS/CSSKeywordValue.idl.
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum CSSKeywordish {
     DOMString(#[gc(untraced)] Utf16String),
     CSSKeywordValue(Ref<CSSKeywordValue>),
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSKeywordValue {
     style_value: CSSStyleValue,
     #[gc(untraced)]

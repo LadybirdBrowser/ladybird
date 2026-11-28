@@ -8,10 +8,10 @@ use core::cell::{Cell, OnceCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{GcCell, cast_ref, define_cell};
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;

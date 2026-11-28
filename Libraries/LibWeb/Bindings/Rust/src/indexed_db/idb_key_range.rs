@@ -19,7 +19,6 @@ use crate::indexed_db::internal::key::Key;
 
 // https://w3c.github.io/IndexedDB/#keyrange
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct IDBKeyRange {
     // A key range has an associated lower bound (null or a key).
     #[gc(untraced)]

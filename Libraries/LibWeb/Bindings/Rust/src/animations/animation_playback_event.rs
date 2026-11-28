@@ -29,7 +29,6 @@ pub(crate) struct AnimationPlaybackEventInit {
 
 // https://drafts.csswg.org/web-animations-2/#animationplaybackevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AnimationPlaybackEvent {
     event: CppEvent,
     // https://drafts.csswg.org/web-animations-2/#dom-animationplaybackevent-currenttime

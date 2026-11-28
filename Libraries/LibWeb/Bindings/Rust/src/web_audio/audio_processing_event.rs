@@ -26,7 +26,6 @@ pub(crate) struct AudioProcessingEventInit {
 
 // https://webaudio.github.io/web-audio-api/#AudioProcessingEvent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct AudioProcessingEvent {
     pub(crate) event: CppEvent,
     playback_time: f64,

@@ -18,7 +18,7 @@ use core::ffi::c_void;
 use core::ops::Deref;
 use core::ptr::NonNull;
 
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::embedding::abi_types::{
     JSRealm, cell_from_abi, completion_into_abi, object_into_abi, optional_cell_from_abi, property_key_from_abi,

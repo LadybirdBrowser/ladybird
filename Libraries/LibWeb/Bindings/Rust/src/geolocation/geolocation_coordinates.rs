@@ -32,7 +32,6 @@ pub(crate) struct CoordinatesData {
 
 // https://w3c.github.io/geolocation/#coordinates_interface
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct GeolocationCoordinates {
     #[gc(untraced)]
     accuracy: f64,

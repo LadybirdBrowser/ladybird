@@ -23,7 +23,6 @@ unsafe extern "C" {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CSSCounterStyleRule {
     rule: CSSRule,
 }

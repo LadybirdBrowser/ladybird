@@ -47,7 +47,6 @@ pub(crate) enum ReaderType {
 /// A pull-into descriptor, https://streams.spec.whatwg.org/#pull-into-descriptor, which a controller's
 /// [[pendingPullIntos]] and the steps that fill it share.
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct PullIntoDescriptor {
     // https://streams.spec.whatwg.org/#pull-into-descriptor-buffer
     pub(crate) buffer: Cell<Gc<ArrayBuffer>>,
@@ -86,7 +85,6 @@ pub(crate) type PullIntoDescriptorRef = Gc<EmbedderCell<PullIntoDescriptor>>;
 
 /// A readable byte stream queue entry, https://streams.spec.whatwg.org/#readable-byte-stream-queue-entry
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableByteStreamQueueEntry {
     // https://streams.spec.whatwg.org/#readable-byte-stream-queue-entry-buffer
     pub(crate) buffer: Gc<ArrayBuffer>,
@@ -100,7 +98,6 @@ pub(crate) struct ReadableByteStreamQueueEntry {
 
 // https://streams.spec.whatwg.org/#readablebytestreamcontroller
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ReadableByteStreamController {
     // https://streams.spec.whatwg.org/#readablebytestreamcontroller-autoallocatechunksize
     #[gc(untraced)]

@@ -24,7 +24,6 @@ use crate::storage_api::storage_key::StorageKey;
 type WeakConnection = GcWeak<EmbedderCell<crate::bindings::interface::Wrapped<IDBDatabase>>>;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct PendingConnectionWait {
     #[gc(untraced = "the connections are weak")]
     connections: Vec<WeakConnection>,
@@ -33,7 +32,6 @@ struct PendingConnectionWait {
 
 // https://w3c.github.io/IndexedDB/#database-construct
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Database {
     #[gc(untraced = "the connections are weak")]
     associated_connections: RefCell<Vec<WeakConnection>>,

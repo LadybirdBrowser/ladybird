@@ -37,12 +37,10 @@ unsafe extern "C" {
 
 /// https://html.spec.whatwg.org/multipage/nav-history-apis.html#window
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppWindow(CppCell);
 
 /// https://html.spec.whatwg.org/multipage/workers.html#workerglobalscope
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppWorkerGlobalScope(CppCell);
 
 /// The cell of a C++ object that LibWeb returns, or None for a null pointer.

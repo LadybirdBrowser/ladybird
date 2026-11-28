@@ -19,7 +19,6 @@ use crate::bindings::structured_data::{Serializable, SerializationReader, Serial
 use crate::bindings::{CallContext, WebIdlResult};
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct DOMQuad {
     p1: Ref<DOMPoint>,
     p2: Ref<DOMPoint>,

@@ -24,7 +24,6 @@ pub(crate) enum ScrollSetting {
 
 // https://w3c.github.io/webvtt/#vttregion
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct VTTRegion {
     // https://w3c.github.io/webvtt/#webvtt-region-identifier
     #[gc(untraced)]

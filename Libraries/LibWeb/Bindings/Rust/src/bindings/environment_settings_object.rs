@@ -75,7 +75,6 @@ unsafe extern "C" fn on_id(id: *mut c_void, bytes: ak::Span<'_, u8>) {
 
 /// https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppEnvironmentSettingsObject(CppCell);
 
 /// https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object

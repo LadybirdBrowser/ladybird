@@ -9,6 +9,8 @@
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
 
+use libgc_api::layout::{CELL_IDENTITY_HASH_STATE_OFFSET, IDENTITY_HASH_HASHED, IDENTITY_HASH_MOVED};
+
 pub use crate::gc::class::Class;
 pub use crate::gc::foreign::ForeignCellSlot;
 pub use crate::runtime::descriptor_array::DescriptorArray;
@@ -19,6 +21,9 @@ pub use crate::runtime::special_property_cache::SpecialPropertyCache;
 pub use crate::runtime::symbol::Symbol;
 pub use crate::runtime::watchpoint_set::WatchpointSetStorage;
 pub use ak::Utf16StringDataHeader;
+
+/// The compressed cell pointers of LibGC, which the members of the layout module hold.
+pub use libgc_api::member as gc_member;
 
 pub use crate::runtime::intrinsics::Intrinsics;
 pub use crate::runtime::module::Module;
@@ -105,17 +110,12 @@ pub fn heap_region_base() -> usize {
 pub fn initialize_heap_region_base() {
     static INITIALIZE: std::sync::Once = std::sync::Once::new();
     INITIALIZE.call_once(|| {
-        let base = crate::gc::capi::gc_heap_region_base();
+        let base = libgc_api::capi::gc_heap_region_base();
         // SAFETY: No cell that this runtime could decode exists yet, so nothing reads the copy, and the Once keeps any
         //         other thread that creates a heap waiting until the copy is written.
         unsafe { *HEAP_REGION_BASE.0.get() = base };
     });
 }
-
-/// Where a cell keeps the state of its identity hash, and its bits, which the startup layout check compares with LibGC's.
-pub const IDENTITY_HASH_STATE_OFFSET: usize = 8;
-pub const IDENTITY_HASH_HASHED: u8 = 1 << 0;
-pub const IDENTITY_HASH_MOVED: u8 = 1 << 1;
 
 /// The identity hash of the cell at `cell`, which stays the same while the cell lives, wherever the collector moves it.
 /// This is the fast path of LibGC's gc_cell_identity_hash(), which it calls only for cells that moved since they were
@@ -127,17 +127,16 @@ pub const IDENTITY_HASH_MOVED: u8 = 1 << 1;
 #[inline(always)]
 pub unsafe fn cell_identity_hash(cell: *const c_void) -> u32 {
     // SAFETY: The caller passes a live cell, whose header has the state byte, which only this thread touches.
-    let state = unsafe { &*cell.byte_add(IDENTITY_HASH_STATE_OFFSET).cast::<Cell<u8>>() };
+    let state = unsafe { &*cell.byte_add(CELL_IDENTITY_HASH_STATE_OFFSET).cast::<Cell<u8>>() };
     let bits = state.get();
     if bits & IDENTITY_HASH_MOVED == 0 {
         if bits & IDENTITY_HASH_HASHED == 0 {
             state.set(bits | IDENTITY_HASH_HASHED);
         }
-        return (cell.addr() >> crate::layout::member::COMPRESSED_POINTER_SHIFT) as u32;
+        return (cell.addr() >> gc_member::COMPRESSED_POINTER_SHIFT) as u32;
     }
     // SAFETY: The caller passes a live cell.
-    unsafe { crate::gc::capi::gc_cell_identity_hash(cell) }
+    unsafe { libgc_api::capi::gc_cell_identity_hash(cell) }
 }
 
-const _: () =
-    assert!(crate::layout::member::COMPRESSED_POINTER_RANGE == crate::build_configuration::HEAP_REGION_OFFSET_MASK + 1);
+const _: () = assert!(gc_member::COMPRESSED_POINTER_RANGE == crate::build_configuration::HEAP_REGION_OFFSET_MASK + 1);

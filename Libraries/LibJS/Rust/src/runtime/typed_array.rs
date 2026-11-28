@@ -8,11 +8,11 @@ use core::cell::Cell;
 use core::ops::{ControlFlow, Deref};
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, typed_array_kind};

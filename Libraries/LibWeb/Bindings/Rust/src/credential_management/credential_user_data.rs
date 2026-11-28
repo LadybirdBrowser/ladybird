@@ -12,7 +12,6 @@ use libjs_rust::api::Trace;
 use crate::bindings::conversions::UsvString;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CredentialUserData {
     name: UsvString,
     icon_url: UsvString,

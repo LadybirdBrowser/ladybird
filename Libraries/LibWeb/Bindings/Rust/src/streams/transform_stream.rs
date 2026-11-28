@@ -44,7 +44,6 @@ use crate::streams::writable_stream_default_controller::writable_stream_default_
 
 // https://streams.spec.whatwg.org/#transformstream
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TransformStream {
     /// The realm of the stream, which its promises and the results of its operations are created in.
     realm: Cell<Gc<Realm>>,

@@ -14,12 +14,12 @@ use core::ops::Deref;
 use std::collections::HashMap;
 
 use ak::Utf16FlyString;
-use libjs_runtime_macros::Trace;
+use libgc_api::Trace;
 
 use crate::gc::class::{Class, Finalize, GcCell, define_cell};
 use crate::gc::class_id::ClassId;
 use crate::gc::gc_ref_cell::GcRefCell;
-use crate::gc::visitor::{Trace, Visitor};
+use crate::gc::visitor::Visitor;
 use crate::interpreter::vm::Vm;
 use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::buffer::InterpreterBuffer;

@@ -29,7 +29,6 @@ pub(crate) struct TextDecodeOptions {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct TextDecoder {
     /// The encoding, the error mode and the ignore BOM flag of the decoder, with the decoder of the encoding, which
     /// holds the I/O queue of a decode() that asked for more input to follow.

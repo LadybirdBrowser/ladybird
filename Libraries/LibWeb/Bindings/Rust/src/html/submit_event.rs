@@ -31,7 +31,6 @@ pub(crate) struct SubmitEventInit {
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#submitevent
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct SubmitEvent {
     event: CppEvent,
     submitter: Option<CppCell>,

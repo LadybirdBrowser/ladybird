@@ -9,6 +9,8 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
+use libgc_api::capi::GCHeap;
+
 use crate::embedding::abi_types::{
     JSRealm, cell_from_abi, completion_into_abi, optional_cell_from_abi, value_from_abi, vm_from_abi,
 };
@@ -21,7 +23,6 @@ use crate::embedding::hooks::{
     module_request_from_abi, promise_job_from_abi,
 };
 use crate::embedding::realm::JSJobCallback;
-use crate::gc::capi::GCHeap;
 use crate::interpreter::vm::{
     Vm, VmOptions, default_host_enqueue_finalization_registry_cleanup_job, default_host_enqueue_promise_job,
     default_host_grow_shared_array_buffer, default_host_promise_job_queue_is_empty, default_host_resize_array_buffer,

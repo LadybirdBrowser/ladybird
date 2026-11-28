@@ -30,7 +30,6 @@ unsafe extern "C" {
 
 /// https://xhr.spec.whatwg.org/#formdataentryvalue
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) enum FormDataEntryValue {
     File(Ref<File>),
     USVString(UsvString),
@@ -96,7 +95,6 @@ fn file_property_bag(r#type: Utf16String, last_modified: Option<i64>) -> FilePro
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct FormData {
     // https://xhr.spec.whatwg.org/#concept-formdata-entry-list
     entry_list: GcRefCell<Vec<Entry>>,

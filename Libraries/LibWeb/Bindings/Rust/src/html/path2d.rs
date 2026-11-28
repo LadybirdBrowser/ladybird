@@ -26,7 +26,6 @@ pub(crate) enum Path2DOrDOMString {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Path2D {
     #[gc(untraced)]
     path: RefCell<Path>,

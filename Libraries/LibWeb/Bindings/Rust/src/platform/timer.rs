@@ -21,7 +21,6 @@ unsafe extern "C" {
 }
 
 #[derive(Clone, Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct CppTimer(CppCell);
 
 impl CppTimer {

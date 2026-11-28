@@ -26,7 +26,6 @@ unsafe extern "C" {
 
 // https://w3c.github.io/IndexedDB/#connection-queues
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct ConnectionQueue {
     #[gc(untraced)]
     storage_key: StorageKey,
@@ -43,7 +42,6 @@ impl EmbedderValue for ConnectionQueue {
 pub(crate) type ConnectionQueueRef = Gc<EmbedderCell<ConnectionQueue>>;
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 struct DatabasesOfKey {
     #[gc(untraced)]
     storage_key: StorageKey,
@@ -51,7 +49,6 @@ struct DatabasesOfKey {
 }
 
 #[derive(Trace)]
-#[gc(crate = libjs_rust)]
 pub(crate) struct Storage {
     databases: GcRefCell<Vec<DatabasesOfKey>>,
     connection_queues: GcRefCell<Vec<ConnectionQueueRef>>,
