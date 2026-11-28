@@ -26,12 +26,6 @@ DocumentFragment::DocumentFragment(Document& document)
     static_assert(offsetof(DocumentFragment, m_document_fragment_core) >= sizeof(ParentNode));
 }
 
-void DocumentFragment::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_document_fragment_core.host);
-}
-
 void DocumentFragment::set_host(Web::DOM::Element* element)
 {
     // NB: libweb_rust reads the host as a node, so the element must start with its node, as every cell type starts with

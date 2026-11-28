@@ -168,18 +168,7 @@ Event::Event(FlyString const& type, EventInit const& event_init, HighResolutionT
 void Event::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_event_core.target);
-    visitor.visit(m_event_core.related_target);
-    visitor.visit(m_event_core.current_target);
-    // NB: The path's buffers are allocated by libweb_rust, which writes only items and touch targets that count.
-    auto& path = m_event_core.path;
-    for (size_t i = 0; i < path.size; ++i) {
-        visitor.visit(path.items[i].invocation_target);
-        visitor.visit(path.items[i].shadow_adjusted_target);
-        visitor.visit(path.items[i].related_target);
-    }
-    for (size_t i = 0; i < static_cast<size_t>(path.size) * path.touch_target_count; ++i)
-        visitor.visit(path.touch_targets[i]);
+    RustFFI::rust_dom_trace_event_core(&m_event_core, reinterpret_cast<GCVisitor*>(&visitor));
     visitor.visit(m_touch_target_list);
 }
 

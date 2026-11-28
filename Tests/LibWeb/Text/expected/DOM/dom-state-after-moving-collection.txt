@@ -1,0 +1,10 @@
+attributes: 3 id=element a=1
+same Attr: true, owner: true
+assigned nodes: I B #text
+same assigned nodes: true
+getElementById: true
+collection: true true P
+listener 0
+listener 1
+listener 2
+root saw a path of 6 targets

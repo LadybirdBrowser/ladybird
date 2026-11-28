@@ -2811,6 +2811,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     dom_config.namespaces = Some(vec!["Web".to_string(), "DOM".to_string(), "RustFFI".to_string()]);
     dom_config.includes = vec![
         "AK/Utf16String.h".to_string(),
+        "LibGC/CAPI.h".to_string(),
         "LibGC/Member.h".to_string(),
         "LibGC/Ptr.h".to_string(),
         "LibWeb/CSS/StyleEngineIdentifiers.h".to_string(),
@@ -2912,6 +2913,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("TraversedNode", "void*"),
         // NB: HTMLCollection and LiveNodeList share this base, whose start is theirs.
         ("CollectionCell", "Web::Bindings::GCAllocatedWrappable"),
+        // NB: The visitor LibGC hands visit_edges(), which C++ passes as the GCVisitor of LibGC/CAPI.h.
+        ("GCVisitor", "::GCVisitor"),
     ] {
         dom_config.export.exclude.push(rust_name.to_string());
         dom_config
@@ -2953,6 +2956,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/adopt.rs"),
             manifest_dir.join("src/dom/collection.rs"),
             manifest_dir.join("src/dom/traversal.rs"),
+            manifest_dir.join("src/dom/trace.rs"),
             manifest_dir.join("src/dom/tree_version.rs"),
             manifest_dir.join("src/dom/weak_cells.rs"),
         ],

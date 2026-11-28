@@ -37,8 +37,7 @@ void TreeWalker::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_filter);
-    visitor.visit(m_tree_walker_core.traverser.root);
-    visitor.visit(m_tree_walker_core.current);
+    RustFFI::rust_dom_trace_tree_walker_core(&m_tree_walker_core, reinterpret_cast<GCVisitor*>(&visitor));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker

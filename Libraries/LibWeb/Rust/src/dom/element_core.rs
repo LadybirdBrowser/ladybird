@@ -21,6 +21,8 @@ use core::cell::UnsafeCell;
 use core::mem::offset_of;
 use core::ptr::NonNull;
 
+use libgc_api::{Trace, Visitor};
+
 use super::qualified_name;
 use super::qualified_name::QualifiedNameField;
 use super::qualified_name::QualifiedNameImpl;
@@ -28,6 +30,46 @@ use super::strings::FlyStringField;
 use super::strings::OptionalFlyStringField;
 use super::strings::StringField;
 use crate::stage::MainThread;
+
+super::trace::fields_without_cells!(ClassNamesField);
+
+// SAFETY: The list holds the element's NamedNodeMap, where it keeps one, which this visits in place. The attributes
+//         hold no cells.
+unsafe impl Trace for AttributeListField {
+    #[inline(always)]
+    fn trace<'c>(&'c self, visitor: &mut Visitor<'c>) {
+        if let Some(attribute_map) = self.attribute_map() {
+            // SAFETY: The map is in the list's allocation, which the element owns, and which only adding attributes or
+            //         making the map reallocates, never a finalizer or sweep callback.
+            unsafe { visitor.visit_owned_member(AttributeMapSlot::of(attribute_map)) };
+        }
+    }
+}
+
+/// The slot of an element's NamedNodeMap, see AttributeListPrefix.
+#[repr(transparent)]
+struct AttributeMapSlot(Cell<u32>);
+
+impl AttributeMapSlot {
+    #[inline(always)]
+    fn of(field: &Cell<u32>) -> &Self {
+        // SAFETY: The slot is a transparent wrapper of the field.
+        unsafe { &*core::ptr::from_ref(field).cast::<Self>() }
+    }
+}
+
+// SAFETY: The slot is laid out as a GC::Member<DOM::NamedNodeMap>.
+unsafe impl libgc_api::MemberSlot for AttributeMapSlot {
+    #[inline(always)]
+    fn slot(&self) -> *const u32 {
+        self.0.as_ptr()
+    }
+
+    #[inline(always)]
+    fn cell_address(&self) -> Option<NonNull<core::ffi::c_void>> {
+        super::trace::member_cell_address(self.0.get())
+    }
+}
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
@@ -541,6 +583,7 @@ pub const ELEMENT_REFLECTION_HAS_CLASS_LIST: u8 = 1 << 0;
 
 /// The state that names an element, which C++ embeds in DOM::Element as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-element
+#[derive(Trace)]
 #[repr(C)]
 pub struct ElementCore {
     // NB: C++ sets the name as it constructs the element, and only changes its prefix after that.

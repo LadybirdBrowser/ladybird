@@ -254,11 +254,11 @@ void EventTarget::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
 
-    if (auto const* data = m_data.ptr()) {
-        for (auto const& listener : event_listeners())
-            visitor.visit(listener);
+    // NB: libweb_rust traces the fields it defines of a target that is no node, see Rust/src/dom/trace.rs. Every node
+    //     is an object libweb_rust defines, which traces them before it calls this.
+    RustFFI::rust_dom_trace_event_target(this, reinterpret_cast<GCVisitor*>(&visitor));
+    if (auto const* data = m_data.ptr())
         visitor.visit(data->event_handler_map);
-    }
 }
 
 size_t EventTarget::external_memory_size() const

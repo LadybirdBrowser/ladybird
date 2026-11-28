@@ -98,7 +98,7 @@ HTMLCollection::~HTMLCollection()
 void HTMLCollection::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_core.root);
+    RustFFI::rust_dom_trace_collection_core(&m_core, reinterpret_cast<GCVisitor*>(&visitor));
     visitor.visit(m_filter);
     if (m_rare_data)
         visitor.visit(m_rare_data->sort);

@@ -90,14 +90,6 @@ void Text::adopted_from(Document& old_document)
         old_document.spelling_markers().remove_all(*this);
 }
 
-void Text::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    // NB: Almost no Text node is assigned to a slot, so leave the marker out for those.
-    if (m_text_core.assigned_slot)
-        visitor.visit(m_text_core.assigned_slot);
-}
-
 // https://dom.spec.whatwg.org/#dom-text-splittext
 // https://dom.spec.whatwg.org/#concept-text-split
 WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)

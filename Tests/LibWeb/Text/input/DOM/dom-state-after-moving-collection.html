@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="root"></div>
+<script>
+    asyncTest(async done => {
+        const root = document.getElementById("root");
+
+        // An element whose NamedNodeMap holds Attr nodes.
+        const element = document.createElement("span");
+        element.id = "element";
+        element.setAttribute("a", "1");
+        element.setAttribute("b", "2");
+        const attributes = element.attributes;
+        const attributeA = attributes.getNamedItem("a");
+        root.appendChild(element);
+
+        // A slot with manually assigned nodes.
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open", slotAssignment: "manual" });
+        const slot = document.createElement("slot");
+        shadowRoot.appendChild(slot);
+        const slottables = [document.createElement("i"), document.createElement("b"), document.createTextNode("text")];
+        for (const slottable of slottables)
+            host.appendChild(slottable);
+        slot.assign(...slottables);
+        root.appendChild(host);
+
+        // Listeners whose callbacks are JS functions that only the listeners refer to.
+        const calls = [];
+        for (let i = 0; i < 3; ++i)
+            element.addEventListener("ping", () => calls.push(`listener ${i}`));
+        root.addEventListener("ping", event => calls.push(`root saw a path of ${event.composedPath().length} targets`));
+
+        // A live collection that remembers its list of nodes once it is asked for one far from its cursor.
+        for (let i = 0; i < 20; ++i)
+            root.appendChild(document.createElement("p"));
+        const paragraphs = root.getElementsByTagName("p");
+        const lengthBefore = paragraphs.length;
+        const lastBefore = paragraphs[lengthBefore - 1];
+        void paragraphs[5];
+
+        await internals.gcAsync(true);
+        await internals.gcAsync(true);
+
+        println(`attributes: ${attributes.length} ${attributes[0].name}=${attributes[0].value} ${attributes[1].name}=${attributes[1].value}`);
+        println(`same Attr: ${attributes.getNamedItem("a") === attributeA}, owner: ${attributeA.ownerElement === element}`);
+        println(`assigned nodes: ${slot.assignedNodes().map(node => node.nodeName).join(" ")}`);
+        println(`same assigned nodes: ${slot.assignedNodes().every((node, i) => node === slottables[i])}`);
+        println(`getElementById: ${document.getElementById("element") === element}`);
+        println(`collection: ${paragraphs.length === lengthBefore} ${paragraphs[lengthBefore - 1] === lastBefore} ${paragraphs[5].nodeName}`);
+
+        element.dispatchEvent(new Event("ping", { bubbles: true, composed: true }));
+        calls.forEach(println);
+        done();
+    });
+</script>

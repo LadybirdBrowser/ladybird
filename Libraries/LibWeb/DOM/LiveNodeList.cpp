@@ -74,7 +74,7 @@ LiveNodeList::~LiveNodeList()
 void LiveNodeList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_core.root);
+    RustFFI::rust_dom_trace_collection_core(&m_core, reinterpret_cast<GCVisitor*>(&visitor));
     visitor.visit(m_filter);
 }
 

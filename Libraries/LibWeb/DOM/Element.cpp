@@ -454,12 +454,6 @@ void Element::visit_edges(Cell::Visitor& visitor)
     Animatable::visit_edges(visitor);
 
     visitor.visit(m_inline_style);
-    visitor.visit(m_element_core.shadow_root);
-    // NB: Almost no element is assigned to a slot, so leave the marker out for those.
-    if (m_element_core.assigned_slot)
-        visitor.visit(m_element_core.assigned_slot);
-    if (auto* attribute_map = m_element_core.attributes.attribute_map_slot())
-        visitor.visit(*attribute_map);
 }
 
 size_t Element::external_memory_size() const

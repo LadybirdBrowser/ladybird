@@ -51,7 +51,6 @@ public:
 
 private:
     Attr(Document&, QualifiedName, Utf16String value, GC::Ptr<Element>);
-    virtual void visit_edges(Cell::Visitor&) override;
 
     // The state of the Attr node, whose layout libweb_rust defines (see Rust/src/dom/attr.rs), which reads and writes it
     // in place: it detaches an Attr node from its element, and attaches it to one.

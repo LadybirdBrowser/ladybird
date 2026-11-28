@@ -20,6 +20,8 @@ use core::marker::PhantomPinned;
 use core::mem::offset_of;
 use core::ptr::NonNull;
 
+use libgc_api::Trace;
+
 use super::hooks;
 use super::node::Node;
 use super::node::NodeCell;
@@ -52,6 +54,7 @@ pub const FILTER_SKIP: u8 = 3;
 
 /// What NodeIterator and TreeWalker objects share, their traverser state, but for the filter, which C++ keeps.
 /// https://dom.spec.whatwg.org/#traversal
+#[derive(Trace)]
 #[repr(C)]
 pub struct TraverserCore {
     /// https://dom.spec.whatwg.org/#concept-traversal-root
@@ -83,6 +86,7 @@ impl TraverserCore {
 
 /// The state of a NodeIterator, which C++ embeds in DOM::NodeIterator.
 /// https://dom.spec.whatwg.org/#nodeiterator
+#[derive(Trace)]
 #[repr(C)]
 pub struct NodeIteratorCore {
     traverser: TraverserCore,
@@ -143,6 +147,7 @@ impl NodeIteratorCore {
 
 /// The state of a TreeWalker, which C++ embeds in DOM::TreeWalker.
 /// https://dom.spec.whatwg.org/#treewalker
+#[derive(Trace)]
 #[repr(C)]
 pub struct TreeWalkerCore {
     traverser: TraverserCore,

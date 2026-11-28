@@ -48,12 +48,6 @@ Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, 
     static_assert(offsetof(Attr, m_attr_core) >= sizeof(Node));
 }
 
-void Attr::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_attr_core.owner_element);
-}
-
 Element* Attr::owner_element()
 {
     return m_attr_core.owner_element.ptr();

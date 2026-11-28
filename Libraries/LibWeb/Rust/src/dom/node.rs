@@ -43,7 +43,7 @@ unsafe impl Sync for HeapRegionBaseCopy {}
 static HEAP_REGION_BASE: HeapRegionBaseCopy = HeapRegionBaseCopy(UnsafeCell::new(0));
 
 #[inline(always)]
-fn heap_region_base() -> usize {
+pub(super) fn heap_region_base() -> usize {
     // SAFETY: Nothing writes the copy after the first node exists, see HeapRegionBaseCopy.
     unsafe { *HEAP_REGION_BASE.0.get() }
 }

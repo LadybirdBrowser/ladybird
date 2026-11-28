@@ -45,9 +45,7 @@ void NodeIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_filter);
-    visitor.visit(m_node_iterator_core.traverser.root);
-    visitor.visit(m_node_iterator_core.reference);
-    visitor.visit(m_node_iterator_core.candidate_reference);
+    RustFFI::rust_dom_trace_node_iterator_core(&m_node_iterator_core, reinterpret_cast<GCVisitor*>(&visitor));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator

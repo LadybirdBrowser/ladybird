@@ -12,6 +12,8 @@
 use ak::Utf16StringUnits;
 use core::cell::UnsafeCell;
 
+super::trace::fields_without_cells!(FlyStringField, OptionalFlyStringField, StringField);
+
 /// A field that holds an interned string, laid out as C++'s AK::Utf16FlyString, which is what C++ sees it as. Two
 /// interned strings are equal exactly when their raw identities are.
 #[repr(transparent)]

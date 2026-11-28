@@ -24,24 +24,18 @@ GC_DEFINE_ALLOCATOR(HTMLSlotElement);
 HTMLSlotElement::HTMLSlotElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
 {
+    // NB: libweb_rust reads a slot as the HTMLSlotElementPrefix it starts with.
+    static_assert(sizeof(HTMLSlotElement) == sizeof(DOM::RustFFI::HTMLSlotElementPrefix));
+    static_assert(offsetof(HTMLSlotElement, m_slot_core) == offsetof(DOM::RustFFI::HTMLSlotElementPrefix, core));
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(HTMLSlotElement, m_slot_core) >= sizeof(HTMLElement));
 }
 
 HTMLSlotElement::~HTMLSlotElement()
 {
     DOM::RustFFI::rust_dom_slot_core_destroy(&m_slot_core);
-}
-
-void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
-{
-    // NB: libweb_rust reads a slot as the HTMLSlotElementPrefix it starts with.
-    static_assert(sizeof(HTMLSlotElement) == sizeof(DOM::RustFFI::HTMLSlotElementPrefix));
-    static_assert(offsetof(HTMLSlotElement, m_slot_core) == offsetof(DOM::RustFFI::HTMLSlotElementPrefix, core));
-    Base::visit_edges(visitor);
-    // NB: The lists' buffers are allocated by libweb_rust, which holds the nodes in them strongly.
-    for (auto const& node : assigned_nodes_internal())
-        visitor.visit(node);
-    for (auto const& node : manually_assigned_nodes())
-        visitor.visit(node);
 }
 
 static HTMLSlotElement::AssignedNodesFlatten assigned_nodes_flatten(Bindings::AssignedNodesOptions const& options)

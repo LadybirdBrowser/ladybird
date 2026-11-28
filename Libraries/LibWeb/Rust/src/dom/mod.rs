@@ -43,6 +43,7 @@ mod steps;
 pub mod strings;
 #[cfg(test)]
 pub(crate) mod test_tree;
+pub mod trace;
 pub mod traversal;
 mod tree;
 pub mod tree_version;

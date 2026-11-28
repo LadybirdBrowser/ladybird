@@ -21,6 +21,8 @@
 use core::mem::offset_of;
 use core::ptr::NonNull;
 
+use libgc_api::Trace;
+
 use super::attributes;
 use super::node::NodeCell;
 use super::node_core::ElementMember;
@@ -37,6 +39,7 @@ crate::stage::main_thread_ffi_entries!(without_host);
 
 /// The state of an Attr node beyond that of every node, which C++ embeds in DOM::Attr as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-attribute
+#[derive(Trace)]
 #[repr(C)]
 pub struct AttrCore {
     /// The attribute's namespace, namespace prefix and local name.
@@ -58,10 +61,11 @@ impl AttrCore {
 pub const NAMED_NODE_MAP_CORE_OFFSET: usize = 32;
 
 /// The state of a NamedNodeMap beyond its element, which C++ embeds in DOM::NamedNodeMap as its only storage of it.
+#[derive(Trace)]
 #[repr(C)]
 pub struct NamedNodeMapCore {
-    /// The Attr nodes the map made for the attributes of its element, which they are the attributes of. C++ visits
-    /// them as it visits the map's edges, and has Rust free the list as it destroys the map.
+    /// The Attr nodes the map made for the attributes of its element, which they are the attributes of. C++ has Rust
+    /// free the list as it destroys the map.
     attribute_nodes: NodeListField,
 }
 
