@@ -3225,9 +3225,12 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     if (auto* translator = document.document_translator_if_exists())
         translator->did_mutate(*this, type, attribute_name, old_value);
 
-    // OPTIMIZATION: Without an observer of this type in the document, interestedObservers stays empty.
-    if (!document.has_mutation_observers_of_type(type) && !page.listen_for_dom_mutations())
-        return;
+    // OPTIMIZATION: Without an observer of this type in the document, or without registered observers on an inclusive
+    //               ancestor of the target, interestedObservers stays empty.
+    if (!document.has_mutation_observers_of_type(type) || !has_observed_inclusive_ancestor()) {
+        if (!page.listen_for_dom_mutations())
+            return;
+    }
 
     // NOTE: We defer garbage collection until the end of the scope, since we can't safely use MutationObserver* as a hashmap key otherwise.
     // FIXME: This is a total hack.
@@ -4014,7 +4017,17 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     if (!registered_observer_list)
         registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
     registered_observer_list->append(registered_observer);
+    set_core_flag(RustFFI::NODE_HAS_REGISTERED_OBSERVERS, true);
     document().add_mutation_observer_types(registered_observer.options());
+}
+
+bool Node::has_observed_inclusive_ancestor() const
+{
+    for (auto const* node = this; node; node = node->parent()) {
+        if (node->m_core.flags & RustFFI::NODE_HAS_REGISTERED_OBSERVERS)
+            return true;
+    }
+    return false;
 }
 
 Vector<GC::Ref<RegisteredObserver>>* Node::registered_observer_list()
@@ -4173,17 +4186,8 @@ public:
     {
         // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « »,
         //    previousSibling, and child.
-        // OPTIMIZATION: Without an observer of tree mutations, the parser's record is never queued. The exceptions are
-        //               DevTools and an assistive technology, which consume every mutation, observer or not (see
-        //               queue_mutation_record()).
-        auto should_queue_record = [&] {
-            if constexpr (kind == RustFFI::InsertionKind::Dom)
-                return true;
-            auto& document = parent->document();
-            auto& page = document.page();
-            return document.has_mutation_observers_of_type(MutationType::childList) || page.listen_for_dom_mutations() || page.accessibility_interested();
-        };
-        if (!suppress_observers && should_queue_record())
+        // OPTIMIZATION: libweb_rust suppresses the record when no one would hear of it, see Rust/src/dom/mutation_observers.rs.
+        if (!suppress_observers)
             parent->queue_tree_mutation_record(nodes, {}, previous_sibling, child);
 
         // 9. Run the children changed steps for parent.
@@ -4328,10 +4332,12 @@ public:
     }
 
     // https://dom.spec.whatwg.org/#concept-node-remove
-    static void finish_removal(Node* node, Node* parent, Node* old_previous_sibling, Node* old_next_sibling, bool suppress_observers, bool is_one_of_all_children)
+    static void finish_removal(Node* node, Node* parent, Node* old_previous_sibling, Node* old_next_sibling, bool parent_is_observed, bool suppress_observers, bool is_one_of_all_children)
     {
         // 15. Add transient registered observers given node and parent.
-        node->add_transient_registered_observers(*parent);
+        // OPTIMIZATION: Only the registered observers of parent's inclusive ancestors add any, which libweb_rust tells.
+        if (parent_is_observed)
+            node->add_transient_registered_observers(*parent);
 
         // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
         //     oldPreviousSibling, and oldNextSibling.

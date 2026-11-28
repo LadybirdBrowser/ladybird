@@ -16,6 +16,7 @@ pub mod hooks;
 pub mod insert;
 pub mod links;
 pub mod move_node;
+pub mod mutation_observers;
 pub mod node;
 pub mod node_core;
 pub mod node_ref;

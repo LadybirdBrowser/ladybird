@@ -527,6 +527,19 @@ public:
     Vector<GC::Ref<RegisteredObserver>> const* registered_observer_list() const;
 
     void add_registered_observer(RegisteredObserver&);
+    // Removes the registered observers for which callback answers true from the node's registered observer list.
+    template<typename Callback>
+    void remove_registered_observers_if(Callback callback)
+    {
+        auto* registered_observer_list = this->registered_observer_list();
+        if (!registered_observer_list)
+            return;
+        registered_observer_list->remove_all_matching(callback);
+        if (registered_observer_list->is_empty())
+            set_core_flag(RustFFI::NODE_HAS_REGISTERED_OBSERVERS, false);
+    }
+    // Whether the node or one of its ancestors has registered observers, which libweb_rust reads as well.
+    bool has_observed_inclusive_ancestor() const;
 
     void queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 

@@ -137,12 +137,10 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
             if (!node)
                 continue;
 
-            if (auto* registered_observer_list = node->registered_observer_list()) {
-                registered_observer_list->remove_all_matching([&registered](RegisteredObserver& registered_observer) {
-                    auto* transient = as_if<TransientRegisteredObserver>(registered_observer);
-                    return transient && transient->source().ptr() == registered.ptr();
-                });
-            }
+            node->remove_registered_observers_if([&registered](RegisteredObserver& registered_observer) {
+                auto* transient = as_if<TransientRegisteredObserver>(registered_observer);
+                return transient && transient->source().ptr() == registered.ptr();
+            });
         }
 
         // 2. Set registered’s options to options.
@@ -176,11 +174,9 @@ void MutationObserver::disconnect()
         if (!node)
             continue;
 
-        if (node->registered_observer_list()) {
-            node->registered_observer_list()->remove_all_matching([this](RegisteredObserver& registered_observer) {
-                return registered_observer.observer().ptr() == this;
-            });
-        }
+        node->remove_registered_observers_if([this](RegisteredObserver& registered_observer) {
+            return registered_observer.observer().ptr() == this;
+        });
     }
 
     // 2. Remove transient registered observers for this.
@@ -226,11 +222,9 @@ void MutationObserver::remove_transient_registered_observers()
         if (!node)
             continue;
 
-        if (auto* registered_observer_list = node->registered_observer_list()) {
-            registered_observer_list->remove_all_matching([this](RegisteredObserver& registered_observer) {
-                return is<TransientRegisteredObserver>(registered_observer) && registered_observer.observer().ptr() == this;
-            });
-        }
+        node->remove_registered_observers_if([this](RegisteredObserver& registered_observer) {
+            return is<TransientRegisteredObserver>(registered_observer) && registered_observer.observer().ptr() == this;
+        });
     }
 
     // 2. Empty observer’s transient node set.

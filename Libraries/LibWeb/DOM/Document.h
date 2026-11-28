@@ -393,6 +393,11 @@ public:
     void add_mutation_observer_types(MutationObserverOptions const&);
     bool has_mutation_observers_of_type(Utf16FlyString const& type) const;
 
+    // Whether something but the document's mutation observers hears of every mutation in it: an assistive technology,
+    // the document's translator or DevTools. libweb_rust reads it as well.
+    bool has_mutation_listener() const { return m_document_core.flags & RustFFI::DOCUMENT_HAS_MUTATION_LISTENER; }
+    void update_has_mutation_listener();
+
     // Everything a style input record cannot name by an identity of its own: the viewport moving,
     // a counter style arriving, or another untracked environment input changing. A record taken under one version
     // answers for nothing once it moves.
@@ -2573,12 +2578,6 @@ private:
     mutable u64 m_label_elements_dom_tree_version { NumericLimits<u64>::max() };
     u64 m_option_selectedness_version { 0 };
 
-    enum class MutationObserverType : u8 {
-        ChildList = 1 << 0,
-        Attributes = 1 << 1,
-        CharacterData = 1 << 2,
-    };
-    u8 m_mutation_observer_types { 0 };
     u64 m_style_environment_version { 0 };
     u64 m_next_counter_style_environment_identity { 1 };
 
