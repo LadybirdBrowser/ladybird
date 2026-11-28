@@ -162,6 +162,7 @@ ffi_entry!(crate::dom::tree_version::MainThreadFfiEntry);
 ffi_entry!(crate::dom::collection::MainThreadFfiEntry);
 ffi_entry!(crate::dom::attributes::MainThreadFfiEntry);
 ffi_entry!(crate::dom::character_data::MainThreadFfiEntry);
+ffi_entry!(crate::dom::queries::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

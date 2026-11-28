@@ -1,0 +1,3 @@
+same data: true
+other data: false
+text with same data: false

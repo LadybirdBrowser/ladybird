@@ -23,7 +23,7 @@ pub struct QualifiedNameImpl {
     _reference_count: UnsafeCell<u32>,
     local_name: FlyStringField,
     lowercased_local_name: FlyStringField,
-    _prefix: OptionalFlyStringField,
+    prefix: OptionalFlyStringField,
     namespace: OptionalFlyStringField,
     as_string: FlyStringField,
     _ascii_uppercased_as_string: OptionalFlyStringField,
@@ -32,7 +32,7 @@ pub struct QualifiedNameImpl {
 const _: () = assert!(size_of::<QualifiedNameImpl>() == 56 && align_of::<QualifiedNameImpl>() == 8);
 const _: () = assert!(offset_of!(QualifiedNameImpl, local_name) == 8);
 const _: () = assert!(offset_of!(QualifiedNameImpl, lowercased_local_name) == 16);
-const _: () = assert!(offset_of!(QualifiedNameImpl, _prefix) == 24);
+const _: () = assert!(offset_of!(QualifiedNameImpl, prefix) == 24);
 const _: () = assert!(offset_of!(QualifiedNameImpl, namespace) == 32);
 const _: () = assert!(offset_of!(QualifiedNameImpl, as_string) == 40);
 const _: () = assert!(offset_of!(QualifiedNameImpl, _ascii_uppercased_as_string) == 48);
@@ -48,6 +48,12 @@ impl QualifiedNameImpl {
     #[inline(always)]
     pub fn namespace(&self) -> Option<&FlyStringField> {
         self.namespace.get()
+    }
+
+    /// The namespace prefix, or none for the null prefix.
+    #[inline(always)]
+    pub fn prefix(&self) -> Option<&FlyStringField> {
+        self.prefix.get()
     }
 
     /// Takes a reference to the parts.
@@ -137,7 +143,7 @@ impl QualifiedNameField {
             _reference_count: UnsafeCell::new(1),
             local_name: FlyStringField::for_test(local_name),
             lowercased_local_name: FlyStringField::for_test(&local_name.to_ascii_lowercase()),
-            _prefix: OptionalFlyStringField::for_test(None),
+            prefix: OptionalFlyStringField::for_test(None),
             namespace: OptionalFlyStringField::for_test(namespace),
             as_string: FlyStringField::for_test(local_name),
             _ascii_uppercased_as_string: OptionalFlyStringField::for_test(None),

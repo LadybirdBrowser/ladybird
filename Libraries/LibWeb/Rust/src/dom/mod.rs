@@ -27,6 +27,7 @@ pub mod node_core;
 pub mod node_ref;
 pub mod pre_insert;
 pub mod qualified_name;
+pub mod queries;
 pub mod range;
 pub mod remove;
 pub mod replace;

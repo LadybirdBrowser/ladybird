@@ -4949,32 +4949,6 @@ void Element::set_prefix(Optional<Utf16FlyString> value)
     m_element_core.qualified_name.set_prefix(move(value));
 }
 
-// https://dom.spec.whatwg.org/#locate-a-namespace-prefix
-Optional<Utf16String> Element::locate_a_namespace_prefix(Optional<Utf16View> namespace_) const
-{
-    // 1. If element’s namespace is namespace and its namespace prefix is non-null, then return its namespace prefix.
-    if (this->namespace_uri().has_value() && namespace_.has_value() && this->namespace_uri()->view() == *namespace_ && this->prefix().has_value())
-        return this->prefix()->to_utf16_string();
-
-    // 2. If element has an attribute whose namespace prefix is "xmlns" and value is namespace, then return element’s first such attribute’s local name.
-    if (namespace_.has_value()) {
-        Optional<Utf16String> matching_prefix;
-        for_each_attribute([&](QualifiedName name, Utf16String value) {
-            if (!matching_prefix.has_value() && name.prefix() == u"xmlns"sv && value == *namespace_)
-                matching_prefix = name.local_name().to_utf16_string();
-        });
-        if (matching_prefix.has_value())
-            return matching_prefix;
-    }
-
-    // 3. If element’s parent element is not null, then return the result of running locate a namespace prefix on that element using namespace.
-    if (auto parent = this->parent_element())
-        return parent->locate_a_namespace_prefix(namespace_);
-
-    // 4. Return null
-    return {};
-}
-
 void Element::move_attribute_nodes_to_document(Badge<Document>, Document& document)
 {
     if (auto* rare_data = element_rare_data(); rare_data && rare_data->attribute_map)

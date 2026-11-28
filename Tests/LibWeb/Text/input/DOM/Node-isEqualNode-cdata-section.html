@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const document = new DOMParser().parseFromString("<root/>", "application/xml");
+        const a = document.createCDATASection("a");
+        println(`same data: ${a.isEqualNode(document.createCDATASection("a"))}`);
+        println(`other data: ${a.isEqualNode(document.createCDATASection("b"))}`);
+        println(`text with same data: ${a.isEqualNode(document.createTextNode("a"))}`);
+    });
+</script>

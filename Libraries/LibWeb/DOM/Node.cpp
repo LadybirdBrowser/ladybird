@@ -386,14 +386,8 @@ Optional<Utf16String> Node::alternative_text() const
 // https://dom.spec.whatwg.org/#concept-descendant-text-content
 Utf16String Node::descendant_text_content() const
 {
-    Utf16StringBuilder builder;
-
-    for_each_in_subtree_of_type<Text>([&](auto& text_node) {
-        builder.append(text_node.data());
-        return TraversalDecision::Continue;
-    });
-
-    return builder.to_string();
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs.
+    return Utf16String::adopt_raw(RustFFI::rust_dom_descendant_text_content(this));
 }
 
 // https://dom.spec.whatwg.org/#dom-node-textcontent
@@ -633,35 +627,15 @@ CSS::StyleScope& Node::style_scope()
 // https://dom.spec.whatwg.org/#concept-child-text-content
 Utf16String Node::child_text_content() const
 {
-    auto const* parent_node = as_if<ParentNode>(*this);
-    if (!parent_node)
-        return {};
-
-    if (auto const* text = as_if<Text>(parent_node->first_child()); text && !text->next_sibling())
-        return text->data();
-
-    Utf16StringBuilder builder;
-
-    parent_node->for_each_child_of_type<Text>([&](auto const& child) {
-        if (auto content = child.text_content(); content.has_value())
-            builder.append(*content);
-        return IterationDecision::Continue;
-    });
-
-    return builder.to_string();
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs.
+    return Utf16String::adopt_raw(RustFFI::rust_dom_child_text_content(this));
 }
 
 // https://dom.spec.whatwg.org/#concept-shadow-including-root
 Node& Node::shadow_including_root()
 {
-    // The shadow-including root of an object is its root’s host’s shadow-including root,
-    // if the object’s root is a shadow root; otherwise its root.
-    auto& node_root = root();
-    if (auto* shadow_root = as_if<ShadowRoot>(node_root)) {
-        if (auto* host = shadow_root->host(); host)
-            return host->shadow_including_root();
-    }
-    return node_root;
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs.
+    return const_cast<Node&>(*RustFFI::rust_dom_shadow_including_root(this));
 }
 
 // https://dom.spec.whatwg.org/#concept-closed-shadow-hidden
@@ -2322,57 +2296,11 @@ u16 Node::compare_document_position(GC::Ptr<Node> other)
 
     // 6. If node1 or node2 is null, or node1’s root is not node2’s root, then return the result of adding
     // DOCUMENT_POSITION_DISCONNECTED, DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC, and either DOCUMENT_POSITION_PRECEDING or DOCUMENT_POSITION_FOLLOWING, with the constraint that this is to be consistent, together.
-    if ((node1 == nullptr || node2 == nullptr) || (&node1->root() != &node2->root()))
+    if (node1 == nullptr || node2 == nullptr)
         return DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC | (node1 > node2 ? DOCUMENT_POSITION_PRECEDING : DOCUMENT_POSITION_FOLLOWING);
 
-    GC::RootVector<Node*> node1_ancestors;
-    for (auto* node = node1; node; node = node->parent())
-        node1_ancestors.append(node);
-
-    GC::RootVector<Node*> node2_ancestors;
-    for (auto* node = node2; node; node = node->parent())
-        node2_ancestors.append(node);
-
-    auto it_node1_ancestors = node1_ancestors.rbegin();
-    auto it_node2_ancestors = node2_ancestors.rbegin();
-    // Walk ancestor chains of both nodes starting from root
-    while (it_node1_ancestors != node1_ancestors.rend() && it_node2_ancestors != node2_ancestors.rend()) {
-        auto* ancestor1 = *it_node1_ancestors;
-        auto* ancestor2 = *it_node2_ancestors;
-
-        // If ancestors of nodes at the same level in the tree are different then preceding node is the one with lower sibling position
-        if (ancestor1 != ancestor2) {
-            auto* node = ancestor1;
-            while (node) {
-                if (node == ancestor2)
-                    return DOCUMENT_POSITION_PRECEDING;
-                node = node->next_sibling();
-            }
-            return DOCUMENT_POSITION_FOLLOWING;
-        }
-
-        it_node1_ancestors++;
-        it_node2_ancestors++;
-    }
-
-    // NOTE: If nodes in ancestors chains are the same but one chain is longer, then one node is ancestor of another.
-    //       The node with shorter ancestors chain is the ancestor.
-    //       The node with longer ancestors chain is the descendant.
-
-    // 7. If node1 is an ancestor of node2 and attr1 is null, or node1 is node2 and attr2 is non-null, then return the result of adding DOCUMENT_POSITION_CONTAINS to DOCUMENT_POSITION_PRECEDING.
-    if ((node1_ancestors.size() < node2_ancestors.size() && !attr1) || (node1 == node2 && attr2))
-        return DOCUMENT_POSITION_CONTAINS | DOCUMENT_POSITION_PRECEDING;
-
-    // 8. If node1 is a descendant of node2 and attr2 is null, or node1 is node2 and attr1 is non-null, then return the result of adding DOCUMENT_POSITION_CONTAINED_BY to DOCUMENT_POSITION_FOLLOWING.
-    if ((node1_ancestors.size() > node2_ancestors.size() && !attr2) || (node1 == node2 && attr1))
-        return DOCUMENT_POSITION_CONTAINED_BY | DOCUMENT_POSITION_FOLLOWING;
-
-    // 9. If node1 is preceding node2, then return DOCUMENT_POSITION_PRECEDING.
-    if (node1_ancestors.size() < node2_ancestors.size())
-        return DOCUMENT_POSITION_PRECEDING;
-
-    // 10. Return DOCUMENT_POSITION_FOLLOWING.
-    return DOCUMENT_POSITION_FOLLOWING;
+    // NB: libweb_rust runs the rest of step 6 and steps 7 to 10, see Rust/src/dom/queries.rs.
+    return RustFFI::rust_dom_compare_tree_positions(node1, node2, attr1 != nullptr, attr2 != nullptr);
 }
 
 // https://dom.spec.whatwg.org/#concept-tree-host-including-inclusive-ancestor
@@ -2527,28 +2455,32 @@ bool Node::is_scripting_disabled() const
     return !document().browsing_context() || HTML::is_scripting_disabled(HTML::relevant_settings_object(*this));
 }
 
+// https://dom.spec.whatwg.org/#concept-tree-preceding
+bool Node::is_before(Node const& other) const
+{
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs.
+    return RustFFI::rust_dom_is_before(this, &other);
+}
+
+// https://dom.spec.whatwg.org/#concept-tree-following
+bool Node::is_following(Node const& other) const
+{
+    // An object A is following an object B if A and B are in the same tree and A comes after B in tree order.
+    return other.is_before(*this);
+}
+
 // https://dom.spec.whatwg.org/#concept-shadow-including-descendant
 bool Node::is_shadow_including_descendant_of(Node const& other) const
 {
-    // An object A is a shadow-including descendant of an object B,
-    // if A is a descendant of B,
-    if (is_descendant_of(other))
-        return true;
-
-    // or A’s root is a shadow root
-    if (!is<ShadowRoot>(root()))
-        return false;
-
-    // and A’s root’s host is a shadow-including inclusive descendant of B.
-    auto& shadow_root = as<ShadowRoot>(root());
-    return shadow_root.host() && shadow_root.host()->is_shadow_including_inclusive_descendant_of(other);
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs.
+    return RustFFI::rust_dom_is_shadow_including_descendant_of(this, &other, false);
 }
 
 // https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
 bool Node::is_shadow_including_inclusive_descendant_of(Node const& other) const
 {
     // A shadow-including inclusive descendant is an object or one of its shadow-including descendants.
-    return &other == this || is_shadow_including_descendant_of(other);
+    return RustFFI::rust_dom_is_shadow_including_descendant_of(this, &other, true);
 }
 
 // https://dom.spec.whatwg.org/#concept-shadow-including-ancestor
@@ -2702,99 +2634,43 @@ bool Node::is_equal_node(GC::Ptr<Node const> other_node) const
     if (!other_node)
         return false;
 
-    // Fast path for testing a node against itself.
-    if (GC::Ref { *this } == other_node)
-        return true;
+    // NB: libweb_rust runs the algorithm, see Rust/src/dom/queries.rs, and asks node_state_equals() below of the
+    //     nodes whose state has no core.
+    return RustFFI::rust_dom_is_equal_node(this, other_node.ptr());
+}
 
-    // A node A equals a node B if all of the following conditions are true:
-
-    // A and B implement the same interfaces.
-    if (!node_name().equals_ignoring_ascii_case(other_node->node_name()))
-        return false;
-
-    // The following are equal, switching on the interface A implements:
-    switch (node_type()) {
+// The part of "equals" for the state of a doctype, a processing instruction or an Attr node, whose interfaces the nodes
+// `a` and `b` both implement.
+// https://dom.spec.whatwg.org/#concept-node-equals
+static bool node_state_equals(Node* a, Node* b)
+{
+    switch (a->node_type()) {
     case (u16)NodeType::DOCUMENT_TYPE_NODE: {
         // Its name, public ID, and system ID.
-        auto& this_doctype = as<DocumentType>(*this);
-        auto& other_doctype = as<DocumentType>(*other_node);
-        if (this_doctype.name() != other_doctype.name()
-            || this_doctype.public_id() != other_doctype.public_id()
-            || this_doctype.system_id() != other_doctype.system_id())
-            return false;
-        break;
-    }
-    case (u16)NodeType::ELEMENT_NODE: {
-        // Its namespace, namespace prefix, local name, and its attribute list’s size.
-        auto& this_element = as<Element>(*this);
-        auto& other_element = as<Element>(*other_node);
-        if (this_element.namespace_uri() != other_element.namespace_uri()
-            || this_element.prefix() != other_element.prefix()
-            || this_element.local_name() != other_element.local_name()
-            || this_element.attribute_list_size() != other_element.attribute_list_size())
-            return false;
-        // If A is an element, each attribute in its attribute list equals an attribute in B’s attribute list.
-        bool has_same_attributes = true;
-        this_element.for_each_attribute([&](QualifiedName const& name, Utf16View value) {
-            if (other_element.get_attribute_ns(name.namespace_(), name.local_name()) != value)
-                has_same_attributes = false;
-        });
-        if (!has_same_attributes)
-            return false;
-        break;
-    }
-    case (u16)NodeType::COMMENT_NODE:
-    case (u16)NodeType::TEXT_NODE: {
-        // Its data.
-        auto& this_cdata = as<CharacterData>(*this);
-        auto& other_cdata = as<CharacterData>(*other_node);
-        if (this_cdata.data() != other_cdata.data())
-            return false;
-        break;
+        auto& this_doctype = as<DocumentType>(*a);
+        auto& other_doctype = as<DocumentType>(*b);
+        return this_doctype.name() == other_doctype.name()
+            && this_doctype.public_id() == other_doctype.public_id()
+            && this_doctype.system_id() == other_doctype.system_id();
     }
     case (u16)NodeType::ATTRIBUTE_NODE: {
         // Its namespace, local name, and value.
-        auto& this_attr = as<Attr>(*this);
-        auto& other_attr = as<Attr>(*other_node);
-        if (this_attr.namespace_uri() != other_attr.namespace_uri())
-            return false;
-        if (this_attr.local_name() != other_attr.local_name())
-            return false;
-        if (this_attr.value() != other_attr.value())
-            return false;
-        break;
+        auto& this_attr = as<Attr>(*a);
+        auto& other_attr = as<Attr>(*b);
+        return this_attr.namespace_uri() == other_attr.namespace_uri()
+            && this_attr.local_name() == other_attr.local_name()
+            && this_attr.value() == other_attr.value();
     }
     case (u16)NodeType::PROCESSING_INSTRUCTION_NODE: {
         // Its target and data.
-        auto& this_processing_instruction = as<ProcessingInstruction>(*this);
-        auto& other_processing_instruction = as<ProcessingInstruction>(*other_node);
-        if (this_processing_instruction.target() != other_processing_instruction.target())
-            return false;
-        if (this_processing_instruction.data() != other_processing_instruction.data())
-            return false;
-        break;
+        auto& this_processing_instruction = as<ProcessingInstruction>(*a);
+        auto& other_processing_instruction = as<ProcessingInstruction>(*b);
+        return this_processing_instruction.target() == other_processing_instruction.target()
+            && this_processing_instruction.data() == other_processing_instruction.data();
     }
     default:
-        break;
+        VERIFY_NOT_REACHED();
     }
-
-    // A and B have the same number of children.
-    if (child_count() != other_node->child_count())
-        return false;
-
-    // Each child of A equals the child of B at the identical index.
-    auto* this_child = first_child();
-    auto* other_child = other_node->first_child();
-    while (this_child) {
-        VERIFY(other_child);
-        if (!this_child->is_equal_node(other_child))
-            return false;
-
-        this_child = this_child->next_sibling();
-        other_child = other_child->next_sibling();
-    }
-
-    return true;
 }
 
 Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
@@ -2865,91 +2741,41 @@ Vector<Utf16FlyString> Node::get_in_scope_prefixes() const
 }
 
 // https://dom.spec.whatwg.org/#locate-a-namespace
+static Optional<Utf16String> located_namespace(RustFFI::LocatedNamespace located)
+{
+    switch (located.kind) {
+    case RustFFI::LocatedNamespaceKind::Null:
+        return {};
+    case RustFFI::LocatedNamespaceKind::Xml:
+        return Web::Namespace::XML.to_utf16_string();
+    case RustFFI::LocatedNamespaceKind::Xmlns:
+        return Web::Namespace::XMLNS.to_utf16_string();
+    case RustFFI::LocatedNamespaceKind::String:
+        return Utf16String::from_raw(located.string);
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// https://dom.spec.whatwg.org/#locate-a-namespace
 Optional<Utf16String> Node::locate_a_namespace(Optional<Utf16View> prefix) const
 {
     // To locate a namespace for a node using prefix, switch on the interface node implements:
-
-    // Element
-    if (is<Element>(*this)) {
-        // 1. If prefix is "xml", then return the XML namespace.
-        if (prefix.has_value() && *prefix == u"xml"sv)
-            return Web::Namespace::XML.to_utf16_string();
-
-        // 2. If prefix is "xmlns", then return the XMLNS namespace.
-        if (prefix.has_value() && *prefix == u"xmlns"sv)
-            return Web::Namespace::XMLNS.to_utf16_string();
-
-        // 3. If its namespace is non-null and its namespace prefix is prefix, then return namespace.
-        auto& element = as<Element>(*this);
-        if (element.namespace_uri().has_value()
-            && element.prefix().has_value() == prefix.has_value()
-            && (!prefix.has_value() || element.prefix()->view() == *prefix))
-            return element.namespace_uri()->to_utf16_string();
-
-        // 4. If it has an attribute whose namespace is the XMLNS namespace, namespace prefix is "xmlns", and local name is prefix,
-        //    or if prefix is null and it has an attribute whose namespace is the XMLNS namespace, namespace prefix is null,
-        //    and local name is "xmlns", then return its value if it is not the empty string, and null otherwise.
-        if (auto attributes = element.attributes()) {
-            for (size_t i = 0; i < attributes->length(); ++i) {
-                auto& attr = *attributes->item(i);
-                if (attr.namespace_uri() == Web::Namespace::XMLNS) {
-                    if ((attr.prefix() == u"xmlns"sv && prefix.has_value() && attr.local_name().view() == *prefix) || (!prefix.has_value() && !attr.prefix().has_value() && attr.local_name() == u"xmlns"sv)) {
-                        auto value = attr.value();
-                        if (!value.is_empty())
-                            return value;
-
-                        return {};
-                    }
-                }
-            }
-        }
-
-        // 5. If its parent element is null, then return null.
-        auto parent_element = element.parent_element();
-        if (!element.parent_element())
-            return {};
-
-        // 6. Return the result of running locate a namespace on its parent element using prefix.
-        return parent_element->locate_a_namespace(prefix);
-    }
-
-    // Document
-    if (is<Document>(*this)) {
-        // 1. If its document element is null, then return null.
-        auto* document_element = as<Document>(*this).document_element();
-        if (!document_element)
-            return {};
-
-        // 2. Return the result of running locate a namespace on its document element using prefix.
-        return document_element->locate_a_namespace(prefix);
-    }
-
-    // DocumentType
-    // DocumentFragment
-    if (is<DocumentType>(*this) || is<DocumentFragment>(*this)) {
-        // Return null.
-        return {};
-    }
+    Node const* node = this;
 
     // Attr
-    if (is<Attr>(*this)) {
+    if (auto const* attribute = as_if<Attr>(*this)) {
         // 1. If its element is null, then return null.
-        auto* element = as<Attr>(*this).owner_element();
-        if (!element)
-            return {};
-
         // 2. Return the result of running locate a namespace on its element using prefix.
-        return element->locate_a_namespace(prefix);
+        node = attribute->owner_element();
+        if (!node)
+            return {};
     }
 
-    // Otherwise
-    // 1. If its parent element is null, then return null.
-    auto parent_element = this->parent_element();
-    if (!parent_element)
-        return {};
-
-    // 2. Return the result of running locate a namespace on its parent element using prefix.
-    return parent_element->locate_a_namespace(prefix);
+    // NB: libweb_rust runs the algorithm for the other interfaces, see Rust/src/dom/queries.rs.
+    Optional<Utf16String> prefix_string;
+    if (prefix.has_value())
+        prefix_string = Utf16String::from_utf16(*prefix);
+    return located_namespace(RustFFI::rust_dom_locate_a_namespace(node, prefix_string.has_value() ? prefix_string->raw_identity() : 0, !prefix_string.has_value()));
 }
 
 // https://dom.spec.whatwg.org/#dom-node-lookupnamespaceuri
@@ -2985,47 +2811,19 @@ Optional<Utf16String> Node::lookup_prefix(Optional<Utf16View> namespace_) const
         return {};
 
     // 2. Switch on the interface this implements:
-
-    // Element
-    if (is<Element>(*this)) {
-        // Return the result of locating a namespace prefix for it using namespace.
-        auto& element = as<Element>(*this);
-        return element.locate_a_namespace_prefix(namespace_);
-    }
-
-    // Document
-    if (is<Document>(*this)) {
-        // Return the result of locating a namespace prefix for its document element, if its document element is non-null; otherwise null.
-        auto* document_element = as<Document>(*this).document_element();
-        if (!document_element)
-            return {};
-
-        return document_element->locate_a_namespace_prefix(namespace_);
-    }
-
-    // DocumentType
-    // DocumentFragment
-    if (is<DocumentType>(*this) || is<DocumentFragment>(*this))
-        // Return null
-        return {};
+    Node const* node = this;
 
     // Attr
-    if (is<Attr>(*this)) {
+    if (auto const* attribute = as_if<Attr>(*this)) {
         // Return the result of locating a namespace prefix for its element, if its element is non-null; otherwise null.
-        auto* element = as<Attr>(*this).owner_element();
-        if (!element)
+        node = attribute->owner_element();
+        if (!node)
             return {};
-
-        return element->locate_a_namespace_prefix(namespace_);
     }
 
-    // Otherwise
-    // Return the result of locating a namespace prefix for its parent element, if its parent element is non-null; otherwise null.
-    auto parent_element = this->parent_element();
-    if (!parent_element)
-        return {};
-
-    return parent_element->locate_a_namespace_prefix(namespace_);
+    // NB: libweb_rust runs the algorithm for the other interfaces, see Rust/src/dom/queries.rs.
+    auto namespace_string = Utf16String::from_utf16(*namespace_);
+    return located_namespace(RustFFI::rust_dom_lookup_prefix(node, namespace_string.raw_identity()));
 }
 
 // https://dom.spec.whatwg.org/#dom-node-isdefaultnamespace
@@ -4468,6 +4266,7 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
     .synchronize_style_attribute = RustAttributeHooks::synchronize_style_attribute,
     .release_qualified_name = RustAttributeHooks::release_qualified_name,
     .character_data_replaced = RustCharacterDataHooks::character_data_replaced,
+    .node_state_equals = node_state_equals,
     .selection_range = RustCharacterDataHooks::selection_range,
 };
 
