@@ -871,6 +871,7 @@ set(SOURCES
     WebLocks/LockManager.cpp
     WebLocks/NavigatorLocks.cpp
     WebAssembly/WebAssembly.cpp
+    WebAuthentication/Ceremony.cpp
     WebAudio/AnalyserNode.cpp
     WebAudio/AudioWorklet.cpp
     WebAudio/AudioWorkletGlobalScope.cpp

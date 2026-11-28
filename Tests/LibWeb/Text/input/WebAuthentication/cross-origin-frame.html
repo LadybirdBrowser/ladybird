@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function command(name, parameters) {
+        const result = JSON.parse(internals.virtualAuthenticatorCommandForTesting(name, JSON.stringify(parameters)));
+        if ("error" in result)
+            throw new Error(result.error);
+        return result.value;
+    }
+
+    function resultOfFrame(allow, search = "") {
+        return new Promise(resolve => {
+            const frame = document.createElement("iframe");
+            if (allow)
+                frame.allow = allow;
+            frame.src = `http://www1.localhost:${location.port}${location.pathname.replace("input/WebAuthentication/cross-origin-frame.html", "data/web-authentication-cross-origin-frame.html")}${search}`;
+            window.addEventListener("message", event => {
+                frame.remove();
+                resolve(event.data);
+            }, { once: true });
+            document.body.appendChild(frame);
+        });
+    }
+
+    asyncTest(async done => {
+        const authenticatorId = command("addVirtualAuthenticator", { protocol: "ctap2", transport: "usb" });
+
+        const refused = await resultOfFrame("");
+        println(`Without the permissions policy: ${refused.error}`);
+
+        const notActivated = await resultOfFrame("publickey-credentials-create");
+        println(`With the permissions policy, without a user activation: ${notActivated.error}`);
+
+        const allowed = await resultOfFrame("publickey-credentials-create", "?activated");
+        println(`With the permissions policy, crossOrigin: ${allowed.crossOrigin}`);
+        println(`With the permissions policy, topOrigin is the origin of the top-level document: ${allowed.topOrigin === location.origin}`);
+
+        command("removeVirtualAuthenticator", { authenticatorId });
+        done();
+    });
+</script>

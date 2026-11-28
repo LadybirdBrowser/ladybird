@@ -273,6 +273,8 @@ private:
     virtual void notification_show_failed(Web::PageId page_id, u64 notification_id) override;
     virtual void notification_clicked(Web::PageId page_id, u64 notification_id) override;
     virtual void notification_closed(Web::PageId page_id, u64 notification_id, bool by_user) override;
+    virtual void make_credential_completed(Web::PageId page_id, u64 request_id, Web::WebAuthentication::MakeCredentialResult result) override;
+    virtual void get_assertion_completed(Web::PageId page_id, u64 request_id, Web::WebAuthentication::GetAssertionResult result) override;
     virtual void set_has_focus(Web::PageId page_id, bool) override;
     virtual void set_focused_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption) override;

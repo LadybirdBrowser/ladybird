@@ -183,6 +183,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     for (auto const& request : m_pending_geolocation_requests)
         visitor.visit(request.value.callback);
     visitor.visit(m_pending_permission_requests);
+    visitor.visit(m_pending_make_credential_requests);
+    visitor.visit(m_pending_get_assertion_requests);
     visitor.visit(m_notifications_list);
     visitor.visit(m_unloading_canceled_checks);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
@@ -1820,6 +1822,70 @@ void Page::notification_show_failed(u64 notification_id)
 {
     if (auto notification = m_notifications_list.get(notification_id); notification.has_value())
         (*notification)->did_fail_to_show();
+}
+
+u64 Page::make_credential(HTML::CrossProcessId document_id, WebAuthentication::MakeCredentialRequest const& request, MakeCredentialCallback callback)
+{
+    auto request_id = m_next_web_authentication_request_id++;
+    m_pending_make_credential_requests.set(request_id, callback);
+    m_documents_of_web_authentication_requests.set(request_id, document_id);
+    client().page_did_request_make_credential(request_id, document_id, request);
+    return request_id;
+}
+
+void Page::make_credential_completed(u64 request_id, WebAuthentication::MakeCredentialResult const& result)
+{
+    m_documents_of_web_authentication_requests.remove(request_id);
+    if (auto callback = m_pending_make_credential_requests.take(request_id); callback.has_value())
+        callback.value()->function()(result);
+}
+
+u64 Page::get_assertion(HTML::CrossProcessId document_id, WebAuthentication::GetAssertionRequest const& request, GetAssertionCallback callback)
+{
+    auto request_id = m_next_web_authentication_request_id++;
+    m_pending_get_assertion_requests.set(request_id, callback);
+    m_documents_of_web_authentication_requests.set(request_id, document_id);
+    client().page_did_request_get_assertion(request_id, document_id, request);
+    return request_id;
+}
+
+void Page::cancel_web_authentication_request(u64 request_id)
+{
+    m_documents_of_web_authentication_requests.remove(request_id);
+    bool was_pending = m_pending_make_credential_requests.remove(request_id);
+    was_pending |= m_pending_get_assertion_requests.remove(request_id);
+    if (was_pending)
+        client().page_did_cancel_web_authentication_request(request_id);
+}
+
+void Page::cancel_web_authentication_requests_of_document(HTML::CrossProcessId document_id)
+{
+    Vector<u64> request_ids;
+    for (auto const& [request_id, document_of_request] : m_documents_of_web_authentication_requests) {
+        if (document_of_request == document_id)
+            request_ids.append(request_id);
+    }
+    for (auto request_id : request_ids) {
+        // NB: The ceremony gets an answer, so that it lets go of what it holds for the request, such as the abort
+        //     algorithm on a signal that can outlive the document.
+        auto make_credential_callback = m_pending_make_credential_requests.take(request_id);
+        auto get_assertion_callback = m_pending_get_assertion_requests.take(request_id);
+        m_documents_of_web_authentication_requests.remove(request_id);
+        if (!make_credential_callback.has_value() && !get_assertion_callback.has_value())
+            continue;
+        client().page_did_cancel_web_authentication_request(request_id);
+        if (make_credential_callback.has_value())
+            make_credential_callback.value()->function()(WebAuthentication::MakeCredentialResult { WebAuthentication::AuthenticatorError::NotAllowed });
+        if (get_assertion_callback.has_value())
+            get_assertion_callback.value()->function()(WebAuthentication::GetAssertionResult { WebAuthentication::AuthenticatorError::NotAllowed });
+    }
+}
+
+void Page::get_assertion_completed(u64 request_id, WebAuthentication::GetAssertionResult const& result)
+{
+    m_documents_of_web_authentication_requests.remove(request_id);
+    if (auto callback = m_pending_get_assertion_requests.take(request_id); callback.has_value())
+        callback.value()->function()(result);
 }
 
 void Page::notification_clicked(u64 notification_id)

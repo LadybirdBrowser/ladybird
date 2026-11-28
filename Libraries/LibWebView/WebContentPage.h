@@ -16,6 +16,7 @@
 #include <AK/WeakPtr.h>
 #include <LibAudio/Audibility.h>
 #include <LibCompositing/Types.h>
+#include <LibCore/Forward.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SharedImage.h>
@@ -24,6 +25,7 @@
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/PermissionsPolicy/PermissionsPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageEndpoint.h>
+#include <LibWebView/AuthenticatorManager.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 #include <WebContent/WebContentClientEndpoint.h>
@@ -87,6 +89,8 @@ public:
     // NB: The tab of a page can go away before the page is closed.
     bool has_traversable() const { return !m_traversable.is_null(); }
     ViewImplementation& view() const;
+    // The view, or nothing for a page that has none yet or whose view is gone already.
+    ViewImplementation* view_if_exists() const;
     bool displays_tab() const;
     String dump_process_tree() const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId) const;
@@ -312,6 +316,10 @@ private:
     virtual void did_request_dismiss_notification_for_testing(u64 notification_id) override;
     virtual void did_request_hold_next_notification_show_for_testing() override;
     virtual void did_request_fail_held_notification_show_for_testing() override;
+    virtual void did_request_make_credential(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::MakeCredentialRequest request) override;
+    virtual void did_request_get_assertion(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::GetAssertionRequest request) override;
+    virtual void did_cancel_web_authentication_request(u64 request_id) override;
+    virtual void did_focus_web_authentication_field(Web::HTML::CrossProcessId document_id) override;
     virtual void did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) override;
     virtual void did_finish_handling_input_event(u64 event_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;
@@ -452,6 +460,34 @@ private:
     Web::PageId m_id;
     WeakPtr<CanonicalTraversable> m_traversable;
     bool m_is_open { true };
+
+    // The requests of the page that a WebAuthn ceremony runs for, each with what takes it back and with the timer
+    // that ends it.
+    struct ActiveWebAuthenticationRequest {
+        NonnullRefPtr<AuthenticatorManager::CeremonyCancellation> cancellation;
+        RefPtr<Core::Timer> lifetime_timer;
+    };
+    HashMap<u64, ActiveWebAuthenticationRequest> m_active_web_authentication_requests;
+    enum class WebAuthenticationCeremony : u8 {
+        MakeCredential,
+        GetAssertion,
+        // NB: A request with conditional mediation waits for the user to come to it, for as long as that takes.
+        GetAssertionWithConditionalMediation,
+    };
+    NonnullRefPtr<AuthenticatorManager::CeremonyCancellation> start_web_authentication_request(u64 request_id, WebAuthenticationCeremony, Optional<u32> timeout);
+    void end_web_authentication_request(u64 request_id);
+    // https://w3c.github.io/webauthn/#GetAssn-ConditionalMediation-Interact-FormControl
+    // The request with conditional mediation, which waits for the user to use a form control with the "webauthn"
+    // autofill detail token.
+    struct ConditionalGetAssertionRequest {
+        u64 request_id { 0 };
+        Web::HTML::CrossProcessId document_id;
+        Web::WebAuthentication::GetAssertionRequest request;
+        bool is_asking_user { false };
+    };
+    // NB: A document has one, and a page can host more than one document.
+    Vector<ConditionalGetAssertionRequest> m_conditional_get_assertion_requests;
+    void run_get_assertion(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::GetAssertionRequest);
     RefPtr<WebUI> m_web_ui;
     Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
     bool m_capturing_audio { false };

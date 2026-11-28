@@ -1,0 +1,5 @@
+Silent request gives: null
+Conditional creation rejects with: NotAllowedError
+Request 1 with a shared signal gives a credential: true
+Request 2 with a shared signal gives a credential: true
+Request after the abort gives a credential: true

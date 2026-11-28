@@ -3570,6 +3570,18 @@ void ConnectionFromClient::notification_shown(Web::PageId page_id, u64 notificat
         page->page().notification_shown(notification_id);
 }
 
+void ConnectionFromClient::make_credential_completed(Web::PageId page_id, u64 request_id, Web::WebAuthentication::MakeCredentialResult result)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().make_credential_completed(request_id, result);
+}
+
+void ConnectionFromClient::get_assertion_completed(Web::PageId page_id, u64 request_id, Web::WebAuthentication::GetAssertionResult result)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().get_assertion_completed(request_id, result);
+}
+
 void ConnectionFromClient::notification_show_failed(Web::PageId page_id, u64 notification_id)
 {
     if (auto page = this->page(page_id); page.has_value())

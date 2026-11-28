@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function command(name, parameters) {
+        const result = JSON.parse(internals.virtualAuthenticatorCommandForTesting(name, JSON.stringify(parameters)));
+        if ("error" in result)
+            throw new Error(result.error);
+        return result.value;
+    }
+
+    function hex(buffer) {
+        return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    asyncTest(async done => {
+        // With no authenticator to offer credentials from, the request waits until it is aborted.
+        const controller = new AbortController();
+        const pending = navigator.credentials.get({
+            mediation: "conditional",
+            signal: controller.signal,
+            publicKey: { challenge: new Uint8Array(16) },
+        });
+        controller.abort();
+        try {
+            await pending;
+            println("FAIL: The aborted request resolved");
+        } catch (error) {
+            println(`Aborted request rejects with: ${error.name}`);
+        }
+
+        const authenticatorId = command("addVirtualAuthenticator", {
+            protocol: "ctap2",
+            transport: "internal",
+            hasResidentKey: true,
+            hasUserVerification: true,
+            isUserVerified: true,
+        });
+        println(`isConditionalMediationAvailable: ${await PublicKeyCredential.isConditionalMediationAvailable()}`);
+
+        const created = await navigator.credentials.create({
+            publicKey: {
+                rp: { name: "Test" },
+                user: { id: new Uint8Array([1, 2, 3, 4]), name: "user", displayName: "User" },
+                challenge: new Uint8Array(16),
+                pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                authenticatorSelection: { residentKey: "required" },
+            },
+        });
+
+        // The allowCredentials of a conditional request are a filter for the credentials that are offered.
+        try {
+            await navigator.credentials.get({
+                mediation: "conditional",
+                publicKey: {
+                    challenge: new Uint8Array(16),
+                    allowCredentials: [{ type: "public-key", id: new Uint8Array(16) }],
+                },
+            });
+            println("FAIL: A credential that the filter does not name was offered");
+        } catch (error) {
+            println(`Conditional request with a filter for another credential rejects with: ${error.name}`);
+        }
+
+        // A list that names only credentials of unknown types is not a request for any discoverable credential.
+        try {
+            await navigator.credentials.get({
+                publicKey: {
+                    challenge: new Uint8Array(16),
+                    allowCredentials: [{ type: "not-a-credential-type", id: created.rawId }],
+                },
+            });
+            println("FAIL: A credential that the list does not name was used");
+        } catch (error) {
+            println(`Request with a list of only unknown credential types rejects with: ${error.name}`);
+        }
+
+        const assertion = await navigator.credentials.get({
+            mediation: "conditional",
+            publicKey: {
+                challenge: new Uint8Array(16),
+                allowCredentials: [{ type: "public-key", id: created.rawId }],
+            },
+        });
+        println(`Conditional request gives the created credential: ${assertion.id === created.id}`);
+        println(`User handle: ${hex(assertion.response.userHandle)}`);
+
+        command("removeVirtualAuthenticator", { authenticatorId });
+        done();
+    });
+</script>

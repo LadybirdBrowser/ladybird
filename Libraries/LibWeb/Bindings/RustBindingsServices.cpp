@@ -298,6 +298,8 @@ bool web_bindings_document_is_fully_active(DOM::Document* document)
 
 static_assert(to_underlying(DOM::PolicyControlledFeature::EncryptedMedia) == 3);
 static_assert(to_underlying(DOM::PolicyControlledFeature::Geolocation) == 7);
+static_assert(to_underlying(DOM::PolicyControlledFeature::PublickeyCredentialsCreate) == 10);
+static_assert(to_underlying(DOM::PolicyControlledFeature::PublickeyCredentialsGet) == 11);
 
 bool web_bindings_document_is_allowed_to_use_feature(DOM::Document* document, u8 feature)
 {

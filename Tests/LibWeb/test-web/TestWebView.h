@@ -29,6 +29,7 @@ public:
     void reset_geolocation_emulated_position();
     void reset_permissions();
     void reset_notifications();
+    void reset_virtual_authenticators();
     NonnullRefPtr<Core::Promise<Empty>> reset_state_for_next_test();
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();

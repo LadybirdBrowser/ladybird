@@ -24,6 +24,7 @@
 #include <LibWebCommon/WebDriver/Error.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AudioServerControlClient.h>
+#include <LibWebView/AuthenticatorManager.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
@@ -845,6 +846,35 @@ Messages::WebContentClient::DidRequestNotificationsStateForTestingResponse WebCo
     if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
         return recording_backend->state_json(page_id, NotificationManager::the().ids_without_a_page_for_testing(page_id));
     return "{}"_string;
+}
+
+Messages::WebContentClient::DidRequestIsUserVerifyingPlatformAuthenticatorAvailableResponse WebContentClient::did_request_is_user_verifying_platform_authenticator_available(Web::PageId page_id)
+{
+    // NB: A renderer can ask for a page that has no view yet.
+    auto* page = this->page(page_id);
+    auto* view = page ? page->view_if_exists() : nullptr;
+    if (!view)
+        return false;
+    return AuthenticatorManager::the().is_user_verifying_platform_authenticator_available(view->view_id());
+}
+
+// Runs a command of the WebAuthn WebDriver extension for a test, on the virtual authenticators of the test's view, and
+// answers with {"value": ...} or with {"error": a WebDriver error code}.
+Messages::WebContentClient::DidRequestVirtualAuthenticatorCommandForTestingResponse WebContentClient::did_request_virtual_authenticator_command_for_testing(Web::PageId page_id, String command, String parameters)
+{
+    JsonObject response;
+    auto* page = this->page(page_id);
+    auto parsed_parameters = JsonValue::from_string(parameters);
+    if (Application::web_content_options().is_test_mode != IsTestMode::Yes || !page || !page->view_if_exists() || parsed_parameters.is_error() || !parsed_parameters.value().is_object()) {
+        response.set("error"sv, "invalid argument"sv);
+        return response.serialized();
+    }
+    auto result = AuthenticatorManager::the().run_automation_command(page->view().view_id(), command, parsed_parameters.value().as_object());
+    if (result.is_error())
+        response.set("error"sv, result.release_error());
+    else
+        response.set("value"sv, result.release_value());
+    return response.serialized();
 }
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)

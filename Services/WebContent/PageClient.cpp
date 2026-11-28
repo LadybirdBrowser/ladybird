@@ -1449,6 +1449,36 @@ void PageClient::page_did_handle_notification_click(u64 notification_id, bool in
     client().async_did_handle_notification_click(m_id, notification_id, into_focus);
 }
 
+void PageClient::page_did_request_make_credential(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::MakeCredentialRequest const& request)
+{
+    client().async_did_request_make_credential(m_id, request_id, document_id, request);
+}
+
+void PageClient::page_did_request_get_assertion(u64 request_id, Web::HTML::CrossProcessId document_id, Web::WebAuthentication::GetAssertionRequest const& request)
+{
+    client().async_did_request_get_assertion(m_id, request_id, document_id, request);
+}
+
+void PageClient::page_did_cancel_web_authentication_request(u64 request_id)
+{
+    client().async_did_cancel_web_authentication_request(m_id, request_id);
+}
+
+void PageClient::page_did_focus_web_authentication_field(Web::HTML::CrossProcessId document_id)
+{
+    client().async_did_focus_web_authentication_field(m_id, document_id);
+}
+
+bool PageClient::page_did_request_is_user_verifying_platform_authenticator_available()
+{
+    return client().did_request_is_user_verifying_platform_authenticator_available(m_id);
+}
+
+String PageClient::page_did_request_virtual_authenticator_command_for_testing(String const& command, String const& parameters)
+{
+    return client().did_request_virtual_authenticator_command_for_testing(m_id, command, parameters);
+}
+
 String PageClient::page_did_request_notifications_state_for_testing()
 {
     return client().did_request_notifications_state_for_testing(m_id);

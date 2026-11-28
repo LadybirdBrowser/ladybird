@@ -1,0 +1,4 @@
+Without the permissions policy: NotAllowedError
+With the permissions policy, without a user activation: NotAllowedError
+With the permissions policy, crossOrigin: true
+With the permissions policy, topOrigin is the origin of the top-level document: true

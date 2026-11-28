@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>getClientCapabilities tests</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src=helpers.js></script>
+<body></body>
+<script>
+"use strict";
+
+const KNOWN_CAPABILITIES_SET = new Set([
+  "conditionalCreate",
+  "conditionalGet",
+  "conditionalPassiveGet",
+  "hybridTransport",
+  "immediateGet",
+  "passkeyPlatformAuthenticator",
+  "relatedOrigins",
+  "signalAllAcceptedCredentials",
+  "signalCurrentUserDetails",
+  "signalUnknownCredential",
+  "userVerifyingPlatformAuthenticator",
+
+  // Extensions implemented by the client
+  "extension:appid",
+  "extension:appidExclude",
+  "extension:hmacCreateSecret",
+  "extension:credentialProtectionPolicy",
+  "extension:enforceCredentialProtectionPolicy",
+  "extension:minPinLength",
+  "extension:credProps",
+  "extension:largeBlob",
+  "extension:credBlob",
+  "extension:getCredBlob",
+  "extension:payment",
+  "extension:prf",
+  "extension:cmtgKey",
+  "extension:crossDeviceFallbackUrl",
+  "extension:remoteClientDataJSON",
+]);
+
+promise_test(async t => {
+  const capabilities = await PublicKeyCredential.getClientCapabilities();
+
+  const keys = Object.keys(capabilities);
+  const sortedKeys = [...keys].sort();
+  assert_array_equals(keys, sortedKeys, "Keys should be sorted lexicographically");
+
+  for (const key of keys) {
+    assert_equals(
+      typeof capabilities[key],
+      "boolean",
+      `Value for "${key}" should be boolean`
+    );
+  }
+}, "Capabilities object has sorted keys and boolean values");
+
+promise_test(async t => {
+  const capabilities = await PublicKeyCredential.getClientCapabilities();
+
+  for (const key of Object.keys(capabilities)) {
+    assert_true(
+      KNOWN_CAPABILITIES_SET.has(key),
+      `Capability "${key}" should be a known capability`
+    );
+  }
+}, "Capabilities keys are known");
+</script>

@@ -1,0 +1,6 @@
+Aborted request rejects with: AbortError
+isConditionalMediationAvailable: true
+Conditional request with a filter for another credential rejects with: NotAllowedError
+Request with a list of only unknown credential types rejects with: NotAllowedError
+Conditional request gives the created credential: true
+User handle: 01020304

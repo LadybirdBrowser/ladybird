@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Set up the test environment
+Pass	Create a credential
+Pass	Get an assertion
+Pass	Clean up the test environment

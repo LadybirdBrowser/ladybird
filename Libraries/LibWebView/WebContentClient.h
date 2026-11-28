@@ -235,6 +235,8 @@ private:
     virtual Messages::WebContentClient::DidRequestPermissionSnapshotResponse did_request_permission_snapshot(Web::PageId, URL::Origin top_level_origin) override;
     virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;
     virtual Messages::WebContentClient::DidRequestNotificationsStateForTestingResponse did_request_notifications_state_for_testing(Web::PageId) override;
+    virtual Messages::WebContentClient::DidRequestIsUserVerifyingPlatformAuthenticatorAvailableResponse did_request_is_user_verifying_platform_authenticator_available(Web::PageId) override;
+    virtual Messages::WebContentClient::DidRequestVirtualAuthenticatorCommandForTestingResponse did_request_virtual_authenticator_command_for_testing(Web::PageId, String command, String parameters) override;
     virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId>, URL::URL, HTTP::Cookie::Source) override;
     virtual void did_close_browsing_context(Web::PageId page_id) override;
     virtual Messages::WebContentClient::DidRequestStorageUsageResponse did_request_storage_usage(Web::PageId page_id, Web::HTML::EnvironmentId environment_id) override;

@@ -2716,6 +2716,11 @@ Vector<String> Internals::permission_cache_origins()
     return PermissionsAPI::PermissionStore::the().cached_origins_for_testing();
 }
 
+String Internals::virtual_authenticator_command_for_testing(Utf16String const& command, Utf16String const& parameters)
+{
+    return page().client().page_did_request_virtual_authenticator_command_for_testing(command.to_utf8(), parameters.to_utf8());
+}
+
 String Internals::notifications_state_for_testing()
 {
     return page().client().page_did_request_notifications_state_for_testing();

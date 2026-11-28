@@ -79,6 +79,7 @@
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/PageBackingStores.h>
+#include <LibWebView/PasskeyPrompts.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/Settings.h>
@@ -122,6 +123,7 @@ struct PermissionPromptRequest {
 };
 
 using PermissionPromptCallback = Function<void(Web::Permissions::PromptOutcome)>;
+using PasskeyChoiceCallback = Function<void(Optional<u32>)>;
 
 // One permission as the site information panel shows it for the site a view shows.
 struct SitePermissionRow {
@@ -755,6 +757,20 @@ public:
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_stop_geolocation_position_watch;
     Function<void(PermissionPromptRequest const&, PermissionPromptCallback)> on_request_permission;
     Function<void(PermissionPromptRequest const&)> on_cancel_permission_prompt;
+    // Asks the user to choose among the options of a WebAuthn ceremony for the Relying Party: the accounts of the
+    // passkeys to sign in with, or the authenticators to create a passkey on. The answer is the index of one, or
+    // nothing when the user chooses none. With no accounts, there is no passkey for the Relying Party, which the
+    // user is told before the answer of nothing.
+    Function<void(PasskeyChoiceKind, String const& rp_id, Vector<Utf16String> const& options, PasskeyChoiceCallback)> on_request_passkey_choice;
+    // Tells the user to connect and touch a security key, until the prompt is dismissed. The answer comes only when
+    // the user cancels.
+    Function<void(SecurityKeyPromptKind, String const& rp_id, Function<void()> on_cancel)> on_request_security_key_prompt;
+    // Takes away what the user is being shown or asked for a WebAuthn ceremony, when it went on or ended without the
+    // user. A question that is open then has no answer. A message stays.
+    Function<void()> on_dismiss_passkey_prompt;
+    // Asks the user for the PIN of their security key. The answer is nothing when the user gives none.
+    Function<void(SecurityKeyPinPromptReason, String const& rp_id, Function<void(Optional<String>)> on_pin)> on_request_security_key_pin;
+    Function<void(PasskeyMessage, String const& rp_id)> on_show_passkey_message;
     Function<void(TabIndicator, bool visible)> on_tab_indicator_change;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint position, Utf16String const& message)> on_show_validation_message;

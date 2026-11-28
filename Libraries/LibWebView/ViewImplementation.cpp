@@ -158,6 +158,12 @@ ViewImplementation::~ViewImplementation()
     // a change in what the tab shows.
     on_url_change = nullptr;
     on_tab_indicator_change = nullptr;
+    // Closing the page ends its WebAuthn ceremonies, which must not reach for a prompt of the frontend either.
+    on_request_passkey_choice = nullptr;
+    on_request_security_key_prompt = nullptr;
+    on_dismiss_passkey_prompt = nullptr;
+    on_request_security_key_pin = nullptr;
+    on_show_passkey_message = nullptr;
     answer_pending_console_input_completions();
     TabPerformanceMonitor::forget_view(view_id());
     // Leave the views before the permission manager hears: a one-time grant that ends with this view has it revoke

@@ -11,4 +11,6 @@ pub(crate) enum PolicyControlledFeature {
     EncryptedMedia = 3,
     Gamepad = 6,
     Geolocation = 7,
+    PublickeyCredentialsCreate = 10,
+    PublickeyCredentialsGet = 11,
 }

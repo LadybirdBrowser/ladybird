@@ -3793,7 +3793,14 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
     }
 
     if (focus_candidate) {
+        // NB: A press in a control that has the focus already is no new focus, but the user interacts with the control
+        //     as much as with one that they move to, which a request with conditional mediation waits for.
+        auto was_focused_before = document.focused_area() == focus_candidate;
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
+        if (auto* input = as_if<HTML::HTMLInputElement>(*focus_candidate); input && was_focused_before)
+            input->user_interacted_with_web_authentication_field();
+        else if (auto* textarea = as_if<HTML::HTMLTextAreaElement>(*focus_candidate); textarea && was_focused_before)
+            textarea->user_interacted_with_web_authentication_field();
     } else {
         // INTEROP: For clicks without a focusable target, focus the clicked document's viewport.
         HTML::run_focusing_steps(&document);
