@@ -25,6 +25,7 @@ ALLOWED_GC_HEADER = "LibGC/HoldsNoCellEdges.h"
 GENERATED_HEADERS = {
     "AK/Debug.h",
     "LibCore/Export.h",
+    "LibHTTP/Cookie/CookieCodecs.h",
     "LibURL/RustFFI.h",
     "LibWeb/Export.h",
     "LibWebCommon/Bindings/SecurityPolicyViolationEvent.h",

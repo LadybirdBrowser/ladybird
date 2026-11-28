@@ -365,7 +365,7 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
 
     // 15. If the cookie was received from a "non-HTTP" API and the cookie's http-only-flag is true, abort this
     //     algorithm and ignore the cookie entirely.
-    if (source == HTTP::Cookie::Source::NonHttp && cookie.http_only)
+    if (source != HTTP::Cookie::Source::Http && cookie.http_only)
         return;
 
     // 16. If the cookie's secure-only-flag is false, and the request-uri does not denote a "secure" connection, then
@@ -414,7 +414,7 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
         // 1. If the cookie was received from a "non-HTTP" API, and the API was called from a navigable's active
         //    document whose "site for cookies" is not same-site with the top-level origin, then abort this algorithm
         //    and ignore the newly created cookie entirely.
-        if (source == HTTP::Cookie::Source::NonHttp && same_site_context.status == HTTP::Cookie::SameSiteStatus::CrossSite)
+        if (source != HTTP::Cookie::Source::Http && same_site_context.status == HTTP::Cookie::SameSiteStatus::CrossSite)
             return;
 
         // 2. If the cookie was received from a "same-site" request (as defined in Section 5.2), skip the remaining
@@ -500,7 +500,7 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
 
         // 2. If the newly-created cookie was received from a "non-HTTP" API and the old-cookie's http-only-flag is true,
         //    abort this algorithm and ignore the newly created cookie entirely.
-        if (source == HTTP::Cookie::Source::NonHttp && old_cookie->http_only)
+        if (source != HTTP::Cookie::Source::Http && old_cookie->http_only)
             return;
 
         // 3. Update the creation-time of the newly-created cookie to match the creation-time of the old-cookie.

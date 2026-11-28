@@ -1,0 +1,23 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibHTTP/Cookie/Cookie.h>
+
+[ExistingCpp]
+enum HTTP::Cookie::SameSite : u8 {
+    Default,
+    None,
+    Strict,
+    Lax,
+}
+
+[ExistingCpp]
+enum HTTP::Cookie::Source : u8 {
+    NonHttp,
+    Http,
+}
+
+[ExistingCpp]
+enum HTTP::Cookie::SameSiteStatus : u8 {
+    CrossSite,
+    SameSite,
+}
