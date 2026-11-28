@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    function makeShadowTree() {
+        const host = document.createElement("div");
+        const shadow = host.attachShadow({ mode: "open" });
+        const wrapper = document.createElement("div");
+        for (let i = 0; i < 16; ++i) {
+            const span = document.createElement("span");
+            span.className = "item";
+            wrapper.appendChild(span);
+        }
+        shadow.appendChild(wrapper);
+        return { host, shadow, wrapper };
+    }
+
+    asyncTest(async done => {
+        // Elements removed while the host is connected must not come back after the host leaves the document.
+        {
+            const { host, shadow, wrapper } = makeShadowTree();
+            println(`before: ${shadow.querySelectorAll(".item").length}`);
+            const removed = Array.from(wrapper.children);
+            document.body.appendChild(host);
+            wrapper.replaceChildren();
+            host.remove();
+            println(`after: ${shadow.querySelectorAll(".item").length}`);
+            println(`first: ${shadow.querySelector(".item")}`);
+            println(`removed kept: ${removed.length}`);
+        }
+
+        // The same, with the removed elements collected before the next query.
+        {
+            const { host, shadow, wrapper } = makeShadowTree();
+            println(`before: ${shadow.querySelectorAll(".item").length}`);
+            document.body.appendChild(host);
+            wrapper.replaceChildren();
+            host.remove();
+            await internals.gcAsync();
+            println(`after collection: ${shadow.querySelectorAll(".item").length}`);
+            println(`first: ${shadow.querySelector(".item")}`);
+        }
+
+        done();
+    });
+</script>
