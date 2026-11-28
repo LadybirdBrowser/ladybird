@@ -204,6 +204,12 @@ pub const DOCUMENT_OBSERVES_CHARACTER_DATA: u8 = 1 << 3;
 /// Whether something but the document's mutation observers hears of every mutation in it: an assistive technology,
 /// the document's translator or DevTools. C++ keeps it as their state changes.
 pub const DOCUMENT_HAS_MUTATION_LISTENER: u8 = 1 << 4;
+/// Whether the document's type is "html" rather than "xml". C++ sets it, and keeps the type nowhere else.
+/// https://dom.spec.whatwg.org/#concept-document-type
+pub const DOCUMENT_IS_HTML_DOCUMENT: u8 = 1 << 5;
+/// Whether the document has an editing history, which hears of every mutation in it. C++ sets it as it makes the
+/// history, which lives as long as the document.
+pub const DOCUMENT_HAS_EDITING_HISTORY: u8 = 1 << 6;
 
 /// The state of a document that the DOM algorithms in Rust read, which C++ embeds in DOM::Document as its only storage
 /// of it.
@@ -231,6 +237,9 @@ pub struct DocumentCore {
     /// The stamps the last changes to the attributes of the elements whose node document is the document that the
     /// filters of collections read took, one for each HTMLCollection::AttributeInvalidationType but None.
     collection_attribute_versions: [Cell<u64>; COLLECTION_ATTRIBUTE_TYPE_COUNT],
+    /// The DOM tree version of the document that the tree positions of its elements, which C++ keeps to sort its
+    /// animations, were taken at. An attribute change moves no element, so it keeps them, see attributes.rs.
+    element_tree_positions_dom_tree_version: Cell<u64>,
 }
 
 /// The number of attribute types whose changes DocumentCore counts for the collections.
@@ -290,6 +299,11 @@ impl DocumentCore {
     #[inline(always)]
     pub(super) fn set_collection_attribute_version(&self, attribute_type: usize, stamp: u64) {
         self.collection_attribute_versions[attribute_type].set(stamp);
+    }
+
+    #[inline(always)]
+    pub(super) fn element_tree_positions_dom_tree_version(&self) -> &Cell<u64> {
+        &self.element_tree_positions_dom_tree_version
     }
 }
 
@@ -611,6 +625,7 @@ impl DocumentCore {
             node_tree_version: Cell::new(0),
             element_tree_version: Cell::new(0),
             collection_attribute_versions: Default::default(),
+            element_tree_positions_dom_tree_version: Cell::new(0),
         }
     }
 
@@ -724,7 +739,7 @@ const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<Docum
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
 const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
 // NB: Document.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentCore>() == 96 && align_of::<DocumentCore>() == 8);
+const _: () = assert!(size_of::<DocumentCore>() == 104 && align_of::<DocumentCore>() == 8);
 const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
 const _: () = assert!(offset_of!(DocumentCore, window) == 4);
 const _: () = assert!(offset_of!(DocumentCore, live_ranges) == 8);
@@ -732,6 +747,7 @@ const _: () = assert!(offset_of!(DocumentCore, node_iterators) == 24);
 const _: () = assert!(offset_of!(DocumentCore, node_tree_version) == 40);
 const _: () = assert!(offset_of!(DocumentCore, element_tree_version) == 48);
 const _: () = assert!(offset_of!(DocumentCore, collection_attribute_versions) == 56);
+const _: () = assert!(offset_of!(DocumentCore, element_tree_positions_dom_tree_version) == 96);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);

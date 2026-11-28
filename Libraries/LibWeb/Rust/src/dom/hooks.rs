@@ -24,6 +24,7 @@ use super::mutation_observers::tree_mutation_record_is_heard;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNodeRef;
 use super::node_ref::RawNullableNodeRef;
+use super::qualified_name::QualifiedNameImpl;
 use super::traversal::NodeFilterCall;
 use crate::stage::MainThread;
 
@@ -233,7 +234,48 @@ pub struct DomHooks {
         previous_sibling: RawNullableNodeRef,
         next_sibling: RawNullableNodeRef,
     ),
+    /// Creates an attribute whose local name, namespace prefix and namespace are the strings whose raw words are
+    /// `local_name`, `prefix` and `namespace_uri` (0 for null), and whose value is the string `value` gives a reference
+    /// to, and appends it to the element's attribute list. Allocates, and runs no script.
+    pub append_attribute:
+        unsafe extern "C" fn(element: RawNodeRef, local_name: usize, prefix: usize, namespace_uri: usize, value: usize),
+    /// Runs the steps of handling attribute changes that C++ owns, which `steps` names (see ATTRIBUTE_CHANGE_*),
+    /// for the attribute named `name` of the element, whose old and new values are the strings whose raw words are
+    /// `old_value` and `new_value`. Can run script.
+    pub attribute_changed: unsafe extern "C" fn(
+        element: RawNodeRef,
+        name: NonNull<QualifiedNameImpl>,
+        old_value: usize,
+        new_value: usize,
+        steps: u8,
+    ),
+    /// Writes the declarations of the element's inline style to its style attribute. Runs no script.
+    pub synchronize_style_attribute: unsafe extern "C" fn(element: RawNodeRef),
+    /// Drops the last reference to a qualified name's parts, which frees them. Runs no script.
+    pub release_qualified_name: unsafe extern "C" fn(name: NonNull<QualifiedNameImpl>),
 }
+
+// The steps of handling attribute changes that the attribute_changed hook runs, a bit each in its steps byte, and what
+// the values it is given are.
+
+/// The old value is null.
+pub const ATTRIBUTE_CHANGE_OLD_VALUE_IS_NULL: u8 = 1 << 0;
+/// The new value is null.
+pub const ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL: u8 = 1 << 1;
+/// Set the element of the removed attribute's Attr node to null.
+pub const ATTRIBUTE_CHANGE_DETACH_ATTRIBUTE_NODE: u8 = 1 << 2;
+/// Tell the document's editing history of the mutation.
+pub const ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY: u8 = 1 << 3;
+/// Queue a mutation record of "attributes".
+pub const ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD: u8 = 1 << 4;
+/// Enqueue a custom element callback reaction with callback name "attributeChangedCallback".
+pub const ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION: u8 = 1 << 5;
+/// Run the attribute change steps, but for what attributes.rs does after the hook returns.
+pub const ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS: u8 = 1 << 6;
+/// Tell the style engine of the change, as the attribute change steps do, where no attribute change steps act on it.
+pub const ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE: u8 = 1 << 7;
+/// The bits that name steps to run, rather than what the values are.
+pub const ATTRIBUTE_CHANGE_STEPS: u8 = !(ATTRIBUTE_CHANGE_OLD_VALUE_IS_NULL | ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL);
 
 /// The registered table, which C++ sets once, before any node exists, and never changes after that.
 #[repr(transparent)]
@@ -254,6 +296,7 @@ fn insertion_hooks<I: Inserter>(main_thread: &mut MainThread<'_>) -> &'static In
     }
 }
 
+#[inline]
 fn hooks(_main_thread: &mut MainThread<'_>) -> &'static DomHooks {
     // SAFETY: Nothing writes the table after the first node exists, see RegisteredHooks.
     unsafe { *HOOKS.0.get() }.expect("the DOM hooks are registered before any node exists")
@@ -279,6 +322,7 @@ pub unsafe extern "C" fn rust_dom_register_hooks(hooks: &'static DomHooks) {
 /// made. `I` picks the callbacks, which leave out what its InsertionKind says, as do the ones below.
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn begin_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
@@ -297,6 +341,7 @@ pub(crate) fn begin_insertion<I: Inserter>(
 /// NB: Node::append_child_impl() leaves out a node that is not allowed as a child of `parent`.
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn insert_node_into_children<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
@@ -319,6 +364,7 @@ pub(crate) fn insert_node_into_children<I: Inserter>(
 /// Answers whether `node` has post-connection steps.
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>, node: NodeRef) -> bool {
     // SAFETY: The callback is called on the main thread with a live node.
     unsafe { (insertion_hooks::<I>(main_thread).run_insertion_steps)(node) }
@@ -330,6 +376,7 @@ pub(crate) fn run_insertion_steps<I: Inserter>(main_thread: &mut MainThread<'_>,
 ///
 /// Can run script, allocate and change the tree.
 #[allow(clippy::too_many_arguments)]
+#[inline]
 pub(crate) fn end_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     parent: NodeRef,
@@ -359,6 +406,7 @@ pub(crate) fn end_insertion<I: Inserter>(
 /// item renumbering the insertion causes.
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn finish_insertion<I: Inserter>(
     main_thread: &mut MainThread<'_>,
     nodes: &[NodeRef],
@@ -375,6 +423,7 @@ pub(crate) fn finish_insertion<I: Inserter>(
 /// Answers what the removals keep across them.
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn begin_removing_all_children(main_thread: &mut MainThread<'_>, parent: NodeRef) -> ChildrenRemoval {
     // SAFETY: The callback is called on the main thread with a live node.
     unsafe { (hooks(main_thread).begin_removing_all_children)(parent) }
@@ -384,6 +433,7 @@ pub(crate) fn begin_removing_all_children(main_thread: &mut MainThread<'_>, pare
 /// removed: runs the children changed steps for `parent`.
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn end_removing_all_children(main_thread: &mut MainThread<'_>, parent: NodeRef) {
     // SAFETY: The callback is called on the main thread with a live node.
     unsafe { (hooks(main_thread).end_removing_all_children)(parent) }
@@ -400,6 +450,7 @@ pub(crate) fn end_removing_all_children(main_thread: &mut MainThread<'_>, parent
 /// kept in `children_removal`.
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn prepare_removal(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
@@ -416,6 +467,7 @@ pub(crate) fn prepare_removal(
 /// held it.
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn assign_slottables_after_removal(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
@@ -434,6 +486,7 @@ pub(crate) fn assign_slottables_after_removal(
 /// end_removing_all_children() runs once.
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn finish_removal(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
@@ -470,6 +523,7 @@ pub(crate) fn finish_removal(
 ///
 /// Can run script, allocate and change the tree.
 #[allow(clippy::too_many_arguments)]
+#[inline]
 pub(crate) fn run_removing_steps(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
@@ -499,6 +553,7 @@ pub(crate) fn run_removing_steps(
 /// https://dom.spec.whatwg.org/#concept-node-adopt
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn adopt_from_other_document(
     main_thread: &mut MainThread<'_>,
     node: NodeRef,
@@ -520,6 +575,7 @@ pub(crate) fn adopt_from_other_document(
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn begin_move(
     main_thread: &mut MainThread<'_>,
     scope: &mut MoveScope,
@@ -538,6 +594,7 @@ pub(crate) fn begin_move(
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn after_move_unlink(
     main_thread: &mut MainThread<'_>,
     scope: &mut MoveScope,
@@ -557,6 +614,7 @@ pub(crate) fn after_move_unlink(
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn after_move_link(
     main_thread: &mut MainThread<'_>,
     scope: &mut MoveScope,
@@ -576,6 +634,7 @@ pub(crate) fn after_move_link(
 /// https://dom.spec.whatwg.org/#move
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn run_moving_steps(
     main_thread: &mut MainThread<'_>,
     inclusive_descendant: NodeRef,
@@ -597,6 +656,7 @@ pub(crate) fn run_moving_steps(
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
 #[allow(clippy::too_many_arguments)]
+#[inline]
 pub(crate) fn end_move(
     main_thread: &mut MainThread<'_>,
     scope: &mut MoveScope,
@@ -627,6 +687,7 @@ pub(crate) fn end_move(
 /// start or end of, which RANGE_BOUNDARY_POINT_SET_BY_MUTATION marks, of the change, and clears the marks.
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn live_range_boundary_points_set(main_thread: &mut MainThread<'_>, document: NodeRef) {
     // SAFETY: The callback is called on the main thread with a live node.
     unsafe { (hooks(main_thread).live_range_boundary_points_set)(document) }
@@ -637,6 +698,7 @@ pub(crate) fn live_range_boundary_points_set(main_thread: &mut MainThread<'_>, d
 /// https://dom.spec.whatwg.org/#concept-node-filter
 ///
 /// Can run script, allocate and change the tree.
+#[inline]
 pub(crate) fn call_node_filter(
     main_thread: &mut MainThread<'_>,
     filter: NonNull<c_void>,
@@ -649,6 +711,7 @@ pub(crate) fn call_node_filter(
 /// Whether the filter that C++ keeps for `collection` matches `node`.
 ///
 /// Can allocate. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn collection_filter_matches(
     main_thread: &mut MainThread<'_>,
     collection: &CollectionCell,
@@ -663,6 +726,7 @@ pub(crate) fn collection_filter_matches(
 /// https://dom.spec.whatwg.org/#queue-a-tree-mutation-record
 ///
 /// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
 pub(crate) fn queue_tree_mutation_record(
     main_thread: &mut MainThread<'_>,
     target: NodeRef,
@@ -685,4 +749,52 @@ pub(crate) fn queue_tree_mutation_record(
             next_sibling.into(),
         );
     }
+}
+
+/// Appends an attribute to the element's attribute list, see DomHooks::append_attribute. `local_name`, `prefix` and
+/// `namespace_uri` are raw words of live strings, or 0 for a null prefix or namespace.
+#[inline]
+pub(crate) fn append_attribute(
+    main_thread: &mut MainThread<'_>,
+    element: NodeRef,
+    local_name: usize,
+    prefix: usize,
+    namespace_uri: usize,
+    value: ak::Utf16String,
+) {
+    // SAFETY: The callback is called on the main thread with a live element and live strings, and takes over the
+    //         reference to the value.
+    unsafe { (hooks(main_thread).append_attribute)(element, local_name, prefix, namespace_uri, value.into_raw()) }
+}
+
+/// Runs the C++ steps of handling attribute changes, see DomHooks::attribute_changed. The callback can run script.
+#[inline]
+pub(crate) fn attribute_changed(
+    main_thread: &mut MainThread<'_>,
+    element: NodeRef,
+    name: NonNull<QualifiedNameImpl>,
+    old_value: usize,
+    new_value: usize,
+    steps: u8,
+) {
+    // SAFETY: The callback is called on the main thread with a live element, whose name and values the caller holds
+    //         references to.
+    unsafe { (hooks(main_thread).attribute_changed)(element, name, old_value, new_value, steps) }
+}
+
+#[inline]
+pub(crate) fn synchronize_style_attribute(main_thread: &mut MainThread<'_>, element: NodeRef) {
+    // SAFETY: The callback is called on the main thread with a live element.
+    unsafe { (hooks(main_thread).synchronize_style_attribute)(element) }
+}
+
+/// Drops a reference to a qualified name's parts, which the caller holds.
+#[inline]
+pub(crate) fn release_qualified_name(main_thread: &mut MainThread<'_>, name: NonNull<QualifiedNameImpl>) {
+    // SAFETY: The caller holds the reference, on the main thread.
+    if unsafe { name.as_ref().unref_unless_last() } {
+        return;
+    }
+    // SAFETY: The callback is called on the main thread with the last reference to the parts, which it takes over.
+    unsafe { (hooks(main_thread).release_qualified_name)(name) }
 }

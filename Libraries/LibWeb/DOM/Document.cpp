@@ -481,26 +481,6 @@ static CSS::ComputedValuesFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
     };
 }
 
-void Document::collection_attribute_changed(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_)
-{
-    if (namespace_.has_value())
-        return;
-    // NB: These are the HTMLCollection::AttributeInvalidationType values but None, less one, see HTMLCollection.cpp.
-    u8 attribute_types = 0;
-    if (local_name == HTML::AttributeNames::class_)
-        attribute_types |= 1 << 0;
-    if (local_name == HTML::AttributeNames::name)
-        attribute_types |= 1 << 1;
-    if (local_name.is_one_of(HTML::AttributeNames::id, HTML::AttributeNames::name))
-        attribute_types |= 1 << 2;
-    if (local_name == HTML::AttributeNames::href)
-        attribute_types |= 1 << 3;
-    if (local_name == HTML::AttributeNames::type)
-        attribute_types |= 1 << 4;
-    if (attribute_types)
-        RustFFI::rust_dom_collection_attributes_changed(this, attribute_types);
-}
-
 GC_DEFINE_ALLOCATOR(Document);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
@@ -637,7 +617,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    custom element registry: A new CustomElementRegistry object.
     auto document = HTML::HTMLDocument::create(browsing_context->page(), *window);
     document->set_window(*window);
-    document->m_type = type;
+    document->set_document_type(type);
     document->m_content_type = move(content_type);
     document->set_origin(navigation_params.origin);
     document->set_browsing_context(browsing_context);
@@ -925,7 +905,7 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 }
 
 // NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentCore) == 96 && alignof(RustFFI::DocumentCore) == 8);
+static_assert(sizeof(RustFFI::DocumentCore) == 104 && alignof(RustFFI::DocumentCore) == 8);
 static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
 static_assert(offsetof(RustFFI::DocumentCore, window) == 4);
 static_assert(offsetof(RustFFI::DocumentCore, live_ranges) == 8);
@@ -933,6 +913,7 @@ static_assert(offsetof(RustFFI::DocumentCore, node_iterators) == 24);
 static_assert(offsetof(RustFFI::DocumentCore, node_tree_version) == 40);
 static_assert(offsetof(RustFFI::DocumentCore, element_tree_version) == 48);
 static_assert(offsetof(RustFFI::DocumentCore, collection_attribute_versions) == 56);
+static_assert(offsetof(RustFFI::DocumentCore, element_tree_positions_dom_tree_version) == 96);
 // NB: The collection state DocumentCore took in grows a document no more than the counts of valid collection caches it
 //     replaces did.
 
@@ -1600,7 +1581,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Utf16View text,
         string.append_ascii('\n');
 
     // 6. If document is an XML document, then throw an "InvalidStateError" DOMException.
-    if (m_type == Type::XML)
+    if (is_xml_document())
         return WebIDL::InvalidStateError::create("write() called on XML document."_utf16);
 
     // 7. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
@@ -1651,7 +1632,7 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Utf16View text,
 WebIDL::ExceptionOr<Document*> Document::open(Optional<Utf16String> const&, Optional<Utf16String> const&)
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
-    if (m_type == Type::XML)
+    if (is_xml_document())
         return WebIDL::InvalidStateError::create("open() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
@@ -1810,7 +1791,7 @@ WebIDL::ExceptionOr<GC::Ptr<HTML::WindowProxy>> Document::open(Utf16View url, Ut
 WebIDL::ExceptionOr<void> Document::close()
 {
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
-    if (m_type == Type::XML)
+    if (is_xml_document())
         return WebIDL::InvalidStateError::create("close() called on XML document."_utf16);
 
     // 2. If document's throw-on-dynamic-markup-insertion counter is greater than 0, then throw an "InvalidStateError" DOMException.
@@ -8726,8 +8707,8 @@ int Document::compare_elements_in_tree_order_for_composite_order(Element& first,
         return 0;
     };
 
-    if (m_element_tree_positions_dom_tree_version != dom_tree_version()) {
-        m_element_tree_positions_dom_tree_version = dom_tree_version();
+    if (m_document_core.element_tree_positions_dom_tree_version != dom_tree_version()) {
+        m_document_core.element_tree_positions_dom_tree_version = dom_tree_version();
         m_element_tree_positions.clear();
         m_tree_order_compares_at_dom_tree_version = 0;
     }
@@ -8748,12 +8729,6 @@ int Document::compare_elements_in_tree_order_for_composite_order(Element& first,
     if (!first_position.has_value() || !second_position.has_value())
         return compare_in_tree();
     return *first_position < *second_position ? -1 : 1;
-}
-
-void Document::keep_element_tree_positions_across_attribute_change(u64 version_before)
-{
-    if (m_element_tree_positions_dom_tree_version == version_before)
-        m_element_tree_positions_dom_tree_version = dom_tree_version();
 }
 
 bool Document::has_associated_animations() const

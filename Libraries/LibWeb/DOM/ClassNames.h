@@ -14,8 +14,8 @@
 namespace Web::DOM {
 
 // The classes of an element, in order: one in place, which is all most elements with a class have, and all of them in
-// an allocation of their own when there are more. C++ alone constructs, changes and destroys them. libweb_rust reads
-// them in place (see Rust/src/dom/element_core.rs), and mirrors this layout, which ClassNames.cpp asserts.
+// an allocation of their own when there are more. libweb_rust changes and frees them (see Rust/src/dom/element_core.rs),
+// for C++ too, and mirrors this layout, which ClassNames.cpp asserts.
 class WEB_API ClassNames {
     AK_MAKE_NONCOPYABLE(ClassNames);
 

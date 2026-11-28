@@ -37,6 +37,51 @@ const _: () = assert!(offset_of!(QualifiedNameImpl, namespace) == 32);
 const _: () = assert!(offset_of!(QualifiedNameImpl, as_string) == 40);
 const _: () = assert!(offset_of!(QualifiedNameImpl, _ascii_uppercased_as_string) == 48);
 
+impl QualifiedNameImpl {
+    /// https://dom.spec.whatwg.org/#concept-attribute-local-name
+    #[inline(always)]
+    pub fn local_name(&self) -> &FlyStringField {
+        &self.local_name
+    }
+
+    /// The namespace, or none for the null namespace.
+    #[inline(always)]
+    pub fn namespace(&self) -> Option<&FlyStringField> {
+        self.namespace.get()
+    }
+
+    /// Takes a reference to the parts.
+    ///
+    /// # Safety
+    ///
+    /// The call must be made on the main thread, which alone counts the references to qualified names.
+    #[inline(always)]
+    pub(super) unsafe fn add_reference(&self) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { *self._reference_count.get() += 1 };
+    }
+
+    /// Drops a reference to the parts, unless it is the last one, which only C++ can drop, as dropping it frees them.
+    /// Gives back whether it dropped the reference.
+    ///
+    /// # Safety
+    ///
+    /// The caller must hold the reference, and the call must be made on the main thread, which alone counts the
+    /// references to qualified names.
+    #[inline(always)]
+    pub(super) unsafe fn unref_unless_last(&self) -> bool {
+        // SAFETY: Guaranteed by the caller.
+        unsafe {
+            let count = self._reference_count.get();
+            if *count == 1 {
+                return false;
+            }
+            *count -= 1;
+            true
+        }
+    }
+}
+
 /// A field that holds a qualified name, laid out as C++'s DOM::QualifiedName, which is what C++ sees it as: a reference
 /// to the name's interned parts, which C++ takes and drops as it constructs, assigns and destroys the field.
 #[repr(transparent)]
@@ -44,7 +89,7 @@ pub struct QualifiedNameField(UnsafeCell<NonNull<QualifiedNameImpl>>);
 
 impl QualifiedNameField {
     #[inline(always)]
-    fn parts(&self) -> &QualifiedNameImpl {
+    pub fn parts(&self) -> &QualifiedNameImpl {
         // SAFETY: C++ does not write the field while Rust borrows it, and the parts it names live as long as it does.
         unsafe { (*self.0.get()).as_ref() }
     }

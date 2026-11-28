@@ -42,6 +42,12 @@ public:
     };
 
     // Names that are equal in every part share their Impl, so this tells them apart in one comparison.
+    // A name whose parts are these, which libweb_rust holds a reference to (see Rust/src/dom/qualified_name.rs).
+    explicit QualifiedName(Impl& impl)
+        : m_impl(impl)
+    {
+    }
+
     Impl const* identity() const { return m_impl.ptr(); }
 
     void set_prefix(Optional<Utf16FlyString> value);

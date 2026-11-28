@@ -44,8 +44,10 @@ namespace Web::DOM {
 
 GC::Ref<Editing::EditingHistory> Document::editing_history()
 {
-    if (!m_editing_history)
+    if (!m_editing_history) {
         m_editing_history = Editing::EditingHistory::create();
+        m_document_core.flags |= RustFFI::DOCUMENT_HAS_EDITING_HISTORY;
+    }
     return *m_editing_history;
 }
 

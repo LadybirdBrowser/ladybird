@@ -384,9 +384,8 @@ public:
     u64 option_selectedness_version() const { return m_option_selectedness_version; }
     void bump_option_selectedness_version() { ++m_option_selectedness_version; }
 
-    // Records a change to the attribute local_name in namespace_ of an element whose node document this is, for the
-    // collections whose filters read it.
-    void collection_attribute_changed(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_);
+    // The stamp of the last change to an attribute of the given type of an element whose node document this is, which
+    // libweb_rust takes (see Rust/src/dom/collection.rs), for the collections whose filters read it.
     u64 collection_attribute_version(u8 attribute_type) const { return m_document_core.collection_attribute_versions[attribute_type - 1]; }
 
     // The record types any observer registered in this document has ever asked for. A type stays set.
@@ -833,14 +832,21 @@ public:
     bool parser_cannot_change_the_mode() const { return m_parser_cannot_change_the_mode; }
     void set_parser_cannot_change_the_mode(bool parser_cannot_change_the_mode) { m_parser_cannot_change_the_mode = parser_cannot_change_the_mode; }
 
-    Type document_type() const { return m_type; }
-    void set_document_type(Type type) { m_type = type; }
+    // https://dom.spec.whatwg.org/#concept-document-type
+    Type document_type() const { return (m_document_core.flags & RustFFI::DOCUMENT_IS_HTML_DOCUMENT) ? Type::HTML : Type::XML; }
+    void set_document_type(Type type)
+    {
+        if (type == Type::HTML)
+            m_document_core.flags |= RustFFI::DOCUMENT_IS_HTML_DOCUMENT;
+        else
+            m_document_core.flags &= ~RustFFI::DOCUMENT_IS_HTML_DOCUMENT;
+    }
 
     // https://dom.spec.whatwg.org/#html-document
-    bool is_html_document() const { return m_type == Type::HTML; }
+    bool is_html_document() const { return document_type() == Type::HTML; }
 
     // https://dom.spec.whatwg.org/#xml-document
-    bool is_xml_document() const { return m_type == Type::XML; }
+    bool is_xml_document() const { return document_type() == Type::XML; }
 
     using ImportNodeOptions = Bindings::ImportNodeOptions;
     WebIDL::ExceptionOr<GC::Ref<Node>> import_node(GC::Ref<Node> node, ImportNodeOptions const&);
@@ -1467,10 +1473,6 @@ public:
     // animations by composite order. Two distinct elements of this document take no walk of their siblings once a tree
     // has been asked about often enough, so that sorting many sibling elements is not quadratic in them per comparison.
     int compare_elements_in_tree_order_for_composite_order(Element& first, Element& second);
-    // An attribute moves the DOM tree version, from `version_before`, but no element: the tree positions held at that
-    // version stand.
-    void keep_element_tree_positions_across_attribute_change(u64 version_before);
-
     // https://www.w3.org/TR/web-animations-1/#pending-animation-event-queue
     // Appends an event of `animation` to the document's pending animation event queue, which holds what the event is
     // and creates it only as the document dispatches it.
@@ -2121,9 +2123,6 @@ private:
 
     bool m_parser_cannot_change_the_mode { false };
 
-    // https://dom.spec.whatwg.org/#concept-document-type
-    Type m_type { Type::XML };
-
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> m_focused_area;
     bool m_focused_container_has_explicit_focus { false };
@@ -2484,7 +2483,6 @@ private:
     // The tree position of every element of the document by its unique ID, valid for one DOM tree version. Sorting
     // animations fills it once it asked the tree enough at that version.
     HashMap<UniqueNodeID, u32> m_element_tree_positions;
-    u64 m_element_tree_positions_dom_tree_version { 0 };
     u32 m_tree_order_compares_at_dom_tree_version { 0 };
     u32 m_element_count_at_last_tree_positions_walk { 0 };
 

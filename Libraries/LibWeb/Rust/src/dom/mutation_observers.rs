@@ -19,6 +19,7 @@
 //! or the document has a mutation listener.
 
 use super::node_core::DOCUMENT_HAS_MUTATION_LISTENER;
+use super::node_core::DOCUMENT_OBSERVES_ATTRIBUTES;
 use super::node_core::DOCUMENT_OBSERVES_CHILD_LIST;
 use super::node_ref::NodeRef;
 
@@ -45,11 +46,21 @@ pub(crate) fn tree_mutation_record_is_heard(target: NodeRef) -> bool {
     flags & DOCUMENT_OBSERVES_CHILD_LIST != 0 && has_observed_inclusive_ancestor(target)
 }
 
+/// Whether queuing an "attributes" record for `target` would reach anyone. Like a "childList" record, it reaches no
+/// observer unless one of the registered observers of the target's inclusive ancestors asks for its type.
+#[inline(always)]
+pub(crate) fn attribute_mutation_record_is_heard(target: NodeRef) -> bool {
+    let flags = target.document_core().flags();
+    if flags & DOCUMENT_HAS_MUTATION_LISTENER != 0 {
+        return true;
+    }
+    flags & DOCUMENT_OBSERVES_ATTRIBUTES != 0 && has_observed_inclusive_ancestor(target)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::element_core::ElementCore;
     use super::super::links::insert_child;
-    use super::super::node_core::DOCUMENT_OBSERVES_ATTRIBUTES;
     use super::super::node_core::NodeType;
     use super::super::qualified_name::QualifiedNameField;
     use super::super::test_tree;

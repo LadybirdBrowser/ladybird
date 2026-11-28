@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/DOM/ElementFactory.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
@@ -129,7 +130,7 @@ TEST_CASE(content_blocking_policy_isolated_between_pages)
         if (!document.body())
             MUST(document.populate_with_html_head_and_body());
         auto element = MUST(Web::DOM::create_element(document, "div"_utf16_fly_string, Web::Namespace::HTML));
-        element->set_attribute("class"_fly_string, "advertisement"_utf16);
+        element->set_attribute_value(Web::HTML::AttributeNames::class_, "advertisement"_utf16);
         MUST(document.body()->append_child(element));
         return page;
     };
