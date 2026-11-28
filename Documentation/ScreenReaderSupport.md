@@ -102,7 +102,7 @@ On Linux specifically, the Qt AT-SPI2 bridge and the custom Orca script work as 
 - `id` / `parent_id` / `child_ids`: tree structure via flat ID references
 - `role`: ARIA role string (`button`, `heading`, `banner`, etc.)
 - `name`: accessible name
-- `bounds`: bounding rect in CSS pixels (viewport-relative)
+- `bounds`: bounding rect in CSS pixels, relative to the top-left of the nearest ancestor that has bounds (the root’s relative to the viewport), so that a scroll or a layout that moves a subtree changes only the node at its top. `AccessibilityTreeManager::bounds_in_viewport()` makes it viewport-relative.
 - `is_focused` / `is_disabled` / `is_editable` / `is_multi_line` / `is_read_only` / `is_required` / `is_invalid` / `is_multi_selectable` / `is_pressed` / `is_visited`: individual state bits
 - `heading_level`: for `h1` to `h6` and explicit `aria-level`
 - `checked_state`, `expanded_state`
@@ -240,7 +240,7 @@ Table-specific attributes are returned conditionally based on role:
 
 ### Coordinate conversion
 
-Element bounds arrive as CSS pixel rectangles relative to the viewport. On macOS, CSS pixels equal points (the `NSView` coordinate unit), so no device-pixel-ratio scaling is needed:
+Element bounds are CSS pixel rectangles relative to the viewport, once `AccessibilityTreeManager::bounds_in_viewport()` resolves them. On macOS, CSS pixels equal points (the `NSView` coordinate unit), so no device-pixel-ratio scaling is needed:
 
 ```objc
 NSRect window_rect = [self convertRect:viewRect toView:nil];

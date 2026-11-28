@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibIPC/Decoder.h>
@@ -100,6 +101,22 @@ Gfx::IntPoint AccessibilityTextGeometry::character_offset(size_t index) const
         return { x, data[x_start + character_count + index] };
     auto line = line_of(index);
     return { x, line < line_count ? line_tops()[line] : 0 };
+}
+
+void resolve_accessibility_bounds(Span<AccessibilityNodeData> nodes)
+{
+    // Where each node's children's bounds are relative to.
+    HashMap<i64, Gfx::IntPoint> origins;
+    origins.ensure_capacity(nodes.size());
+    for (auto& node : nodes) {
+        auto parent_origin = origins.get(node.parent_id).value_or({});
+        if (node.bounds == Gfx::IntRect {}) {
+            origins.set(node.id, parent_origin);
+            continue;
+        }
+        node.bounds.translate_by(parent_origin);
+        origins.set(node.id, node.bounds.location());
+    }
 }
 
 template<typename T>
