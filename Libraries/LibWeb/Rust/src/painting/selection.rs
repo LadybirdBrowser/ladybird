@@ -156,10 +156,11 @@ pub(crate) struct SearchTextHighlights {
     /// For each node, the matches touching it with their selection states there, in the order they start in the
     /// node. Find-in-page matches do not overlap, so they also end in that order.
     pub by_node: std::collections::HashMap<NodeSlotId, Vec<(u32, u8)>>,
+    pub current_match_is_painted_over_dim: bool,
 }
 
 impl SearchTextHighlights {
-    fn node_signature(&self, node: NodeSlotId) -> Vec<(u8, usize, usize, bool)> {
+    fn node_signature(&self, node: NodeSlotId) -> Vec<(u8, usize, usize, bool, bool)> {
         let mut signature: Vec<_> = self
             .by_node
             .get(&node)
@@ -168,7 +169,14 @@ impl SearchTextHighlights {
                     .iter()
                     .map(|&(match_index, state)| {
                         let found = &self.matches[match_index as usize];
-                        (state, found.start_offset, found.end_offset, found.is_current)
+                        let is_painted_over_dim = found.is_current && self.current_match_is_painted_over_dim;
+                        (
+                            state,
+                            found.start_offset,
+                            found.end_offset,
+                            found.is_current,
+                            is_painted_over_dim,
+                        )
                     })
                     .collect()
             })
@@ -192,6 +200,7 @@ pub(crate) fn apply_search_text(
 ) {
     let mut highlights = SearchTextHighlights::default();
     for range in ranges {
+        highlights.current_match_is_painted_over_dim |= range.is_current && range.is_painted_over_dim;
         let match_index = highlights.matches.len() as u32;
         highlights.matches.push(SearchTextMatch {
             start_offset: range.start_offset,

@@ -245,6 +245,7 @@ void DocumentPaintState::recompute_search_text_states(Layout::BegunRead const& r
             .start_offset = range.start_offset(),
             .end_offset = range.end_offset(),
             .is_current = is_current,
+            .is_painted_over_dim = is_current && document.page().is_dimmed_for_find_in_page(document),
         });
     };
     for (auto const& match : highlighted_matches) {

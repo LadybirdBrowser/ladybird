@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+span {
+    display: inline-block;
+    width: 44px;
+    height: 14px;
+    overflow: hidden;
+    font-size: 10px;
+}
+</style>
+<body>
+<script>
+for (let i = 0; i < 300; ++i) {
+    const span = document.createElement("span");
+    span.textContent = "needle";
+    document.body.append(span);
+}
+internals.findInPage("needle", false, true);
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => document.documentElement.classList.remove("test-wait"));
+});
+</script>
+</body>
+</html>

@@ -51,6 +51,7 @@ private:
     virtual void paintEvent(QPaintEvent*) override;
 
     void close_bar();
+    void show_keeping_query();
     void find_text_changed();
     void update_chrome_style();
     void update_icons();
@@ -69,6 +70,7 @@ private:
     QLabel* m_result_label { nullptr };
     bool m_is_updating_chrome_style { false };
     bool m_has_no_matches { false };
+    bool m_keeps_query_on_focus { false };
     u64 m_selected_text_request_id { 0 };
     // The bar slides down this far into place as it opens.
     qreal m_opening_offset { 0 };

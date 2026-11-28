@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-transform-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-73">
+<style>
+p {
+    position: absolute;
+    top: 60px;
+    left: 60px;
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.5;
+    white-space: nowrap;
+    transform: rotate(20deg);
+}
+p::search-text:current {
+    background-color: orange;
+}
+</style>
+<p>needle needle</p>
+<script>
+internals.findInPage("needle", false, true);
+</script>

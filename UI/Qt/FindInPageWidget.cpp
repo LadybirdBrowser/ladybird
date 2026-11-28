@@ -217,8 +217,7 @@ void FindInPageWidget::find_text_changed()
         set_has_no_matches(false);
 
     auto case_sensitive = m_match_case->isChecked() ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive;
-    // Every match on the page is highlighted, with the current one standing out.
-    m_content_view->find_in_page(query, case_sensitive, true);
+    m_content_view->find_in_page(query, case_sensitive);
 }
 
 void FindInPageWidget::keyPressEvent(QKeyEvent* event)
@@ -251,6 +250,10 @@ void FindInPageWidget::focusInEvent(QFocusEvent* event)
 {
     QWidget::focusInEvent(event);
     m_find_text->setFocus();
+    if (exchange(m_keeps_query_on_focus, false)) {
+        m_find_text->selectAll();
+        return;
+    }
     auto find_text_before_request = m_find_text->text();
     auto request_id = ++m_selected_text_request_id;
     m_content_view->selected_text()->when_resolved([guarded_this = QPointer<FindInPageWidget> { this }, request_id, find_text_before_request = AK::move(find_text_before_request)](auto& selected_text) {
@@ -302,6 +305,7 @@ void FindInPageWidget::showEvent(QShowEvent*)
 
 void FindInPageWidget::hideEvent(QHideEvent*)
 {
+    m_keeps_query_on_focus = false;
     if (m_tab && m_tab->isVisible())
         m_tab->update_hover_label();
 }
@@ -336,13 +340,25 @@ void FindInPageWidget::set_has_no_matches(bool has_no_matches)
     update_icons();
 }
 
+// Find Next and Find Previous reopen a closed bar with the query it had, not with the text selected in the page.
+void FindInPageWidget::show_keeping_query()
+{
+    if (isVisible())
+        return;
+    m_keeps_query_on_focus = true;
+    setVisible(true);
+    focus_search_field();
+}
+
 void FindInPageWidget::find_previous()
 {
+    show_keeping_query();
     m_previous_button->click();
 }
 
 void FindInPageWidget::find_next()
 {
+    show_keeping_query();
     m_next_button->click();
 }
 

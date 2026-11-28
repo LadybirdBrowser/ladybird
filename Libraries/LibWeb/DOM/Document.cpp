@@ -1262,6 +1262,12 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     request_frame_for_pending_repaint();
 }
 
+void Document::note_find_in_page_dim_changed()
+{
+    m_search_text_states_are_stale = true;
+    request_frame_for_pending_repaint();
+}
+
 void Document::note_selection_changed()
 {
     m_selection_states_are_stale = true;
@@ -1466,6 +1472,8 @@ void Document::remove_find_in_page_highlighted_matches_whose_text_changed()
     }
     if (matches.size() != m_find_in_page_highlighted_matches.size())
         set_find_in_page_highlighted_matches(move(matches));
+    if (m_find_in_page_highlighted_matches.is_empty() && page().is_dimmed_for_find_in_page(*this))
+        page().stop_dimming_for_find_in_page();
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write

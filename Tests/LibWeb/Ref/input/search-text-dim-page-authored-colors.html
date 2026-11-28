@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/search-text-dim-page-authored-colors-ref.html">
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-22">
+<style>
+div {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+}
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+p::search-text {
+    background-color: lime;
+    color: blue;
+}
+p::search-text:current {
+    background-color: orange;
+}
+</style>
+<div>
+<p>needle</p>
+<p>nee<b>dl</b>e needle</p>
+</div>
+<script>
+internals.findInPage("needle", false, true);
+</script>
