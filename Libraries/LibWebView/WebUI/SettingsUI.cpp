@@ -14,6 +14,7 @@
 #include <LibURL/Parser.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/AuthenticatorManager.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/CrashReportStore.h>
@@ -194,6 +195,12 @@ void SettingsUI::register_interfaces()
     });
     register_interface("clearBrowsingData"sv, [this](auto const& data) {
         clear_browsing_data(data);
+    });
+    register_interface("loadPasskeys"sv, [this](auto const&) {
+        load_passkeys();
+    });
+    register_interface("removePasskey"sv, [this](auto const& data) {
+        remove_passkey(data);
     });
     register_interface("setGlobalPrivacyControl"sv, [this](auto const& data) {
         set_global_privacy_control(data);
@@ -734,6 +741,39 @@ void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_cont
         return;
 
     Application::settings().set_global_privacy_control(global_privacy_control.as_bool() ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No);
+}
+
+void SettingsUI::load_passkeys()
+{
+    auto& manager = AuthenticatorManager::the();
+    JsonArray passkeys;
+    auto stored_passkeys = manager.platform_passkeys();
+    for (auto const& passkey : stored_passkeys.has_value() ? stored_passkeys->span() : ReadonlySpan<AuthenticatorManager::StoredPasskey> {}) {
+        JsonObject entry;
+        entry.set("id"sv, passkey.id);
+        entry.set("site"sv, passkey.rp_id);
+        entry.set("account"sv, passkey.account.to_utf8());
+        // NB: Milliseconds since the epoch, as a JS Date takes them.
+        if (passkey.creation_time.has_value())
+            entry.set("created"sv, passkey.creation_time->milliseconds_since_epoch());
+        if (passkey.last_used_time.has_value())
+            entry.set("lastUsed"sv, passkey.last_used_time->milliseconds_since_epoch());
+        passkeys.must_append(move(entry));
+    }
+    JsonObject data;
+    data.set("available"sv, manager.has_platform_passkeys());
+    data.set("failed"sv, !stored_passkeys.has_value());
+    data.set("passkeys"sv, move(passkeys));
+    async_send_message("loadPasskeys"sv, move(data));
+}
+
+void SettingsUI::remove_passkey(JsonValue const& id)
+{
+    if (!id.is_string())
+        return;
+    if (!AuthenticatorManager::the().remove_platform_passkey(id.as_string()))
+        async_send_message("passkeyRemovalFailed"sv, JsonValue {});
+    load_passkeys();
 }
 
 void SettingsUI::crash_reports_changed()

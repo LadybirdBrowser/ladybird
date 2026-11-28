@@ -98,6 +98,8 @@ private:
     void estimate_browsing_data_sizes(JsonValue const&);
     void clear_browsing_data(JsonValue const&);
     void set_global_privacy_control(JsonValue const&);
+    void load_passkeys();
+    void remove_passkey(JsonValue const&);
     void set_crash_report_sending(JsonValue const&);
 
     void set_services_network_access_enabled(JsonValue const&);
