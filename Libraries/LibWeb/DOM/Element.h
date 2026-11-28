@@ -365,7 +365,11 @@ public:
     bool presentational_hint_properties_need_publication(ReadonlySpan<CSS::StyleProperty>) const;
     void did_publish_presentational_hint_properties(ReadonlySpan<CSS::StyleProperty>);
 
-    void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
+    enum class AttributeValueChanged : bool {
+        No,
+        Yes,
+    };
+    void run_attribute_change_steps(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_, AttributeValueChanged);
     void tell_style_engine_of_attribute_change(Utf16FlyString const& local_name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
 
     // Whether an element's display is none, with its animations and ignoring them.

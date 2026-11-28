@@ -35,6 +35,7 @@ use super::hooks::ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD;
 use super::hooks::ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS;
 use super::hooks::ATTRIBUTE_CHANGE_STEPS;
 use super::hooks::ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE;
+use super::hooks::ATTRIBUTE_CHANGE_VALUE_IS_UNCHANGED;
 use super::id_map;
 use super::mutation_observers::attribute_mutation_record_is_heard;
 use super::node::NodeCell;
@@ -447,6 +448,9 @@ pub(super) fn handle_attribute_changes(
         id_map::element_id_changing(main_thread, element, old_value, new_value);
     }
     if steps & ATTRIBUTE_CHANGE_STEPS != 0 {
+        if !value_changed {
+            steps |= ATTRIBUTE_CHANGE_VALUE_IS_UNCHANGED;
+        }
         hooks::attribute_changed(
             main_thread,
             element,

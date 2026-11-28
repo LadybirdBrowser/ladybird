@@ -348,8 +348,14 @@ pub const ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION: u8 = 1 << 4;
 pub const ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS: u8 = 1 << 5;
 /// Tell the style engine of the change, as the attribute change steps do, where no attribute change steps act on it.
 pub const ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE: u8 = 1 << 6;
+/// The old and the new value are the same, or both null.
+pub const ATTRIBUTE_CHANGE_VALUE_IS_UNCHANGED: u8 = 1 << 7;
 /// The bits that name steps to run, rather than what the values are.
-pub const ATTRIBUTE_CHANGE_STEPS: u8 = !(ATTRIBUTE_CHANGE_OLD_VALUE_IS_NULL | ATTRIBUTE_CHANGE_NEW_VALUE_IS_NULL);
+pub(super) const ATTRIBUTE_CHANGE_STEPS: u8 = ATTRIBUTE_CHANGE_NOTIFY_EDITING_HISTORY
+    | ATTRIBUTE_CHANGE_QUEUE_MUTATION_RECORD
+    | ATTRIBUTE_CHANGE_ENQUEUE_CUSTOM_ELEMENT_REACTION
+    | ATTRIBUTE_CHANGE_RUN_ATTRIBUTE_CHANGE_STEPS
+    | ATTRIBUTE_CHANGE_TELL_STYLE_ENGINE;
 
 /// The registered table, which C++ sets once, before any node exists, and never changes after that.
 #[repr(transparent)]
