@@ -337,6 +337,10 @@ function(test_rust_crate)
     if (OPENSSL_CRYPTO_LIBRARY)
         list(APPEND cargo_env "LADYBIRD_OPENSSL_CRYPTO_LIBRARY=${OPENSSL_CRYPTO_LIBRARY}")
     endif()
+    # And HarfBuzz where libgfx_rust is asked to; see its build script.
+    if (TARGET harfbuzz)
+        list(APPEND cargo_env "LADYBIRD_HARFBUZZ_LIBRARY=$<TARGET_FILE:harfbuzz>")
+    endif()
     # cargo test accepts harness arguments after --, not rustc arguments.
     list(FIND cargo_common_flags "--" rustc_flags_start)
     list(SUBLIST cargo_common_flags 0 ${rustc_flags_start} cargo_test_flags)

@@ -43,6 +43,7 @@ smallvec = { version = "1.16.5", features = ["const_generics", "union"] }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 
 [dev-dependencies]
+libgfx_rust = { path = "../../../LibGfx/Rust", default-features = false, features = ["link-harfbuzz"] }
 serde_json = { version = "1", features = ["float_roundtrip", "preserve_order"] }
 
 [lints]

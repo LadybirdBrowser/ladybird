@@ -9,6 +9,8 @@ crate-type = ["staticlib", "rlib"]
 [features]
 default = []
 allocator = ["dep:ladybird_allocator"]
+# Links HarfBuzz, for binaries that do not get it from the libraries that link this crate, such as unit tests.
+link-harfbuzz = []
 
 [dependencies]
 ak = { path = "../../../AK/Rust" }

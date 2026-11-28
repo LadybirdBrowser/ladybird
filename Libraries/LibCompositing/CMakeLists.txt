@@ -49,6 +49,8 @@ import_rust_crate(
         DisplayList/DisplayListCommandsGenerated.h
 )
 target_link_libraries(libcompositing_rust INTERFACE LibGfx)
+# The copy of libgfx_rust in the archive calls HarfBuzz, which it leaves to its users to link.
+target_link_libraries(libcompositing_rust INTERFACE $<LINK_ONLY:harfbuzz>)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libcompositing_rust)
 
 ladybird_lib(LibCompositing compositing EXPLICIT_SYMBOL_EXPORT)

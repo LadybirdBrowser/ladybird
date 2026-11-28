@@ -1034,6 +1034,8 @@ sync_rust_crate_ffi_headers(
 )
 add_dependencies(LibWeb libweb_rust-ffi-headers)
 target_link_libraries(libweb_bindings_rust INTERFACE LibGfx LibGC LibUnicode)
+# The copy of libgfx_rust in the archive calls HarfBuzz, which it leaves to its users to link.
+target_link_libraries(libweb_bindings_rust INTERFACE $<LINK_ONLY:harfbuzz>)
 test_rust_crate(MANIFEST_PATH Bindings/Rust/Cargo.toml CRATE_NAME libweb_bindings_rust)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 
