@@ -17,6 +17,7 @@ endpoint RequestClient
     headers_became_available(u64 request_id, URL::URL url, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Requests::CacheState cache_state, ByteString http_version) =|
     request_transferred(u64 request_id) =|
     host_resolved(u64 lookup_id, Vector<ByteString> addresses) =|
+    looked_up_known_hsts_host(u64 lookup_id, bool is_known) =|
 
     // Websocket API
     // FIXME: See if this can be merged with the regular APIs

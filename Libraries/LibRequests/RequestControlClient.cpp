@@ -73,6 +73,12 @@ void RequestControlClient::retrieve_http_cookie(int client_id, u64 request_id, R
     async_retrieved_http_cookie(client_id, request_id, request_type, cookie_request_id, cookie);
 }
 
+void RequestControlClient::look_up_known_hsts_host(int client_id, u64 lookup_id, String host)
+{
+    auto is_known = on_look_up_known_hsts_host ? on_look_up_known_hsts_host(client_id, host) : true;
+    async_looked_up_known_hsts_host(client_id, lookup_id, is_known);
+}
+
 // RequestServer gives up on a system lookup once it has waited this long for the answer, the same deadline that its
 // DNS::Resolver sets for a system resolution.
 static constexpr auto SYSTEM_LOOKUP_DEADLINE = AK::Duration::from_seconds(15);

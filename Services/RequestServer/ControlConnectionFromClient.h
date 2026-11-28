@@ -64,6 +64,7 @@ private:
     virtual void remove_cache_entries_accessed_before(UnixDateTime before) override;
 
     virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestType request_type, u64 cookie_request_id, String cookie) override;
+    virtual void looked_up_known_hsts_host(int client_id, u64 lookup_id, bool is_known) override;
     virtual void stored_response_cookies_and_hsts_policy(int client_id, u64 request_id, u64 store_request_id) override;
 
     virtual void resolved_host_with_system_resolver(u64 resolution_id, Optional<Vector<ByteString>> addresses) override;

@@ -874,6 +874,31 @@ void ConnectionFromClient::resolve_host(u64 lookup_id, ByteString host)
         });
 }
 
+void ConnectionFromClient::look_up_known_hsts_host(u64 lookup_id, String host)
+{
+    if (m_pending_known_hsts_host_lookups.contains(lookup_id)) {
+        did_misbehave("reused live HSTS lookup ID");
+        return;
+    }
+
+    auto control_connection = ControlConnectionFromClient::the();
+    if (!control_connection.has_value()) {
+        async_looked_up_known_hsts_host(lookup_id, true);
+        return;
+    }
+
+    m_pending_known_hsts_host_lookups.set(lookup_id);
+    control_connection->async_look_up_known_hsts_host(client_id(), lookup_id, host);
+}
+
+bool ConnectionFromClient::looked_up_known_hsts_host(Badge<ControlConnectionFromClient>, u64 lookup_id, bool is_known)
+{
+    if (!m_pending_known_hsts_host_lookups.remove(lookup_id))
+        return false;
+    async_looked_up_known_hsts_host(lookup_id, is_known);
+    return true;
+}
+
 void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level)
 {
     if (is_live_request_id(request_id)) {
