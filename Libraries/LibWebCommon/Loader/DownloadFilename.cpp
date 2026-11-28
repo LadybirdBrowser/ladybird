@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
 
@@ -29,7 +30,7 @@ ByteString truncate_filename_to_byte_length(ByteString filename, size_t maximum_
     return filename.substring(0, length);
 }
 
-ByteString sanitize_suggested_download_filename(ByteString filename)
+static ByteString sanitize_filename_bytes(ByteString filename)
 {
     filename = LexicalPath::basename(move(filename));
 
@@ -56,6 +57,15 @@ ByteString sanitize_suggested_download_filename(ByteString filename)
         return truncate_filename_to_byte_length(move(sanitized), maximum_filename_byte_length);
     }
     return sanitized;
+}
+
+String sanitize_suggested_download_filename(StringView filename)
+{
+    // NB: The filename may come from raw header bytes or percent-decoding, so it is not necessarily valid UTF-8.
+    auto valid_filename = String::from_utf8_with_replacement_character(filename, String::WithBOMHandling::No);
+
+    // NB: Sanitizing replaces only ASCII bytes and truncates at code point boundaries, so the result stays valid UTF-8.
+    return MUST(String::from_byte_string(sanitize_filename_bytes(valid_filename.to_byte_string())));
 }
 
 ByteString numbered_download_filename(ByteString const& filename, u64 index)
