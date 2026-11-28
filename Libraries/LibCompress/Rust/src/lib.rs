@@ -11,7 +11,7 @@ mod compressor;
 mod decompressor;
 
 pub use compressor::Compressor;
-pub use decompressor::{Decompressed, DecompressionFailed, Decompressor};
+pub use decompressor::{Decompressed, DecompressedInto, DecompressionFailed, Decompressor};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Format {
