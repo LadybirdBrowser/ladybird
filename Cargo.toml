@@ -28,6 +28,7 @@ members = [
     "Libraries/LibWasm/JIT",
     "Libraries/LibWasm/Module",
     "Libraries/LibWebCommon/Rust",
+    "Libraries/LibWebView/Rust",
     "Libraries/LibWeb/Bindings/Rust",
     "Libraries/LibWeb/ContentBlocker/Rust",
     "Libraries/LibWeb/Rust",
