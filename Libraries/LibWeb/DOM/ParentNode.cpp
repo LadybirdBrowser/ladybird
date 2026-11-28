@@ -218,7 +218,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::
             auto node = node_or_string.get<GC::Ref<Node>>();
             if (is<DocumentFragment>(*node) || node->parent() || &node->document() != &document() || seen_nodes.contains(*node))
                 break;
-            TRY(ensure_pre_insertion_validity(node, nullptr, true));
+            TRY(ensure_pre_insertion_validity(node, nullptr, ChildrenToExclude::ParentsChildren));
             seen_nodes.set(*node);
             detached_nodes.append(node);
         }
@@ -232,7 +232,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(ReadonlySpan<Variant<GC::
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
 
     // 2. Ensure pre-insertion validity of node into this before null.
-    TRY(ensure_pre_insertion_validity(node, nullptr, true));
+    TRY(ensure_pre_insertion_validity(node, nullptr, ChildrenToExclude::ParentsChildren));
 
     // 3. Replace all with node within this.
     replace_all(*node);

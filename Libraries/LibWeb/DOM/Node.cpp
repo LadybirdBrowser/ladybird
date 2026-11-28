@@ -791,124 +791,23 @@ bool Node::is_browsing_context_connected() const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
-WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, bool exclude_all_children) const
+WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child, ChildrenToExclude children_to_exclude) const
 {
-    // 1. If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError" DOMException.
-    if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
+    // NB: libweb_rust runs the checks, see Rust/src/dom/pre_insert.rs, and says which exception to throw.
+    // FIXME: The "Invalid node type for insertion" messages could be more descriptive.
+    switch (RustFFI::rust_dom_ensure_pre_insert_validity(node.ptr(), this, child.ptr(), children_to_exclude)) {
+    case RustFFI::PreInsertValidity::Valid:
+        return {};
+    case RustFFI::PreInsertValidity::ParentCannotHaveChildren:
         return WebIDL::HierarchyRequestError::create("Can only insert into a document, document fragment or element"_utf16);
-
-    // 2. If node is a host-including inclusive ancestor of parent, then throw a "HierarchyRequestError" DOMException.
-    if (node->is_host_including_inclusive_ancestor_of(*this))
+    case RustFFI::PreInsertValidity::NodeIsAnAncestorOfParent:
         return WebIDL::HierarchyRequestError::create("New node is an ancestor of this node"_utf16);
-
-    // 3. If child is non-null and its parent is not parent, then throw a "NotFoundError" DOMException.
-    if (child && child->parent() != this)
+    case RustFFI::PreInsertValidity::ChildIsNotAChildOfParent:
         return WebIDL::NotFoundError::create("This node is not the parent of the given child"_utf16);
-
-    // FIXME: All the following "Invalid node type for insertion" messages could be more descriptive.
-    // 4. If node is not a DocumentFragment, DocumentType, Element, or CharacterData node, then throw a "HierarchyRequestError" DOMException.
-    if (!is<DocumentFragment>(*node) && !is<DocumentType>(*node) && !is<Element>(*node) && !is<Text>(*node) && !is<Comment>(*node) && !is<ProcessingInstruction>(*node) && !is<CDATASection>(*node))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    // 5. If either node is a Text node and parent is a document, or node is a doctype and parent is not a document, then throw a "HierarchyRequestError" DOMException.
-    if ((is<Text>(*node) && is<Document>(this)) || (is<DocumentType>(*node) && !is<Document>(this)))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    auto children_to_exclude_contains = [&](Node const& candidate) {
-        // replaceChildren() validates against a parent whose existing children
-        // will all be removed. Ordinary insertion (including Range.insertNode)
-        // must still reject a second doctype/element even when the reference
-        // child happens to be that same node.
-        (void)candidate;
-        return exclude_all_children;
-    };
-
-    auto has_element_child_not_excluded = [&] {
-        bool has_element_child = false;
-        for_each_child([&](auto const& child) {
-            if (is<Element>(child) && !children_to_exclude_contains(child)) {
-                has_element_child = true;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
-        });
-        return has_element_child;
-    };
-
-    auto has_doctype_child_not_excluded = [&] {
-        bool has_doctype_child = false;
-        for_each_child([&](auto const& child) {
-            if (is<DocumentType>(child) && !children_to_exclude_contains(child)) {
-                has_doctype_child = true;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
-        });
-        return has_doctype_child;
-    };
-
-    // 5. If parent is not a document:
-    if (!is<Document>(*this)) {
-        // 1. If node is a doctype, then throw a "HierarchyRequestError" DOMException.
-        if (is<DocumentType>(*node))
-            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-        // 2. Return.
-        return {};
-    }
-
-    // 6. If node is a Text node, then throw a "HierarchyRequestError" DOMException.
-    if (is<Text>(*node))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    // 7. If node is a CharacterData node, then return.
-    if (is<CharacterData>(*node))
-        return {};
-
-    // 8. If node is a DocumentFragment node:
-    if (auto const* document_fragment = as_if<DocumentFragment>(*node)) {
-        // 1. If node has more than one element child or has a Text node child, then throw a "HierarchyRequestError" DOMException.
-        auto node_element_child_count = document_fragment->child_element_count();
-        if (node_element_child_count > 1 || node->has_child_of_type<Text>())
-            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-        // 2. If node has no element child, then return.
-        if (node_element_child_count == 0)
-            return {};
-    }
-
-    // 9. If node is a DocumentFragment or Element node:
-    if (is<DocumentFragment>(*node) || is<Element>(*node)) {
-        // 1. If any of the following are true:
-        //   * parent has an element child that childrenToExclude does not contain;
-        //   * child is non-null and a doctype is following child; or
-        //   * child is a doctype that childrenToExclude does not contain,
-        // then throw a "HierarchyRequestError" DOMException.
-        if (has_element_child_not_excluded()
-            || (child && child->has_following_node_of_type_in_tree_order<DocumentType>())
-            || (is<DocumentType>(child.ptr()) && !children_to_exclude_contains(*child))) {
-            return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-        }
-
-        // 2. Return.
-        return {};
-    }
-
-    // 10. Assert: node is a doctype.
-    VERIFY(is<DocumentType>(*node));
-
-    // 11. If any of the following are true:
-    //   * parent has a doctype child that childrenToExclude does not contain;
-    //   * child is non-null and an element is preceding child; or
-    //   * child is null and parent has an element child that childrenToExclude does not contain,
-    // then throw a "HierarchyRequestError" DOMException.
-    if (has_doctype_child_not_excluded()
-        || (child && child->has_preceding_node_of_type_in_tree_order<Element>())
-        || (!child && has_element_child_not_excluded())) {
+    case RustFFI::PreInsertValidity::InvalidNodeType:
         return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
     }
-
-    return {};
+    VERIFY_NOT_REACHED();
 }
 
 // https://dom.spec.whatwg.org/#concept-node-insert
@@ -1706,70 +1605,26 @@ void Node::remove(bool suppress_observers)
 // https://dom.spec.whatwg.org/#concept-node-replace
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::Ref<Node> child)
 {
-    // 1. If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError"
-    //    DOMException.
-    if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
-        return WebIDL::HierarchyRequestError::create("Can only insert into a document, document fragment or element"_utf16);
+    // 1. Ensure pre-insert validity given node, parent, child, and « child ».
+    TRY(ensure_pre_insertion_validity(node, child, ChildrenToExclude::Child));
 
-    // 2. If node is a host-including inclusive ancestor of parent, then throw a "HierarchyRequestError" DOMException.
-    if (node->is_host_including_inclusive_ancestor_of(*this))
-        return WebIDL::HierarchyRequestError::create("New node is an ancestor of this node"_utf16);
-
-    // 3. If child’s parent is not parent, then throw a "NotFoundError" DOMException.
-    if (child->parent() != this)
-        return WebIDL::NotFoundError::create("This node is not the parent of the given child"_utf16);
-
-    // FIXME: All the following "Invalid node type for insertion" messages could be more descriptive.
-
-    // 4. If node is not a DocumentFragment, DocumentType, Element, or CharacterData node, then throw a "HierarchyRequestError" DOMException.
-    if (!is<DocumentFragment>(*node) && !is<DocumentType>(*node) && !is<Element>(*node) && !is<Text>(*node) && !is<Comment>(*node) && !is<ProcessingInstruction>(*node))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    // 5. If either node is a Text node and parent is a document, or node is a doctype and parent is not a document, then throw a "HierarchyRequestError" DOMException.
-    if ((is<Text>(*node) && is<Document>(this)) || (is<DocumentType>(*node) && !is<Document>(this)))
-        return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-
-    // If parent is a document, and any of the statements below, switched on the interface node implements, are true, then throw a "HierarchyRequestError" DOMException.
-    if (is<Document>(this)) {
-        // DocumentFragment
-        if (is<DocumentFragment>(*node)) {
-            // If node has more than one element child or has a Text node child.
-            // Otherwise, if node has one element child and either parent has an element child that is not child or a doctype is following child.
-            auto node_element_child_count = as<DocumentFragment>(*node).child_element_count();
-            if ((node_element_child_count > 1 || node->has_child_of_type<Text>())
-                || (node_element_child_count == 1 && (first_child_of_type<Element>() != child.ptr() || child->has_following_node_of_type_in_tree_order<DocumentType>()))) {
-                return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-            }
-        } else if (is<Element>(*node)) {
-            // Element
-            // parent has an element child that is not child or a doctype is following child.
-            if (first_child_of_type<Element>() != child.ptr() || child->has_following_node_of_type_in_tree_order<DocumentType>())
-                return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-        } else if (is<DocumentType>(*node)) {
-            // DocumentType
-            // parent has a doctype child that is not child, or an element is preceding child.
-            if (first_child_of_type<DocumentType>() != child.ptr() || child->has_preceding_node_of_type_in_tree_order<Element>())
-                return WebIDL::HierarchyRequestError::create("Invalid node type for insertion"_utf16);
-        }
-    }
-
-    // 7. Let referenceChild be child’s next sibling.
+    // 2. Let referenceChild be child’s next sibling.
     GC::Ptr<Node> reference_child = child->next_sibling();
 
-    // 8. If referenceChild is node, then set referenceChild to node’s next sibling.
+    // 3. If referenceChild is node, then set referenceChild to node’s next sibling.
     if (reference_child == node)
         reference_child = node->next_sibling();
 
-    // 9. Let previousSibling be child’s previous sibling.
+    // 4. Let previousSibling be child’s previous sibling.
     GC::Ptr<Node> previous_sibling = child->previous_sibling();
 
-    // 10. Let removedNodes be the empty set.
+    // 5. Let removedNodes be the empty set.
     GC::RootVector<GC::Ref<Node>> removed_nodes;
 
-    // 11. Adopt node into parent's node document.
+    // 6. Adopt node into parent's node document.
     document().adopt_node_steps(node);
 
-    // 12. If child’s parent is non-null:
+    // 7. If child’s parent is non-null:
     // NOTE: The above can only be false if child is node.
     if (child->parent()) {
         // 1. Set removedNodes to « child ».
@@ -1779,7 +1634,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
         child->remove(true);
     }
 
-    // 13. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
+    // 8. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
     GC::RootVector<GC::Ref<Node>> nodes;
     if (is<DocumentFragment>(*node))
         nodes = node->children_as_vector();
@@ -1790,14 +1645,14 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     //         the sanity of inserting `node` before `reference_child` again, as well as
     //         `child` not being reinserted elsewhere.
     if (!reference_child || (reference_child->parent() == this && !child->parent_node())) {
-        // 14. Insert node into parent before referenceChild with suppressObservers set to true.
+        // 9. Insert node into parent before referenceChild with suppressObservers set to true.
         insert_before(node, reference_child, true);
     }
 
-    // 15. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
+    // 10. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
     queue_tree_mutation_record(nodes, removed_nodes, previous_sibling.ptr(), reference_child.ptr());
 
-    // 16. Return child.
+    // 11. Return child.
     return child;
 }
 

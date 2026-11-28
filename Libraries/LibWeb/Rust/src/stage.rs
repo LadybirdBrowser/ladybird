@@ -50,12 +50,12 @@ impl<'host> MainThread<'host> {
         }
     }
 
-    /// The host of the document the entry was called for, or none in a unit test.
+    /// The host of the document the entry was called for, or none for an entry that reaches no host, or in a unit test.
     pub(crate) fn host(&self) -> Option<&'host DocumentHost> {
         self.host
     }
 
-    /// The host tables of the document the entry was called for, or none in a unit test.
+    /// The host tables of the document the entry was called for, or none where there is no host.
     pub(crate) fn host_tables(&self) -> Option<&'host HostTables> {
         self.host.map(DocumentHost::host_tables)
     }
@@ -79,8 +79,22 @@ pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, host: &'host Docum
     }
 }
 
+/// Mint a main thread token for an FFI entry point that reaches no document host, such as one of the DOM's, which reads
+/// the nodes C++ hands it in place.
+///
+/// # Safety
+///
+/// As for [`from_ffi_entry`].
+pub(crate) unsafe fn from_hostless_ffi_entry(_: &impl FfiEntry) -> MainThread<'static> {
+    MainThread {
+        host: None,
+        not_send_or_sync: PhantomData,
+    }
+}
+
 /// Defines `MainThreadFfiEntry`, the marker of a module whose FFI entry points mint main thread tokens, which only that
 /// module can make, and `main_thread()`, which mints the token with it. The module's marker is listed below.
+/// With `without_host`, `main_thread()` takes no host and mints a token without one.
 macro_rules! main_thread_ffi_entries {
     () => {
         /// Mints the main thread token for this module's FFI entry points; only this module can make one.
@@ -96,6 +110,22 @@ macro_rules! main_thread_ffi_entries {
         unsafe fn main_thread(host: &$crate::render_state::DocumentHost) -> $crate::stage::MainThread<'_> {
             // SAFETY: Guaranteed by the caller.
             unsafe { $crate::stage::from_ffi_entry(&MainThreadFfiEntry { _private: () }, host) }
+        }
+    };
+    (without_host) => {
+        /// Mints the main thread token for this module's FFI entry points; only this module can make one.
+        pub(crate) struct MainThreadFfiEntry {
+            _private: (),
+        }
+
+        /// The main thread token for one of this module's FFI entry points, which reach no document host.
+        ///
+        /// # Safety
+        ///
+        /// As for [`crate::stage::from_ffi_entry`].
+        unsafe fn main_thread() -> $crate::stage::MainThread<'static> {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { $crate::stage::from_hostless_ffi_entry(&MainThreadFfiEntry { _private: () }) }
         }
     };
 }
@@ -116,6 +146,8 @@ ffi_entry!(crate::painting::display_list::dump::MainThreadFfiEntry);
 ffi_entry!(crate::painting::layout_tree_dump::MainThreadFfiEntry);
 ffi_entry!(crate::painting::stacking_context::dump::MainThreadFfiEntry);
 ffi_entry!(crate::render_state::OwedWorkPayment);
+ffi_entry!(crate::css::dom_selector_matching::MainThreadFfiEntry);
+ffi_entry!(crate::dom::pre_insert::MainThreadFfiEntry);
 
 #[cfg(test)]
 mod tests {

@@ -9,5 +9,7 @@
 
 pub mod node;
 pub mod node_core;
+pub mod pre_insert;
 #[cfg(test)]
 pub(crate) mod test_tree;
+mod tree;

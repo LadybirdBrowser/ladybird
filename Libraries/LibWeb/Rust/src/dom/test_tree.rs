@@ -15,20 +15,25 @@ use std::sync::atomic::Ordering;
 
 use super::node::Node;
 use super::node::NodeCell;
+use super::node_core::DOCUMENT_FRAGMENT_HOST_OFFSET;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
+use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use crate::stage::MainThread;
 
-/// A node's cell, with its core where DOM::Node has it.
+/// A node's cell, with its core where DOM::Node has it, and a host where DOM::DocumentFragment has it.
 #[repr(C, align(8))]
 struct TestCell {
     header: [u8; NODE_CORE_OFFSET],
     core: NodeCore,
+    fields: [u8; DOCUMENT_FRAGMENT_HOST_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
+    host: NodeMember,
 }
 
 const _: () = assert!(offset_of!(TestCell, core) == NODE_CORE_OFFSET);
+const _: () = assert!(offset_of!(TestCell, host) == DOCUMENT_FRAGMENT_HOST_OFFSET);
 
 const ARENA_CELLS: usize = 1 << 14;
 
@@ -74,15 +79,46 @@ fn pointer_of(node: Node<'_>) -> NodePointer {
 
 /// A new node of `node_type`, the root of a tree of its own.
 pub(crate) fn node<'a>(main_thread: &'a MainThread<'_>, node_type: NodeType) -> Node<'a> {
+    new_node(main_thread, node_type, |_| {})
+}
+
+/// A new shadow root of `host`.
+pub(crate) fn shadow_root<'a>(main_thread: &'a MainThread<'_>, host: Node<'a>) -> Node<'a> {
+    let shadow_root = new_node(
+        main_thread,
+        NodeType::DOCUMENT_FRAGMENT_NODE,
+        NodeCore::set_is_shadow_root_for_test,
+    );
+    set_host(shadow_root, host);
+    shadow_root
+}
+
+/// Sets the host of a DocumentFragment node.
+pub(crate) fn set_host(fragment: Node<'_>, host: Node<'_>) {
+    assert_eq!(fragment.node_type(), NodeType::DOCUMENT_FRAGMENT_NODE);
+    // SAFETY: Every node of a test tree is a TestCell.
+    let cell = unsafe { &*(fragment.cell() as *const NodeCell as *const TestCell) };
+    cell.host.set(Some(pointer_of(host)));
+}
+
+fn new_node<'a>(
+    main_thread: &'a MainThread<'_>,
+    node_type: NodeType,
+    initialize: impl FnOnce(&mut NodeCore),
+) -> Node<'a> {
     let arena = arena();
     let index = arena.next.fetch_add(1, Ordering::Relaxed);
     assert!(index < ARENA_CELLS, "the test arena is full");
     // SAFETY: The index is in the arena, and no other node has this cell.
     let cell = unsafe { &mut *arena.cells.add(index) };
     let pointer = compress(cell as *mut MaybeUninit<TestCell> as usize);
+    let mut core = NodeCore::for_test(node_type, pointer);
+    initialize(&mut core);
     let cell = cell.write(TestCell {
         header: [0; NODE_CORE_OFFSET],
-        core: NodeCore::for_test(node_type, pointer),
+        core,
+        fields: [0; DOCUMENT_FRAGMENT_HOST_OFFSET - NODE_CORE_OFFSET - size_of::<NodeCore>()],
+        host: NodeMember::null_for_test(),
     });
     // SAFETY: The cell lives for the rest of the process, and only the test that made it changes its tree, which it
     //         does not while it reads it.
@@ -154,6 +190,20 @@ mod tests {
         append_child(root, element);
         assert_eq!(element.root(), root);
         assert_eq!(text.root(), root);
+    }
+
+    #[test]
+    fn a_fragment_leads_to_its_host() {
+        let main_thread = MainThread::for_test();
+        let host = node(&main_thread, NodeType::ELEMENT_NODE);
+        let shadow_root = shadow_root(&main_thread, host);
+        assert!(shadow_root.is_shadow_root());
+        assert_eq!(shadow_root.host(), Some(host));
+        assert!(!host.is_shadow_root());
+
+        let fragment = node(&main_thread, NodeType::DOCUMENT_FRAGMENT_NODE);
+        assert_eq!(fragment.host(), None);
+        assert!(!fragment.is_shadow_root());
     }
 
     #[test]
