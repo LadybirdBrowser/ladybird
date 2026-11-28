@@ -305,3 +305,40 @@ TEST_CASE(host_only_cookie_is_stored_apart_from_domain_cookie_for_same_host)
     jar->set_cookie(url, expired_cookie, HTTP::Cookie::Source::NonHttp, {}, HTTP::Cookie::SameSiteContext::same_site());
     EXPECT_EQ(values(*jar), Vector { "host-only"_string });
 }
+
+TEST_CASE(expire_cookies_accessed_since_expires_every_cookie)
+{
+    auto url = parse_url("https://example.com/"sv);
+
+    // These counts put the cookie table on and around its growth thresholds.
+    for (size_t cookie_count : { 4uz, 5uz, 6uz, 11uz, 22uz }) {
+        auto database = TRY_OR_FAIL(Database::Database::create_memory_backed());
+        EXPECT_EQ(TRY_OR_FAIL(WebView::CookieJar::migrate_schema(*database)), Database::MigrationOutcome::Success);
+
+        {
+            auto jar = TRY_OR_FAIL(WebView::CookieJar::create(*database));
+
+            for (size_t i = 0; i < cookie_count; ++i) {
+                HTTP::Cookie::ParsedCookie cookie {
+                    .name = MUST(String::formatted("cookie{}", i)),
+                    .value = "1"_string,
+                    .expiry_time_from_expires_attribute = UnixDateTime::now() + AK::Duration::from_seconds(3600),
+                    .path = "/"_string,
+                };
+                jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, {}, HTTP::Cookie::SameSiteContext::same_site());
+            }
+        }
+
+        {
+            auto jar = TRY_OR_FAIL(WebView::CookieJar::create(*database));
+            EXPECT_EQ(jar->get_all_cookies().size(), cookie_count);
+
+            jar->expire_cookies_accessed_since(UnixDateTime::earliest());
+            EXPECT(jar->get_all_cookies().is_empty());
+        }
+
+        // The expired cookies must also be gone from the database.
+        auto jar = TRY_OR_FAIL(WebView::CookieJar::create(*database));
+        EXPECT(jar->get_all_cookies().is_empty());
+    }
+}
