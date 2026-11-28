@@ -2972,7 +2972,7 @@ fn assemble_plan(
     );
     stack_being_built.cut_into_bands()?;
     if layering_obstacles.sorts_planes_by_depth
-        && contexts_sorting_planes_by_depth_hold_effects_that_read_or_are_composited(
+        && contexts_sorting_planes_by_depth_hold_effects_their_tiles_cannot_replay(
             inputs,
             placement,
             &stack_being_built.nodes,
@@ -2997,9 +2997,10 @@ fn assemble_plan(
 }
 
 // A 3D sorting context that sorts its planes by depth is placed whole into the tiles of one band, which replay it
-// whole, as sorting its planes reads all of them. That holds only where nothing inside it reads what is below it or is
-// composited apart from it.
-fn contexts_sorting_planes_by_depth_hold_effects_that_read_or_are_composited(
+// whole, as sorting its planes reads all of them. That holds only where nothing inside it is composited apart from it
+// or reads what another layer can hold below it. An effect that blends within a group of its own reads only what the
+// group draws below it, which the tiles replay with the context.
+fn contexts_sorting_planes_by_depth_hold_effects_their_tiles_cannot_replay(
     inputs: &LayerStackInputs<'_>,
     placement: &ListPlacement,
     nodes: &[NodeOfPlan],
@@ -3011,10 +3012,17 @@ fn contexts_sorting_planes_by_depth_hold_effects_that_read_or_are_composited(
     })];
     mark_effects_around_marked_effects(tree, &mut marks);
     let [effect_holds_run_sorted_by_depth_by_effect_index] = marks;
+    let blends_within_group_of_its_own = |reader: &EffectNodeIndex| {
+        let reader_node = &tree.effect_nodes[reader.0 as usize];
+        matches!(&reader_node.data, EffectNodeData::Effects(effects) if effects.backdrop_filter.is_none())
+            && !reader_node.parent.is_none()
+            && !tree.content_under_effect_composites_into_root_group(reader_node.parent)
+    };
     placement
         .backdrop_readers_in_paint_order
         .iter()
         .copied()
+        .filter(|reader| !blends_within_group_of_its_own(reader))
         .chain(nodes.iter().filter_map(|node| node.composited_effect))
         .any(|effect| effect_holds_run_sorted_by_depth_by_effect_index[effect.0 as usize])
 }
@@ -4704,6 +4712,57 @@ mod tests {
         let stack = layers_planned_alike_for_every_sample(&list, &tree).stack;
         assert!(stack.layering_obstacles.sorts_planes_by_depth);
         assert!(stack.why_list_is_one_layer.is_none());
+    }
+
+    fn list_with_blending_element_in_plane_sorted_by_depth(
+        blends_within_group_of_its_own: bool,
+    ) -> (VisualContextTree, ListOfOneChunk) {
+        let (mut tree, viewport) = tree_with_root_isolation_effect(1.0);
+        let context_root = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                establishes_sorting_context: true,
+                ..transform(VIEWPORT.to_float())
+            }),
+            viewport.spatial,
+        );
+        let mut moved_forward = FloatMatrix4x4::identity();
+        moved_forward.elements[2][3] = 10.0;
+        let plane = ContextRef {
+            spatial: tree.append_spatial(
+                SpatialData::Transform(TransformData {
+                    matrix: moved_forward,
+                    sorting_context_root_index: Some(context_root),
+                    ..transform(ELEMENT.to_float())
+                }),
+                context_root,
+            ),
+            ..viewport
+        };
+        let backdrop = if blends_within_group_of_its_own {
+            tree.append_effect_node_under(plane, effects(0.99, CompositingAndBlendingOperator::Normal))
+        } else {
+            plane
+        };
+        let blending_element =
+            tree.append_effect_node_under(backdrop, effects(1.0, CompositingAndBlendingOperator::Overlay));
+        let list = ListOfOneChunk::default()
+            .with(fill(VIEWPORT, GREEN), viewport)
+            .with(fill(ELEMENT, GREEN), backdrop)
+            .with(fill(ELEMENT, GREEN), blending_element);
+        assert!(tree.sorts_planes_by_depth());
+        (tree, list)
+    }
+
+    #[test]
+    fn a_3d_sorting_context_has_layers_where_its_planes_blend_only_within_groups_of_their_own() {
+        let (tree, list) = list_with_blending_element_in_plane_sorted_by_depth(true);
+        assert_eq!(list.planned(&tree, &[]).stack.why_list_is_one_layer, None);
+
+        let (tree, list) = list_with_blending_element_in_plane_sorted_by_depth(false);
+        assert_eq!(
+            list.planned(&tree, &[]).stack.why_list_is_one_layer,
+            Some(WhyListIsOneLayer::SortingContext3D)
+        );
     }
 
     #[test]

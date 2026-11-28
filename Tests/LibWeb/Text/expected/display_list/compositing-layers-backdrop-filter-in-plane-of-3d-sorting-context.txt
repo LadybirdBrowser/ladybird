@@ -1,0 +1,19 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[1,0,0,1,0,0] origin=(0,0) synthetic_plane establishes_sorting_context (BlockContainer<DIV>#scene)
+          [s3] perspective=[1,0,-0.316,0,0,1,-0.462,0,0,0,1,0,0,0,-0.002,1] flattens_inherited_transform=false (BlockContainer<DIV>#scene)
+            [s4] transform3d=[0.9396926,0,0.34202012,0,0,1,0,0,-0.34202012,0,0.9396926,0,0,0,0,1] origin=(58,181) sorting_context_root=s2 flattens_inherited_transform=false bounds=[8,131 100x100] (BlockContainer<DIV>#card)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s4] effects=[backdrop-filter=[region=[8,131 50x50] filter=[Invert(1)]]] (BlockContainer<DIV>#glass)
+
+Layers (for a window server that shows tiles and filters what is below layers):
+  [L0] single layer replaying the whole list: 3D sorting context holding an effect that is composited, filters what is below it or blends with the root group
+
+DisplayList:
+L0 DrawCanvas@s1/e0 dst_rect=[8,8 200x120] canvas_id=canvas1 scaling_mode=Bilinear owner=CanvasBox<CANVAS>#canvas phase=foreground
+L0 FillRect@s4/e0 rect=[8,131 100x100] color=rgb(255, 165, 0) owner=BlockContainer<DIV>#card phase=background
+L0 BackdropFilterRegion@s4/e1 rect=[8,131 50x50] owner=BlockContainer<DIV>#glass phase=background
+
