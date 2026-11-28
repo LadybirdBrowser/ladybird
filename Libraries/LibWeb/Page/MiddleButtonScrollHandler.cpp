@@ -19,9 +19,22 @@
 namespace Web {
 
 static constexpr double DEAD_ZONE_RADIUS { 15 };
-static constexpr double SPEED_FACTOR = 5.0;
 static constexpr double MAX_SPEED_PER_SECOND = 5000.0;
 static constexpr double MAX_FRAME_INTERVAL_MS = 100.0;
+
+static double scroll_speed_for_distance(double distance)
+{
+    // Firefox's default acceleration curve gives a scroll delta per 20ms, with a 12px dead zone on each axis.
+    static constexpr double AXIS_DEAD_ZONE = 12.0;
+
+    auto normalized_distance = AK::abs(distance) / AXIS_DEAD_ZONE;
+    if (normalized_distance <= 1.0)
+        return 0.0;
+
+    auto delta = normalized_distance * AK::sqrt(normalized_distance) - 1.0;
+    auto speed = min(delta * (1000.0 / 20.0), MAX_SPEED_PER_SECOND);
+    return distance < 0.0 ? -speed : speed;
+}
 
 MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CSSPixelPoint origin, CSSPixelPoint screen_origin)
     : m_container_element(container)
@@ -111,13 +124,11 @@ void MiddleButtonScrollHandler::perform_tick(double frame_timestamp)
     if (!layout_node)
         return;
 
-    auto speed_x = clamp(distance_x * SPEED_FACTOR, -MAX_SPEED_PER_SECOND, MAX_SPEED_PER_SECOND);
-    auto speed_y = clamp(distance_y * SPEED_FACTOR, -MAX_SPEED_PER_SECOND, MAX_SPEED_PER_SECOND);
     auto elapsed_seconds = elapsed_ms / 1000.0;
 
     m_fractional_delta += CSSPixelPoint {
-        CSSPixels(speed_x * elapsed_seconds),
-        CSSPixels(speed_y * elapsed_seconds),
+        CSSPixels(scroll_speed_for_distance(distance_x) * elapsed_seconds),
+        CSSPixels(scroll_speed_for_distance(distance_y) * elapsed_seconds),
     };
 
     auto scroll_x = m_fractional_delta.x().to_int();
