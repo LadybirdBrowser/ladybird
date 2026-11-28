@@ -12,6 +12,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/FetchIntegration.h>
 #include <LibWeb/ContentSecurityPolicy/RequestViolation.h>
+#include <LibWeb/Forward.h>
 #include <LibWebCommon/ContentSecurityPolicy/RemoteViolationDirective.h>
 
 namespace Web::ContentSecurityPolicy {

@@ -10,9 +10,17 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
-#include <LibWeb/Forward.h>
+
+namespace Web::Fetch::Infrastructure {
+
+class Request;
+class Response;
+
+}
 
 namespace Web::ContentSecurityPolicy {
+
+class Policy;
 
 // Reports the violation for the request being checked and the given policy.
 using ViolationReporter = Function<void(NonnullRefPtr<Policy const>)>;
