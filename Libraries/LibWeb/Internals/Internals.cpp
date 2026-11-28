@@ -1902,10 +1902,22 @@ WebIDL::ExceptionOr<void> Internals::ingest_hsts_header(Utf16String const& url, 
     return {};
 }
 
-WebIDL::ExceptionOr<bool> Internals::is_known_hsts_host(Utf16String const& domain)
+GC::Ref<WebIDL::Promise> Internals::is_known_hsts_host(Utf16String const& domain)
 {
-    auto domain_utf8 = TRY_OR_THROW_OOM(vm(), domain.utf16_view().to_utf8());
-    return ResourceLoader::is_known_hsts_host(page(), domain_utf8);
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    auto domain_utf8 = domain.to_utf8();
+    if (ResourceLoader::is_preloaded_hsts_host(domain_utf8)) {
+        WebIDL::resolve_promise(realm, promise, JS::Value(true));
+        return promise;
+    }
+
+    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
+    ResourceLoader::the().look_up_known_hsts_host(network_isolation_key, domain_utf8, [realm = GC::make_root(realm), promise = GC::make_root(promise)](bool is_known_hsts_host) {
+        HTML::TemporaryExecutionContext execution_context { *realm };
+        WebIDL::resolve_promise(*realm, *promise, JS::Value(is_known_hsts_host));
+    });
+    return promise;
 }
 
 void Internals::set_browser_zoom(double factor)

@@ -38,9 +38,8 @@
 
             println(`${name} without HSTS policy: ${await connectInContext(url)}`);
 
-            // NB: The synchronous isKnownHSTSHost() call orders after the asynchronous store of the policy.
             internals.setHSTSPolicy(host, 31536000, false);
-            if (!internals.isKnownHSTSHost(host)) {
+            if (!(await internals.isKnownHSTSHost(host))) {
                 println(`FAIL - HSTS policy for ${name} was not installed`);
                 continue;
             }
