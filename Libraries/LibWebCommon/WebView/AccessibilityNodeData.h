@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
@@ -170,6 +171,8 @@ private:
 };
 
 struct WEBCOMMON_API AccessibilityNodeData {
+    AK_ALLOC_WITH_KMALLOC;
+
     i64 id { 0 };
     i64 parent_id { -1 };
     Vector<i64> child_ids;
