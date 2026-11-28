@@ -1,0 +1,16 @@
+When a caret step crosses from one text node to the next, Ladybird now
+takes the two boundaries for one position only if nothing between them
+renders text, is non-editable (even when empty), or is a replaced or
+atomic inline box. Blink does the same: MostBackwardCaretPosition()
+and MostForwardCaretPosition() in visible_units.cc never cross a change
+of editability, and they stop at any node whose ends are visually
+distinct, by EndsOfNodeAreVisuallyDistinctPositions(). WebKit does the
+same in Position::upstream() and Position::downstream(), with its own
+endsOfNodeAreVisuallyDistinctPositions().
+
+Run in Chrome 158, Firefox 151, and WebKit 26.5, Shift+Right from just
+in front of a non-editable “★” selects just the “★” in all three, as in
+Ladybird now. With an empty non-editable span there instead, one step
+lands at its far side with nothing selected, in all three: Firefox and
+WebKit put it at the start of the next text node, as Ladybird now does,
+and Chrome at the parent boundary after the span.
