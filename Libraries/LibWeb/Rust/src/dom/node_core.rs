@@ -12,6 +12,7 @@ use core::mem::offset_of;
 use core::num::NonZeroU32;
 
 use super::event_target::EventTargetMember;
+use super::id_map::IdMapField;
 use super::strings::StringField;
 use super::weak_cells::WeakCellSpan;
 use crate::css::style::tree::StyleNodeID;
@@ -243,6 +244,8 @@ pub struct DocumentCore {
     /// The DOM tree version of the document that the tree positions of its elements, which C++ keeps to sort its
     /// animations, were taken at. An attribute change moves no element, so it keeps them, see attributes.rs.
     element_tree_positions_dom_tree_version: Cell<u64>,
+    /// The elements of the document tree by their IDs, see id_map.rs.
+    ids: IdMapField,
 }
 
 /// The number of attribute types whose changes DocumentCore counts for the collections.
@@ -253,6 +256,12 @@ impl DocumentCore {
     #[inline(always)]
     pub fn flags(&self) -> u8 {
         self.flags.get()
+    }
+
+    /// The elements of the document tree by their IDs.
+    #[inline(always)]
+    pub(super) fn ids(&self) -> &IdMapField {
+        &self.ids
     }
 
     /// The document's Window, or none.
@@ -629,6 +638,7 @@ impl DocumentCore {
             element_tree_version: Cell::new(0),
             collection_attribute_versions: Default::default(),
             element_tree_positions_dom_tree_version: Cell::new(0),
+            ids: IdMapField::empty_for_test(),
         }
     }
 
@@ -742,7 +752,7 @@ const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<Docum
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
 const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
 // NB: Document.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentCore>() == 104 && align_of::<DocumentCore>() == 8);
+const _: () = assert!(size_of::<DocumentCore>() == 112 && align_of::<DocumentCore>() == 8);
 const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
 const _: () = assert!(offset_of!(DocumentCore, window) == 4);
 const _: () = assert!(offset_of!(DocumentCore, live_ranges) == 8);
@@ -751,6 +761,7 @@ const _: () = assert!(offset_of!(DocumentCore, node_tree_version) == 40);
 const _: () = assert!(offset_of!(DocumentCore, element_tree_version) == 48);
 const _: () = assert!(offset_of!(DocumentCore, collection_attribute_versions) == 56);
 const _: () = assert!(offset_of!(DocumentCore, element_tree_positions_dom_tree_version) == 96);
+const _: () = assert!(offset_of!(DocumentCore, ids) == 104);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);

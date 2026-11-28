@@ -39,6 +39,7 @@ use super::hooks;
 use super::hooks::SLOT_CHANGE_INVALIDATE;
 use super::hooks::SLOT_CHANGE_RECORD_ASSIGNED_NODES;
 use super::hooks::SLOT_CHANGE_SIGNAL;
+use super::id_map::IdMapField;
 use super::node::NodeCell;
 use super::node_core::NodeMember;
 use super::node_core::NodePointer;
@@ -283,18 +284,26 @@ pub struct ShadowRootCore {
     slot_assignment: Cell<u8>,
     /// The SHADOW_ROOT_* flags.
     flags: Cell<u8>,
+    /// The elements of the shadow tree by their IDs, while it is connected, see id_map.rs.
+    ids: IdMapField,
 }
 
-const _: () = assert!(size_of::<ShadowRootCore>() == 40 && align_of::<ShadowRootCore>() == 8);
+const _: () = assert!(size_of::<ShadowRootCore>() == 48 && align_of::<ShadowRootCore>() == 8);
 const _: () = assert!(offset_of!(ShadowRootCore, slots) == 0);
 const _: () = assert!(offset_of!(ShadowRootCore, slots_needing_assignment) == 16);
 const _: () = assert!(offset_of!(ShadowRootCore, slot_assignment) == 32);
 const _: () = assert!(offset_of!(ShadowRootCore, flags) == 33);
+const _: () = assert!(offset_of!(ShadowRootCore, ids) == 40);
 
 impl ShadowRootCore {
     #[inline(always)]
     pub(super) fn slots(&self) -> &NodeListField {
         &self.slots
+    }
+
+    #[inline(always)]
+    pub(super) fn ids(&self) -> &IdMapField {
+        &self.ids
     }
 
     #[inline(always)]
@@ -657,23 +666,8 @@ fn for_each_slot_of_inclusive_descendants(
         if is_slot(node) {
             callback(main_thread, node);
         }
-        current = next_in_subtree(node, root);
+        current = node.next_in_subtree(root);
     }
-}
-
-/// The node after `node` in tree order that is a descendant of `root`, an inclusive ancestor of `node`.
-fn next_in_subtree(node: NodeRef, root: NodeRef) -> Option<NodeRef> {
-    if let Some(first_child) = node.first_child() {
-        return Some(first_child);
-    }
-    let mut current = node;
-    while current != root {
-        if let Some(next_sibling) = current.next_sibling() {
-            return Some(next_sibling);
-        }
-        current = current.parent()?;
-    }
-    None
 }
 
 /// https://dom.spec.whatwg.org/#assign-a-slot
@@ -878,28 +872,26 @@ fn assign_slots_after_unlinking_from_shadow_tree(
     for_each_slot_of_inclusive_descendants(main_thread, node, assign_slottables);
 }
 
-/// The attribute change steps that keep a slottable's name and a slot's name, for a change of the attribute without a
-/// namespace whose local name is `local_name` of `element` from `old_value` to `value`, the raw words of the strings or
-/// none for null.
+/// Whether a name attribute change is to a slot's name rather than to a slottable's name.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum IsSlotName {
+    No,
+    Yes,
+}
+
+/// The attribute change steps that keep a slot's name, where `is_slot_name` says so, and a slottable's name otherwise,
+/// for a change of the attribute without a namespace of `element` from `old_value` to `value`, the raw words of the
+/// strings or none for null.
 /// https://dom.spec.whatwg.org/#slot-name
 /// https://dom.spec.whatwg.org/#slotable-name
-#[inline]
-pub(super) fn run_attribute_change_steps(
+#[inline(never)]
+pub(super) fn run_name_attribute_change_steps(
     main_thread: &mut MainThread<'_>,
     element: NodeRef,
-    local_name: Utf16StringUnits<'_>,
+    is_slot_name: IsSlotName,
     old_value: Option<usize>,
     value: Option<usize>,
 ) {
-    let Utf16StringUnits::Ascii(ascii) = local_name else {
-        return;
-    };
-    let is_slot_name = match ascii {
-        b"slot" => false,
-        b"name" if is_slot(element) => true,
-        _ => return,
-    };
-
     let is_empty = |value: usize| {
         // SAFETY: The caller borrows the values for the call.
         let string = unsafe { BorrowedString::from_raw(value) };
@@ -917,7 +909,7 @@ pub(super) fn run_attribute_change_steps(
         _ => {}
     }
 
-    if is_slot_name {
+    if is_slot_name == IsSlotName::Yes {
         // 4. If value is null or the empty string, then set element's name to the empty string.
         // 5. Otherwise, set element's name to value.
         let name = value

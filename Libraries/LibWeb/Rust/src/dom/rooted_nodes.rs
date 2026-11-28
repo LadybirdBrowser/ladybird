@@ -122,6 +122,14 @@ impl<'a> RootedNodes<'a> {
         self.core.set_vector(vector);
     }
 
+    /// Swaps the nodes at `a` and `b`, which must be less than the length.
+    #[inline(always)]
+    pub fn swap(&mut self, a: usize, b: usize) {
+        assert!(a < self.len() && b < self.len(), "the indices are less than the length");
+        // SAFETY: The buffer holds as many nodes as the length.
+        unsafe { core::ptr::swap(self.core.nodes.get().add(a), self.core.nodes.get().add(b)) };
+    }
+
     /// Keeps the first `length` nodes, and lets go of the rest.
     #[inline(always)]
     pub fn truncate(&mut self, length: usize) {

@@ -13,7 +13,6 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/DocumentFragment.h>
-#include <LibWeb/DOM/ElementByIdMap.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
@@ -78,8 +77,6 @@ public:
     void for_each_css_style_sheet(Function<void(CSS::StyleSheetState&)>&& callback) const;
     void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
-    ElementByIdMap& element_by_id() const;
-
     AnchorNameMap& anchor_name_map() { return m_anchor_name_map; }
     AnchorNameMap const& anchor_name_map() const { return m_anchor_name_map; }
 
@@ -138,7 +135,7 @@ private:
     void calculate_part_element_map();
 
     // NB: The slot assignment and the slots of the shadow tree, see Rust/src/dom/slots.rs.
-    RustFFI::ShadowRootCore m_shadow_root_core { .slots = {}, .slots_needing_assignment = {}, .slot_assignment = to_underlying(SlotAssignmentMode::Named), .flags = 0 };
+    RustFFI::ShadowRootCore m_shadow_root_core { .slots = {}, .slots_needing_assignment = {}, .slot_assignment = to_underlying(SlotAssignmentMode::Named), .flags = 0, .ids = {} };
 
     // NOTE: The specification doesn't seem to specify a default value for mode. Assuming closed for now.
     ShadowRootMode m_mode { ShadowRootMode::Closed };
@@ -155,8 +152,6 @@ private:
 
     // https://dom.spec.whatwg.org/#shadowroot-serializable
     bool m_serializable { false };
-
-    mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     AnchorNameMap m_anchor_name_map;
 

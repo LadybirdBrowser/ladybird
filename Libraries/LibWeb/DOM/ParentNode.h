@@ -11,6 +11,8 @@
 
 namespace Web::DOM {
 
+class RootedNodeList;
+
 class WEB_API ParentNode : public Node {
     WEB_NON_IDL_WRAPPABLE(ParentNode, Node);
     GC_DECLARE_ALLOCATOR(ParentNode);
@@ -54,6 +56,15 @@ private:
     // layout libweb_rust defines (see Rust/src/dom/tree_version.rs), which reads and moves them in place.
     RustFFI::ParentNodeCore m_parent_node_core {};
 };
+
+enum class InTreeOrder : u8 {
+    No,
+    Yes,
+};
+
+// Appends the elements of the connected tree whose root is scope_root, a document or a shadow root, whose ID is id to
+// result, which libweb_rust looks up in the tree's map of elements by ID.
+void elements_with_id(Node const& scope_root, Utf16View id, InTreeOrder, RootedNodeList& result);
 
 template<typename U>
 inline U* Node::first_flat_tree_ancestor_of_type()

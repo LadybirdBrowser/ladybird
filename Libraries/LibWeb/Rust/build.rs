@@ -2881,6 +2881,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/dom/clone.rs"),
             manifest_dir.join("src/dom/rooted_nodes.rs"),
             manifest_dir.join("src/dom/slots.rs"),
+            manifest_dir.join("src/dom/id_map.rs"),
             manifest_dir.join("src/dom/adopt.rs"),
             manifest_dir.join("src/dom/collection.rs"),
             manifest_dir.join("src/dom/traversal.rs"),

@@ -136,14 +136,10 @@ pub(super) fn removing_steps_do_nothing(node: NodeRef, parent: NodeRef, parent_r
     if node.core().style_node_id().is_some() {
         return false;
     }
-    if !is_character_data_or_doctype(node) {
-        if !element_steps_do_nothing(node, parent, ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS) {
-            return false;
-        }
-        // NB: An element with an ID leaves the ID map of the shadow root it was in.
-        if parent_root.is_shadow_root() && node.element_core().is_some_and(|core| core.id().is_some()) {
-            return false;
-        }
+    if !is_character_data_or_doctype(node)
+        && !element_steps_do_nothing(node, parent, ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS)
+    {
+        return false;
     }
     node.core().set_in_editable_subtree(false);
     true
@@ -345,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn an_element_with_an_id_leaving_a_shadow_tree_runs_the_removing_steps() {
+    fn an_element_with_an_id_leaving_a_disconnected_shadow_tree_has_nothing_to_do() {
         let main_thread = MainThread::for_test();
         let host = html_element(&main_thread);
         let shadow_root = NodeRef::from(shadow_root(&main_thread, host));
@@ -358,8 +354,9 @@ mod tests {
             };
             NodeRef::from(element(&main_thread, core).node())
         };
+        // NB: Only a connected tree keeps a map of its elements by ID, see id_map.rs.
         assert!(removing_steps_do_nothing(with_id(None), parent, shadow_root));
-        assert!(!removing_steps_do_nothing(with_id(Some("a")), parent, shadow_root));
+        assert!(removing_steps_do_nothing(with_id(Some("a")), parent, shadow_root));
         assert!(removing_steps_do_nothing(with_id(Some("a")), parent, parent));
     }
 

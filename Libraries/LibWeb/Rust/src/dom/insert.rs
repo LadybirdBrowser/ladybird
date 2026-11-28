@@ -14,6 +14,7 @@ use super::hooks::DomInserter;
 use super::hooks::Inserter;
 use super::hooks::InsertionKind;
 use super::hooks::ParserInserter;
+use super::id_map;
 use super::links;
 use super::node::NodeCell;
 use super::node_core::NodeType;
@@ -262,7 +263,14 @@ fn run_insertion_steps_for_subtree<I: Inserter>(
     //       document set.
     //    3. Run the insertion steps with inclusiveDescendant.
     // AD-HOC: The insertion steps run first, and inclusiveDescendant's connectedness is read after them.
+    // NB: A subtree that joins a connected parent becomes connected, which its insertion steps tell its nodes.
+    let joins_a_connected_tree = node.parent().is_some_and(|parent| parent.is_connected());
     for_each_shadow_including_inclusive_descendant(node, &mut |inclusive_descendant| {
+        // NB: An element with an ID that joins a connected tree joins the tree's map of elements by ID, see id_map.rs.
+        if joins_a_connected_tree {
+            id_map::element_connected(main_thread, inclusive_descendant);
+        }
+
         // OPTIMIZATION: The cores tell which nodes the insertion steps have nothing to do for, see steps.rs.
         if insertion_steps_do_nothing(inclusive_descendant) {
             return;

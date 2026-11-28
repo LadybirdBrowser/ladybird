@@ -199,6 +199,15 @@ pub const SLOT_CHANGE_RECORD_ASSIGNED_NODES: u8 = 1 << 1;
 /// Invalidate the layout tree and the style that the slot's assignment changes.
 pub const SLOT_CHANGE_INVALIDATE: u8 = 1 << 2;
 
+/// The callbacks through which the maps of elements by ID hold their elements weakly, see id_map.rs.
+#[repr(C)]
+pub struct IdMapHooks {
+    /// See [`create_weak`].
+    pub create_weak: unsafe extern "C" fn(node: NodeRef) -> NonNull<c_void>,
+    /// See [`release_weak`].
+    pub release_weak: unsafe extern "C" fn(weak: NonNull<c_void>),
+}
+
 /// The callbacks of one kind of insertion, see InsertionKind.
 #[repr(C)]
 pub struct InsertionHooks {
@@ -276,6 +285,8 @@ pub struct DomHooks {
     pub cloning: CloneHooks,
     /// The callbacks of slots.
     pub slots: SlotHooks,
+    /// The callbacks of the maps of elements by ID.
+    pub id_map: IdMapHooks,
     /// See [`live_range_boundary_points_set`].
     pub live_range_boundary_points_set: unsafe extern "C" fn(document: RawNodeRef),
     /// See [`call_node_filter`].
@@ -921,6 +932,24 @@ pub(crate) fn assigned_slot_changed(
 ) {
     // SAFETY: The callback is called on the main thread with live nodes.
     unsafe { (hooks(main_thread).slots.assigned_slot_changed)(slottable, old_slot.into(), new_slot.into()) }
+}
+
+/// A new GC::WeakImpl for `node`, to which the caller holds a reference.
+///
+/// Allocates. Runs no script, and leaves the tree as it is.
+#[inline]
+pub(crate) fn create_weak(main_thread: &mut MainThread<'_>, node: NodeRef) -> NonNull<c_void> {
+    // SAFETY: The callback is called on the main thread with a live node.
+    unsafe { (hooks(main_thread).id_map.create_weak)(node) }
+}
+
+/// Releases the caller's reference to the GC::WeakImpl `weak`, which create_weak() made.
+///
+/// Runs no script, and leaves the tree as it is.
+#[inline]
+pub(crate) fn release_weak(main_thread: &mut MainThread<'_>, weak: NonNull<c_void>) {
+    // SAFETY: The callback is called on the main thread with a GC::WeakImpl the caller holds a reference to.
+    unsafe { (hooks(main_thread).id_map.release_weak)(weak) }
 }
 
 /// Runs the C++ steps for `slot` that `steps` names, see SLOT_CHANGE_*.

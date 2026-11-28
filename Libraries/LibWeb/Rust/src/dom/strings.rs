@@ -283,7 +283,17 @@ pub unsafe fn string_hash(raw: usize) -> u32 {
         }
     }
     // SAFETY: The string is live, see the safety section.
-    let (length, units) = code_units(unsafe { ak::utf16_string_units(&raw) });
+    units_hash(&unsafe { ak::utf16_string_units(&raw) })
+}
+
+/// The hash AK gives a string with the code units `units`, as AK::Utf16View::hash() works it out.
+pub fn units_hash(units: &Utf16StringUnits<'_>) -> u32 {
+    let units = match units {
+        Utf16StringUnits::Ascii(units) => Utf16StringUnits::Ascii(units),
+        Utf16StringUnits::Latin1(units) => Utf16StringUnits::Latin1(units),
+        Utf16StringUnits::Utf16(units) => Utf16StringUnits::Utf16(units),
+    };
+    let (length, units) = code_units(units);
     if length == 0 {
         return 0;
     }

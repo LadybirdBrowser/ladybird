@@ -10,6 +10,7 @@
 use super::hooks;
 use super::hooks::IsSubtreeRoot;
 use super::hooks::MoveScope;
+use super::id_map;
 use super::links;
 use super::node::Node;
 use super::node::NodeCell;
@@ -194,6 +195,15 @@ pub(crate) fn move_node(
     // 20. If child is null, then append node to newParent’s children.
     // 21. Otherwise, insert node into newParent’s children before child’s index.
     links::insert_child(main_thread, new_parent, node, child);
+
+    // NB: The elements with IDs of a subtree that moves within a connected document move between the maps of elements
+    //     by ID of the trees it moves between, see id_map.rs.
+    if node.is_connected() {
+        let new_root = node.root();
+        for_each_shadow_including_inclusive_descendant(node, &mut |inclusive_descendant| {
+            id_map::element_moved(main_thread, inclusive_descendant, old_parent_root, new_root);
+        });
+    }
 
     // NB: The callback does what the move does for the C++ state that follows the children of newParent, the style
     //     engine and layout, see hooks::after_move_link().
