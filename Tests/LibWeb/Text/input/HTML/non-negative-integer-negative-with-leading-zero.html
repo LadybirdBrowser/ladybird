@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<table id="table"><tr><td id="cell">x</td></tr></table>
+<script>
+    test(() => {
+        const table = document.getElementById("table");
+        const cell = document.getElementById("cell");
+        for (const value of ["-03", "-01", "-10", "-0", "-00", "-0x", "03"]) {
+            cell.setAttribute("colspan", value);
+            cell.setAttribute("rowspan", value);
+            table.setAttribute("cellspacing", value);
+            println(`${JSON.stringify(value)}: colSpan=${cell.colSpan} rowSpan=${cell.rowSpan} border-spacing=${getComputedStyle(table).borderSpacing}`);
+        }
+    });
+</script>
