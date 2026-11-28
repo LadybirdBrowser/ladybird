@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        spoofCurrentURL(`https://cookie-${crypto.randomUUID()}.example.com/`);
+        document.cookie = "many-separators=value" + ";".repeat(200000);
+        println(document.cookie);
+    });
+</script>
