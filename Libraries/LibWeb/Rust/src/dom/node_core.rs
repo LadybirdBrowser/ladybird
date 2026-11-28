@@ -29,7 +29,18 @@ impl NodePointer {
     pub fn compressed(self) -> u32 {
         self.0.get()
     }
+
+    /// The node `compressed` names, which is never 0.
+    #[inline(always)]
+    pub(super) fn from_compressed(compressed: u32) -> Self {
+        Self(NonZeroU32::new(compressed).expect("a node pointer is never null"))
+    }
 }
+
+/// Where a collector that has to know about stores into cells, like a generational or incremental one, will hook in,
+/// as GC::Detail::member_write_barrier() does for the stores C++ makes. It does nothing for now.
+#[inline(always)]
+fn member_write_barrier(_slot: &Cell<u32>, _compressed: u32) {}
 
 /// Where DOM::Node embeds its core, in bytes from the start of the node's cell, which Node.h asserts.
 pub const NODE_CORE_OFFSET: usize = 32;
@@ -48,6 +59,14 @@ impl NodeMember {
     #[inline(always)]
     pub fn get(&self) -> Option<NodePointer> {
         NonZeroU32::new(self.0.get()).map(NodePointer)
+    }
+
+    /// Stores `node`, or null, as GC::Member's assignment does, through the write barrier hook.
+    #[inline(always)]
+    pub(super) fn set(&self, node: Option<NodePointer>) {
+        let compressed = node.map_or(0, NodePointer::compressed);
+        member_write_barrier(&self.0, compressed);
+        self.0.set(compressed);
     }
 }
 
@@ -275,12 +294,35 @@ impl NodeCore {
     pub fn previous_sibling(&self) -> Option<NodePointer> {
         self.previous_sibling.get()
     }
-}
 
-#[cfg(test)]
-impl NodePointer {
-    pub(crate) fn from_compressed_for_test(compressed: u32) -> Self {
-        Self(NonZeroU32::new(compressed).unwrap())
+    #[inline(always)]
+    pub(super) fn set_parent(&self, node: Option<NodePointer>) {
+        self.parent.set(node);
+    }
+
+    #[inline(always)]
+    pub(super) fn set_first_child(&self, node: Option<NodePointer>) {
+        self.first_child.set(node);
+    }
+
+    #[inline(always)]
+    pub(super) fn set_last_child(&self, node: Option<NodePointer>) {
+        self.last_child.set(node);
+    }
+
+    #[inline(always)]
+    pub(super) fn set_next_sibling(&self, node: Option<NodePointer>) {
+        self.next_sibling.set(node);
+    }
+
+    #[inline(always)]
+    pub(super) fn set_previous_sibling(&self, node: Option<NodePointer>) {
+        self.previous_sibling.set(node);
+    }
+
+    #[inline(always)]
+    pub(super) fn set_root(&self, node: NodePointer) {
+        self.root.set(Some(node));
     }
 }
 
@@ -323,24 +365,6 @@ impl DocumentFragmentCore {
 }
 
 #[cfg(test)]
-impl NodeMember {
-    pub(crate) fn set(&self, node: Option<NodePointer>) {
-        self.0.set(node.map_or(0, NodePointer::compressed));
-    }
-}
-
-/// The fields of a core that a test tree writes as it builds its tree.
-#[cfg(test)]
-pub(crate) struct TestLinks<'a> {
-    pub(crate) parent: &'a NodeMember,
-    pub(crate) first_child: &'a NodeMember,
-    pub(crate) last_child: &'a NodeMember,
-    pub(crate) next_sibling: &'a NodeMember,
-    pub(crate) previous_sibling: &'a NodeMember,
-    pub(crate) root: &'a NodeMember,
-}
-
-#[cfg(test)]
 impl NodeCore {
     pub(crate) fn set_style_node_id_for_test(&self, node: Option<StyleNodeID>) {
         self.style_node_id.0.set(node.map_or(0, StyleNodeID::raw));
@@ -366,17 +390,6 @@ impl NodeCore {
             node_type,
             flags: Cell::new(0),
             cpp_flags: CppNodeFlags(Cell::new(0)),
-        }
-    }
-
-    pub(crate) fn links_for_test(&self) -> TestLinks<'_> {
-        TestLinks {
-            parent: &self.parent,
-            first_child: &self.first_child,
-            last_child: &self.last_child,
-            next_sibling: &self.next_sibling,
-            previous_sibling: &self.previous_sibling,
-            root: &self.root,
         }
     }
 }

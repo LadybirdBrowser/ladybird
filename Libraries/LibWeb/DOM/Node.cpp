@@ -125,6 +125,43 @@ static_assert(sizeof(Node) == 96);
 extern "C" FlatPtr rust_dom_heap_region_base;
 static GC::HeapRegionBaseCopyRegistration s_rust_dom_heap_region_base_registration { rust_dom_heap_region_base };
 
+// The callbacks through which libweb_rust's DOM algorithms (see Rust/src/dom/hooks.rs) run the virtual hooks of nodes
+// and the steps whose state is still C++'s.
+class RustDOMHooks {
+public:
+    static void run_removing_steps(Node* node, Node::IsSubtreeRoot is_subtree_root, Node* parent, Node* parent_root, bool was_tracked_by_style_engine, bool is_parent_connected)
+    {
+        auto* element = as_if<Element>(*node);
+        if (element && was_tracked_by_style_engine)
+            element->cancel_css_animations_and_transitions();
+        node->removed_from(is_subtree_root, parent, *parent_root);
+        if (element && element->is_custom() && is_parent_connected)
+            element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
+    }
+
+    static void enqueue_custom_element_callback_reaction(Node* node, RustFFI::CustomElementCallback callback)
+    {
+        auto& element = as<Element>(*node);
+        if (!element.is_custom())
+            return;
+        switch (callback) {
+        case RustFFI::CustomElementCallback::Disconnected:
+            element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
+            return;
+        }
+        VERIFY_NOT_REACHED();
+    }
+};
+
+static constexpr RustFFI::DomHooks s_rust_dom_hooks {
+    .run_removing_steps = RustDOMHooks::run_removing_steps,
+    .enqueue_custom_element_callback_reaction = RustDOMHooks::enqueue_custom_element_callback_reaction,
+};
+
+static struct RustDOMHooksRegistration {
+    RustDOMHooksRegistration() { RustFFI::rust_dom_register_hooks(&s_rust_dom_hooks); }
+} s_rust_dom_hooks_registration;
+
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
 {
     auto list_owner = list_item.parent_element();
@@ -1418,37 +1455,9 @@ void Node::assign_slottables_after_removal(Node& parent, Node& parent_root, Read
 
 void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_tracked_by_style_engine)
 {
-    if (was_tracked_by_style_engine) {
-        if (auto* element = as_if<Element>(*this))
-            element->cancel_css_animations_and_transitions();
-    }
-    removed_from(IsSubtreeRoot::Yes, &parent, parent_root);
-
-    bool is_parent_connected = parent.is_connected();
-
-    if (auto* element = as_if<DOM::Element>(*this)) {
-        if (element->is_custom() && is_parent_connected)
-            element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
-    }
-
-    for_each_shadow_including_descendant([&](Node& descendant) {
-        if (was_tracked_by_style_engine) {
-            if (auto* element = as_if<Element>(descendant))
-                element->cancel_css_animations_and_transitions();
-        }
-
-        // 1. Run the removing steps with descendant, false, and parent.
-        descendant.removed_from(IsSubtreeRoot::No, &parent, parent_root);
-
-        // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction
-        //    with descendant, callback name "disconnectedCallback", and « ».
-        if (auto* element = as_if<DOM::Element>(descendant)) {
-            if (element->is_custom() && is_parent_connected)
-                element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
-        }
-
-        return TraversalDecision::Continue;
-    });
+    // NB: libweb_rust walks the subtree, see Rust/src/dom/remove.rs, and calls RustDOMHooks::run_removing_steps() for
+    //     each node.
+    RustFFI::rust_dom_run_removing_steps(this, &parent, &parent_root, was_tracked_by_style_engine);
 }
 
 // https://dom.spec.whatwg.org/#add-transient-registered-observers
@@ -4018,8 +4027,7 @@ void Node::append_child_impl(GC::Ref<Node> node)
     if (!is_child_allowed(*node))
         return;
 
-    TreeNode::append_child(node);
-    node->set_root_for_subtree(root());
+    RustFFI::rust_dom_insert_child(this, node.ptr(), nullptr);
     if (auto count = node->m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
     add_to_attribute_name_filter_of_parent(*this, node);
@@ -4029,10 +4037,9 @@ void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
     if (!child)
         return append_child_impl(move(node));
-    TreeNode::insert_before(node, child);
+    RustFFI::rust_dom_insert_child(this, node.ptr(), child.ptr());
     if (node->is_element())
         begin_child_index_generation();
-    node->set_root_for_subtree(root());
     if (auto count = node->m_associated_animation_count_in_subtree)
         change_associated_animation_count_in_subtree(count);
     add_to_attribute_name_filter_of_parent(*this, node);
@@ -4047,8 +4054,7 @@ void Node::remove_child_impl(GC::Ref<Node> node)
             begin_child_index_generation();
         element->forget_child_indices();
     }
-    TreeNode::remove_child(node);
-    node->set_root_for_subtree(node);
+    RustFFI::rust_dom_remove_child(this, node.ptr());
 }
 
 void Node::begin_child_index_generation()
@@ -4067,14 +4073,6 @@ void Node::change_associated_animation_count_in_subtree(i32 delta)
 {
     for (auto* node = this; node; node = node->parent_or_shadow_host())
         node->m_associated_animation_count_in_subtree += delta;
-}
-
-void Node::set_root_for_subtree(Node& new_root)
-{
-    for_each_in_inclusive_subtree([&](Node& node) {
-        node.m_core.root = new_root;
-        return TraversalDecision::Continue;
-    });
 }
 
 void Node::build_accessibility_tree(AccessibilityTreeNode& parent)

@@ -16,8 +16,10 @@ use std::sync::atomic::Ordering;
 use super::element::Element;
 use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
+use super::links::append_child_for_test;
 use super::node::Node;
 use super::node::NodeCell;
+use super::node::compress;
 use super::node_core::CHARACTER_DATA_CORE_OFFSET;
 use super::node_core::CharacterDataCore;
 use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
@@ -26,6 +28,7 @@ use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
+use super::node_ref::NodeRef;
 use super::qualified_name::QualifiedNameField;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style::tree::TreeScopeID;
@@ -85,13 +88,8 @@ fn arena() -> &'static Arena {
     })
 }
 
-fn compress(address: usize) -> NodePointer {
-    let compressed = u32::try_from((address - arena().base()) >> 3).unwrap();
-    NodePointer::from_compressed_for_test(compressed)
-}
-
 fn pointer_of(node: Node<'_>) -> NodePointer {
-    compress(node.cell() as *const NodeCell as usize)
+    compress(node.cell())
 }
 
 /// A new node of `node_type`, the root of a tree of its own. An element is a `div` in no namespace, and a CharacterData
@@ -164,7 +162,8 @@ fn new_node<'a>(
     assert!(index < ARENA_CELLS, "the test arena is full");
     // SAFETY: The index is in the arena, and no other node has this cell.
     let cell = unsafe { &mut *arena.cells.add(index) };
-    let pointer = compress(cell as *mut MaybeUninit<TestCell> as usize);
+    // SAFETY: A test cell starts with its node's cell.
+    let pointer = compress(unsafe { &*(cell as *mut MaybeUninit<TestCell> as *const NodeCell) });
     let mut core = NodeCore::for_test(node_type, pointer);
     initialize(&mut core);
     let cell = cell.write(TestCell {
@@ -199,30 +198,7 @@ pub(crate) fn set_style_engine_tree_scope(shadow_root: Node<'_>, tree_scope: Tre
 
 /// Appends `child`, the root of a tree of its own, to `parent`'s children.
 pub(crate) fn append_child(parent: Node<'_>, child: Node<'_>) {
-    let child_links = child.core().links_for_test();
-    assert!(child.parent().is_none());
-    let parent_links = parent.core().links_for_test();
-    child_links.parent.set(Some(pointer_of(parent)));
-    child_links.previous_sibling.set(parent.core().last_child());
-    match parent.last_child() {
-        Some(last_child) => last_child
-            .core()
-            .links_for_test()
-            .next_sibling
-            .set(Some(pointer_of(child))),
-        None => parent_links.first_child.set(Some(pointer_of(child))),
-    }
-    parent_links.last_child.set(Some(pointer_of(child)));
-    set_root(child, pointer_of(parent.root()));
-}
-
-fn set_root(node: Node<'_>, root: NodePointer) {
-    node.core().links_for_test().root.set(Some(root));
-    let mut child = node.first_child();
-    while let Some(current) = child {
-        set_root(current, root);
-        child = current.next_sibling();
-    }
+    append_child_for_test(NodeRef::from(parent), NodeRef::from(child));
 }
 
 #[cfg(test)]

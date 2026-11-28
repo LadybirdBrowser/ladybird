@@ -128,15 +128,6 @@ public:
     }
 
     void append_child(GC::Ref<T> node);
-    void insert_before(GC::Ref<T> node, GC::Ptr<T> child);
-    void remove_child(GC::Ref<T> node);
-
-    void replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child);
-    void remove()
-    {
-        VERIFY(links().parent);
-        links().parent->remove_child(*static_cast<T*>(this));
-    }
 
     size_t child_count() const
     {
@@ -489,28 +480,6 @@ struct TreeNodeLinks {
 };
 
 template<typename T>
-inline void TreeNode<T>::remove_child(GC::Ref<T> node)
-{
-    VERIFY(node->links().parent == this);
-
-    if (links().first_child == node.ptr())
-        links().first_child = node->links().next_sibling;
-
-    if (links().last_child == node.ptr())
-        links().last_child = node->links().previous_sibling;
-
-    if (node->links().next_sibling)
-        node->links().next_sibling->links().previous_sibling = node->links().previous_sibling;
-
-    if (node->links().previous_sibling)
-        node->links().previous_sibling->links().next_sibling = node->links().next_sibling;
-
-    node->links().next_sibling = nullptr;
-    node->links().previous_sibling = nullptr;
-    node->links().parent = nullptr;
-}
-
-template<typename T>
 inline void TreeNode<T>::append_child(GC::Ref<T> node)
 {
     VERIFY(!node->links().parent);
@@ -522,51 +491,6 @@ inline void TreeNode<T>::append_child(GC::Ref<T> node)
     links().last_child = node.ptr();
     if (!links().first_child)
         links().first_child = links().last_child;
-}
-
-template<typename T>
-inline void TreeNode<T>::replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child)
-{
-    VERIFY(old_child != new_child);
-    VERIFY(old_child->links().parent == this);
-    VERIFY(new_child->links().parent == nullptr);
-    if (links().first_child == old_child)
-        links().first_child = new_child;
-    if (links().last_child == old_child)
-        links().last_child = new_child;
-    new_child->links().next_sibling = old_child->links().next_sibling;
-    if (new_child->links().next_sibling)
-        new_child->links().next_sibling->links().previous_sibling = new_child;
-    new_child->links().previous_sibling = old_child->links().previous_sibling;
-    if (new_child->links().previous_sibling)
-        new_child->links().previous_sibling->links().next_sibling = new_child;
-    new_child->links().parent = old_child->links().parent;
-    old_child->links().next_sibling = nullptr;
-    old_child->links().previous_sibling = nullptr;
-    old_child->links().parent = nullptr;
-}
-
-template<typename T>
-inline void TreeNode<T>::insert_before(GC::Ref<T> node, GC::Ptr<T> child)
-{
-    if (!child)
-        return append_child(move(node));
-
-    VERIFY(!node->links().parent);
-    VERIFY(child->parent() == this);
-
-    node->links().previous_sibling = child->links().previous_sibling;
-    node->links().next_sibling = child.ptr();
-
-    if (child->links().previous_sibling)
-        child->links().previous_sibling->links().next_sibling = node.ptr();
-
-    if (links().first_child == child.ptr())
-        links().first_child = node.ptr();
-
-    child->links().previous_sibling = node.ptr();
-
-    node->links().parent = static_cast<T*>(this);
 }
 
 template<typename T>

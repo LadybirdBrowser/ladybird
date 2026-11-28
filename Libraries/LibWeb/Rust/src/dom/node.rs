@@ -12,6 +12,7 @@ use core::hash::Hash;
 use core::hash::Hasher;
 use core::marker::PhantomData;
 use core::marker::PhantomPinned;
+use core::ptr::NonNull;
 
 use super::node_core::CHARACTER_DATA_CORE_OFFSET;
 use super::node_core::CharacterDataCore;
@@ -47,6 +48,38 @@ const COMPRESSED_POINTER_SHIFT: u32 = 3;
 fn heap_region_base() -> usize {
     // SAFETY: Nothing writes the copy after the first node exists, see HeapRegionBaseCopy.
     unsafe { *HEAP_REGION_BASE.0.get() }
+}
+
+/// The start of the cell a node pointer names, decoded as GC::decompress_nonnull() decodes a compressed pointer.
+///
+/// Makes the compressed pointer live up to this point, and the decoded address from this point on. The conservative
+/// stack scan recognizes a cell by its address or by its compressed pointer in either half of a word, but not by its
+/// unshifted offset, which the compiler could otherwise keep instead while either is held across an allocation.
+#[inline(always)]
+pub(super) fn decompress(pointer: NodePointer) -> NonNull<NodeCell> {
+    let compressed = pointer.compressed();
+    let mut address = heap_region_base() + ((compressed as usize) << COMPRESSED_POINTER_SHIFT);
+    // SAFETY: The assembly is empty: it only has the compiler put `compressed` and `address` in registers here.
+    unsafe {
+        core::arch::asm!(
+            "/* {compressed} {address} */",
+            compressed = in(reg) compressed as usize,
+            address = inout(reg) address,
+            options(nomem, nostack, preserves_flags),
+        );
+    }
+    // SAFETY: A compressed pointer decodes to an address in the heap region, which is never null. The base is an exposed
+    //         address of the region, whose provenance the cell's address takes.
+    unsafe { NonNull::new_unchecked(core::ptr::with_exposed_provenance_mut(address)) }
+}
+
+/// The compressed pointer of a node: its offset into the heap region in units of the cell alignment.
+#[inline(always)]
+pub(super) fn compress(cell: &NodeCell) -> NodePointer {
+    let offset = (cell as *const NodeCell as usize).wrapping_sub(heap_region_base());
+    debug_assert!(offset < (1usize << (32 + COMPRESSED_POINTER_SHIFT)));
+    debug_assert!(offset.is_multiple_of(1 << COMPRESSED_POINTER_SHIFT));
+    NodePointer::from_compressed((offset >> COMPRESSED_POINTER_SHIFT) as u32)
 }
 
 /// Sets the heap region base to that of a test arena.
