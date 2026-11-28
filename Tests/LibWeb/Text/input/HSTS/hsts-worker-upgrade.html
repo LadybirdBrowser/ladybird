@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // HSTS upgrades must fire on fetches issued from a dedicated Worker, exercising the
-    // worker -> WebContent IPC path for did_is_known_hsts_host. The precondition and the
-    // upgraded fetch both run inside the worker, so the rejection is attributable to HSTS
-    // in the worker path and not to worker fetch/DNS behaviour.
     promiseTest(async () => {
         const httpServer = httpTestServer();
         const echoURL = await httpServer.createEcho("GET", "/hsts-worker-test", {
@@ -50,18 +46,15 @@
 
         const result = await new Promise(resolve => {
             let gotPrecondition = false;
-            worker.onmessage = e => {
+            worker.onmessage = async e => {
                 if (!gotPrecondition) {
                     gotPrecondition = true;
                     if (e.data !== "PRECONDITION_OK") {
                         resolve(e.data);
                         return;
                     }
-                    // setHSTSPolicy is async IPC to the UI process; a synchronous
-                    // isKnownHSTSHost round-trip on the same channel both confirms the
-                    // policy and orders after the store before the worker proceeds.
                     internals.setHSTSPolicy(url.hostname, 31536000, false);
-                    if (!internals.isKnownHSTSHost(url.hostname)) {
+                    if (!(await internals.isKnownHSTSHost(url.hostname))) {
                         resolve("FAIL - HSTS policy was not installed");
                         return;
                     }
