@@ -243,6 +243,7 @@ ReadonlySpan<GC::Member<DOMEventListener>> EventTarget::event_listeners() const
 }
 
 EventTarget::EventTarget(RustMadePrefix)
+    : GCAllocatedWrappable(EmbedderTypeIdIsWritten {})
 {
 }
 

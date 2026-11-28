@@ -81,7 +81,7 @@ struct RustElementObjectHooks {
     {
         alignas(T) static u8 storage[sizeof(T)];
         auto& probe = *new (storage) T(VtableProbe {});
-        GC::CellConstructionHook<T>::did_construct(probe);
+        GC::CellConstructionHook<T>::give_class_id_to_probe(probe);
         return probe;
     }
 

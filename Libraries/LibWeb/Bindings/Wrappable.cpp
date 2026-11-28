@@ -27,6 +27,11 @@ namespace Web::Bindings {
 
 Wrappable::Wrappable() = default;
 
+Wrappable::Wrappable(EmbedderTypeIdIsWritten tag)
+    : JS::Cell(tag)
+{
+}
+
 struct PreservedWrapper {
     GC::Weak<WrapperWorld> world;
     GC::Ptr<JS::HostObject> wrapper;

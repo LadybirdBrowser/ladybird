@@ -145,7 +145,8 @@ pub struct WrappablePrefix {
     vtable: OpaqueCxx<u64, 1>,
     cell_header: OpaqueCxx<u8, 3>,
     preservation_flags: OpaqueCxx<u8, 1>,
-    /// The class of the node this is, or NodeClassId::NotANode, which C++ writes as it constructs the object.
+    /// The class of the node this is, which Rust writes as it makes the prefix of the node, or NodeClassId::NotANode,
+    /// which C++ writes as it constructs an event target that is no node.
     class_id: NodeClassId,
     main_world_wrapper: OpaqueCxx<u64, 1>,
 }

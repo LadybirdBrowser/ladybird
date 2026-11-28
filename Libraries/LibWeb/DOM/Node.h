@@ -792,9 +792,9 @@ static_assert(offsetof(TailPaddingProbe, after) == sizeof(TailPaddingProbeBase))
 }
 #endif
 
-// Gives a node, as it is constructed, the id of its class (see DOM/NodeClassId.h), and works out for
-// DOM/NodeClassSteps.cpp which steps its class has (see Rust/src/dom/node_class.rs), which the class's overrides decide.
-// Every cell class befriends it, so it can name the overrides a class keeps private.
+// Constructs the payload of a node whose prefix libweb_rust made, with the id of its class (see DOM/NodeClassId.h), and
+// works out for DOM/NodeClassSteps.cpp which steps its class has (see Rust/src/dom/node_class.rs), which the class's
+// overrides decide. Every cell class befriends it, so it can name the overrides a class keeps private.
 template<typename T>
 requires(IsBaseOf<Web::DOM::Node, T>)
 struct CellConstructionHook<T> {
@@ -888,17 +888,19 @@ struct CellConstructionHook<T> {
     static T& construct_payload(Web::DOM::Node& node, Args&&... args)
     {
         static_assert(T::cell_kind_for_class == CellKind::Other, "libweb_rust makes a node a cell of GC::CellKind::Other");
+        // NB: libweb_rust wrote the id of T's class into the prefix, see NodeClassTraits<T>::id. DOM/NodeClassSteps.cpp
+        //     checks that DOM/NodeClasses.json has T under the class it derives from.
+        static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
         DeferGC defer_gc { node.heap() };
-        auto& object = *::new (static_cast<void*>(&node)) T(Web::DOM::RustMadePrefix {}, forward<Args>(args)...);
-        did_construct(object);
-        return object;
+        return *::new (static_cast<void*>(&node)) T(Web::DOM::RustMadePrefix {}, forward<Args>(args)...);
     }
 
-    static void did_construct(T& node)
+    // Gives `probe`, a probe of T that C++ constructed (see Web::DOM::VtableProbe), the id of its class, which
+    // libweb_rust checks.
+    static void give_class_id_to_probe(T& probe)
     {
         static_assert(Web::DOM::HasNodeClassId<T>, "DOM/NodeClasses.json must list every class of nodes");
-        // NB: DOM/NodeClassSteps.cpp checks that the list has T under the class it derives from.
-        static_cast<Web::Bindings::Wrappable&>(node).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
+        static_cast<Web::Bindings::Wrappable&>(probe).set_node_class_id(Web::DOM::NodeClassTraits<T>::id);
     }
 };
 
