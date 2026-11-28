@@ -80,13 +80,14 @@ CharacterData::CharacterData(Document& document, NodeType type, Utf16String data
     : Node(document, type)
     , m_character_data_core { .data = move(data) }
 {
-    // NB: libweb_rust reads the core of a CharacterData node in place.
-    static_assert(offsetof(CharacterData, m_character_data_core) == RustFFI::CHARACTER_DATA_CORE_OFFSET);
-}
+    // NB: libweb_rust reads a CharacterData node as the CharacterDataPrefix it starts with.
+    static_assert(sizeof(CharacterData) == sizeof(RustFFI::CharacterDataPrefix));
+    static_assert(offsetof(CharacterData, m_character_data_core) == offsetof(RustFFI::CharacterDataPrefix, core));
 
-// NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::CharacterDataCore) == 8 && alignof(RustFFI::CharacterDataCore) == 8);
-static_assert(offsetof(RustFFI::CharacterDataCore, data) == 0);
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(CharacterData, m_character_data_core) >= sizeof(Node));
+}
 
 CharacterData::~CharacterData() = default;
 

@@ -897,23 +897,13 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
 
     HTML::main_thread_event_loop().register_document({}, *this);
 
-    // NB: libweb_rust finds the core of a document at this offset into the document's cell, which starts with its node.
-    static_assert(offsetof(Document, m_document_core) == RustFFI::DOCUMENT_CORE_OFFSET);
+    // NB: libweb_rust reads a document as the DocumentPrefix it starts with.
+    static_assert(offsetof(Document, m_document_core) == offsetof(RustFFI::DocumentPrefix, core));
+    static_assert(offsetof(Document, m_page) == sizeof(RustFFI::DocumentPrefix));
     RustFFI::rust_dom_start_tree_versions_of_document(this);
     update_has_mutation_listener();
 }
 
-// NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentCore) == 112 && alignof(RustFFI::DocumentCore) == 8);
-static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
-static_assert(offsetof(RustFFI::DocumentCore, window) == 4);
-static_assert(offsetof(RustFFI::DocumentCore, live_ranges) == 8);
-static_assert(offsetof(RustFFI::DocumentCore, node_iterators) == 24);
-static_assert(offsetof(RustFFI::DocumentCore, node_tree_version) == 40);
-static_assert(offsetof(RustFFI::DocumentCore, element_tree_version) == 48);
-static_assert(offsetof(RustFFI::DocumentCore, collection_attribute_versions) == 56);
-static_assert(offsetof(RustFFI::DocumentCore, element_tree_positions_dom_tree_version) == 96);
-static_assert(offsetof(RustFFI::DocumentCore, ids) == 104);
 // NB: The collection state DocumentCore took in grows a document no more than the counts of valid collection caches it
 //     replaces did.
 

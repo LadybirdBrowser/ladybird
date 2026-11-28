@@ -39,12 +39,9 @@ Attr::Attr(Document& document, QualifiedName qualified_name, Utf16String value, 
         .owner_element = owner_element,
     }
 {
-    // NB: libweb_rust finds the core of an Attr node at this offset into its cell, and defines its layout.
-    static_assert(offsetof(Attr, m_attr_core) == RustFFI::ATTR_CORE_OFFSET);
-    static_assert(sizeof(RustFFI::AttrCore) == 24 && alignof(RustFFI::AttrCore) == 8);
-    static_assert(offsetof(RustFFI::AttrCore, qualified_name) == 0);
-    static_assert(offsetof(RustFFI::AttrCore, value) == 8);
-    static_assert(offsetof(RustFFI::AttrCore, owner_element) == 16);
+    // NB: libweb_rust reads an Attr node as the AttrPrefix it starts with.
+    static_assert(sizeof(Attr) == sizeof(RustFFI::AttrPrefix));
+    static_assert(offsetof(Attr, m_attr_core) == offsetof(RustFFI::AttrPrefix, core));
 
     // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
     //     its tail padding, where only the Itanium ABI could.

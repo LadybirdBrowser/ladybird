@@ -35,9 +35,6 @@ use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
-/// Where DOM::Attr embeds its core, in bytes from the start of the node's cell, which Attr.cpp asserts.
-pub const ATTR_CORE_OFFSET: usize = 96;
-
 /// The state of an Attr node beyond that of every node, which C++ embeds in DOM::Attr as its only storage of it.
 /// https://dom.spec.whatwg.org/#concept-attribute
 #[repr(C)]
@@ -49,12 +46,6 @@ pub struct AttrCore {
     /// https://dom.spec.whatwg.org/#concept-attribute-element
     owner_element: ElementMember,
 }
-
-// NB: Attr.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<AttrCore>() == 24 && align_of::<AttrCore>() == 8);
-const _: () = assert!(offset_of!(AttrCore, qualified_name) == 0);
-const _: () = assert!(offset_of!(AttrCore, value) == 8);
-const _: () = assert!(offset_of!(AttrCore, owner_element) == 16);
 
 impl AttrCore {
     #[inline(always)]

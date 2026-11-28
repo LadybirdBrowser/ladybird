@@ -12,10 +12,10 @@ use core::cell::Cell;
 use core::cell::UnsafeCell;
 use core::marker::PhantomData;
 use core::marker::PhantomPinned;
-use core::mem::offset_of;
 use core::num::NonZeroU32;
 use core::ptr::NonNull;
 
+use super::event_listeners::EventListenerList;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node::decompress;
@@ -23,6 +23,7 @@ use super::node_class::NodeClassId;
 use super::node_core::NodePointer;
 use super::node_core::member_write_barrier;
 use super::node_ref::NodeRef;
+use super::prefix::EventTargetPrefix;
 use crate::stage::MainThread;
 
 /// A field that holds an event target or null, laid out as C++'s GC::Member<DOM::EventTarget>, which is what C++ sees it
@@ -30,9 +31,23 @@ use crate::stage::MainThread;
 #[repr(transparent)]
 pub struct EventTargetMember(Cell<u32>);
 
-/// Where DOM::EventTarget embeds its core, in bytes from the start of the target's cell, which EventTarget.cpp asserts:
-/// right after the fields of Bindings::Wrappable, ahead of the pointer to the target's data.
-pub const EVENT_TARGET_CORE_OFFSET: usize = 24;
+/// A field that holds the pointer to a DOM::EventTarget::Data, laid out as C++'s OwnPtr of it, which C++ allocates and
+/// frees. The data starts with the target's event listener list, which is all Rust reads of it.
+#[repr(transparent)]
+pub struct EventTargetDataField(UnsafeCell<*const EventListenerList>);
+
+impl EventTargetDataField {
+    /// The target's event listener list, if it ever needed one.
+    ///
+    /// # Safety
+    ///
+    /// The field must be that of a live event target, which C++ does not give new data while the list is borrowed.
+    #[inline(always)]
+    pub(super) unsafe fn listener_list(&self) -> Option<&EventListenerList> {
+        // SAFETY: Guaranteed by the caller. The data starts with the list.
+        unsafe { (*self.0.get()).as_ref() }
+    }
+}
 
 // The flags of an event target's core, a bit each in its flags byte, which C++ sets as it constructs the target, from
 // which virtual functions its class overrides, and never changes.
@@ -100,9 +115,8 @@ impl EventTargetCore {
     }
 }
 
-/// A DOM::EventTarget as C++ allocates it: the start of the target's cell, with the target's core
-/// EVENT_TARGET_CORE_OFFSET bytes into it. FFI entry points take event targets as references to it, which C++ sees as
-/// DOM::EventTarget pointers.
+/// A DOM::EventTarget: the start of the target's cell, which starts with an EventTargetPrefix. FFI entry points take
+/// event targets as references to it, which C++ sees as DOM::EventTarget pointers.
 #[repr(C)]
 pub struct EventTargetCell {
     // NB: The cell's state changes behind shared references to it, see NodeCell.
@@ -179,17 +193,18 @@ impl EventTargetRef {
         unsafe { NodeClassId::of_cell(self.pinned_cell()) }
     }
 
+    /// The start of the target, read for as long as the reference is borrowed, during which nothing may call into C++.
+    #[inline(always)]
+    pub(super) fn prefix(&self) -> &EventTargetPrefix {
+        // SAFETY: Every event target starts with an EventTargetPrefix, which EventTarget.cpp asserts, and the target is
+        //         alive for as long as the reference is held.
+        unsafe { &*self.pinned_cell().cast::<EventTargetPrefix>() }
+    }
+
     /// The target's core, read for as long as the reference is borrowed, during which nothing may call into C++.
     #[inline(always)]
     pub(super) fn core(&self) -> &EventTargetCore {
-        // SAFETY: Every event target embeds its core EVENT_TARGET_CORE_OFFSET bytes into its cell, which
-        //         EventTarget.cpp asserts, and the target is alive for as long as the reference is held.
-        unsafe {
-            &*self
-                .pinned_cell()
-                .byte_add(EVENT_TARGET_CORE_OFFSET)
-                .cast::<EventTargetCore>()
-        }
+        &self.prefix().core
     }
 
     /// The node the target is, or none if it is no node.
@@ -244,6 +259,24 @@ impl EventTargetMember {
     }
 }
 
+#[cfg(test)]
+impl EventTargetCore {
+    pub(crate) fn null_for_test() -> Self {
+        Self {
+            flags: Cell::new(0),
+            capture_listener_types: Cell::new(0),
+            bubble_listener_types: Cell::new(0),
+        }
+    }
+}
+
+#[cfg(test)]
+impl EventTargetDataField {
+    pub(crate) fn null_for_test() -> Self {
+        Self(UnsafeCell::new(core::ptr::null()))
+    }
+}
+
 /// An event target or null, as C++ hands one over: laid out as a GC::Ptr<DOM::EventTarget>.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
@@ -273,8 +306,4 @@ impl From<NullableEventTargetRef> for Option<EventTargetRef> {
 
 const _: () = assert!(size_of::<EventTargetMember>() == 4 && align_of::<EventTargetMember>() == 4);
 // NB: EventTarget.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<EventTargetCore>() == 6 && align_of::<EventTargetCore>() == 2);
-const _: () = assert!(offset_of!(EventTargetCore, flags) == 0);
-const _: () = assert!(offset_of!(EventTargetCore, capture_listener_types) == 2);
-const _: () = assert!(offset_of!(EventTargetCore, bubble_listener_types) == 4);
-const _: () = assert!(EVENT_TARGET_CORE_OFFSET.is_multiple_of(align_of::<EventTargetCore>()));
+const _: () = assert!(size_of::<EventTargetDataField>() == 8 && align_of::<EventTargetDataField>() == 8);

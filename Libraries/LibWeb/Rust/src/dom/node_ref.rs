@@ -33,11 +33,9 @@
 
 use core::ptr::NonNull;
 
-use super::attr::ATTR_CORE_OFFSET;
 use super::attr::AttrCore;
 use super::attr::NAMED_NODE_MAP_CORE_OFFSET;
 use super::attr::NamedNodeMapCore;
-use super::element_core::ELEMENT_CORE_OFFSET;
 use super::element_core::ElementCore;
 use super::event_target::EventTargetRef;
 use super::node::Node;
@@ -45,21 +43,22 @@ use super::node::NodeCell;
 use super::node::compress;
 use super::node::decompress;
 use super::node_class::NodeClassId;
-use super::node_core::DOCUMENT_CORE_OFFSET;
-use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
 use super::node_core::DocumentCore;
-use super::node_core::DocumentFragmentCore;
-use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
 use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
-use super::node_core::PARENT_NODE_CORE_OFFSET;
 use super::node_core::ParentNodeCore;
-use super::node_core::TEXT_CORE_OFFSET;
-use super::node_core::TextCore;
-use super::slots::SHADOW_ROOT_CORE_OFFSET;
-use super::slots::SLOT_CORE_OFFSET;
+use super::prefix::AttrPrefix;
+use super::prefix::DocumentFragmentPrefix;
+use super::prefix::DocumentPrefix;
+use super::prefix::ElementPrefix;
+use super::prefix::HTMLSlotElementPrefix;
+use super::prefix::NodePrefix;
+use super::prefix::ParentNodePrefix;
+use super::prefix::ShadowRootPrefix;
+use super::prefix::TextPrefix;
+use super::prefix::prefix_of;
 use super::slots::ShadowRootCore;
 use super::slots::SlotCore;
 use super::slots::is_slot;
@@ -190,9 +189,9 @@ impl NodeRef {
     /// The node's core, read for as long as the reference is borrowed, during which nothing may call into C++.
     #[inline(always)]
     pub(super) fn core(&self) -> &NodeCore {
-        // SAFETY: Every node embeds its core NODE_CORE_OFFSET bytes into its cell, which Node.h asserts, and the node
-        //         is alive for as long as the reference is held.
-        unsafe { &*self.pinned_cell().byte_add(NODE_CORE_OFFSET).cast::<NodeCore>() }
+        // SAFETY: Every node starts with a NodePrefix, which Node.h asserts, and the node is alive for as long as the
+        //         reference is held.
+        &unsafe { prefix_of::<NodePrefix, _>(self.pinned_cell()) }.core
     }
 
     #[inline(always)]
@@ -283,8 +282,8 @@ impl NodeRef {
         if !self.is_element() {
             return None;
         }
-        // SAFETY: Every element embeds its core ELEMENT_CORE_OFFSET bytes into its cell, which Element.cpp asserts.
-        Some(unsafe { &*self.pinned_cell().byte_add(ELEMENT_CORE_OFFSET).cast::<ElementCore>() })
+        // SAFETY: Every element starts with an ElementPrefix, which Element.cpp asserts.
+        Some(&unsafe { prefix_of::<ElementPrefix, _>(self.pinned_cell()) }.core)
     }
 
     /// The Attr node's core, read for as long as the reference is borrowed, during which nothing may call into C++, or
@@ -294,8 +293,8 @@ impl NodeRef {
         if self.class_id() != NodeClassId::Attr {
             return None;
         }
-        // SAFETY: Every Attr node embeds its core ATTR_CORE_OFFSET bytes into its cell, which Attr.cpp asserts.
-        Some(unsafe { &*self.pinned_cell().byte_add(ATTR_CORE_OFFSET).cast::<AttrCore>() })
+        // SAFETY: Every Attr node starts with an AttrPrefix, which Attr.cpp asserts.
+        Some(&unsafe { prefix_of::<AttrPrefix, _>(self.pinned_cell()) }.core)
     }
 
     /// The core of the element's NamedNodeMap, read for as long as the reference is borrowed, during which nothing may
@@ -326,14 +325,8 @@ impl NodeRef {
         ) {
             return None;
         }
-        // SAFETY: Every ParentNode embeds its core PARENT_NODE_CORE_OFFSET bytes into its cell, which ParentNode.cpp
-        //         asserts.
-        Some(unsafe {
-            &*self
-                .pinned_cell()
-                .byte_add(PARENT_NODE_CORE_OFFSET)
-                .cast::<ParentNodeCore>()
-        })
+        // SAFETY: Every ParentNode starts with a ParentNodePrefix, which ParentNode.cpp asserts.
+        Some(&unsafe { prefix_of::<ParentNodePrefix, _>(self.pinned_cell()) }.core)
     }
 
     /// The core of the node's node document, read for as long as the reference is borrowed, during which nothing may
@@ -342,14 +335,9 @@ impl NodeRef {
     pub(super) fn document_core(&self) -> &DocumentCore {
         // SAFETY: A live node keeps its node document alive.
         let document = unsafe { Self::decode(self.core().document()) };
-        // SAFETY: Every document embeds its core DOCUMENT_CORE_OFFSET bytes into its cell, which Document.cpp asserts,
-        //         and the document lives for as long as the node, whose reference is borrowed.
-        unsafe {
-            &*document
-                .pinned_cell()
-                .byte_add(DOCUMENT_CORE_OFFSET)
-                .cast::<DocumentCore>()
-        }
+        // SAFETY: Every document starts with a DocumentPrefix, which Document.cpp asserts, and the document lives for as
+        //         long as the node, whose reference is borrowed.
+        &unsafe { prefix_of::<DocumentPrefix, _>(document.pinned_cell()) }.core
     }
 
     /// The Window of a document, which DOM::Document keeps in its core, or none.
@@ -374,9 +362,12 @@ impl NodeRef {
         match self.node_type() {
             NodeType::ELEMENT_NODE => Self::follow(self.element_core()?.assigned_slot()),
             NodeType::TEXT_NODE | NodeType::CDATA_SECTION_NODE => {
-                // SAFETY: Every Text node embeds its core TEXT_CORE_OFFSET bytes into its cell, which Text.cpp asserts.
-                let core = unsafe { &*self.pinned_cell().byte_add(TEXT_CORE_OFFSET).cast::<TextCore>() };
-                Self::follow(core.assigned_slot())
+                // SAFETY: Every Text node starts with a TextPrefix, which Text.cpp asserts.
+                Self::follow(
+                    unsafe { prefix_of::<TextPrefix, _>(self.pinned_cell()) }
+                        .core
+                        .assigned_slot(),
+                )
             }
             _ => None,
         }
@@ -405,9 +396,9 @@ impl NodeRef {
         if !is_slot(*self) {
             return None;
         }
-        // SAFETY: Every slot is an HTML::HTMLSlotElement, which embeds its core SLOT_CORE_OFFSET bytes into its cell, as
+        // SAFETY: Every slot is an HTML::HTMLSlotElement, which starts with an HTMLSlotElementPrefix, as
         //         HTMLSlotElement.cpp asserts.
-        Some(unsafe { &*self.pinned_cell().byte_add(SLOT_CORE_OFFSET).cast::<SlotCore>() })
+        Some(&unsafe { prefix_of::<HTMLSlotElementPrefix, _>(self.pinned_cell()) }.core)
     }
 
     /// The core of a shadow root, read for as long as the reference is borrowed, during which nothing may call into
@@ -417,14 +408,8 @@ impl NodeRef {
         if !self.is_shadow_root() {
             return None;
         }
-        // SAFETY: Every shadow root embeds its core SHADOW_ROOT_CORE_OFFSET bytes into its cell, which ShadowRoot.cpp
-        //         asserts.
-        Some(unsafe {
-            &*self
-                .pinned_cell()
-                .byte_add(SHADOW_ROOT_CORE_OFFSET)
-                .cast::<ShadowRootCore>()
-        })
+        // SAFETY: Every shadow root starts with a ShadowRootPrefix, which ShadowRoot.cpp asserts.
+        Some(&unsafe { prefix_of::<ShadowRootPrefix, _>(self.pinned_cell()) }.core)
     }
 
     /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps in its core, or none for any other node.
@@ -434,15 +419,12 @@ impl NodeRef {
         if self.node_type() != NodeType::DOCUMENT_FRAGMENT_NODE {
             return None;
         }
-        // SAFETY: Every DocumentFragment embeds its core DOCUMENT_FRAGMENT_CORE_OFFSET bytes into its cell, which
-        //         DocumentFragment.cpp asserts.
-        let core = unsafe {
-            &*self
-                .pinned_cell()
-                .byte_add(DOCUMENT_FRAGMENT_CORE_OFFSET)
-                .cast::<DocumentFragmentCore>()
-        };
-        Self::follow(core.host())
+        // SAFETY: Every DocumentFragment starts with a DocumentFragmentPrefix, which DocumentFragment.cpp asserts.
+        Self::follow(
+            unsafe { prefix_of::<DocumentFragmentPrefix, _>(self.pinned_cell()) }
+                .core
+                .host(),
+        )
     }
 }
 

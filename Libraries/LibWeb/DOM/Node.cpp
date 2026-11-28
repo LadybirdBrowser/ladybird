@@ -222,6 +222,13 @@ Node* Node::from_unique_id(UniqueNodeID unique_id)
 Node::Node(Document& document, NodeType type)
     : EventTarget()
 {
+    // NB: libweb_rust reads a node as the NodePrefix it starts with.
+    static_assert(sizeof(Node) == sizeof(RustFFI::NodePrefix));
+    static_assert(offsetof(Node, m_core) == offsetof(RustFFI::NodePrefix, core));
+    static_assert(offsetof(Node, m_associated_animation_count_in_subtree) == offsetof(RustFFI::NodePrefix, associated_animation_count_in_subtree));
+    static_assert(offsetof(Node, m_node_directory_slot) == offsetof(RustFFI::NodePrefix, node_directory_slot));
+    static_assert(offsetof(Node, m_rare_data) == offsetof(RustFFI::NodePrefix, rare_data));
+
     m_core.document = &document;
     m_core.root = this;
     m_core.node_type = type;

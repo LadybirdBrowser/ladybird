@@ -31,9 +31,6 @@ use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
-/// Where DOM::Element embeds its core, in bytes from the start of the element's cell, which Element.cpp asserts.
-pub const ELEMENT_CORE_OFFSET: usize = 144;
-
 /// A field that holds the classes of an element, laid out as C++'s DOM::ClassNames, which is what C++ sees it as: one
 /// class in place, or all of them in an outline buffer. C++ moves the field, and changes it, and drops it, through the
 /// functions below, so that only Rust allocates and frees the buffer.
@@ -763,22 +760,6 @@ impl ElementCore {
         self
     }
 }
-
-// NB: Element.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<ElementCore>() == 80 && align_of::<ElementCore>() == 8);
-const _: () = assert!(offset_of!(ElementCore, qualified_name) == 0);
-const _: () = assert!(offset_of!(ElementCore, id) == 8);
-const _: () = assert!(offset_of!(ElementCore, classes) == 16);
-const _: () = assert!(offset_of!(ElementCore, attributes) == 40);
-const _: () = assert!(offset_of!(ElementCore, subtree_name_filter) == 48);
-const _: () = assert!(offset_of!(ElementCore, style_attribute_is_dirty) == 56);
-const _: () = assert!(offset_of!(ElementCore, flags) == 57);
-const _: () = assert!(offset_of!(ElementCore, reflection_flags) == 58);
-const _: () = assert!(offset_of!(ElementCore, shadow_root) == 60);
-const _: () = assert!(offset_of!(ElementCore, parent_child_index_generation) == 64);
-const _: () = assert!(offset_of!(ElementCore, child_index) == 68);
-const _: () = assert!(offset_of!(ElementCore, child_index_of_type) == 72);
-const _: () = assert!(offset_of!(ElementCore, assigned_slot) == 76);
 
 #[cfg(test)]
 mod tests {

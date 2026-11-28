@@ -17,14 +17,14 @@ DocumentFragment::DocumentFragment(Document& document)
     : ParentNode(document, NodeType::DOCUMENT_FRAGMENT_NODE)
     , m_document_fragment_core { .host = {}, .style_engine_tree_scope = {} }
 {
-    // NB: libweb_rust reads the core of a fragment in place.
-    static_assert(offsetof(DocumentFragment, m_document_fragment_core) == RustFFI::DOCUMENT_FRAGMENT_CORE_OFFSET);
-}
+    // NB: libweb_rust reads a fragment as the DocumentFragmentPrefix it starts with.
+    static_assert(sizeof(DocumentFragment) == sizeof(RustFFI::DocumentFragmentPrefix));
+    static_assert(offsetof(DocumentFragment, m_document_fragment_core) == offsetof(RustFFI::DocumentFragmentPrefix, core));
 
-// NB: The Rust definition of the core asserts the same layout.
-static_assert(sizeof(RustFFI::DocumentFragmentCore) == 8 && alignof(RustFFI::DocumentFragmentCore) == 4);
-static_assert(offsetof(RustFFI::DocumentFragmentCore, host) == 0);
-static_assert(offsetof(RustFFI::DocumentFragmentCore, style_engine_tree_scope) == 4);
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(DocumentFragment, m_document_fragment_core) >= sizeof(ParentNode));
+}
 
 void DocumentFragment::visit_edges(Cell::Visitor& visitor)
 {

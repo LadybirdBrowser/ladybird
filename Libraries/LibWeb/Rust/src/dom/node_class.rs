@@ -10,8 +10,10 @@
 //!
 //! C++ writes a node's class id into the node's cell as it constructs the node, see GC::CellConstructionHook in
 //! DOM/Node.h, which also fails to compile for a class of nodes that DOM/NodeClasses.json does not list.
-//! DOM/NodeClassSteps.cpp fails to compile where the file lists a class under a class it does not derive from. Every event target keeps the id at the same place, and one that is no node has
-//! NodeClassId::NotANode.
+//! DOM/NodeClassSteps.cpp fails to compile where the file lists a class under a class it does not derive from. Every
+//! event target keeps the id in its WrappablePrefix, and one that is no node has NodeClassId::NotANode.
+
+use super::prefix::WrappablePrefix;
 
 /// The id of a class of DOM nodes, as C++'s DOM::NodeClassId names it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,10 +21,6 @@
 pub struct NodeClassId(u16);
 
 include!(concat!(env!("OUT_DIR"), "/node_classes_generated.rs"));
-
-/// Where every event target keeps its class id in its cell: in the padding at the end of the cell's header, before the
-/// first field of Bindings::Wrappable, which Wrappable.h asserts.
-pub const NODE_CLASS_ID_OFFSET: usize = 12;
 
 #[allow(non_upper_case_globals, reason = "the ids are named as the C++ classes are")]
 impl NodeClassId {
@@ -55,14 +53,8 @@ impl NodeClassId {
     /// `cell` must be the start of a live event target.
     #[inline(always)]
     pub(crate) unsafe fn of_cell<T>(cell: *const T) -> Self {
-        // SAFETY: Every event target keeps its class id NODE_CLASS_ID_OFFSET bytes into its cell, see above.
-        unsafe { *cell.byte_add(NODE_CLASS_ID_OFFSET).cast::<Self>() }
-    }
-
-    /// The id the test trees give their nodes.
-    #[cfg(test)]
-    pub(crate) const fn raw_for_test(self) -> u16 {
-        self.0
+        // SAFETY: Every event target starts with a WrappablePrefix, which Node.h asserts.
+        unsafe { (*cell.cast::<WrappablePrefix>()).class_id() }
     }
 }
 
@@ -113,9 +105,6 @@ static ladybird_dom_node_class_steps: [u8; NODE_CLASS_ID_COUNT] = {
 };
 
 const _: () = assert!(size_of::<NodeClassId>() == 2 && align_of::<NodeClassId>() == 2);
-const _: () = assert!(NODE_CLASS_ID_OFFSET.is_multiple_of(align_of::<NodeClassId>()));
-// NB: The id is in the padding of the header, which ends before the event target core.
-const _: () = assert!(NODE_CLASS_ID_OFFSET + size_of::<NodeClassId>() <= super::event_target::EVENT_TARGET_CORE_OFFSET);
 
 #[cfg(test)]
 mod tests {

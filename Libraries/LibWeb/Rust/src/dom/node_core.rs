@@ -8,7 +8,6 @@
 //! reads and writes in place.
 
 use core::cell::Cell;
-use core::mem::offset_of;
 use core::num::NonZeroU32;
 
 use super::event_target::EventTargetMember;
@@ -44,13 +43,6 @@ impl NodePointer {
 /// as GC::Detail::member_write_barrier() does for the stores C++ makes. It does nothing for now.
 #[inline(always)]
 pub(super) fn member_write_barrier(_slot: &Cell<u32>, _compressed: u32) {}
-
-/// Where DOM::Node embeds its core, in bytes from the start of the node's cell, which Node.h asserts.
-pub const NODE_CORE_OFFSET: usize = 40;
-
-/// Where DOM::DocumentFragment embeds its core, in bytes from the start of the fragment's cell, which
-/// DocumentFragment.cpp asserts.
-pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 112;
 
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
@@ -89,9 +81,6 @@ impl DocumentMember {
         NonZeroU32::new(self.0.get()).map(NodePointer)
     }
 }
-
-/// Where DOM::CharacterData embeds its core, in bytes from the start of the node's cell, which CharacterData.cpp asserts.
-pub const CHARACTER_DATA_CORE_OFFSET: usize = 96;
 
 /// The state of a CharacterData node beyond that of every node, which C++ embeds in DOM::CharacterData as its only
 /// storage of it.
@@ -141,17 +130,21 @@ impl WindowMember {
     }
 }
 
-/// Where DOM::Text embeds its core, in bytes from the start of the node's cell, which Text.cpp asserts: in the padding
-/// at the end of the cell, so that no Text node grows.
-pub const TEXT_CORE_OFFSET: usize = 132;
-
 /// The state of a Text node beyond that of every CharacterData node, which C++ embeds in DOM::Text as its only storage
 /// of it.
 /// https://dom.spec.whatwg.org/#text
 #[repr(C)]
 pub struct TextCore {
     assigned_slot: ElementMember,
+    /// The maximum length of the text of the form control whose value the node holds, or TEXT_NO_MAX_LENGTH for none,
+    /// which only C++ reads and writes.
+    max_length: Cell<u32>,
+    /// Whether the node holds the value of a password input, which only C++ reads and writes.
+    is_password_input: Cell<bool>,
 }
+
+/// What a Text node's max_length holds where it has no maximum length.
+pub const TEXT_NO_MAX_LENGTH: u32 = u32::MAX;
 
 impl TextCore {
     /// https://dom.spec.whatwg.org/#slotable-assigned-slot
@@ -196,9 +189,6 @@ impl DocumentFragmentCore {
         self.style_engine_tree_scope.get()
     }
 }
-
-/// Where DOM::Document embeds its core, in bytes from the start of the document's cell, which Document.cpp asserts.
-pub const DOCUMENT_CORE_OFFSET: usize = 120;
 
 /// Whether the document may have a node with a blocking wheel event listener, which C++ sets as it adds the first such
 /// listener, and as it adopts a node from a document that may have one. It is never cleared.
@@ -548,10 +538,6 @@ impl NodeCore {
     }
 }
 
-/// Where DOM::ParentNode embeds its core, in bytes from the start of the node's cell, which ParentNode.cpp asserts. Only
-/// an element, a document or a DocumentFragment is a ParentNode.
-pub const PARENT_NODE_CORE_OFFSET: usize = 96;
-
 /// The version counters of the tree a ParentNode heads, which C++ embeds in DOM::ParentNode as its only storage of them.
 /// See tree_version.rs.
 #[repr(C)]
@@ -712,6 +698,8 @@ impl TextCore {
     pub(crate) fn null_for_test() -> Self {
         Self {
             assigned_slot: ElementMember::null_for_test(),
+            max_length: Cell::new(TEXT_NO_MAX_LENGTH),
+            is_password_input: Cell::new(false),
         }
     }
 
@@ -736,48 +724,9 @@ const _: () = assert!(size_of::<DocumentMember>() == 4 && align_of::<DocumentMem
 const _: () = assert!(size_of::<NodeType>() == 2 && align_of::<NodeType>() == 2);
 const _: () = assert!(size_of::<ElementMember>() == 4 && align_of::<ElementMember>() == 4);
 const _: () = assert!(size_of::<ShadowRootMember>() == 4 && align_of::<ShadowRootMember>() == 4);
-// NB: CharacterData.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<CharacterDataCore>() == 8 && align_of::<CharacterDataCore>() == 8);
-const _: () = assert!(offset_of!(CharacterDataCore, data) == 0);
-// NB: Text.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<TextCore>() == 4 && align_of::<TextCore>() == 4);
-const _: () = assert!(offset_of!(TextCore, assigned_slot) == 0);
-const _: () = assert!(TEXT_CORE_OFFSET.is_multiple_of(align_of::<TextCore>()));
-// NB: DocumentFragment.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<DocumentFragmentCore>() == 4);
-const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
-const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
-// NB: Document.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<DocumentCore>() == 112 && align_of::<DocumentCore>() == 8);
-const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
-const _: () = assert!(offset_of!(DocumentCore, window) == 4);
-const _: () = assert!(offset_of!(DocumentCore, live_ranges) == 8);
-const _: () = assert!(offset_of!(DocumentCore, node_iterators) == 24);
-const _: () = assert!(offset_of!(DocumentCore, node_tree_version) == 40);
-const _: () = assert!(offset_of!(DocumentCore, element_tree_version) == 48);
-const _: () = assert!(offset_of!(DocumentCore, collection_attribute_versions) == 56);
-const _: () = assert!(offset_of!(DocumentCore, element_tree_positions_dom_tree_version) == 96);
-const _: () = assert!(offset_of!(DocumentCore, ids) == 104);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);
-const _: () = assert!(size_of::<NodeCore>() == 40 && align_of::<NodeCore>() == 4);
-const _: () = assert!(offset_of!(NodeCore, parent) == 0);
-const _: () = assert!(offset_of!(NodeCore, first_child) == 4);
-const _: () = assert!(offset_of!(NodeCore, last_child) == 8);
-const _: () = assert!(offset_of!(NodeCore, next_sibling) == 12);
-const _: () = assert!(offset_of!(NodeCore, previous_sibling) == 16);
-const _: () = assert!(offset_of!(NodeCore, document) == 20);
-const _: () = assert!(offset_of!(NodeCore, root) == 24);
-const _: () = assert!(offset_of!(NodeCore, style_node_id) == 28);
-const _: () = assert!(offset_of!(NodeCore, node_type) == 32);
-const _: () = assert!(offset_of!(NodeCore, flags) == 34);
-const _: () = assert!(offset_of!(NodeCore, cpp_flags) == 35);
-const _: () = assert!(offset_of!(NodeCore, child_index_generation) == 36);
-// NB: ParentNode.cpp asserts the same layout of the struct it includes.
-const _: () = assert!(size_of::<ParentNodeCore>() == 16 && align_of::<ParentNodeCore>() == 8);
-const _: () = assert!(offset_of!(ParentNodeCore, dom_tree_version) == 0);
-const _: () = assert!(offset_of!(ParentNodeCore, character_data_version) == 8);
 
 #[cfg(test)]
 mod tests {

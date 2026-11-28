@@ -23,7 +23,7 @@ struct RustCharacterDataHooks {
 };
 
 // https://dom.spec.whatwg.org/#characterdata
-class WEB_API CharacterData
+class WEB_API AK_COMPACT_EMPTY_BASES CharacterData
     : public Node
     , public ChildNode<CharacterData>
     , public NonDocumentTypeChildNode<CharacterData> {
