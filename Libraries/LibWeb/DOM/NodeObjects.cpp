@@ -7,6 +7,7 @@
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>
+#include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 
@@ -84,6 +85,7 @@ struct RustNodeObjectHooks {
             .processing_instruction_vtable = vtable_pointer_at(&probe<ProcessingInstruction>()),
             .document_type_vtable = vtable_pointer_at(&probe<DocumentType>()),
             .attr_vtable = vtable_pointer_at(&probe<Attr>()),
+            .document_fragment_vtable = vtable_pointer_at(&probe<DocumentFragment>()),
             .visit_slot_edges = visit_slot_edges,
             .finalize = finalize,
             .external_memory_size = external_memory_size,

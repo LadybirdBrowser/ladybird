@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::DOM {
 
-GC_DEFINE_ALLOCATOR(DocumentFragment);
+static_assert(is_shell_of_rust_object<DocumentFragment, RustFFI::DocumentFragmentObject>);
 
 DocumentFragment::DocumentFragment(Document& document)
     : ParentNode(document, NodeType::DOCUMENT_FRAGMENT_NODE)
@@ -26,6 +25,12 @@ DocumentFragment::DocumentFragment(Document& document)
     static_assert(offsetof(DocumentFragment, m_document_fragment_core) >= sizeof(ParentNode));
 }
 
+DocumentFragment::DocumentFragment(VtableProbe probe)
+    : ParentNode(probe)
+    , m_document_fragment_core { .host = {}, .style_engine_tree_scope = {} }
+{
+}
+
 void DocumentFragment::set_host(Web::DOM::Element* element)
 {
     // NB: libweb_rust reads the host as a node, so the element must start with its node, as every cell type starts with
@@ -36,7 +41,7 @@ void DocumentFragment::set_host(Web::DOM::Element* element)
 
 GC::Ref<DocumentFragment> DocumentFragment::create(Document& document)
 {
-    return GC::Heap::the().allocate<DocumentFragment>(document);
+    return static_cast<DocumentFragment&>(*RustFFI::rust_dom_create_document_fragment(&document));
 }
 
 GC::Ref<DocumentFragment> DocumentFragment::create_for_constructor(JS::Object& relevant_global_object)

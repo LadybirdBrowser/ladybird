@@ -2915,6 +2915,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ProcessingInstructionObject".to_string(),
         "DocumentTypeObject".to_string(),
         "AttrObject".to_string(),
+        "DocumentFragmentObject".to_string(),
         "NodeObjectHooks".to_string(),
         "ElementObject".to_string(),
         "HTMLElementObject".to_string(),

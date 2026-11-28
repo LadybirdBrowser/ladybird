@@ -317,6 +317,16 @@ pub struct DocumentFragmentCore {
 }
 
 impl DocumentFragmentCore {
+    /// The core of a new DocumentFragment, which has no host, and the tree scope number 0, as the constructor of
+    /// DOM::DocumentFragment makes it.
+    #[inline(always)]
+    pub(super) fn new() -> Self {
+        Self {
+            host: ElementMember(Cell::new(0)),
+            style_engine_tree_scope: TreeScopeField(Cell::new(0)),
+        }
+    }
+
     /// https://dom.spec.whatwg.org/#concept-documentfragment-host
     #[inline(always)]
     pub fn host(&self) -> Option<NodePointer> {

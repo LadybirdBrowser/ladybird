@@ -5,7 +5,7 @@
  */
 
 //! The classes of nodes whose objects Rust defines whole: Text, CDATASection, Comment, ProcessingInstruction,
-//! DocumentType and Attr. Rust lays
+//! DocumentType, Attr and DocumentFragment. Rust lays
 //! out each object as a struct of its own, allocates it from LibGC's heap with a type info of its own, traces it,
 //! finalizes it and destroys it. C++ keeps the class as a shell over the object, through which C++ code and the
 //! bindings reach the node as before. The shell has no member of its own beyond the core Rust lays out at its end, and
@@ -36,6 +36,7 @@ use super::node::NodeCell;
 use super::node::compress;
 use super::node_class::NodeClassId;
 use super::node_core::CharacterDataCore;
+use super::node_core::DocumentFragmentCore;
 use super::node_core::DocumentTypeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
@@ -44,7 +45,9 @@ use super::node_ref::NodeRef;
 use super::prefix::AttrPrefix;
 use super::prefix::CharacterDataPrefix;
 use super::prefix::CxxWords;
+use super::prefix::DocumentFragmentPrefix;
 use super::prefix::NodePrefix;
+use super::prefix::ParentNodePrefix;
 use super::prefix::TextPrefix;
 use super::qualified_name::QualifiedNameImpl;
 use crate::stage::MainThread;
@@ -65,6 +68,7 @@ pub struct NodeObjectHooks {
     pub processing_instruction_vtable: *const c_void,
     pub document_type_vtable: *const c_void,
     pub attr_vtable: *const c_void,
+    pub document_fragment_vtable: *const c_void,
     /// Visits the cells the members in the opaque slots of `node` hold. Runs on the main thread, while the collector
     /// marks or gathers a graph of the heap.
     pub visit_slot_edges: unsafe extern "C" fn(node: &NodeCell, visitor: *mut GCVisitor),
@@ -88,6 +92,7 @@ struct NodeObjects {
     processing_instruction: Allocator,
     document_type: Allocator,
     attr: Allocator,
+    document_fragment: Allocator,
 }
 
 impl NodeObjects {
@@ -155,6 +160,7 @@ pub unsafe extern "C" fn rust_dom_register_node_objects(hooks: &'static NodeObje
             processing_instruction: allocator_of::<ProcessingInstructionObject>(),
             document_type: allocator_of::<DocumentTypeObject>(),
             attr: allocator_of::<AttrObject>(),
+            document_fragment: allocator_of::<DocumentFragmentObject>(),
         });
     }
 }
@@ -430,6 +436,30 @@ impl Drop for AttrObject {
     }
 }
 
+/// A whole DOM::DocumentFragment.
+/// https://dom.spec.whatwg.org/#interface-documentfragment
+#[repr(C)]
+pub struct DocumentFragmentObject {
+    document_fragment: DocumentFragmentPrefix,
+}
+
+node_object!(DocumentFragmentObject, "DocumentFragment", document_fragment);
+
+static DOCUMENT_FRAGMENT_TYPE_INFO: CellTypeInfo = type_info_of::<DocumentFragmentObject>();
+
+// SAFETY: The object starts with its NodePrefix, and DocumentFragment.cpp asserts its size and alignment.
+unsafe impl NodeObject for DocumentFragmentObject {
+    const TYPE_INFO: &'static CellTypeInfo = &DOCUMENT_FRAGMENT_TYPE_INFO;
+}
+
+impl Drop for DocumentFragmentObject {
+    fn drop(&mut self) {
+        // SAFETY: LibGC destroys the object once, and nothing reads it after this. The fields Rust defines of a fragment
+        //         hold nothing to release.
+        unsafe { destroy_slots(self) }
+    }
+}
+
 /// The copy of `node` that "clone a single node" makes given `document`, where `node` is of a class whose objects Rust
 /// defines, or none for a node of any other class. The node is no element, and its class runs no cloning steps, which
 /// NodeObjects.cpp asserts, so the copy is also what steps 2 and 3 of "clone a node" make of it.
@@ -651,6 +681,27 @@ pub(super) fn create_attr(
     })
 }
 
+/// A new DocumentFragment node with the node document `document`, which has no host.
+pub(super) fn create_document_fragment(main_thread: &mut MainThread<'_>, document: NodeRef) -> NodeRef {
+    let objects = node_objects();
+    let words = objects.words(objects.hooks.document_fragment_vtable);
+    let document_pointer = document.pointer();
+    allocate(main_thread, document, &objects.document_fragment, |node| {
+        DocumentFragmentObject {
+            document_fragment: DocumentFragmentPrefix {
+                parent_node: ParentNodePrefix::new(NodePrefix::new(
+                    words,
+                    NodeClassId::DocumentFragment,
+                    NodeType::DOCUMENT_FRAGMENT_NODE,
+                    node,
+                    document_pointer,
+                )),
+                core: DocumentFragmentCore::new(),
+            },
+        }
+    })
+}
+
 /// A new Text node with the node document `document` and the data `data`, whose reference passes to it, for
 /// DOM::Text::create().
 ///
@@ -795,6 +846,21 @@ pub unsafe extern "C" fn rust_dom_create_attr(
     NonNull::from(node.cell())
 }
 
+/// A new DocumentFragment node with the node document `document`, which has no host, for DOM::DocumentFragment::create().
+///
+/// # Safety
+///
+/// `document` must be a live document, and the call must be made on the main thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_dom_create_document_fragment(document: &NodeCell) -> NonNull<NodeCell> {
+    // SAFETY: Guaranteed by the caller.
+    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: The document is live.
+    let document = unsafe { NodeRef::from_cell(document, &main_thread) };
+    let node = create_document_fragment(&mut main_thread, document);
+    NonNull::from(node.cell())
+}
+
 // NB: The C++ classes assert that they have the sizes and alignments of these.
 const _: () = assert!(size_of::<TextObject>() == 128 && align_of::<TextObject>() == 8);
 const _: () = assert!(size_of::<CDATASectionObject>() == 128 && align_of::<CDATASectionObject>() == 8);
@@ -803,3 +869,4 @@ const _: () =
     assert!(size_of::<ProcessingInstructionObject>() == 112 && align_of::<ProcessingInstructionObject>() == 8);
 const _: () = assert!(size_of::<DocumentTypeObject>() == 120 && align_of::<DocumentTypeObject>() == 8);
 const _: () = assert!(size_of::<AttrObject>() == 120 && align_of::<AttrObject>() == 8);
+const _: () = assert!(size_of::<DocumentFragmentObject>() == 120 && align_of::<DocumentFragmentObject>() == 8);
