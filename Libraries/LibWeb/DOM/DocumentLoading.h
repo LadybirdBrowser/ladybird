@@ -18,7 +18,7 @@ namespace Web {
 enum class XMLScriptingSupport;
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<StringView> content_encoding, XMLScriptingSupport);
-GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> navigation_params, ReadonlyBytes sniff_bytes);
+GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> navigation_params, ReadonlyBytes sniff_bytes, Optional<URL::Origin> pdf_viewer_origin = {});
 bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline

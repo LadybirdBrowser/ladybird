@@ -1096,7 +1096,7 @@ ErrorOr<CanonicalNavigable::PageToPopulateDocument> CanonicalNavigable::obtain_p
     response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
     auto document = create_and_initialize_a_document(*response_document);
     loader.set_document(*document, *this);
-    populate_document(document_state, document, loader.result().inline_content_origin);
+    populate_document(document_state, document, loader.result().inline_content_origin, loader.result().pdf_viewer_origin);
 
     // A document created for inline content stands in for the resource the process that fetched it could not load; that
     // process hosts it.
@@ -1132,7 +1132,7 @@ RefPtr<CanonicalDocument> CanonicalNavigable::document_with_id(Web::HTML::CrossP
 }
 
 // A document state that is not a navigation's is a history job's, which the navigable holds while the job runs.
-void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
+void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin, Optional<URL::Origin> pdf_viewer_origin)
 {
     document->determine_whether_it_is_local_file_content(blob_url_store());
     if (document->is_local_file_content())
@@ -1146,7 +1146,7 @@ void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState>
             abandon_populated_document(m_document_state_populated_by_history_job.release_nonnull());
         m_document_state_populated_by_history_job = document_state;
     }
-    document_state->populated_document = PopulatedDocument { move(document), move(inline_content_origin) };
+    document_state->populated_document = PopulatedDocument { move(document), move(inline_content_origin), move(pdf_viewer_origin) };
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
@@ -1177,10 +1177,14 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
         return;
 
     auto is_inline_content = populated_document_origin == Web::HTML::PopulatedDocumentOrigin::InlineContent;
-    if (is_inline_content && !populated_document->inline_content_origin.has_value())
+    // AD-HOC: The PDF viewer runs with an opaque origin of its own, which the UI process gave only to a response it may
+    //         show.
+    auto const& given_origin = is_inline_content ? populated_document->inline_content_origin : populated_document->pdf_viewer_origin;
+    // NB: The process reports each document it creates once. A later report for the same document is refused.
+    if (!given_origin.has_value() || populated_document->reported_an_origin_of_its_own)
         return;
-    // AD-HOC: The PDF viewer runs with an origin of its own.
-    auto origin = is_inline_content ? *populated_document->inline_content_origin : URL::Origin { "resource"_string, String {}, {} };
+    populated_document->reported_an_origin_of_its_own = true;
+    auto origin = *given_origin;
 
     auto url = is_inline_content ? URL::about_error() : populated_document->document->creation_url();
 

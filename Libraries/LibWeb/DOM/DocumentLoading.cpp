@@ -542,7 +542,7 @@ bool can_load_document_with_type(MimeSniff::MimeType const& type)
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#loading-a-document
 // AD-HOC: This returns the document to create in place of the Document, which is created once navigationParams's
 //         navigable's active document is unloaded.
-GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> navigation_params, ReadonlyBytes sniff_bytes)
+GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> navigation_params, ReadonlyBytes sniff_bytes, Optional<URL::Origin> pdf_viewer_origin)
 {
     // To load a document given navigation params navigationParams, source snapshot params sourceSnapshotParams,
     // and origin initiatorOrigin, perform the following steps. They return a Document or null.
@@ -611,14 +611,16 @@ GC::Ptr<HTML::DocumentToCreate> load_document(GC::Ref<HTML::NavigationParams> na
 
     // -> "application/pdf"
     // -> "text/pdf"
-    if (type.essence() == "application/pdf"_string
-        || type.essence() == "text/pdf"_string) {
-        // AD-HOC: The PDF viewer runs with an origin of its own.
+    // AD-HOC: The PDF viewer runs with an opaque origin of its own, which the UI process gives it. That keeps the
+    //         viewers of different PDFs apart, and gives them no storage.
+    if ((type.essence() == "application/pdf"_string
+            || type.essence() == "text/pdf"_string)
+        && pdf_viewer_origin.has_value()) {
         return HTML::DocumentToCreate::create(
             navigation_params, GC::create_function(GC::Heap::the(), [](HTML::NavigationParams const& navigation_params) -> GC::Ref<DOM::Document> {
                 return load_pdf_document(navigation_params);
             }),
-            URL::Origin("resource"_string, String {}, {}));
+            pdf_viewer_origin.release_value());
     }
 
     // Otherwise, proceed onward.

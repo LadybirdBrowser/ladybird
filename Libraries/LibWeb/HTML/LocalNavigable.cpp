@@ -1019,6 +1019,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     output->resource_cleared = result.resource_cleared;
     output->navigation_same_site_status = result.navigation_same_site_status;
     output->inline_content_origin = move(result.inline_content_origin);
+    output->pdf_viewer_origin = move(result.pdf_viewer_origin);
     output->document_id = result.document_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
@@ -3399,7 +3400,7 @@ static void load_document_or_handle_download(GC::Ref<NavigationParams> navigatio
         return;
     }
 
-    output.document_to_create = load_document(navigation_params, sniff_bytes);
+    output.document_to_create = load_document(navigation_params, sniff_bytes, output.pdf_viewer_origin);
 
     if (!output.document_to_create) {
         output.download_handled = handle_navigation_response_as_download(navigation_params, source_allows_downloading, source_interface_origin);
