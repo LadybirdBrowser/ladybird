@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
+#include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Point.h>
 #include <LibWebCommon/WebView/AccessibilityNodeData.h>
 #include <LibWebView/Export.h>
@@ -62,7 +63,9 @@ private:
         static unsigned hash(AccessibilityShared<AccessibilityTextStyle> const& style) { return style->hash(); }
     };
 
-    HashMap<i64, AccessibilityNodeData> m_nodes;
+    // OPTIMIZATION: A tree can have hundreds of thousands of nodes, and a hash table runs partly empty, so the table holds
+    //               pointers to the nodes rather than the nodes themselves.
+    HashMap<i64, NonnullOwnPtr<AccessibilityNodeData>> m_nodes;
     i64 m_root_id { -1 };
     u64 m_sequence { 0 };
     bool m_whole_tree_was_repaired { false };
