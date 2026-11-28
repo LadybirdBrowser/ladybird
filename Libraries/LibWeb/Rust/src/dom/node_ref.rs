@@ -37,7 +37,9 @@ use super::element_core::ElementCore;
 use super::node::Node;
 use super::node::NodeCell;
 use super::node::decompress;
+use super::node_core::DOCUMENT_CORE_OFFSET;
 use super::node_core::DOCUMENT_FRAGMENT_CORE_OFFSET;
+use super::node_core::DocumentCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
@@ -189,16 +191,38 @@ impl NodeRef {
         unsafe { Self::decode(self.core().root()) }
     }
 
-    /// The shadow root of an element, which DOM::Element keeps in its core, or none for any other node.
-    /// https://dom.spec.whatwg.org/#concept-element-shadow-root
+    /// The element's core, read for as long as the reference is borrowed, during which nothing may call into C++, or
+    /// none for a node that is no element.
     #[inline(always)]
-    pub fn shadow_root(self) -> Option<NodeRef> {
+    pub(super) fn element_core(&self) -> Option<&ElementCore> {
         if !self.is_element() {
             return None;
         }
         // SAFETY: Every element embeds its core ELEMENT_CORE_OFFSET bytes into its cell, which Element.cpp asserts.
-        let core = unsafe { &*self.pinned_cell().byte_add(ELEMENT_CORE_OFFSET).cast::<ElementCore>() };
-        Self::follow(core.shadow_root())
+        Some(unsafe { &*self.pinned_cell().byte_add(ELEMENT_CORE_OFFSET).cast::<ElementCore>() })
+    }
+
+    /// The core of the node's node document, read for as long as the reference is borrowed, during which nothing may
+    /// call into C++.
+    #[inline(always)]
+    pub(super) fn document_core(&self) -> &DocumentCore {
+        // SAFETY: A live node keeps its node document alive.
+        let document = unsafe { Self::decode(self.core().document()) };
+        // SAFETY: Every document embeds its core DOCUMENT_CORE_OFFSET bytes into its cell, which Document.cpp asserts,
+        //         and the document lives for as long as the node, whose reference is borrowed.
+        unsafe {
+            &*document
+                .pinned_cell()
+                .byte_add(DOCUMENT_CORE_OFFSET)
+                .cast::<DocumentCore>()
+        }
+    }
+
+    /// The shadow root of an element, which DOM::Element keeps in its core, or none for any other node.
+    /// https://dom.spec.whatwg.org/#concept-element-shadow-root
+    #[inline(always)]
+    pub fn shadow_root(self) -> Option<NodeRef> {
+        Self::follow(self.element_core()?.shadow_root())
     }
 
     /// The host of a DocumentFragment node, which DOM::DocumentFragment keeps in its core, or none for any other node.

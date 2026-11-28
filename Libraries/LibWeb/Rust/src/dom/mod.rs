@@ -18,6 +18,7 @@ pub mod node_ref;
 pub mod pre_insert;
 pub mod qualified_name;
 pub mod remove;
+mod steps;
 pub mod strings;
 #[cfg(test)]
 pub(crate) mod test_tree;

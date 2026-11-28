@@ -413,6 +413,7 @@ public:
 
     GC::Ptr<Selection::Selection> get_selection() const;
     void set_needs_highlight_style_update(CSS::PseudoElement);
+    void set_needs_highlight_style_update_for_all_highlight_pseudo_elements();
     [[nodiscard]] bool needs_highlight_style_update() const;
     void update_highlight_style_observability();
 
@@ -1579,8 +1580,8 @@ public:
     // Whether a node in this document has ever carried a blocking wheel event listener. It never
     // goes back to false: a node that stopped carrying one still has descendants whose inherited
     // state has to be derived when they move.
-    void set_may_have_blocking_wheel_event_listener() { m_may_have_blocking_wheel_event_listener = true; }
-    [[nodiscard]] bool may_have_blocking_wheel_event_listener() const { return m_may_have_blocking_wheel_event_listener; }
+    void set_may_have_blocking_wheel_event_listener() { m_document_core.flags |= RustFFI::DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER; }
+    [[nodiscard]] bool may_have_blocking_wheel_event_listener() const { return m_document_core.flags & RustFFI::DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER; }
     // The page's wheel event listener state generation at the newest change to this document's blocking listeners.
     u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
     void set_wheel_event_listener_state_generation(u64 generation) { m_wheel_event_listener_state_generation = generation; }
@@ -2034,6 +2035,10 @@ private:
     WebIDL::ExceptionOr<RegistryAndIs> flatten_element_creation_options(ElementCreationOptions const&) const;
 
     void create_style_computer();
+
+    // The state of the document that libweb_rust's DOM algorithms read, whose layout libweb_rust defines (see
+    // Rust/src/dom/node_core.rs), which reads it in place.
+    RustFFI::DocumentCore m_document_core {};
 
     GC::Ref<Page> m_page;
     GC::Ptr<CSS::StyleComputer> m_style_computer;
@@ -2522,7 +2527,6 @@ private:
     // Whether a layout update requested web faces its layout wanted, which may have resolved at once.
     bool m_requested_wanted_font_faces { false };
     bool m_may_have_scroll_snap_areas { false };
-    bool m_may_have_blocking_wheel_event_listener { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     bool m_may_have_dom_paint_facts { false };
 

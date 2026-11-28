@@ -944,7 +944,14 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     m_is_decoded_svg = m_page->client().is_svg_page_client();
 
     HTML::main_thread_event_loop().register_document({}, *this);
+
+    // NB: libweb_rust finds the core of a document at this offset into the document's cell, which starts with its node.
+    static_assert(offsetof(Document, m_document_core) == RustFFI::DOCUMENT_CORE_OFFSET);
 }
+
+// NB: The Rust definition of the core asserts the same layout.
+static_assert(sizeof(RustFFI::DocumentCore) == 1 && alignof(RustFFI::DocumentCore) == 1);
+static_assert(offsetof(RustFFI::DocumentCore, flags) == 0);
 
 Document::~Document()
 {

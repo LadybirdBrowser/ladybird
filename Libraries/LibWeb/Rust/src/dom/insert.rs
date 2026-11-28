@@ -13,6 +13,7 @@ use super::node::NodeCell;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
 use super::node_ref::RawNullableNodeRef;
+use super::steps::insertion_steps_do_nothing;
 use super::tree::for_each_shadow_including_inclusive_descendant;
 use crate::stage::MainThread;
 
@@ -164,6 +165,10 @@ fn run_insertion_steps_for_subtree(
     //    3. Run the insertion steps with inclusiveDescendant.
     // AD-HOC: The insertion steps run first, and inclusiveDescendant's connectedness is read after them.
     for_each_shadow_including_inclusive_descendant(node, &mut |inclusive_descendant| {
+        // OPTIMIZATION: The cores tell which nodes the insertion steps have nothing to do for, see steps.rs.
+        if insertion_steps_do_nothing(inclusive_descendant) {
+            return;
+        }
         if hooks::run_insertion_steps(main_thread, inclusive_descendant) {
             *any_node_has_post_connection_steps = true;
         }

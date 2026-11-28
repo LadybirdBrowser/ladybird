@@ -117,7 +117,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Node) == 96);
+static_assert(sizeof(Node) == 88);
 #endif
 
 // NB: libweb_rust follows the compressed node pointers of the cores with a copy of the heap region base of its own,
@@ -530,10 +530,7 @@ u64 Node::character_data_version() const
 void Node::bump_dom_tree_version()
 {
     // NB: Inserted or moved content can enter a selection without moving its boundary points.
-    document().set_needs_highlight_style_update(CSS::PseudoElement::Selection);
-    document().set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
-    document().set_needs_highlight_style_update(CSS::PseudoElement::SpellingError);
-    document().set_needs_highlight_style_update(CSS::PseudoElement::Highlight);
+    document().set_needs_highlight_style_update_for_all_highlight_pseudo_elements();
     if (auto* holder = tree_version_holder(*this))
         holder->m_dom_tree_version = ++s_last_tree_version;
 }
@@ -1976,7 +1973,7 @@ bool Node::recompute_editable_subtree_flag()
         new_value = parent() && parent()->in_editable_subtree();
     }
     bool const changed = new_value != in_editable_subtree();
-    m_in_editable_subtree = new_value;
+    set_core_flag(RustFFI::NODE_IN_EDITABLE_SUBTREE, new_value);
     return changed;
 }
 
@@ -2380,7 +2377,7 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
     }
 
     set_is_connected(false);
-    m_in_editable_subtree = false;
+    set_core_flag(RustFFI::NODE_IN_EDITABLE_SUBTREE, false);
 
     // The nodes of a shadow tree count the versions of their tree on the document while they are connected, and on
     // their shadow root otherwise. The shadow root has missed every change made in the meantime, so it starts over.
@@ -4701,6 +4698,7 @@ public:
 
         facts.has_descendant_slots = node->settle_descendant_slots_before_removal(parent->root());
         facts.holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*node);
+        facts.is_assigned = node->has_assigned_slot();
 
         if (facts.was_tracked_by_style_engine) {
             // Layout goes first, while the removed nodes still have the StyleNodeIDs the style engine retires.

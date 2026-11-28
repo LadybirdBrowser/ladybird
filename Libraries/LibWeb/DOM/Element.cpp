@@ -186,7 +186,7 @@ void web_dom_element_attribute(Element*, ReadonlyBytes name, void* value, void (
 }
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Element) == 296);
+static_assert(sizeof(Element) == 288);
 #endif
 
 // NB: The Rust definition of the core asserts the same layout.
@@ -197,6 +197,7 @@ static_assert(offsetof(RustFFI::ElementCore, classes) == 16);
 static_assert(offsetof(RustFFI::ElementCore, attributes) == 40);
 static_assert(offsetof(RustFFI::ElementCore, subtree_name_filter) == 48);
 static_assert(offsetof(RustFFI::ElementCore, style_attribute_is_dirty) == 56);
+static_assert(offsetof(RustFFI::ElementCore, flags) == 57);
 static_assert(offsetof(RustFFI::ElementCore, shadow_root) == 60);
 
 Element::RareData::~RareData() = default;
@@ -352,6 +353,7 @@ Element::Element(Document& document, DOM::QualifiedName qualified_name)
         .attributes = {},
         .subtree_name_filter = 0,
         .style_attribute_is_dirty = false,
+        .flags = 0,
         .shadow_root = {},
     }
 {
@@ -4902,6 +4904,10 @@ void Element::set_custom_element_definition(GC::Ptr<HTML::CustomElementDefinitio
         ensure_element_rare_data().custom_element_definition = definition;
     }
 
+    // NB: A form-associated custom element runs the insertion and removing steps of a form-associated element.
+    if (is_form_associated)
+        set_has_own_tree_steps();
+
     if (was_form_associated != is_form_associated)
         document().bump_form_controls_version();
 }
@@ -5412,6 +5418,7 @@ SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElem
     VERIFY(CSS::is_synthetic_pseudo_element(type));
 
     if (!pseudo_element_data->get(type).has_value()) {
+        const_cast<Element&>(*this).set_element_core_flag(RustFFI::ELEMENT_MAY_HAVE_SYNTHETIC_PSEUDO_ELEMENTS, true);
         if (is_pseudo_element_root(type))
             pseudo_element_data->set(type, heap().allocate<SyntheticPseudoElementTreeNode>(type, const_cast<Element&>(*this)));
         else

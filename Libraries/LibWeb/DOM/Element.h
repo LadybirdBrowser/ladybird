@@ -954,6 +954,9 @@ public:
 protected:
     Element(Document&, DOM::QualifiedName);
 
+    bool has_element_core_flag(u8 flag) const { return m_element_core.flags & flag; }
+    void set_element_core_flag(u8 flag, bool value) { m_element_core.flags = static_cast<u8>(value ? (m_element_core.flags | flag) : (m_element_core.flags & ~flag)); }
+
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
@@ -986,6 +989,12 @@ protected:
     struct RareData;
 
 private:
+    // Says that the element has insertion steps, removing steps or post-connection steps beyond those of DOM::Element
+    // and HTML::HTMLElement. Without it, libweb_rust skips the steps for a node in a tree that is not connected (see
+    // Rust/src/dom/steps.rs). GC::CellConstructionHook says it for every class whose overrides add steps, as it
+    // constructs the element, and a form-associated custom element definition says it as it is attached.
+    void set_has_own_tree_steps() { set_element_core_flag(RustFFI::ELEMENT_HAS_OWN_TREE_STEPS, true); }
+
     void publish_implicit_anchor_element();
     void bump_dom_tree_version_for_attribute_change();
     void clear_custom_highlight_styles();

@@ -47,7 +47,7 @@ pub const NODE_CORE_OFFSET: usize = 32;
 
 /// Where DOM::DocumentFragment embeds its core, in bytes from the start of the fragment's cell, which
 /// DocumentFragment.cpp asserts.
-pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 112;
+pub const DOCUMENT_FRAGMENT_CORE_OFFSET: usize = 104;
 
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
@@ -83,7 +83,7 @@ impl DocumentMember {
 }
 
 /// Where DOM::CharacterData embeds its core, in bytes from the start of the node's cell, which CharacterData.cpp asserts.
-pub const CHARACTER_DATA_CORE_OFFSET: usize = 96;
+pub const CHARACTER_DATA_CORE_OFFSET: usize = 88;
 
 /// The state of a CharacterData node beyond that of every node, which C++ embeds in DOM::CharacterData as its only
 /// storage of it.
@@ -149,6 +149,29 @@ impl DocumentFragmentCore {
     }
 }
 
+/// Where DOM::Document embeds its core, in bytes from the start of the document's cell, which Document.cpp asserts.
+pub const DOCUMENT_CORE_OFFSET: usize = 112;
+
+/// Whether the document may have a node with a blocking wheel event listener, which C++ sets as it adds the first such
+/// listener, and as it adopts a node from a document that may have one. It is never cleared.
+pub const DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER: u8 = 1 << 0;
+
+/// The state of a document that the DOM algorithms in Rust read, which C++ embeds in DOM::Document as its only storage
+/// of it.
+/// https://dom.spec.whatwg.org/#interface-document
+#[repr(C)]
+pub struct DocumentCore {
+    /// The DOCUMENT_* flags.
+    flags: Cell<u8>,
+}
+
+impl DocumentCore {
+    #[inline(always)]
+    pub fn may_have_blocking_wheel_event_listener(&self) -> bool {
+        self.flags.get() & DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER != 0
+    }
+}
+
 /// A field that holds a tree scope's number, laid out as C++'s CSS::TreeScopeID, which is what C++ sees it as, with 0 for
 /// the document's.
 #[repr(transparent)]
@@ -184,6 +207,8 @@ pub struct CppNodeFlags(Cell<u8>);
 /// https://dom.spec.whatwg.org/#connected
 pub const NODE_IS_CONNECTED: u8 = 1 << 0;
 pub const NODE_IS_SHADOW_ROOT: u8 = 1 << 1;
+/// Whether the node is in an editable subtree, as Node::recompute_editable_subtree_flag() works it out.
+pub const NODE_IN_EDITABLE_SUBTREE: u8 = 1 << 4;
 
 /// The type of a node, laid out as C++'s DOM::NodeType, which is what C++ sees it as.
 /// https://dom.spec.whatwg.org/#dom-node-nodetype
@@ -263,6 +288,18 @@ impl NodeCore {
     #[inline(always)]
     pub fn is_shadow_root(&self) -> bool {
         self.has_flag(NODE_IS_SHADOW_ROOT)
+    }
+
+    #[inline(always)]
+    pub fn is_in_editable_subtree(&self) -> bool {
+        self.has_flag(NODE_IN_EDITABLE_SUBTREE)
+    }
+
+    #[inline(always)]
+    pub(super) fn set_in_editable_subtree(&self, value: bool) {
+        let flags = self.flags.get() & !NODE_IN_EDITABLE_SUBTREE;
+        self.flags
+            .set(if value { flags | NODE_IN_EDITABLE_SUBTREE } else { flags });
     }
 
     #[inline(always)]
@@ -365,9 +402,25 @@ impl DocumentFragmentCore {
 }
 
 #[cfg(test)]
+impl DocumentCore {
+    pub(crate) fn for_test() -> Self {
+        Self { flags: Cell::new(0) }
+    }
+
+    pub(crate) fn set_may_have_blocking_wheel_event_listener_for_test(&self) {
+        self.flags
+            .set(self.flags.get() | DOCUMENT_MAY_HAVE_BLOCKING_WHEEL_EVENT_LISTENER);
+    }
+}
+
+#[cfg(test)]
 impl NodeCore {
     pub(crate) fn set_style_node_id_for_test(&self, node: Option<StyleNodeID>) {
         self.style_node_id.0.set(node.map_or(0, StyleNodeID::raw));
+    }
+
+    pub(crate) fn set_is_connected_for_test(&self) {
+        self.flags.set(self.flags.get() | NODE_IS_CONNECTED);
     }
 
     pub(crate) fn set_is_shadow_root_for_test(&mut self) {
@@ -407,6 +460,9 @@ const _: () = assert!(offset_of!(CharacterDataCore, data) == 0);
 const _: () = assert!(size_of::<DocumentFragmentCore>() == 8 && align_of::<DocumentFragmentCore>() == 4);
 const _: () = assert!(offset_of!(DocumentFragmentCore, host) == 0);
 const _: () = assert!(offset_of!(DocumentFragmentCore, style_engine_tree_scope) == 4);
+// NB: Document.cpp asserts the same layout of the struct it includes.
+const _: () = assert!(size_of::<DocumentCore>() == 1 && align_of::<DocumentCore>() == 1);
+const _: () = assert!(offset_of!(DocumentCore, flags) == 0);
 const _: () = assert!(size_of::<TreeScopeField>() == 4 && align_of::<TreeScopeField>() == 4);
 const _: () = assert!(size_of::<StyleNodeField>() == 4 && align_of::<StyleNodeField>() == 4);
 const _: () = assert!(size_of::<CppNodeFlags>() == 1 && align_of::<CppNodeFlags>() == 1);

@@ -185,7 +185,7 @@ public:
 
     static void light_dismiss_open_popovers(UIEvents::PointerEvent const&, GC::Ptr<DOM::Node>);
 
-    bool is_inert() const { return m_inert; }
+    bool is_inert() const { return has_element_core_flag(DOM::RustFFI::ELEMENT_IS_INERT); }
 
     bool draggable() const;
     void set_draggable(bool draggable);
@@ -215,7 +215,7 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void set_inert(bool inert) { m_inert = inert; }
+    void set_inert(bool inert) { set_element_core_flag(DOM::RustFFI::ELEMENT_IS_INERT, inert); }
     void set_subtree_inertness(bool is_inert);
 
     [[nodiscard]] Utf16String get_the_text_steps();
@@ -261,8 +261,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#click-in-progress-flag
     bool m_click_in_progress { false };
-
-    bool m_inert { false };
 
     // Popover API
 

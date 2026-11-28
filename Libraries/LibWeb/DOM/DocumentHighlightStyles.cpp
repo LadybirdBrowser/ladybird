@@ -58,6 +58,12 @@ void Document::set_needs_highlight_style_update(CSS::PseudoElement pseudo_elemen
     highlight_style_observability(pseudo_element).needs_update = true;
 }
 
+void Document::set_needs_highlight_style_update_for_all_highlight_pseudo_elements()
+{
+    for (auto& state : m_highlight_style_observability)
+        state.needs_update = true;
+}
+
 bool Document::needs_highlight_style_update() const
 {
     return any_of(m_highlight_style_observability, [](auto const& state) { return state.needs_update; })
