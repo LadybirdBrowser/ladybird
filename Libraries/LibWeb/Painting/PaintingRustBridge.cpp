@@ -11,7 +11,6 @@
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/GradientInterpolation.h>
 #include <LibGfx/Matrix4x4.h>
-#include <LibGfx/TextLayout.h>
 #include <LibWeb/Animations/RecordHandles.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>

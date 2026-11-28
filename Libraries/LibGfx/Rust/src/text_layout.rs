@@ -44,9 +44,8 @@ pub struct JoiningContext {
     pub joins_after: bool,
 }
 
-/// A glyph as shaping makes it, laid out as the C++ that shaping in Rust replaced reads it until it goes.
+/// A glyph as shaping makes it.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[repr(C)]
 pub struct ShapedGlyph {
     pub(crate) x: f32,
     pub(crate) y: f32,
