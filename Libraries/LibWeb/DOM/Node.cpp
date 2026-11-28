@@ -117,7 +117,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Node) == 88);
+static_assert(sizeof(Node) == 96);
 #endif
 
 // NB: libweb_rust follows the compressed node pointers of the cores with a copy of the heap region base of its own,
@@ -225,7 +225,7 @@ Node::Node(Document& document, NodeType type)
     m_core.root = this;
     m_core.node_type = type;
     // A Document is its own shadow-including root, so it is always connected.
-    m_core.is_connected = type == NodeType::DOCUMENT_NODE;
+    set_is_connected(type == NodeType::DOCUMENT_NODE);
 }
 
 Node::~Node() = default;
@@ -2183,7 +2183,7 @@ void Node::set_document(Document& document)
         return;
 
     // A layout node belongs to its document's layout node arena, so the node let go of any before it moves.
-    VERIFY(!m_has_layout_box && !m_has_committed_box);
+    VERIFY(!has_layout_box() && !is_rendered());
 
     auto& old_document = *m_core.document;
     m_core.document = &document;
@@ -2213,16 +2213,18 @@ bool Node::recompute_editable_subtree_flag()
         else if (state == HTML::ContentEditableState::False)
             new_value = false;
         else
-            new_value = parent() && parent()->m_in_editable_subtree;
+            new_value = parent() && parent()->in_editable_subtree();
 
         // INTEROP: Browsers do not let editing modify the content of select, optgroup and option elements, even if
         //          they are in an editing host or have a contenteditable attribute. Their descendants are not editable.
         if (new_value && (is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this)))
             new_value = false;
     } else {
-        new_value = parent() && parent()->m_in_editable_subtree;
+        new_value = parent() && parent()->in_editable_subtree();
     }
-    return new_value != exchange(m_in_editable_subtree, new_value);
+    bool const changed = new_value != in_editable_subtree();
+    m_in_editable_subtree = new_value;
+    return changed;
 }
 
 // Whether the text node's box produces a zero-width fragment even when the text is empty: text controls and editing
@@ -2273,10 +2275,10 @@ void Node::recompute_editable_subtree_flags_and_repaint()
 
 bool Node::may_be_editable_or_editing_host() const
 {
-    if (m_in_editable_subtree)
+    if (in_editable_subtree())
         return true;
     auto const* parent = this->parent();
-    return parent && (parent->m_in_editable_subtree || parent->is_document());
+    return parent && (parent->in_editable_subtree() || parent->is_document());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editable
@@ -2284,7 +2286,7 @@ bool Node::is_editable() const
 {
     // OPTIMIZATION: Nothing below an unedited parent is editable, which answers for nearly every node without asking
     //               what kind of node it is.
-    if (!parent() || !parent()->m_in_editable_subtree)
+    if (!parent() || !parent()->in_editable_subtree())
         return false;
 
     // Something is editable if it is a node; it is not an editing host;
@@ -2332,7 +2334,7 @@ bool Node::is_editing_host() const
     //         `::editing_host()` to automatically traverse to the top-most editing host.
     auto state = html_element->content_editable_state();
     bool const hosts_by_attribute = (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
-        && (!parent() || !parent()->m_in_editable_subtree);
+        && (!parent() || !parent()->in_editable_subtree());
 
     // or a child HTML element of a Document whose design mode enabled is true.
     auto* doc = as_if<Document>(parent());
@@ -2557,9 +2559,9 @@ void Node::inserted()
     //     so by the time we get here, our parent (or host, for shadow roots) has already had
     //     its connected flag updated, and we can just inherit from it.
     if (auto* shadow_root = as_if<ShadowRoot>(*this))
-        m_core.is_connected = shadow_root->host() && shadow_root->host()->is_connected();
+        set_is_connected(shadow_root->host() && shadow_root->host()->is_connected());
     else if (parent())
-        m_core.is_connected = parent()->is_connected();
+        set_is_connected(parent()->is_connected());
 
     if (is_connected())
         document().page().keyboard_scroll_dom_tree_changed(*this);
@@ -2624,7 +2626,7 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
             CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
     }
 
-    m_core.is_connected = false;
+    set_is_connected(false);
     m_in_editable_subtree = false;
 
     // The nodes of a shadow tree count the versions of their tree on the document while they are connected, and on
@@ -2671,21 +2673,21 @@ static bool is_root_wheel_event_target(Node const& node)
 
 bool Node::update_inside_blocking_wheel_event_handler_state()
 {
-    bool const was_inside_blocking_wheel_event_handler = m_inside_blocking_wheel_event_handler;
-    m_inside_blocking_wheel_event_handler = false;
+    bool const was_inside_blocking_wheel_event_handler = m_core.cpp_flags.inside_blocking_wheel_event_handler;
+    m_core.cpp_flags.inside_blocking_wheel_event_handler = false;
     auto assigned_slot = assigned_slot_for_node(*this);
     auto* parent = assigned_slot ? static_cast<Node*>(assigned_slot.ptr()) : parent_or_shadow_host();
     if (parent) {
         // A shadow root or assigned slot may not have derived its inherited state yet.
         if (assigned_slot || is<ShadowRoot>(*parent))
             parent->update_inside_blocking_wheel_event_handler_state();
-        m_inside_blocking_wheel_event_handler = parent->inside_blocking_wheel_event_handler();
+        m_core.cpp_flags.inside_blocking_wheel_event_handler = parent->inside_blocking_wheel_event_handler();
     }
 
-    if (!m_inside_blocking_wheel_event_handler && !is_root_wheel_event_target(*this) && has_blocking_wheel_event_listener())
-        m_inside_blocking_wheel_event_handler = true;
+    if (!m_core.cpp_flags.inside_blocking_wheel_event_handler && !is_root_wheel_event_target(*this) && has_blocking_wheel_event_listener())
+        m_core.cpp_flags.inside_blocking_wheel_event_handler = true;
 
-    bool const flipped = was_inside_blocking_wheel_event_handler != m_inside_blocking_wheel_event_handler;
+    bool const flipped = was_inside_blocking_wheel_event_handler != m_core.cpp_flags.inside_blocking_wheel_event_handler;
     if (flipped)
         publish_dom_paint_facts();
     return flipped;

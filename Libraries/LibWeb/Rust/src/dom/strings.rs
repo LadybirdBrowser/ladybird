@@ -69,6 +69,22 @@ impl StringField {
     pub fn is_empty(&self) -> bool {
         units_are_empty(self.units())
     }
+
+    /// The interned string with the same code units, as AK::Utf16FlyString's constructor from the string makes it.
+    #[inline(always)]
+    pub fn to_fly_string(&self) -> ak::Utf16FlyString {
+        // SAFETY: C++ does not write the field while Rust borrows it, and the string it holds is a live AK::Utf16String,
+        //         whose reference stays the field's, as the borrowed owner is never dropped.
+        let string = core::mem::ManuallyDrop::new(unsafe { ak::Utf16String::from_raw_owned(*self.0.get()) });
+        ak::Utf16FlyString::from_utf16_string(&string)
+    }
+
+    /// The string, as a reference of its own to it, which stays valid however C++ changes the field.
+    #[inline(always)]
+    pub fn to_utf16_string(&self) -> ak::Utf16String {
+        // SAFETY: C++ does not write the field while Rust borrows it, and the string it holds is a live AK::Utf16String.
+        unsafe { ak::Utf16String::from_raw_borrowed(*self.0.get()) }
+    }
 }
 
 #[inline(always)]

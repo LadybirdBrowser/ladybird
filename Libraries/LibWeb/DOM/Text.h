@@ -46,7 +46,6 @@ public:
     Optional<Element::Directionality> directionality() const;
 
     // The text node's StyleEngine identity, or 0 while it is disconnected.
-    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
     void set_style_node_id(CSS::StyleNodeID);
 
 protected:
@@ -65,7 +64,6 @@ private:
 
     Optional<size_t> m_max_length {};
     bool m_is_password_input { false };
-    CSS::StyleNodeID m_style_node_id;
 };
 
 }

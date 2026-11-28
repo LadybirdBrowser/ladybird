@@ -906,11 +906,6 @@ impl RetainedState {
             .map_or(&[], |parent| self.projection.language_tag_of(parent))
     }
 
-    /// Record the text node's whitespace-only state, as its data now spells it.
-    pub fn set_text_is_ascii_whitespace(&mut self, node: StyleNodeID, value: bool) {
-        self.tree.set_text_is_ascii_whitespace(node, value);
-    }
-
     /// Record the unique node id the document names the element by. It arrives with the identity
     /// and never changes while the element holds it.
     pub fn set_element_unique_node_id(&mut self, node: StyleNodeID, unique_node_id: i64) {

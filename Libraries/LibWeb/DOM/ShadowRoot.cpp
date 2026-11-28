@@ -45,7 +45,7 @@ ShadowRoot::ShadowRoot(Document& document, Element& host, ShadowRootMode mode)
     , m_mode(mode)
     , m_style_scope(*this)
 {
-    m_core.is_shadow_root = true;
+    m_core.flags |= RustFFI::NODE_IS_SHADOW_ROOT;
     document.register_shadow_root({}, *this);
     set_host(&host);
 }
@@ -76,12 +76,12 @@ void ShadowRoot::adopted_from(Document& old_document)
     // document's node table may still hold it.
     old_document.style_computer().unregister_style_node(style_node_id());
     set_style_node_id(0);
-    m_style_engine_tree_scope = 0;
+    set_style_engine_tree_scope(0);
 }
 
 void ShadowRoot::set_style_node_id(CSS::StyleNodeID style_node_id)
 {
-    m_style_node_id = style_node_id;
+    m_core.style_node_id = style_node_id;
     // The layout arena keys layout tree update marks by identity alone, so one handed to this root holds none, whatever
     // the node that held it before left behind.
     if (auto* arena = document().layout_node_arena_if_created(); arena && style_node_id != 0)

@@ -27,6 +27,8 @@ use super::node_core::NodeCore;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use super::qualified_name::QualifiedNameField;
+use crate::css::style::tree::StyleNodeID;
+use crate::css::style::tree::TreeScopeID;
 use crate::stage::MainThread;
 
 /// A node's cell, with its core where DOM::Node has it, a character data core where DOM::CharacterData has it, which
@@ -180,6 +182,19 @@ fn new_node<'a>(
     // SAFETY: The cell lives for the rest of the process, and only the test that made it changes its tree, which it
     //         does not while it reads it.
     unsafe { Node::from_cell(&*(cell as *const TestCell as *const NodeCell), main_thread) }
+}
+
+/// Gives the node the identity `node` in its document's style engine, or none.
+pub(crate) fn set_style_node_id(node: Node<'_>, style_node_id: Option<StyleNodeID>) {
+    node.core().set_style_node_id_for_test(style_node_id);
+}
+
+/// Numbers the tree scope of a shadow root.
+pub(crate) fn set_style_engine_tree_scope(shadow_root: Node<'_>, tree_scope: TreeScopeID) {
+    assert!(shadow_root.is_shadow_root());
+    // SAFETY: Every node of a test tree is a TestCell.
+    let cell = unsafe { &*(shadow_root.cell() as *const NodeCell as *const TestCell) };
+    cell.fragment_core.set_style_engine_tree_scope_for_test(tree_scope);
 }
 
 /// Appends `child`, the root of a tree of its own, to `parent`'s children.

@@ -13,9 +13,8 @@
 use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
-    FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiLocalFeatureDelta,
-    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta,
-    FfiTreeRelations, borrow,
+    FfiDemandedPseudoElement, FfiElementDeclarationDelta, FfiLocalFeatureDelta, FfiPseudoElementRecordDemand,
+    FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta, borrow,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
@@ -60,6 +59,9 @@ pub(crate) enum EngineWrite {
     ElementUniqueNodeIds(Box<[(StyleNodeID, i64)]>),
     /// The text nodes of an arriving subtree, with what each holds.
     TextArrivals(Box<[TextArrival]>),
+    /// Elements and text nodes take their places in their parents' child sequences, as (node, parent, previous
+    /// sibling) triples in tree order, each previous sibling taking its place first.
+    DomOrderLinks(Box<[u32]>),
     /// The host ended the style update it took last: the engine lets go of the records it pinned for the host's
     /// layout, and releases the identities no reader can name any more, which the job that applies it pays the host
     /// to mint again.
@@ -80,6 +82,8 @@ pub(crate) enum EngineWrite {
     RetireTexts(Box<[StyleNodeID]>),
     /// The root of a shadow tree's scope.
     TreeScopeRoot { tree_scope: TreeScopeID, root: StyleNodeID },
+    /// The ID the engine finds an element by, or none.
+    ElementIdName { node: StyleNodeID, name: StyleAtomID },
     /// The characters a text node holds.
     TextData { node: u32, data: ak::Utf16String },
     /// The presentational hints of one kind an element declares, expanded to the longhands they decide.
@@ -220,9 +224,9 @@ impl EngineWrite {
                     engine.set_element_unique_node_id(node, unique_node_id);
                 }
             }
+            Self::DomOrderLinks(links) => engine.link_style_nodes_in_dom_order(&links),
             Self::TextArrivals(texts) => {
                 for text in texts {
-                    engine.set_text_is_ascii_whitespace(text.node, text.is_ascii_whitespace);
                     engine.set_text_is_in_user_agent_shadow_tree(text.node, text.is_in_user_agent_shadow_tree);
                     engine.set_text_is_password_input(text.node, text.is_password_input);
                     engine.set_text_data(text.node, text.data);
@@ -248,6 +252,7 @@ impl EngineWrite {
                     engine.set_hover(Some(target));
                 }
             }
+            Self::ElementIdName { node, name } => engine.set_element_id_name(node, name),
             Self::TextData { node, data } => {
                 if let Some(node) = StyleNodeID::from_raw(node) {
                     engine.set_text_data(node, data);
@@ -453,96 +458,10 @@ pub extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, text: bool,
 
 /// A text node of an arriving subtree, with what it holds.
 pub(crate) struct TextArrival {
-    node: StyleNodeID,
-    data: ak::Utf16String,
-    is_ascii_whitespace: bool,
-    is_in_user_agent_shadow_tree: bool,
-    is_password_input: bool,
-}
-
-/// An element of an arriving subtree: its identity, the unique node id the document names it by, and how it stands in
-/// the tree.
-#[repr(C)]
-pub struct FfiArrivingElement {
-    pub unique_node_id: u64,
-    pub node: u32,
-    pub relations: FfiTreeRelations,
-}
-
-/// A text node of an arriving subtree: its identity, the characters it holds, as one reference to a live string, and
-/// what it is.
-#[repr(C)]
-pub struct FfiArrivingText {
-    pub data: usize,
-    pub node: u32,
-    pub is_ascii_whitespace: bool,
-    pub is_in_user_agent_shadow_tree: bool,
-    pub is_password_input: bool,
-}
-
-/// Writes the arrival of each element of an arriving subtree into the host's projection rows in one call, as a tree
-/// delta from standing in no tree, and the unique node ids the document names them by.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_stage_element_arrivals(host: &DocumentHost, elements: ak::Span<'_, FfiArrivingElement>) {
-    let elements = elements.as_slice();
-    let detached = FfiTreeRelations {
-        parent: 0,
-        previous_element_sibling: 0,
-        next_element_sibling: 0,
-        tree_scope: 0,
-        assigned_slot: 0,
-    };
-    {
-        let mut projection = host.engine_memo().projection.borrow_mut();
-        let mut writes = projection.writes();
-        for element in elements {
-            writes.record_ffi_tree_delta(&FfiTreeDelta {
-                node: element.node,
-                old_connected: false,
-                new_connected: true,
-                old_relations: detached,
-                new_relations: element.relations,
-            });
-        }
-    }
-    let ids: Box<[(StyleNodeID, i64)]> = elements
-        .iter()
-        .filter_map(|element| {
-            Some((
-                StyleNodeID::from_raw(element.node)?,
-                element.unique_node_id.cast_signed(),
-            ))
-        })
-        .collect();
-    if !ids.is_empty() {
-        host.queue_change(ArenaChange::Engine(EngineWrite::ElementUniqueNodeIds(ids)));
-    }
-}
-
-/// Writes each text node of an arriving subtree, with what it holds, in one write.
-///
-/// # Safety
-/// `host` must be a live document host, and the caller transfers one reference to each text's live string `data`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_stage_text_arrivals(host: &DocumentHost, texts: ak::Span<'_, FfiArrivingText>) {
-    let texts: Box<[TextArrival]> = texts
-        .as_slice()
-        .iter()
-        .filter_map(|text| {
-            // SAFETY: Guaranteed by the caller.
-            let data = unsafe { ak::Utf16String::from_raw_owned(text.data) };
-            Some(TextArrival {
-                node: StyleNodeID::from_raw(text.node)?,
-                data,
-                is_ascii_whitespace: text.is_ascii_whitespace,
-                is_in_user_agent_shadow_tree: text.is_in_user_agent_shadow_tree,
-                is_password_input: text.is_password_input,
-            })
-        })
-        .collect();
-    if !texts.is_empty() {
-        host.queue_change(ArenaChange::Engine(EngineWrite::TextArrivals(texts)));
-    }
+    pub(super) node: StyleNodeID,
+    pub(super) data: ak::Utf16String,
+    pub(super) is_in_user_agent_shadow_tree: bool,
+    pub(super) is_password_input: bool,
 }
 
 /// Writes the tree delta `delta` into the host's projection rows.
@@ -553,65 +472,6 @@ pub extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &Ffi
         .borrow_mut()
         .writes()
         .record_ffi_tree_delta(delta);
-}
-
-/// An element's facts arriving, with how it stands in the tree where it arrives there with them. Elements that took
-/// their place in the tree earlier arrive with `has_relations` false.
-#[repr(C)]
-pub struct FfiElementArrivalRow {
-    pub arrival: FfiElementArrival,
-    pub unique_node_id: u64,
-    pub relations: FfiTreeRelations,
-    pub has_relations: bool,
-}
-
-/// Writes the arrival of each element of `rows`, with every fact its selectors test, into its projection row in one go,
-/// and keeps what it arrives with beside its row for the host's next barrier. `atoms` holds each row's custom states,
-/// classes and attributes in turn.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_stage_element_arrival_rows(
-    host: &DocumentHost,
-    rows: ak::Span<'_, FfiElementArrivalRow>,
-    atoms: ak::Span<'_, u32>,
-) {
-    let rows = rows.as_slice();
-    let mut atoms = atoms.as_slice();
-    let memo = host.engine_memo();
-    {
-        let mut projection = memo.projection.borrow_mut();
-        let mut writes = projection.writes();
-        let mut unpublished = memo.unpublished.borrow_mut();
-        for row in rows {
-            let arrival = &row.arrival;
-            let count = arrival.custom_state_count as usize
-                + arrival.class_count as usize
-                + 2 * arrival.attribute_count as usize;
-            let (row_atoms, rest) = atoms.split_at(count);
-            atoms = rest;
-            let Some(node) = StyleNodeID::from_raw(arrival.node) else {
-                debug_assert!(false, "an element arrival named an invalid style node");
-                continue;
-            };
-            let relations = row.has_relations.then(|| row.relations.decode());
-            writes.record_element_arrival(node, arrival, row_atoms, relations);
-            if arrival.associated_pseudo_kind_plus_one != 0 {
-                unpublished.backing_elements.push(node);
-            }
-        }
-    }
-    let ids: Box<[(StyleNodeID, i64)]> = rows
-        .iter()
-        .filter(|row| row.has_relations)
-        .filter_map(|row| {
-            Some((
-                StyleNodeID::from_raw(row.arrival.node)?,
-                row.unique_node_id.cast_signed(),
-            ))
-        })
-        .collect();
-    if !ids.is_empty() {
-        host.queue_change(ArenaChange::Engine(EngineWrite::ElementUniqueNodeIds(ids)));
-    }
 }
 
 /// Whether the host's projection row of `node` holds the attribute `name`.
@@ -690,17 +550,6 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
             .writes()
             .set_element_parts(node, &pairs);
     }
-}
-
-/// Records the characters the text node holds.
-///
-/// # Safety
-/// `host` must be a live document host, and the caller transfers one reference to the live string `data`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_text_data(host: &DocumentHost, node: u32, data: usize) {
-    // SAFETY: Guaranteed by the caller.
-    let data = unsafe { ak::Utf16String::from_raw_owned(data) };
-    host.queue_change(ArenaChange::Engine(EngineWrite::TextData { node, data }));
 }
 
 /// The document host `host` names.

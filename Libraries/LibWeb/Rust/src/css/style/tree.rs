@@ -719,15 +719,6 @@ impl HostTree {
             .is_some_and(|index| self.text.flag(index, TextFlags::IS_ASCII_WHITESPACE))
     }
 
-    /// Record what the text node's data now spells, as its whitespace-only state.
-    pub fn set_text_is_ascii_whitespace(&mut self, node: StyleNodeID, value: bool) {
-        let Some(index) = node.text_index() else {
-            return;
-        };
-
-        self.text.set_flag(index, TextFlags::IS_ASCII_WHITESPACE, value);
-    }
-
     /// Whether the text node's data is empty, and whether it ends in white space, as [`Self::set_text_data`] read it
     /// from the data. A node holding no data answers that it is empty.
     #[must_use]
@@ -872,25 +863,38 @@ impl HostTree {
         self.text.data.get(node.text_index()? as usize)
     }
 
-    /// Record the characters the text node now holds. The string is the document's, shared rather
+    /// Record the characters the text node now holds, and what they settle: whether there are any, whether they end
+    /// in white space, and whether they are nothing but ASCII whitespace. The string is the document's, shared rather
     /// than copied.
     pub fn set_text_data(&mut self, node: StyleNodeID, data: ak::Utf16String) {
         if let Some(index) = node.text_index() {
-            let last_code_unit: Option<u16> = match data.as_units() {
-                ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
-                    units.last().map(|&unit| unit.into())
+            // NB: White space is a space, tab, line feed, line tabulation, form feed or carriage return, as AK's
+            //     is_ascii_space() has it, which no data at all is nothing but.
+            let is_white_space = |unit: u16| matches!(unit, 0x09..=0x0d | 0x20);
+            let (last_code_unit, is_ascii_whitespace) = match data.as_units() {
+                ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => (
+                    units.last().map(|&unit| unit.into()),
+                    units.iter().all(|&unit| is_white_space(unit.into())),
+                ),
+                ak::Utf16StringUnits::Utf16(units) => {
+                    (units.last().copied(), units.iter().all(|&unit| is_white_space(unit)))
                 }
-                ak::Utf16StringUnits::Utf16(units) => units.last().copied(),
             };
-            let mut ends = 0;
+            let mut flags = 0;
             if last_code_unit.is_some() {
-                ends |= TextFlags::HOLDS_DATA;
+                flags |= TextFlags::HOLDS_DATA;
             }
-            if last_code_unit.is_some_and(|unit| matches!(unit, 0x09..=0x0d | 0x20)) {
-                ends |= TextFlags::ENDS_IN_WHITE_SPACE;
+            if last_code_unit.is_some_and(is_white_space) {
+                flags |= TextFlags::ENDS_IN_WHITE_SPACE;
             }
-            self.text
-                .set_flags(index, TextFlags::HOLDS_DATA | TextFlags::ENDS_IN_WHITE_SPACE, ends);
+            if is_ascii_whitespace {
+                flags |= TextFlags::IS_ASCII_WHITESPACE;
+            }
+            self.text.set_flags(
+                index,
+                TextFlags::HOLDS_DATA | TextFlags::ENDS_IN_WHITE_SPACE | TextFlags::IS_ASCII_WHITESPACE,
+                flags,
+            );
             self.text.data.grow_to(index as usize + 1);
             self.text.data.set(index as usize, data);
         }
@@ -1532,16 +1536,17 @@ mod tests {
     fn a_fork_shares_text_data_and_flags_until_one_side_writes() {
         let mut tree = HostTree::new();
         let text = tree.allocate_text();
-        tree.set_text_is_ascii_whitespace(text, true);
+        tree.set_text_data(text, ak::Utf16String::from_utf16(&[u16::from(b' ')]));
         let fork = tree.clone();
         let (data_version, flags_version) = (tree.text.data.version(), tree.text.flags.version());
-        tree.set_text_is_ascii_whitespace(text, false);
         tree.set_text_data(text, ak::Utf16String::from_utf16(&[u16::from(b'x')]));
         assert!(fork.text_is_ascii_whitespace(text));
-        assert!(fork.text_data(text).is_some_and(ak::Utf16String::is_empty));
-        assert_eq!(fork.text_data_ends(text), (true, false));
+        assert!(!tree.text_is_ascii_whitespace(text));
+        assert!(fork.text_data(text).is_some_and(|data| *data == " "));
+        assert_eq!(fork.text_data_ends(text), (false, true));
+        assert_eq!(tree.text_data_ends(text), (false, false));
         // NB: Setting the data writes the flags it settles from the data too.
-        assert_eq!(tree.text.flags.version(), flags_version + 2);
+        assert_eq!(tree.text.flags.version(), flags_version + 1);
         assert_eq!(tree.text.data.version(), data_version + 1);
     }
 

@@ -22,7 +22,7 @@ use super::strings::OptionalFlyStringField;
 use super::strings::StringField;
 
 /// Where DOM::Element embeds its core, in bytes from the start of the element's cell, which Element.cpp asserts.
-pub const ELEMENT_CORE_OFFSET: usize = 136;
+pub const ELEMENT_CORE_OFFSET: usize = 144;
 
 /// A field that holds the classes of an element, laid out as C++'s DOM::ClassNames, which is what C++ sees it as: one
 /// class in place, or all of them in an outline buffer, which C++ allocates and frees.

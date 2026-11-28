@@ -125,7 +125,6 @@ public:
     // tree: it is what a shadow-tree element's relations name, and it is what bounds the region a
     // `:host()` rule reaches. Without an identity of its own, that region has no name and every
     // route across the boundary widens to the document.
-    [[nodiscard]] CSS::StyleNodeID style_node_id() const { return m_style_node_id; }
     void set_style_node_id(CSS::StyleNodeID);
 
     // A shadow root is also a style scope, and that is a longer-lived thing than its place in the
@@ -133,8 +132,8 @@ public:
     // it leaves; the scope identity has to survive that, because a sheet adopted into the scope is
     // detached with the identity it was attached with. Only moving to another document retires it,
     // since identities belong to one document's engine.
-    [[nodiscard]] CSS::TreeScopeID style_engine_tree_scope() const { return m_style_engine_tree_scope; }
-    void set_style_engine_tree_scope(CSS::TreeScopeID tree_scope) { m_style_engine_tree_scope = tree_scope; }
+    [[nodiscard]] CSS::TreeScopeID style_engine_tree_scope() const { return m_document_fragment_core.style_engine_tree_scope; }
+    void set_style_engine_tree_scope(CSS::TreeScopeID tree_scope) { m_document_fragment_core.style_engine_tree_scope = tree_scope; }
 
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -150,9 +149,6 @@ private:
     virtual void adopted_from(Document&) override;
 
     void calculate_part_element_map();
-
-    CSS::StyleNodeID m_style_node_id;
-    CSS::TreeScopeID m_style_engine_tree_scope;
 
     // NOTE: The specification doesn't seem to specify a default value for mode. Assuming closed for now.
     ShadowRootMode m_mode { ShadowRootMode::Closed };

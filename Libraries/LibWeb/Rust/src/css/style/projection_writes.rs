@@ -27,6 +27,20 @@ use super::pipeline::projection::ArrivalFacts;
 use super::pipeline::projection::ProjectionWriter;
 use super::tree::StyleNodeID;
 
+/// The selector-visible facts an element arrives with that are read from the element itself: its name, ID, classes and
+/// attributes, as atoms, and whether a text child keeps it from being `:empty`.
+pub(in crate::css::style) struct ElementArrivalFacts<'a> {
+    pub tag: StyleAtomID,
+    /// The ASCII-lowercase folding of the tag, or the tag itself where folding leaves it as it is.
+    pub folded_tag: StyleAtomID,
+    pub namespace: StyleAtomID,
+    /// The element's ID, or none.
+    pub id: StyleAtomID,
+    pub has_text_content: bool,
+    pub classes: &'a [StyleAtomID],
+    pub attributes: &'a [AttributeFact],
+}
+
 /// The host's writer of a document's projection, with what its writes mean.
 pub(in crate::css::style) struct ProjectionWrites<'a> {
     pub(in crate::css::style) projection: &'a mut ProjectionWriter,
@@ -176,36 +190,34 @@ impl ProjectionWrites<'_> {
 
     // -- Facts ---------------------------------------------------------------------------------
 
-    /// Write every fact an element arrives with in one edit of its row, with how it stands in the tree where that
-    /// arrives with them.
+    /// Write every fact an element arrives with in one edit of its row, those the host gathered and those read from the
+    /// element itself, with how it stands in the tree where that arrives with them.
     pub(in crate::css::style) fn record_element_arrival(
         &mut self,
         node: StyleNodeID,
         arrival: &FfiElementArrival,
-        atoms: &[u32],
+        element: &ElementArrivalFacts<'_>,
+        custom_states: &[u32],
         relations: Option<TreeRelations>,
     ) {
         if relations.is_some() {
             self.stage_tree_neighbors(node, None, relations);
             self.count(InputKey::TreeRelations(node));
         }
-        // NB: The atoms are the element's custom states, then its classes, then its attributes as name and value pairs.
-        let (custom_states, rest) = atoms.split_at(arrival.custom_state_count as usize);
-        let (classes, attributes) = rest.split_at(arrival.class_count as usize);
         let facts = ArrivalFacts {
             relations,
-            tag: StyleAtomID(arrival.tag_atom),
-            folded_tag: StyleAtomID(arrival.folded_tag_atom),
-            namespace: StyleAtomID(arrival.namespace_atom),
-            id: StyleAtomID(arrival.id_atom),
+            tag: element.tag,
+            folded_tag: element.folded_tag,
+            namespace: element.namespace,
+            id: element.id,
             language: StyleAtomID(arrival.language_atom),
             directionality: StyleAtomID(arrival.directionality_atom),
             heading_level: arrival.heading_level,
             is_slot: arrival.is_slot,
-            has_text_content: arrival.has_text_content,
+            has_text_content: element.has_text_content,
             states: StateSet(arrival.states),
-            classes: StyleAtomID::slice_of_raw(classes),
-            attributes: AttributeFact::slice_of_raw(attributes.as_chunks::<2>().0),
+            classes: element.classes,
+            attributes: element.attributes,
             custom_states: StyleAtomID::slice_of_raw(custom_states),
         };
         // NB: Each fact the arrival carries counts as a delta folded onto it, as each was once published apiece.

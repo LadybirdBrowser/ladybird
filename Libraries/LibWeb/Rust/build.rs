@@ -2733,7 +2733,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "AK/OwnPtr.h".to_string(),
         "AK/Utf16String.h".to_string(),
         "LibGC/Member.h".to_string(),
+        "LibWeb/CSS/StyleEngineIdentifiers.h".to_string(),
         "LibWeb/DOM/ClassNames.h".to_string(),
+        "LibWeb/DOM/CppNodeFlags.h".to_string(),
         "LibWeb/DOM/QualifiedName.h".to_string(),
         "LibWebCommon/DOM/NodeType.h".to_string(),
     ];
@@ -2750,6 +2752,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("ElementMember", "GC::Member<Web::DOM::Element>"),
         ("ShadowRootMember", "GC::Member<Web::DOM::ShadowRoot>"),
         ("NodeType", "Web::DOM::NodeType"),
+        ("StyleNodeField", "Web::CSS::StyleNodeID"),
+        ("TreeScopeField", "Web::CSS::TreeScopeID"),
+        ("CppNodeFlags", "Web::DOM::CppNodeFlags"),
         ("QualifiedNameField", "Web::DOM::QualifiedName"),
         ("OptionalFlyStringField", "AK::Optional<AK::Utf16FlyString>"),
         ("ClassNamesField", "Web::DOM::ClassNames"),
@@ -3045,6 +3050,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     // holds, which crosses opaque. A box kind crosses as the byte of the host's own enum.
     for (name, cpp_name) in [
         ("ElementBoxKind", "uint8_t"),
+        // A node whose state an entry reads in place crosses as the cell C++ allocates it, except in a struct, where it
+        // crosses opaque, and a string the host lends as itself.
+        ("NodeCell", "Web::DOM::Node"),
+        ("NodeRef", "GC::Ref<Web::DOM::Node>"),
+        ("FfiNode", "const void*"),
+        ("FfiNullableNode", "const void*"),
+        ("FlyStringField", "AK::Utf16FlyString"),
+        ("StringField", "AK::Utf16String"),
         ("HostElement", "Web::DOM::Element"),
         ("HostElementPtr", "void*"),
         ("HostStyleReactionApplication", "Web::CSS::StyleReactionApplication"),
@@ -3058,7 +3071,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     style_engine_config
         .after_includes
         .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::DOM { class Element; }\nnamespace Web::CSS { struct StyleReactionApplication; }");
+        .push_str("\nnamespace GC { template<class T> class Ref; }\nnamespace Web::DOM { class Element; class Node; }\nnamespace Web::CSS { struct StyleReactionApplication; }");
     // The native sheets, rules and declaration blocks the host publishes are named as the value parser header declares
     // them.
     for name in ["DeclarationBlock", "NativeRule", "NativeStyleSheet"] {
@@ -3101,6 +3114,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style/bridge/records.rs"),
             manifest_dir.join("src/css/style/identities.rs"),
             manifest_dir.join("src/css/style/engine_calls.rs"),
+            manifest_dir.join("src/css/style/dom_inputs.rs"),
             manifest_dir.join("src/css/style/host_atoms.rs"),
             manifest_dir.join("src/css/style/reaction_application.rs"),
             manifest_dir.join("src/css/style/pipeline/install.rs"),
