@@ -86,17 +86,17 @@ impl BitColumn {
         self.words.row_bytes()
     }
 
-    /// Set one bit and return whether its value changed and newly allocated bytes.
+    /// Set one bit and return whether its value changed and how many bytes of words the column grew by.
     pub(super) fn set(&mut self, index: usize, value: bool) -> (bool, u64) {
         let word_index = index / u64::BITS as usize;
-        let bytes_before = self.words.row_bytes();
+        let bytes_before = self.words.len() * size_of::<u64>();
         if self.words.len() <= word_index {
             if !value {
                 return (false, 0);
             }
             self.words.resize_with_default(word_index + 1);
         }
-        let growth = (self.words.row_bytes() - bytes_before) as u64;
+        let growth = (self.words.len() * size_of::<u64>() - bytes_before) as u64;
         let mask = 1_u64 << (index % u64::BITS as usize);
         if (self.words[word_index] & mask != 0) == value {
             return (false, growth);

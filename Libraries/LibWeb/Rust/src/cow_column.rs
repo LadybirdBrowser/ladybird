@@ -326,8 +326,7 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
     }
 
     /// How many chunks the column stores for its rows, the chunk of defaults aside.
-    #[cfg(test)]
-    fn stored_chunk_count(&self) -> usize {
+    pub(crate) fn stored_chunk_count(&self) -> usize {
         (0..self.chunk_count)
             .filter(|&chunk_index| {
                 let chunk = chunk_of(&self.spine, chunk_index).expect("the column holds the chunk");
@@ -619,9 +618,10 @@ impl<T: Clone + Default, const CHUNK: usize> CowVec<T, CHUNK> {
         self.column.heap_size(sizer, row_heap)
     }
 
-    /// The bytes of the rows themselves, without what they hold on the heap.
+    /// The bytes of the rows the vector stores, without what they hold on the heap. A chunk of rows that were never
+    /// written, or that were all let go of, is not stored.
     pub(crate) fn row_bytes(&self) -> usize {
-        self.column.len() * size_of::<T>()
+        self.column.stored_chunk_count() * CHUNK * size_of::<T>()
     }
 
     /// Every row, in order.
