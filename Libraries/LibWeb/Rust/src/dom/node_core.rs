@@ -10,6 +10,8 @@
 use core::cell::Cell;
 use core::num::NonZeroU32;
 
+use libgc_api::member::write_barrier;
+
 use super::event_target::EventTargetMember;
 use super::id_map::IdMapField;
 use super::strings::StringField;
@@ -39,11 +41,6 @@ impl NodePointer {
     }
 }
 
-/// Where a collector that has to know about stores into cells, like a generational or incremental one, will hook in,
-/// as GC::Detail::member_write_barrier() does for the stores C++ makes. It does nothing for now.
-#[inline(always)]
-pub(super) fn member_write_barrier(_slot: &Cell<u32>, _compressed: u32) {}
-
 /// A field that holds a node or null, laid out as C++'s GC::Member<DOM::Node>, which is what C++ sees it as: a compressed
 /// cell pointer in 32 bits, with 0 for null. Rust and C++ both write it, and the collector rewrites it when it moves the
 /// node, so it is a Cell.
@@ -65,7 +62,7 @@ impl NodeMember {
     #[inline(always)]
     pub(super) fn set(&self, node: Option<NodePointer>) {
         let compressed = node.map_or(0, NodePointer::compressed);
-        member_write_barrier(&self.0, compressed);
+        write_barrier(self.0.as_ptr(), compressed);
         self.0.set(compressed);
     }
 }
@@ -113,7 +110,7 @@ impl ElementMember {
     #[inline(always)]
     pub(super) fn set(&self, element: Option<NodePointer>) {
         let compressed = element.map_or(0, NodePointer::compressed);
-        member_write_barrier(&self.0, compressed);
+        write_barrier(self.0.as_ptr(), compressed);
         self.0.set(compressed);
     }
 }

@@ -972,8 +972,8 @@ mod tests {
     use super::super::test_tree::document_core;
     use super::super::test_tree::node;
     use super::super::test_tree::set_document;
-    use super::super::weak_cells::WeakImplForTest;
     use super::*;
+    use crate::gc_test_stubs::leaked_weak_impl;
     use RelativeBoundaryPointPosition::*;
     use core::ffi::c_void;
 
@@ -1005,14 +1005,16 @@ mod tests {
         let mut entries = Vec::new();
         let mut cores = Vec::new();
         for &(start, end) in ranges {
-            let cleared = Box::leak(Box::new(WeakImplForTest::new(core::ptr::null_mut())));
-            entries.push(cleared as *const WeakImplForTest as *const c_void);
+            entries.push(leaked_weak_impl(core::ptr::null_mut()).cast_const().cast::<c_void>());
             let cell = Box::leak(Box::new(TestRangeCell {
                 header: [0; RANGE_CORE_OFFSET],
                 core: range_core(start, end),
             }));
-            let weak = Box::leak(Box::new(WeakImplForTest::new(cell as *mut TestRangeCell as *mut u8)));
-            entries.push(weak as *const WeakImplForTest as *const c_void);
+            entries.push(
+                leaked_weak_impl((cell as *mut TestRangeCell).cast())
+                    .cast_const()
+                    .cast::<c_void>(),
+            );
             cores.push(&cell.core);
         }
         document_core(document)

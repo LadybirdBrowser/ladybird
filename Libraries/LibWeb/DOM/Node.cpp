@@ -4004,20 +4004,6 @@ public:
         }
     }
 
-    // NB: The maps of elements by ID hold their elements as GC::WeakImpls, see Rust/src/dom/id_map.rs.
-    static void* create_weak(Node* node)
-    {
-        GC::Weak<Node> weak { *node };
-        auto& weak_impl = weak.impl();
-        weak_impl.ref();
-        return &weak_impl;
-    }
-
-    static void release_weak(void* weak)
-    {
-        static_cast<GC::WeakImpl*>(weak)->unref();
-    }
-
     static void shadow_root_needs_slot_assignment(Node* shadow_root)
     {
         static_cast<ShadowRoot&>(*shadow_root).did_start_needing_slot_assignment();
@@ -4092,10 +4078,6 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
         .assigned_slot_changed = RustDOMHooks::assigned_slot_changed,
         .slot_changed = RustDOMHooks::slot_changed,
         .shadow_root_needs_slot_assignment = RustDOMHooks::shadow_root_needs_slot_assignment,
-    },
-    .id_map = {
-        .create_weak = RustDOMHooks::create_weak,
-        .release_weak = RustDOMHooks::release_weak,
     },
     .live_range_boundary_points_set = RustDOMHooks::live_range_boundary_points_set,
     .call_node_filter = RustDOMHooks::call_node_filter,

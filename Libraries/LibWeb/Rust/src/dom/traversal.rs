@@ -989,9 +989,9 @@ mod tests {
     use super::super::test_tree::document_core;
     use super::super::test_tree::node;
     use super::super::test_tree::set_document;
-    use super::super::weak_cells::WeakImplForTest;
     use super::*;
     use crate::dom::node_core::NodeType;
+    use crate::gc_test_stubs::leaked_weak_impl;
 
     /// A DOM::NodeIterator for tests: its core, TRAVERSER_CORE_OFFSET bytes into the cell.
     #[repr(C)]
@@ -1021,10 +1021,8 @@ mod tests {
                 candidate_reference: member(None),
             },
         }));
-        let weak = Box::leak(Box::new(WeakImplForTest::new(
-            cell as *mut TestNodeIteratorCell as *mut u8,
-        )));
-        let entries = Box::leak(Box::new([weak as *const WeakImplForTest as *const c_void]));
+        let weak = leaked_weak_impl((cell as *mut TestNodeIteratorCell).cast());
+        let entries = Box::leak(Box::new([weak.cast_const().cast::<c_void>()]));
         document_core(document).node_iterators().set_for_test(entries);
         // SAFETY: A test cell starts with the iterator's cell, and lives for the rest of the process.
         unsafe { &*(cell as *const TestNodeIteratorCell as *const NodeIteratorCell) }

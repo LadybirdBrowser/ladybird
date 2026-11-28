@@ -28,13 +28,14 @@ use core::ops::ControlFlow;
 use core::ptr::NonNull;
 use std::alloc::Layout;
 
+use libgc_api::member::write_barrier;
+
 use super::event_target::EventTargetCell;
 use super::event_target::EventTargetRef;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node::decompress;
 use super::node_core::NodePointer;
-use super::node_core::member_write_barrier;
 
 crate::stage::main_thread_ffi_entries!(without_host);
 
@@ -273,7 +274,7 @@ impl EventListenerList {
         unsafe {
             let slot = self.items.get().add(size);
             slot.write(EventListenerMember(Cell::new(0)));
-            member_write_barrier(&(*slot).0, compressed);
+            write_barrier((*slot).0.as_ptr(), compressed);
             (*slot).0.set(compressed);
         }
         // NB: The listener counts, and so C++ visits it, only once it is written.

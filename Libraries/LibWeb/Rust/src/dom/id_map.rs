@@ -12,7 +12,7 @@
 //! connected elements of the tree that have an ID, by ID, and is kept up to date as such elements join and leave the
 //! tree and as their IDs change. Getting an element by ID then looks the ID up rather than walk the tree.
 //!
-//! The map holds its elements weakly, as GC::WeakImpls, which C++ makes and releases through IdMapHooks. The collector
+//! The map holds its elements weakly, as GC::WeakImpls it makes and releases through libgc_api. The collector
 //! points one at the new address of an element it moves, and nulls one whose element dies, so an element the map lost
 //! track of gives a miss rather than a freed pointer. Elements leave the map as they leave the tree, so no entry is
 //! meant to outlive its element.
@@ -23,10 +23,10 @@ use core::ptr::NonNull;
 
 use ak::Utf16StringUnits;
 use hashbrown::HashTable;
+use libgc_api::WeakImpl;
 use smallvec::SmallVec;
 
 use super::character_data::units_of_view;
-use super::hooks;
 use super::node::NodeCell;
 use super::node_core::NodeType;
 use super::node_ref::NodeRef;
@@ -37,7 +37,6 @@ use super::strings::FlyStringField;
 use super::strings::string_hash;
 use super::strings::units_equal;
 use super::strings::units_hash;
-use super::weak_cells::WEAK_IMPL_VALUE_OFFSET;
 use crate::stage::MainThread;
 
 crate::stage::main_thread_ffi_entries!(without_host);
@@ -75,19 +74,22 @@ fn table_hash(hash: u32) -> u64 {
     u64::from(hash).wrapping_mul(0x9E37_79B9_7F4A_7C15)
 }
 
-/// An element the map holds weakly, as a pointer to a GC::WeakImpl to which it holds a reference.
-#[derive(Clone, Copy)]
-struct WeakElement(NonNull<c_void>);
+/// An element the map holds weakly.
+struct WeakElement(WeakImpl);
 
 impl WeakElement {
+    fn new(_main_thread: &mut MainThread<'_>, element: NodeRef) -> Self {
+        // SAFETY: The element is a live cell, and the caller is on the main thread, which owns the heap.
+        Self(unsafe { WeakImpl::for_cell(NonNull::from(element.cell()).cast()) })
+    }
+
     /// The element, or none if it has died.
     #[inline(always)]
-    fn get(self) -> Option<NodeRef> {
-        // SAFETY: The map holds a reference to the GC::WeakImpl, which keeps the address of its cell, or null once the
-        //         cell has died, WEAK_IMPL_VALUE_OFFSET bytes in.
-        let cell = unsafe { *self.0.as_ptr().byte_add(WEAK_IMPL_VALUE_OFFSET).cast::<*mut NodeCell>() };
+    fn get(&self) -> Option<NodeRef> {
         // SAFETY: The cell of a live GC::WeakImpl is a live element.
-        NonNull::new(cell).map(|cell| unsafe { NodeRef::from_cell_unchecked(cell) })
+        self.0
+            .cell()
+            .map(|cell| unsafe { NodeRef::from_cell_unchecked(cell.cast()) })
     }
 }
 
@@ -163,7 +165,7 @@ fn add(main_thread: &mut MainThread<'_>, root: NodeRef, element: NodeRef, id: &F
         return;
     }
 
-    let weak = WeakElement(hooks::create_weak(main_thread, element));
+    let weak = WeakElement::new(main_thread, element);
     let map = id_map_of(&root).map_mut();
     let raw = id.raw_identity();
     let entry = match map
@@ -192,7 +194,7 @@ fn add(main_thread: &mut MainThread<'_>, root: NodeRef, element: NodeRef, id: &F
 
 /// Takes `element` out of the map of the tree whose root was `root`, under the ID with code units `id` and AK hash
 /// `hash`, along with any element under the ID that has died.
-fn remove(main_thread: &mut MainThread<'_>, root: NodeRef, element: NodeRef, hash: u32, id: Utf16StringUnits<'_>) {
+fn remove(_main_thread: &mut MainThread<'_>, root: NodeRef, element: NodeRef, hash: u32, id: Utf16StringUnits<'_>) {
     // SAFETY: Only this module writes the map, and nothing else borrows it during the call.
     let Some(map) = (unsafe { id_map_of(&root).map.get().as_mut() }) else {
         return;
@@ -203,14 +205,9 @@ fn remove(main_thread: &mut MainThread<'_>, root: NodeRef, element: NodeRef, has
         return;
     };
     let entry = occupied.get_mut();
-    // NB: Releasing a GC::WeakImpl leaves the map as it is.
-    entry.elements.retain(|weak| match weak.get() {
-        Some(other) if other != element => true,
-        _ => {
-            hooks::release_weak(main_thread, weak.0);
-            false
-        }
-    });
+    entry
+        .elements
+        .retain(|weak| matches!(weak.get(), Some(other) if other != element));
     if entry.elements.is_empty() {
         occupied.remove();
     } else {
@@ -534,17 +531,12 @@ pub unsafe extern "C" fn rust_dom_has_element_with_id(root: &NodeCell, id: usize
 /// on the main thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_dom_id_map_destroy(field: &IdMapField) {
-    // SAFETY: Guaranteed by the caller.
-    let mut main_thread = unsafe { main_thread() };
+    // SAFETY: Guaranteed by the caller. Releasing the weak references needs the main thread, which owns the heap.
+    let _main_thread = unsafe { main_thread() };
     let map = field.map.replace(core::ptr::null_mut());
     if map.is_null() {
         return;
     }
-    // SAFETY: The map was allocated as a Box, and nothing else holds it.
-    let map = unsafe { Box::from_raw(map) };
-    for entry in map.entries {
-        for weak in entry.elements {
-            hooks::release_weak(&mut main_thread, weak.0);
-        }
-    }
+    // SAFETY: The map was allocated as a Box, and nothing else holds it. Dropping it releases its weak references.
+    drop(unsafe { Box::from_raw(map) });
 }

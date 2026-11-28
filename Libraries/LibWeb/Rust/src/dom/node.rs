@@ -42,33 +42,17 @@ unsafe impl Sync for HeapRegionBaseCopy {}
 #[unsafe(export_name = "rust_dom_heap_region_base")]
 static HEAP_REGION_BASE: HeapRegionBaseCopy = HeapRegionBaseCopy(UnsafeCell::new(0));
 
-/// How far a compressed cell pointer is shifted, as LibGC's COMPRESSED_POINTER_SHIFT: cells are 8-byte aligned.
-const COMPRESSED_POINTER_SHIFT: u32 = 3;
-
 #[inline(always)]
 fn heap_region_base() -> usize {
     // SAFETY: Nothing writes the copy after the first node exists, see HeapRegionBaseCopy.
     unsafe { *HEAP_REGION_BASE.0.get() }
 }
 
-/// The start of the cell a node pointer names, decoded as GC::decompress_nonnull() decodes a compressed pointer.
-///
-/// Makes the compressed pointer live up to this point, and the decoded address from this point on. The conservative
-/// stack scan recognizes a cell by its address or by its compressed pointer in either half of a word, but not by its
-/// unshifted offset, which the compiler could otherwise keep instead while either is held across an allocation.
+/// The start of the cell a node pointer names, decoded as GC::decompress_nonnull() decodes a compressed pointer, see
+/// libgc_api::member::decompress().
 #[inline(always)]
 pub(super) fn decompress(pointer: NodePointer) -> NonNull<NodeCell> {
-    let compressed = pointer.compressed();
-    let mut address = heap_region_base() + ((compressed as usize) << COMPRESSED_POINTER_SHIFT);
-    // SAFETY: The assembly is empty: it only has the compiler put `compressed` and `address` in registers here.
-    unsafe {
-        core::arch::asm!(
-            "/* {compressed} {address} */",
-            compressed = in(reg) compressed as usize,
-            address = inout(reg) address,
-            options(nomem, nostack, preserves_flags),
-        );
-    }
+    let address = libgc_api::member::decompress(heap_region_base(), pointer.compressed());
     // SAFETY: A compressed pointer decodes to an address in the heap region, which is never null. The base is an exposed
     //         address of the region, whose provenance the cell's address takes.
     unsafe { NonNull::new_unchecked(core::ptr::with_exposed_provenance_mut(address)) }
@@ -77,10 +61,10 @@ pub(super) fn decompress(pointer: NodePointer) -> NonNull<NodeCell> {
 /// The compressed pointer of a node: its offset into the heap region in units of the cell alignment.
 #[inline(always)]
 pub(super) fn compress(cell: &NodeCell) -> NodePointer {
-    let offset = (cell as *const NodeCell as usize).wrapping_sub(heap_region_base());
-    debug_assert!(offset < (1usize << (32 + COMPRESSED_POINTER_SHIFT)));
-    debug_assert!(offset.is_multiple_of(1 << COMPRESSED_POINTER_SHIFT));
-    NodePointer::from_compressed((offset >> COMPRESSED_POINTER_SHIFT) as u32)
+    NodePointer::from_compressed(libgc_api::member::compress(
+        heap_region_base(),
+        core::ptr::from_ref(cell).addr(),
+    ))
 }
 
 /// Sets the heap region base to that of a test arena.
@@ -144,7 +128,8 @@ impl<'a> Node<'a> {
     /// `pointer` must name a node that lives for `'a`.
     #[inline(always)]
     unsafe fn decode(pointer: NodePointer) -> Self {
-        let address = heap_region_base() + ((pointer.compressed() as usize) << COMPRESSED_POINTER_SHIFT);
+        let address =
+            heap_region_base() + ((pointer.compressed() as usize) << libgc_api::member::COMPRESSED_POINTER_SHIFT);
         // SAFETY: A compressed pointer decodes to the start of the cell it names, which lives for 'a.
         Self {
             cell: unsafe { &*(address as *const NodeCell) },
