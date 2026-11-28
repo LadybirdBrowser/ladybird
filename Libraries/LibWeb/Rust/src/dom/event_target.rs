@@ -15,13 +15,14 @@ use core::marker::PhantomPinned;
 use core::num::NonZeroU32;
 use core::ptr::NonNull;
 
+use libgc_api::member::write_barrier;
+
 use super::event_listeners::EventListenerList;
 use super::node::NodeCell;
 use super::node::compress;
 use super::node::decompress;
 use super::node_class::NodeClassId;
 use super::node_core::NodePointer;
-use super::node_core::member_write_barrier;
 use super::node_ref::NodeRef;
 use super::prefix::EventTargetPrefix;
 use crate::stage::MainThread;
@@ -242,7 +243,7 @@ impl EventTargetMember {
     #[inline(always)]
     pub(super) fn set(&self, target: Option<EventTargetRef>) {
         let compressed = target.map_or(0, EventTargetRef::compressed);
-        member_write_barrier(&self.0, compressed);
+        write_barrier(self.0.as_ptr(), compressed);
         self.0.set(compressed);
     }
 

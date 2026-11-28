@@ -20,6 +20,8 @@ mod encoding_detection;
 pub(crate) mod fork;
 pub(crate) mod fork_vec;
 #[cfg(test)]
+mod gc_test_stubs;
+#[cfg(test)]
 mod gfx_test_stubs;
 pub(crate) mod heap_size;
 #[cfg(test)]

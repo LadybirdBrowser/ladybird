@@ -21,9 +21,6 @@ use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-/// Where GC::WeakImpl keeps the address of its cell, which WeakCellRegistry.h asserts.
-pub const WEAK_IMPL_VALUE_OFFSET: usize = 16;
-
 /// The entries of a DOM::WeakCellRegistry, as C++ mirrors them: a pointer to its first GC::Weak, each of which is a
 /// pointer to the GC::WeakImpl that holds the address of its cell, or null once the cell is dead, and how many there are.
 #[repr(C)]
@@ -54,8 +51,7 @@ impl WeakCellSpan {
         // SAFETY: Guaranteed by the caller: the entry is a live GC::Weak, which points at a GC::WeakImpl.
         unsafe {
             let weak_impl = *self.entries.get().add(index);
-            let cell = *weak_impl.byte_add(WEAK_IMPL_VALUE_OFFSET).cast::<*mut u8>();
-            NonNull::new(cell)
+            libgc_api::WeakImpl::cell_of_raw(NonNull::new_unchecked(weak_impl.cast_mut().cast())).map(NonNull::cast)
         }
     }
 
@@ -127,30 +123,6 @@ impl WeakCellRegistryField {
         self.0.set(span);
     }
 }
-
-/// A GC::WeakImpl for tests, which C++ allocates in a GC::WeakBlock.
-#[cfg(test)]
-#[repr(C)]
-pub(crate) struct WeakImplForTest {
-    _reference_count: usize,
-    _state: u32,
-    value: *mut u8,
-}
-
-#[cfg(test)]
-impl WeakImplForTest {
-    /// A weak pointer to the cell at `value`, or a cleared one if it is null.
-    pub(crate) fn new(value: *mut u8) -> Self {
-        Self {
-            _reference_count: 1,
-            _state: 0,
-            value,
-        }
-    }
-}
-
-#[cfg(test)]
-const _: () = assert!(core::mem::offset_of!(WeakImplForTest, value) == WEAK_IMPL_VALUE_OFFSET);
 
 // NB: WeakCellRegistry.h asserts the same layout of the struct it includes.
 const _: () = assert!(size_of::<WeakCellSpan>() == 16 && align_of::<WeakCellSpan>() == 8);

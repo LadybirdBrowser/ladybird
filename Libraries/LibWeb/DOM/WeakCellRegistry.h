@@ -151,12 +151,12 @@ private:
     OwnPtr<WeakCellRegistry<T>> m_registry;
 };
 
-// NB: The Rust definition of the span asserts the same layout, and reads each entry as a pointer to its GC::WeakImpl.
+// NB: The Rust definition of the span asserts the same layout, and reads each entry as a pointer to its GC::WeakImpl,
+//     through libgc_api, whose layout check covers where the impl keeps its cell.
 static_assert(sizeof(RustFFI::WeakCellSpan) == 16 && alignof(RustFFI::WeakCellSpan) == 8);
 static_assert(offsetof(RustFFI::WeakCellSpan, entries) == 0);
 static_assert(offsetof(RustFFI::WeakCellSpan, length) == 8);
 static_assert(sizeof(RustFFI::WeakCellRegistryField) == sizeof(void*));
 static_assert(sizeof(GC::Weak<GC::Cell>) == sizeof(void*));
-static_assert(GC::WeakImpl::value_offset() == RustFFI::WEAK_IMPL_VALUE_OFFSET);
 
 }
