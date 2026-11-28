@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="textarea"></textarea>
+<div id="editable" contenteditable></div>
+<input id="password" type="password">
+<input id="off" autocorrect="off">
+<input id="later">
+<script>
+    // The test spellchecker has the user's text replacement "omw" for "On my way!".
+    async function type(element, text) {
+        element.focus();
+        internals.sendText(element, text);
+        await internals.textReplacementSettled();
+    }
+
+    const valueOf = element => element.value ?? element.textContent;
+
+    promiseTest(async () => {
+        const textarea = document.getElementById("textarea");
+        const editable = document.getElementById("editable");
+        for (const element of [textarea, editable]) {
+            const events = [];
+            for (const type of ["beforeinput", "input"])
+                element.addEventListener(type, event => {
+                    if (event.inputType === "insertReplacementText")
+                        events.push(`${type} ${event.inputType} ${JSON.stringify(event.data)}`);
+                });
+            await type(element, "omw ");
+            println(`${element.id}: ${JSON.stringify(valueOf(element))}`);
+            println(`${element.id} events: ${events.join(", ")}`);
+
+            // The caret stays after the space, so typing goes on from there.
+            await type(element, "now");
+            println(`${element.id} after typing on: ${JSON.stringify(valueOf(element))}`);
+
+            // Undo takes back the typing, and then the replacement.
+            document.execCommand("undo");
+            document.execCommand("undo");
+            println(`${element.id} after undo: ${JSON.stringify(valueOf(element))}`);
+        }
+
+        // Not in a password field, or where the page turned autocorrection off.
+        for (const id of ["password", "off"]) {
+            const input = document.getElementById(id);
+            await type(input, "omw ");
+            println(`${id}: ${JSON.stringify(input.value)}`);
+        }
+
+        // Only a word the user just ended is replaced, and not when it's typed without a character that ends it.
+        const later = document.getElementById("later");
+        await type(later, "omw");
+        println(`later, unended: ${JSON.stringify(later.value)}`);
+        await type(later, "x ");
+        println(`later, other word: ${JSON.stringify(later.value)}`);
+
+        // Two shortcuts typed quickly are both replaced, and so is one that ends a line.
+        const quick = document.getElementById("later");
+        quick.value = "";
+        await type(quick, "omw omw ");
+        println(`two quickly: ${JSON.stringify(quick.value)}`);
+        textarea.value = "";
+        textarea.focus();
+        internals.sendText(textarea, "omw");
+        internals.sendKey(textarea, "Return");
+        await internals.textReplacementSettled();
+        println(`ended by a line break: ${JSON.stringify(textarea.value)}`);
+
+        // A replacement never takes a selection the user made, or goes into a field they moved the focus to.
+        textarea.value = "";
+        textarea.focus();
+        internals.sendText(textarea, "omw ");
+        textarea.setSelectionRange(0, 2);
+        await internals.textReplacementSettled();
+        println(`selected meanwhile: ${JSON.stringify(textarea.value)}`);
+        textarea.value = "";
+        textarea.focus();
+        internals.sendText(textarea, "omw ");
+        quick.focus();
+        await internals.textReplacementSettled();
+        println(`focus moved meanwhile: ${JSON.stringify(textarea.value)}, ${JSON.stringify(quick.value)}`);
+
+        // A page can cancel the replacement.
+        const cancelled = document.getElementById("textarea");
+        cancelled.value = "";
+        const cancel = event => {
+            if (event.inputType === "insertReplacementText")
+                event.preventDefault();
+        };
+        cancelled.addEventListener("beforeinput", cancel);
+        await type(cancelled, "omw.");
+        cancelled.removeEventListener("beforeinput", cancel);
+        println(`cancelled: ${JSON.stringify(cancelled.value)}, caret ${cancelled.selectionStart}-${cancelled.selectionEnd}`);
+
+        // An answer for a word that's gone leaves another copy of it alone.
+        const gone = document.getElementById("later");
+        gone.value = "omw ";
+        gone.focus();
+        gone.setSelectionRange(4, 4);
+        internals.sendText(gone, "omw ");
+        gone.value = "omw ";
+        await internals.textReplacementSettled();
+        println(`word gone meanwhile: ${JSON.stringify(gone.value)}`);
+    });
+</script>

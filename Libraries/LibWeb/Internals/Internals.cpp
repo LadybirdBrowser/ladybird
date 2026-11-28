@@ -4134,6 +4134,17 @@ GC::Ref<WebIDL::Promise> Internals::writing_suggestion_settled()
     return promise;
 }
 
+GC::Ref<WebIDL::Promise> Internals::text_replacement_settled()
+{
+    auto& realm = window().principal_realm();
+    auto promise = WebIDL::create_promise_for(window());
+    page().when_text_replacements_settled(GC::create_function(heap(), GC::captures(realm, promise), [](auto& realm, auto& promise) {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        WebIDL::resolve_promise(promise);
+    }));
+    return promise;
+}
+
 GC::Ref<WebIDL::Promise> Internals::writing_suggestion_request_sent()
 {
     auto& realm = window().principal_realm();

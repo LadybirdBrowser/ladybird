@@ -145,6 +145,7 @@ private:
     virtual void spell_checker_checked(u64 request_id, Vector<Web::SpellingError> errors) override;
     virtual void spell_checker_guessed(u64 request_id, Vector<Utf16String> guesses) override;
     virtual void spell_checker_suggested(u64 request_id, Optional<Web::WritingSuggestion> suggestion) override;
+    virtual void spell_checker_found_text_replacement(u64 request_id, Optional<Web::TextReplacement> replacement) override;
     virtual void external_url_handler_resolved(u64 request_id, Optional<u64> handler_id, String application_name, bool is_ladybird) override;
     virtual void external_url_launched(u64 request_id, bool launched) override;
     virtual void cancel_download(u64 id) override;

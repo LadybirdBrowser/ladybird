@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWebCommon/Page/SpellingError.h>
+#include <LibWebCommon/Page/TextReplacement.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebView/Export.h>
 
@@ -46,6 +47,13 @@ public:
     // Predicts how the text could continue at caret_offset (in UTF-16 code units). Asynchronous; on_complete runs on
     // the main thread, with nothing if there's no prediction.
     virtual void suggest(DocumentTag, [[maybe_unused]] Utf16String const& text, [[maybe_unused]] u32 caret_offset, Function<void(Optional<Web::WritingSuggestion>)> on_complete)
+    {
+        on_complete({});
+    }
+
+    // Finds the replacement the user set up for the word that ends the text, if they did, and if they have text
+    // replacement turned on. Asynchronous; on_complete runs on the main thread.
+    virtual void find_text_replacement(DocumentTag, [[maybe_unused]] Utf16String const& text, Function<void(Optional<Web::TextReplacement>)> on_complete)
     {
         on_complete({});
     }

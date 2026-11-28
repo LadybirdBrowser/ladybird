@@ -2325,6 +2325,11 @@ void PageClient::page_did_request_writing_suggestion(u64 request_id, Utf16String
     client().async_did_request_writing_suggestion(m_id, request_id, text, caret_offset);
 }
 
+void PageClient::page_did_request_text_replacement(u64 request_id, Utf16String const& text)
+{
+    client().async_did_request_text_replacement(m_id, request_id, text);
+}
+
 void PageClient::page_did_request_primary_paste()
 {
     client().async_did_request_primary_paste(m_id);

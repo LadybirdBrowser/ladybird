@@ -362,6 +362,12 @@ void ConnectionFromUI::spell_checker_suggested(u64 request_id, Optional<Web::Wri
         spell_checker->did_suggest(request_id, move(suggestion));
 }
 
+void ConnectionFromUI::spell_checker_found_text_replacement(u64 request_id, Optional<Web::TextReplacement> replacement)
+{
+    if (auto* spell_checker = SpellCheckerInUI::the())
+        spell_checker->did_find_text_replacement(request_id, move(replacement));
+}
+
 void ConnectionFromUI::system_time_zone_changed()
 {
     WebView::WebContentClient::for_each_client([](WebView::WebContentClient& client) {

@@ -64,6 +64,7 @@
 #include <LibWebCommon/Page/ScreenWakeLockState.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/Translation.h>
+#include <LibWebCommon/Page/TextReplacement.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWebCommon/StorageAPI/StorageAreaId.h>
@@ -277,6 +278,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_paste_from_clipboard_for_testing(Web::PageId page_id) =|
     did_request_spell_check(Web::PageId page_id, u64 request_id, Utf16String text) =|
     did_request_writing_suggestion(Web::PageId page_id, u64 request_id, Utf16String text, u32 caret_offset) =|
+    did_request_text_replacement(Web::PageId page_id, u64 request_id, Utf16String text) =|
     did_get_translation_language_sample(Web::PageId page_id, u64 request_id, Web::TranslationLanguageSample sample) =|
     did_request_translation(Web::PageId page_id, Web::TranslationUnit unit) =|
     did_request_primary_paste(Web::PageId page_id) =|

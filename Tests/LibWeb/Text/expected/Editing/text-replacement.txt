@@ -1,0 +1,18 @@
+textarea: "On my way! "
+textarea events: beforeinput insertReplacementText "On my way!", input insertReplacementText "On my way!"
+textarea after typing on: "On my way! now"
+textarea after undo: "omw "
+editable: "On my way! "
+editable events: beforeinput insertReplacementText "On my way!", input insertReplacementText null
+editable after typing on: "On my way! now"
+editable after undo: "omw "
+password: "omw "
+off: "omw "
+later, unended: "omw"
+later, other word: "omwx "
+two quickly: "On my way! On my way! "
+ended by a line break: "On my way!\n"
+selected meanwhile: "omw "
+focus moved meanwhile: "omw ", "On my way! On my way! "
+cancelled: "omw.", caret 4-4
+word gone meanwhile: "omw "

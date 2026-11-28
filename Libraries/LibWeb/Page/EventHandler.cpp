@@ -31,6 +31,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/TextReplacement.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/DragDataStore.h>
@@ -2362,6 +2363,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             FIRE(fire_text_input_event(m_navigable, "\n"_utf16));
             if (target->handle_return_key(input_type) != EventResult::Handled)
                 target->handle_insert(input_type, Utf16String::from_code_point(code_point));
+            Editing::replace_word_after_typing(*document, *target, '\n');
 
             return EventResult::Handled;
         }
@@ -2371,6 +2373,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
             FIRE(fire_text_input_event(m_navigable, Utf16String::from_code_point(code_point)));
             target->handle_insert(UIEvents::InputTypes::insertText, Utf16String::from_code_point(code_point));
+            Editing::replace_word_after_typing(*document, *target, code_point);
             return EventResult::Handled;
         }
     } else if (auto selection = document->get_selection(); selection && !selection->is_collapsed()) {

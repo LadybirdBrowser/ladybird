@@ -785,6 +785,7 @@ public:
 
     void did_request_spell_check(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text);
     void did_request_writing_suggestion(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text, u32 caret_offset);
+    void did_request_text_replacement(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text);
     void reset_spell_checking();
     void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<u64> text_fragment_generation_id);
     void did_generate_text_fragment_url(u64 request_id, Optional<URL::URL>);
@@ -1131,6 +1132,10 @@ protected:
     };
     Queue<PendingExternalURLRequest> m_pending_external_url_requests;
     ExternalURLRequestPolicy m_external_url_request_policy;
+    // How many text replacement requests the page may still make: one for each character that can end a word the user
+    // typed, so a page can't ask about text the user didn't type.
+    size_t m_text_replacement_requests_allowed { 0 };
+    void allow_text_replacement_request_for(u32 typed_code_point);
     bool m_external_url_confirmation_pending { false };
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;

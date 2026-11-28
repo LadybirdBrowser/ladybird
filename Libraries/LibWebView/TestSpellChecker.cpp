@@ -61,6 +61,14 @@ static Optional<StringView> prediction_for(Utf16View partial_word)
     return {};
 }
 
+// The text replacements the user set up. Every test-web test has these, as every app has the user's replacements.
+static Optional<StringView> text_replacement_for(Utf16View word)
+{
+    if (word == u"omw"sv)
+        return "On my way!"sv;
+    return {};
+}
+
 SpellChecker::DocumentTag TestSpellChecker::create_document_tag()
 {
     return m_next_document_tag++;
@@ -123,6 +131,25 @@ void TestSpellChecker::suggest(DocumentTag, Utf16String const& text, u32 caret_o
     // Answer on a later turn of the event loop, as platform spellcheckers do.
     Core::deferred_invoke([on_complete = move(on_complete), suggestion = move(suggestion)]() mutable {
         on_complete(move(suggestion));
+    });
+}
+
+void TestSpellChecker::find_text_replacement(DocumentTag, Utf16String const& text, Function<void(Optional<Web::TextReplacement>)> on_complete)
+{
+    Optional<Web::TextReplacement> replacement;
+    auto view = text.utf16_view();
+    auto end = view.length_in_code_units();
+    auto start = end;
+    while (start > 0 && is_word_code_unit(view.code_unit_at(start - 1)))
+        --start;
+    if (start < end) {
+        if (auto replacement_text = text_replacement_for(view.substring_view(start, end - start)); replacement_text.has_value())
+            replacement = Web::TextReplacement { static_cast<u32>(start), static_cast<u32>(end - start), Utf16String::from_utf8(*replacement_text) };
+    }
+
+    // Answer on a later turn of the event loop, as platform spellcheckers do.
+    Core::deferred_invoke([on_complete = move(on_complete), replacement = move(replacement)]() mutable {
+        on_complete(move(replacement));
     });
 }
 

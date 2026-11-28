@@ -2662,6 +2662,11 @@ void WebContentPage::did_request_writing_suggestion(u64 request_id, Utf16String 
     view().did_request_writing_suggestion({}, *this, request_id, move(text), caret_offset);
 }
 
+void WebContentPage::did_request_text_replacement(u64 request_id, Utf16String text)
+{
+    view().did_request_text_replacement({}, *this, request_id, move(text));
+}
+
 void WebContentPage::did_get_translation_language_sample(u64 request_id, Web::TranslationLanguageSample sample)
 {
     view().page_translation().did_get_language_sample({}, request_id, move(sample));

@@ -359,6 +359,7 @@ private:
     virtual void did_request_paste_from_clipboard_for_testing() override;
     virtual void did_request_spell_check(u64 request_id, Utf16String text) override;
     virtual void did_request_writing_suggestion(u64 request_id, Utf16String text, u32 caret_offset) override;
+    virtual void did_request_text_replacement(u64 request_id, Utf16String text) override;
     virtual void did_get_translation_language_sample(u64 request_id, Web::TranslationLanguageSample sample) override;
     virtual void did_request_translation(Web::TranslationUnit unit) override;
     virtual void did_request_set_system_focus(bool has_system_focus) override;

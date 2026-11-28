@@ -101,6 +101,7 @@
 #include <LibWebCommon/Page/QueuedInputEvent.h>
 #include <LibWebCommon/Page/SpellingError.h>
 #include <LibWebCommon/Page/TextEditingCommand.h>
+#include <LibWebCommon/Page/TextReplacement.h>
 #include <LibWebCommon/Page/Translation.h>
 #include <LibWebCommon/Page/ViewportIsFullscreen.h>
 #include <LibWebCommon/Page/WritingSuggestion.h>
@@ -398,6 +399,17 @@ public:
     // For tests: Calls the callback when the next writing suggestion request goes to the UI process.
     void when_writing_suggestion_requested(GC::Ref<GC::Function<void()>>);
 
+    using TextReplacementRequest = GC::Ref<GC::Function<void(Optional<TextReplacement>)>>;
+    void request_text_replacement(Utf16String const& text, TextReplacementRequest);
+    void did_find_text_replacement(u64 request_id, Optional<TextReplacement>);
+    // For tests: Calls the callback once no text replacement request is in flight.
+    void when_text_replacements_settled(GC::Ref<GC::Function<void()>>);
+    // The replacements made while requests are in flight, so an answer finds its word where an earlier replacement
+    // moved it.
+    u64 text_replacement_serial() const { return m_text_replacement_serial; }
+    void record_text_replacement(DOM::Text const&, size_t old_end, i64 delta);
+    i64 text_replacement_shift_since(DOM::Text const&, u64 serial, size_t position) const;
+
     using GeolocationPositionResult = Variant<Geolocation::CoordinatesData, Geolocation::GeolocationPositionErrorCode>;
     using GeolocationPositionCallback = GC::Ref<GC::Function<void(GeolocationPositionResult)>>;
     enum class GeolocationRequestType : u8 {
@@ -677,6 +689,17 @@ private:
     u64 m_next_writing_suggestion_request_id { 0 };
     Vector<GC::Ref<GC::Function<void()>>> m_writing_suggestions_settled_callbacks;
     Vector<GC::Ref<GC::Function<void()>>> m_writing_suggestion_requested_callbacks;
+    HashMap<u64, TextReplacementRequest> m_pending_text_replacement_requests;
+    u64 m_next_text_replacement_request_id { 0 };
+    Vector<GC::Ref<GC::Function<void()>>> m_text_replacements_settled_callbacks;
+    struct TextReplacementShift {
+        GC::Weak<DOM::Text const> text;
+        size_t old_end { 0 };
+        i64 delta { 0 };
+        u64 serial { 0 };
+    };
+    Vector<TextReplacementShift> m_text_replacement_shifts;
+    u64 m_text_replacement_serial { 0 };
 
     struct PendingGeolocationRequest {
         GeolocationPositionCallback callback;
@@ -1042,6 +1065,7 @@ public:
     virtual void page_did_request_translation([[maybe_unused]] TranslationUnit const&) { }
     virtual void page_did_request_page_translation_for_testing([[maybe_unused]] String const& target_language) { }
     virtual void page_did_request_writing_suggestion([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text, [[maybe_unused]] u32 caret_offset) { }
+    virtual void page_did_request_text_replacement([[maybe_unused]] u64 request_id, [[maybe_unused]] Utf16String const& text) { }
     virtual void page_did_request_primary_paste() { }
     virtual void page_did_complete_paste_action() { }
     virtual void page_did_update_primary_selection(Utf16String const&) { }

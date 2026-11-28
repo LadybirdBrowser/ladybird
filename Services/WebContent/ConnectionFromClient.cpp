@@ -3835,6 +3835,12 @@ void ConnectionFromClient::did_get_writing_suggestion(Web::PageId page_id, u64 r
         page->page().did_get_writing_suggestion(request_id, move(suggestion));
 }
 
+void ConnectionFromClient::did_find_text_replacement(Web::PageId page_id, u64 request_id, Optional<Web::TextReplacement> replacement)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_find_text_replacement(request_id, move(replacement));
+}
+
 void ConnectionFromClient::request_translation_language_sample(Web::PageId page_id, u64 request_id)
 {
     if (auto page = this->page(page_id); page.has_value())

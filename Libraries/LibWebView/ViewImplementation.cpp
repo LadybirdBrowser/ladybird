@@ -1411,6 +1411,9 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     if (m_has_picture_in_picture_controls && mouse_event && !mouse_event->pointer_data.ptr() && handle_picture_in_picture_controls_mouse_event(*mouse_event))
         return;
 
+    if (key_event && key_event->type == Web::KeyEvent::Type::KeyDown)
+        allow_text_replacement_request_for(key_event->key == Web::UIEvents::KeyCode::Key_Return ? '\n' : key_event->code_point);
+
     // User input enables a single request for an external URL.
     if ((key_event && key_event->type == Web::KeyEvent::Type::KeyDown && !key_event->repeat
             && first_is_one_of(key_event->key, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::KeyCode::Key_Space))
@@ -3485,7 +3488,20 @@ void ViewImplementation::set_marked_text_from_input_method(Utf16String const& te
 void ViewImplementation::commit_text_from_input_method(Utf16String const& text, i32 replacement_start, i32 replacement_length)
 {
     auto& host = focused_navigable_host();
+    if (!text.is_empty())
+        allow_text_replacement_request_for(text.utf16_view().code_unit_at(text.length_in_code_units() - 1));
     host.async_commit_text_from_input_method(text, replacement_start, replacement_length);
+}
+
+void ViewImplementation::allow_text_replacement_request_for(u32 typed_code_point)
+{
+    // NB: These are the characters after which the page asks for the replacement of the word they end.
+    static constexpr Array<u32, 10> word_enders { ' ', '\t', '\n', 0xA0, '.', ',', ';', ':', '!', '?' };
+    if (!any_of(word_enders, [&](u32 word_ender) { return word_ender == typed_code_point; }))
+        return;
+    // A few may be in flight at once, when the user types fast.
+    static constexpr size_t maximum_allowed = 4;
+    m_text_replacement_requests_allowed = min(m_text_replacement_requests_allowed + 1, maximum_allowed);
 }
 
 void ViewImplementation::unmark_text_from_input_method()
@@ -5803,6 +5819,28 @@ void ViewImplementation::did_request_writing_suggestion(Badge<WebContentPage>, W
     spell_checker->suggest(spell_document_tag(), text, caret_offset, [page = NonnullRefPtr { requesting_page }, request_id](Optional<Web::WritingSuggestion> suggestion) {
         if (page->is_open())
             page->async_did_get_writing_suggestion(request_id, move(suggestion));
+    });
+}
+
+void ViewImplementation::did_request_text_replacement(Badge<WebContentPage>, WebContentPage& requesting_page, u64 request_id, Utf16String text)
+{
+    // A request answers to a character the user typed. Tests type through the page itself, which this view never sees.
+    auto is_test = Application::browser_options().headless_mode == HeadlessMode::Test;
+    if (!is_test && m_text_replacement_requests_allowed == 0) {
+        requesting_page.async_did_find_text_replacement(request_id, {});
+        return;
+    }
+    if (!is_test)
+        --m_text_replacement_requests_allowed;
+
+    auto* spell_checker = Application::the().spell_checker();
+    if (!spell_checker) {
+        requesting_page.async_did_find_text_replacement(request_id, {});
+        return;
+    }
+    spell_checker->find_text_replacement(spell_document_tag(), text, [page = NonnullRefPtr { requesting_page }, request_id](Optional<Web::TextReplacement> replacement) {
+        if (page->is_open())
+            page->async_did_find_text_replacement(request_id, move(replacement));
     });
 }
 
