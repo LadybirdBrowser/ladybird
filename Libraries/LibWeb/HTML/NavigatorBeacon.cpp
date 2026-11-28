@@ -83,6 +83,10 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconPartial::send_beacon(Utf16View url, Fet
     req->set_mode(cors_mode);                                                            // mode: corsMode
     req->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include); // credentials mode: include
     req->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Beacon);      // initiator type: "beacon"
+    // INTEROP: Other browsers make a CORS preflight for a beacon with a non-safelisted Content-Type, but the spec
+    //          does not set the unsafe-request flag that main fetch needs to make one. Set it, as fetch() and
+    //          XMLHttpRequest do.
+    req->set_unsafe_request(true);
 
     // 7.2 Fetch req.
     (void)Fetch::Fetching::fetch(realm, req, Fetch::Infrastructure::FetchAlgorithms::create(Fetch::Infrastructure::FetchAlgorithms::Input { Fetch::Engine::BodyIntent::DrainAndDiscard }));
