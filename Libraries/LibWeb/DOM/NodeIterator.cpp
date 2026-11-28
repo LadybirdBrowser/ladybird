@@ -14,29 +14,40 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(NodeIterator);
 
 NodeIterator::NodeIterator(Node& root)
-    : m_root(root)
-    , m_reference({ root, true })
+    : m_node_iterator_core {
+        .traverser = { .root = root, .what_to_show = 0, .flags = RustFFI::NODE_ITERATOR_POINTER_BEFORE_REFERENCE },
+        .reference = root,
+        .candidate_reference = nullptr,
+    }
 {
-    m_root->document().register_node_iterator({}, *this);
+    // NB: libweb_rust reads the core of a NodeIterator in place.
+    static_assert(offsetof(NodeIterator, m_node_iterator_core) == RustFFI::TRAVERSER_CORE_OFFSET);
+
+    // NB: The fields libweb_rust reads start after all of the base class, where every C++ ABI places them, and not in
+    //     its tail padding, where only the Itanium ABI could.
+    static_assert(offsetof(NodeIterator, m_node_iterator_core) >= sizeof(Bindings::GCAllocatedWrappable));
+
+    root.document().register_node_iterator({}, *this);
 }
+
+// NB: The Rust definitions of the cores assert the same layout.
+static_assert(sizeof(RustFFI::TraverserCore) == 12 && alignof(RustFFI::TraverserCore) == 4);
+static_assert(offsetof(RustFFI::TraverserCore, root) == 0);
+static_assert(offsetof(RustFFI::TraverserCore, what_to_show) == 4);
+static_assert(offsetof(RustFFI::TraverserCore, flags) == 8);
+static_assert(sizeof(RustFFI::NodeIteratorCore) == 20 && alignof(RustFFI::NodeIteratorCore) == 4);
+static_assert(offsetof(RustFFI::NodeIteratorCore, reference) == 12);
+static_assert(offsetof(RustFFI::NodeIteratorCore, candidate_reference) == 16);
 
 NodeIterator::~NodeIterator() = default;
-
-void NodeIterator::finalize()
-{
-    Base::finalize();
-    m_root->document().unregister_node_iterator({}, *this);
-}
 
 void NodeIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_filter);
-    visitor.visit(m_root);
-    visitor.visit(m_reference.node);
-
-    if (m_candidate_reference.has_value())
-        visitor.visit(m_candidate_reference->node);
+    visitor.visit(m_node_iterator_core.traverser.root);
+    visitor.visit(m_node_iterator_core.reference);
+    visitor.visit(m_node_iterator_core.candidate_reference);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
@@ -48,7 +59,7 @@ GC::Ref<NodeIterator> NodeIterator::create(Node& root, unsigned what_to_show, GC
     auto iterator = GC::Heap::the().allocate<NodeIterator>(root);
 
     // 4. Set iterator’s whatToShow to whatToShow.
-    iterator->m_what_to_show = what_to_show;
+    iterator->m_node_iterator_core.traverser.what_to_show = what_to_show;
 
     // 5. Set iterator’s filter to filter.
     iterator->m_filter = filter;
@@ -65,58 +76,11 @@ void NodeIterator::detach()
 }
 
 // https://dom.spec.whatwg.org/#concept-nodeiterator-traverse
-TraversalResult NodeIterator::traverse(TraversalFilter const& traversal_filter, Direction direction)
+TraversalResult NodeIterator::traverse(TraversalFilter const& traversal_filter, RustFFI::NodeIteratorDirection direction)
 {
-    // 1. Set iterator’s candidate reference to iterator’s reference.
-    m_candidate_reference = m_reference;
-
-    // 2. Let result be null.
-    GC::Ptr<Node> result;
-
-    // 3. While true:
-    while (true) {
-        // 1. If type is "next":
-        if (direction == Direction::Next) {
-            if (!m_candidate_reference->pointer_before) {
-                auto* next_node = m_candidate_reference->node->next_in_pre_order(m_root.ptr());
-                if (!next_node)
-                    break;
-                m_candidate_reference = { *next_node, false };
-            } else {
-                m_candidate_reference = { m_candidate_reference->node, false };
-            }
-        } else {
-            if (m_candidate_reference->pointer_before) {
-                if (m_candidate_reference->node.ptr() == m_root.ptr())
-                    break;
-                auto* previous_node = m_candidate_reference->node->previous_in_pre_order();
-                if (!previous_node)
-                    break;
-                m_candidate_reference = { *previous_node, true };
-            } else {
-                m_candidate_reference = { m_candidate_reference->node, true };
-            }
-        }
-
-        GC::Ref<Node> node = m_candidate_reference->node;
-
-        auto filter_result = filter(traversal_filter, *node);
-        if (filter_result.type == TraversalFilterResult::Type::AlreadyActive)
-            return TraversalResult::already_active();
-        if (filter_result.type == TraversalFilterResult::Type::CallbackException)
-            return TraversalResult::callback_exception();
-
-        if (filter_result.is(NodeFilter::Result::FILTER_ACCEPT)) {
-            m_reference = *m_candidate_reference;
-            result = node;
-            break;
-        }
-    }
-
-    // 4. Set iterator’s candidate reference to null.
-    m_candidate_reference.clear();
-
-    return TraversalResult::from_node(result);
+    // NB: libweb_rust runs the steps, see Rust/src/dom/traversal.rs. It calls the filter through the traversal filter,
+    //     which it is handed only if the filter is non-null.
+    return TraversalResult::from_rust(RustFFI::rust_dom_node_iterator_traverse(this, m_filter ? &traversal_filter : nullptr, direction));
 }
 
 // https://dom.spec.whatwg.org/#concept-traversal-filter
@@ -125,97 +89,16 @@ GC::Ptr<NodeFilter> NodeIterator::filter() const
     return m_filter;
 }
 
-// https://dom.spec.whatwg.org/#concept-node-filter
-TraversalFilterResult NodeIterator::filter(TraversalFilter const& traversal_filter, Node& node)
-{
-    // 1. If traverser’s active flag is set, then throw an "InvalidStateError" DOMException.
-    if (m_active)
-        return TraversalFilterResult::already_active();
-
-    // 2. Let n be node’s nodeType attribute value − 1.
-    auto n = node.node_type() - 1;
-
-    // 3. If the nth bit (where 0 is the least significant bit) of traverser’s whatToShow is not set, then return FILTER_SKIP.
-    if (!(m_what_to_show & (1u << n)))
-        return TraversalFilterResult::skip();
-
-    // 4. If traverser’s filter is null, then return FILTER_ACCEPT.
-    if (!m_filter)
-        return TraversalFilterResult::accept();
-
-    // 5. Set traverser’s active flag.
-    m_active = true;
-
-    // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode", and « node ».
-    //    If this throws an exception, then unset traverser’s active flag and rethrow the exception.
-    auto result = traversal_filter(node);
-    if (!result.has_value()) {
-        m_active = false;
-        return TraversalFilterResult::callback_exception();
-    }
-
-    // 7. Unset traverser’s active flag.
-    m_active = false;
-
-    // 8. Return result.
-    return TraversalFilterResult::from_result(*result);
-}
-
 // https://dom.spec.whatwg.org/#dom-nodeiterator-nextnode
 TraversalResult NodeIterator::next_node(TraversalFilter const& traversal_filter)
 {
-    return traverse(traversal_filter, Direction::Next);
+    return traverse(traversal_filter, RustFFI::NodeIteratorDirection::Next);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-previousnode
 TraversalResult NodeIterator::previous_node(TraversalFilter const& traversal_filter)
 {
-    return traverse(traversal_filter, Direction::Previous);
-}
-
-// https://dom.spec.whatwg.org/#nodeiterator-adjust
-NodeIterator::NodePointer NodeIterator::adjust_node_pointer(NodePointer node_pointer, Node& to_be_removed_node)
-{
-    // 1. If toBeRemovedNode is not an inclusive ancestor of nodePointer’s node, or toBeRemovedNode is an inclusive
-    //    ancestor of nodeIterator’s root, then return nodePointer.
-    if (!to_be_removed_node.is_inclusive_ancestor_of(node_pointer.node) || to_be_removed_node.is_inclusive_ancestor_of(root()))
-        return node_pointer;
-
-    // 2. If nodePointer’s pointer before is true:
-    if (node_pointer.pointer_before) {
-        // 1. Let next be toBeRemovedNode’s first following node that is an inclusive descendant of nodeIterator’s root
-        //    and is not an inclusive descendant of toBeRemovedNode, if there is such a node; otherwise null.
-        auto* next = to_be_removed_node.next_in_pre_order(root().ptr());
-        while (next && next->is_descendant_of(to_be_removed_node))
-            next = next->next_in_pre_order(root().ptr());
-
-        // 2. If next is non-null, then return (next, true).
-        if (next)
-            return { *next, true };
-    }
-
-    // 3. Let newNode be toBeRemovedNode’s parent, if toBeRemovedNode’s previous sibling is null; otherwise the
-    //    inclusive descendant of toBeRemovedNode’s previous sibling that appears last in tree order.
-    // NOTE: This is exactly toBeRemovedNode’s previous node in pre-order. It is never null here, because step 1
-    //       guarantees toBeRemovedNode is a proper descendant of the root and thus has a parent.
-    auto* new_node = to_be_removed_node.previous_in_pre_order();
-    VERIFY(new_node);
-
-    // 4. Return (newNode, false).
-    return { *new_node, false };
-}
-
-// https://dom.spec.whatwg.org/#nodeiterator-pre-removing-steps
-void NodeIterator::run_pre_removing_steps(Node& to_be_removed_node)
-{
-    // 1. Set nodeIterator’s reference to the result of adjusting a node pointer given nodeIterator’s reference,
-    //    nodeIterator, and toBeRemovedNode.
-    m_reference = adjust_node_pointer(m_reference, to_be_removed_node);
-
-    // 2. If nodeIterator’s candidate reference is non-null, then set nodeIterator’s candidate reference to the result
-    //    of adjusting a node pointer given nodeIterator’s candidate reference, nodeIterator, and toBeRemovedNode.
-    if (m_candidate_reference.has_value())
-        m_candidate_reference = adjust_node_pointer(*m_candidate_reference, to_be_removed_node);
+    return traverse(traversal_filter, RustFFI::NodeIteratorDirection::Previous);
 }
 
 }

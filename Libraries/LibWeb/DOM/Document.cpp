@@ -1135,6 +1135,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     m_paint_timing_state.visit_edges(visitor);
     m_commit_messages->visit_edges(visitor);
     m_live_ranges.visit_edges(visitor);
+    m_node_iterators.visit_edges(visitor);
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);
     visitor.visit(m_page);
@@ -1195,7 +1196,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_scripts_to_execute_when_parsing_has_finished);
     visitor.visit(m_scripts_to_execute_in_order_as_soon_as_possible);
     visitor.visit(m_scripts_to_execute_as_soon_as_possible);
-    visitor.visit(m_node_iterators);
     for (auto& pending_scroll_event : m_pending_scroll_events)
         visitor.visit(pending_scroll_event.event_target);
     // A MediaQueryList with change listeners must outlive its last script reference to receive change events.
@@ -4316,15 +4316,17 @@ void Document::adopt_node_from_other_document(Node& node, Document& old_document
     }
 
     // AD-HOC: Transfer NodeIterators rooted in `node`'s subtree from old_document to this document.
-    GC::RootVector<GC::Ref<NodeIterator>> node_iterators_to_transfer;
-    for (auto node_iterator : old_document.m_node_iterators) {
-        if (node_iterator->root()->is_shadow_including_inclusive_descendant_of(node))
-            node_iterators_to_transfer.append(*node_iterator);
-    }
+    if (!old_document.m_node_iterators.is_empty()) {
+        GC::RootVector<GC::Ref<NodeIterator>> node_iterators_to_transfer;
+        old_document.m_node_iterators.for_each([&](NodeIterator& node_iterator) {
+            if (node_iterator.root()->is_shadow_including_inclusive_descendant_of(node))
+                node_iterators_to_transfer.append(node_iterator);
+        });
 
-    for (NodeIterator& node_iterator : node_iterators_to_transfer) {
-        old_document.m_node_iterators.remove(&node_iterator);
-        m_node_iterators.set(&node_iterator);
+        for (NodeIterator& node_iterator : node_iterators_to_transfer) {
+            old_document.m_node_iterators.remove(node_iterator);
+            m_node_iterators.add(node_iterator);
+        }
     }
 
     // AD-HOC: Live ranges are registered with the document their boundary points belong to. The removal in step 2
@@ -5939,14 +5941,7 @@ GC::Ref<TreeWalker> Document::create_tree_walker(Node& root, unsigned what_to_sh
 
 void Document::register_node_iterator(Badge<NodeIterator>, NodeIterator& node_iterator)
 {
-    auto result = m_node_iterators.set(&node_iterator);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
-}
-
-void Document::unregister_node_iterator(Badge<NodeIterator>, NodeIterator& node_iterator)
-{
-    bool was_removed = m_node_iterators.remove(&node_iterator);
-    VERIFY(was_removed);
+    m_node_iterators.add(node_iterator);
 }
 
 void Document::attach_range(Badge<Range>, Range& range)

@@ -44,6 +44,7 @@ use super::node_core::DocumentCore;
 use super::node_core::DocumentFragmentCore;
 use super::node_core::NODE_CORE_OFFSET;
 use super::node_core::NodeCore;
+use super::node_core::NodeMember;
 use super::node_core::NodePointer;
 use super::node_core::NodeType;
 use crate::stage::MainThread;
@@ -92,6 +93,17 @@ impl NodeRef {
         Self {
             cell: decompress(pointer),
         }
+    }
+
+    /// The node a field of a cell that is no node holds, such as the root of a NodeIterator, or none if it is null.
+    ///
+    /// # Safety
+    ///
+    /// `member` must be a field of a live cell that keeps the node it names alive.
+    #[inline(always)]
+    pub(super) unsafe fn from_member(member: &NodeMember) -> Option<NodeRef> {
+        // SAFETY: Guaranteed by the caller.
+        member.get().map(|pointer| unsafe { Self::decode(pointer) })
     }
 
     /// The compressed pointer that names the node, as links and GC::Member fields hold it.

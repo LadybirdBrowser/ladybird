@@ -26,5 +26,6 @@ mod steps;
 pub mod strings;
 #[cfg(test)]
 pub(crate) mod test_tree;
+pub mod traversal;
 mod tree;
 pub mod weak_cells;

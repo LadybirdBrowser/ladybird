@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A filter that starts a traversal on its own iterator gets an InvalidStateError, and the traversal that
+        // called the filter goes on.
+        const root = document.createElement("div");
+        root.append(document.createElement("span"), document.createElement("b"));
+        let iterator;
+        const filter = () => {
+            try {
+                iterator.nextNode();
+            } catch (error) {
+                println(`Nested traversal threw ${error.name}`);
+            }
+            return NodeFilter.FILTER_ACCEPT;
+        };
+        iterator = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT, filter);
+        println(`First node: ${iterator.nextNode().nodeName}`);
+        println(`Second node: ${iterator.nextNode().nodeName}`);
+    });
+</script>

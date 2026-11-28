@@ -315,7 +315,9 @@ pub(crate) fn adjust_live_ranges_for_insertion(
 }
 
 /// https://dom.spec.whatwg.org/#live-range-pre-remove-steps
+#[inline(always)]
 pub(crate) fn live_range_pre_remove_steps(main_thread: &mut MainThread<'_>, node: NodeRef) {
+    // OPTIMIZATION: Most documents have no live range, so the check for none is inlined into the removal.
     if node.document_core().live_ranges().is_empty() {
         return;
     }
@@ -340,6 +342,7 @@ pub(crate) fn live_range_pre_remove_steps_for_all_children(main_thread: &mut Mai
 /// The live range pre-remove steps given `node`, but for telling the selection and highlights of the live ranges whose
 /// start or end they set, which they mark instead. Answers whether they marked any.
 /// https://dom.spec.whatwg.org/#live-range-pre-remove-steps
+#[inline(never)]
 fn run_live_range_pre_remove_steps(main_thread: &MainThread<'_>, node: Node<'_>) -> bool {
     let node_ref = NodeRef::from(node);
     let live_ranges = node_ref.document_core().live_ranges();

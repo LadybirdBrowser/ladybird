@@ -1,0 +1,4 @@
+Nested traversal threw InvalidStateError
+First node: DIV
+Nested traversal threw InvalidStateError
+Second node: SPAN

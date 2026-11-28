@@ -1105,7 +1105,6 @@ public:
     GC::Ref<TreeWalker> create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     void register_node_iterator(Badge<NodeIterator>, NodeIterator&);
-    void unregister_node_iterator(Badge<NodeIterator>, NodeIterator&);
 
     void attach_range(Badge<Range>, Range&);
     void detach_range(Badge<Range>, Range&);
@@ -1120,13 +1119,6 @@ public:
     void register_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement&);
     void unregister_svg_use_element(Badge<SVG::SVGUseElement>, SVG::SVGUseElement&);
     SVG::SVGUseElement::DocumentUseElementList& svg_use_elements() { return m_svg_use_elements; }
-
-    template<typename Callback>
-    void for_each_node_iterator(Callback callback)
-    {
-        for (auto& node_iterator : m_node_iterators)
-            callback(*node_iterator);
-    }
 
     bool has_completed_style_update() const { return m_has_completed_style_update; }
     bool has_dirty_style_attributes() const { return !m_elements_with_dirty_style_attributes.is_empty(); }
@@ -2285,7 +2277,9 @@ private:
     // The inputs the style update that flew was sealed with, which its drain takes its reactions in against.
     Optional<CSS::StyleUpdateInputs> m_flown_style_update_inputs;
 
-    HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
+    // NB: Every NodeIterator is registered with its root's node document, which keeps them weakly, so that libweb_rust
+    //     can walk them in place, see Rust/src/dom/weak_cells.rs.
+    WeakCellRegistry<NodeIterator> m_node_iterators { *this, m_document_core.node_iterators };
 
     // https://dom.spec.whatwg.org/#concept-live-range
     // NB: A live range keeps its owner document alive, and this keeps the live ranges weakly, so that libweb_rust can

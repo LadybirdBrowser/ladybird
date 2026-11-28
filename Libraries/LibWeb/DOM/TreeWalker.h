@@ -17,7 +17,7 @@ class TreeWalker final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(TreeWalker);
 
 public:
-    static constexpr size_t root_offset() { return offsetof(TreeWalker, m_root); }
+    static constexpr GC::MemberOffset root_offset() { return GC_FIELD_OFFSET(TreeWalker, m_tree_walker_core.traverser.root); }
     [[nodiscard]] static GC::Ref<TreeWalker> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~TreeWalker() override;
@@ -33,45 +33,28 @@ public:
     TraversalResult previous_node(TraversalFilter const&);
     TraversalResult next_node(TraversalFilter const&);
 
-    GC::Ref<Node> root() { return m_root; }
+    GC::Ref<Node> root() { return *m_tree_walker_core.traverser.root; }
 
     GC::Ptr<NodeFilter> filter() const;
 
-    unsigned what_to_show() const { return m_what_to_show; }
+    unsigned what_to_show() const { return m_tree_walker_core.traverser.what_to_show; }
 
 private:
     explicit TreeWalker(Node& root);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    enum class ChildTraversalType {
-        First,
-        Last,
-    };
-    TraversalResult traverse_children(TraversalFilter const&, ChildTraversalType);
-
-    enum class SiblingTraversalType {
-        Next,
-        Previous,
-    };
-    TraversalResult traverse_siblings(TraversalFilter const&, SiblingTraversalType);
-
-    TraversalFilterResult filter(TraversalFilter const&, Node&);
+    TraversalResult traverse(TraversalFilter const&, RustFFI::TreeWalkerTraversal);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
-    GC::Ref<Node> m_root;
-
-    // https://dom.spec.whatwg.org/#treewalker-current
-    GC::Ref<Node> m_current;
-
     // https://dom.spec.whatwg.org/#concept-traversal-whattoshow
-    unsigned m_what_to_show { 0 };
+    // https://dom.spec.whatwg.org/#concept-traversal-active
+    // https://dom.spec.whatwg.org/#treewalker-current
+    // NB: libweb_rust reads and writes these in place, see Rust/src/dom/traversal.rs.
+    RustFFI::TreeWalkerCore m_tree_walker_core;
 
     // https://dom.spec.whatwg.org/#concept-traversal-filter
     GC::Ptr<NodeFilter> m_filter;
-
-    // https://dom.spec.whatwg.org/#concept-traversal-active
-    bool m_active { false };
 };
 
 }

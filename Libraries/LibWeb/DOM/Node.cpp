@@ -922,13 +922,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
     return pre_insert(node, nullptr);
 }
 
-void Node::run_node_iterator_pre_removing_steps()
-{
-    document().for_each_node_iterator([&](NodeIterator& node_iterator) {
-        node_iterator.run_pre_removing_steps(*this);
-    });
-}
-
 // NB: A node hears of a box the frame in flight built for it as the frame lands, so it may have one already. Only an
 //     element or a text node can.
 bool Node::may_have_layout_box() const
@@ -1351,10 +1344,7 @@ void Node::begin_move(MoveScope& scope, Node& old_parent, Node& old_parent_root,
         });
     }
 
-    // 10. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
-    //     NodeIterator pre-remove steps given node and iterator.
-    // NB: libweb_rust runs step 9 after this, see Rust/src/dom/move_node.rs.
-    run_node_iterator_pre_removing_steps();
+    // NB: libweb_rust runs steps 9 and 10 after this, see Rust/src/dom/move_node.rs.
 
     // A move keeps the identities in the style engine's tree, so every node on either side of it is named before the
     // move is recorded against them.
@@ -4400,10 +4390,6 @@ public:
         if (facts.was_connected)
             document.page().keyboard_scroll_dom_tree_changed(*node);
 
-        // 4. For each NodeIterator object iterator whose root’s node document is node’s node document: run the
-        //    NodeIterator pre-remove steps given node and iterator.
-        node->run_node_iterator_pre_removing_steps();
-
         if (!children_removal) {
             node->schedule_list_item_renumber_for_removal();
             facts.holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*node);
@@ -4549,6 +4535,17 @@ public:
         as<Document>(*document).live_range_boundary_points_set();
     }
 
+    // https://dom.spec.whatwg.org/#concept-node-filter
+    static RustFFI::NodeFilterCall call_node_filter(void const* filter, Node* node)
+    {
+        // 6. Let result be the return value of call a user object’s operation with traverser’s filter, "acceptNode",
+        //    and « node ».
+        auto result = (*static_cast<TraversalFilter const*>(filter))(*node);
+        if (!result.has_value())
+            return { .result = 0, .threw = true };
+        return { .result = to_underlying(*result), .threw = false };
+    }
+
     // https://dom.spec.whatwg.org/#concept-collection
     static void queue_tree_mutation_record(Node* target, ReadonlySpan<GC::Ref<Node>> added_nodes, ReadonlySpan<GC::Ref<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
     {
@@ -4583,6 +4580,7 @@ static constexpr RustFFI::DomHooks s_rust_dom_hooks {
         .end_move = RustDOMHooks::end_move,
     },
     .live_range_boundary_points_set = RustDOMHooks::live_range_boundary_points_set,
+    .call_node_filter = RustDOMHooks::call_node_filter,
     .queue_tree_mutation_record = RustDOMHooks::queue_tree_mutation_record,
 };
 
