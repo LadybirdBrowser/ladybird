@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- The image is 40x20, a red, lime, blue and yellow quadrant clockwise from the top left, tagged with EXIF orientation 6,
+     which turns it 90 degrees clockwise. -->
+<img id="image" src="data:image/jpeg;base64,/9j/4QAiRXhpZgAASUkqAAgAAAABABIBAwABAAAABgAAAAAAAAD/4AAQSkZJRgABAQAAAQABAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAAUACgDAREAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAoJC//EADEQAAABBQwLAQAAAAAAAAAAAAAGFBYXGAQFBwgKExUkVlelpgMJNDZHSIaIxtXWyP/EABkBAQEBAQEBAAAAAAAAAAAAAAAKCAcLCf/EADURAAABBgcPBQAAAAAAAAAAAAAGBwgUFRcJFhgZWKfXBAUKJTdGSVZXhoilxcjVAyMmNTb/2gAMAwEAAhEDEQA/AMXx8pxfwAANKNXnxe6A81GW0lcy94+giFfDUNGrxj9qw0oGWxCuAAIlV8wr2qwMm/Tj1RJkuDFozVzJBWri9id7hEqQtUxjrMwXzCvarAyb9OEyXBi0Zq5kgrVwne4RKkLVMY6zMVMyaQmnkjHtqLncSZIazkjdZdZO0akS+KY3U07xnh5Qb1bedG5rVZifdM9GzhbSLpi0Bpv+SYQzqHryrI//ACYsC6b8RZN0VcpRQFiymVHEpPpWcvNHGK4p3Aq8TPFfq+cKDF2XPdL8XHNd13s3ObSK7y2XHbI/6Rv202nfkj+iazNZOKFBfvmu1MseRc7u83F19OI2X4nR1o5ITviRxOa3QS2GVmnitBBjyLnd3m4uvpwfidHWjkhO+JCa3QS2GVmnitBHJvHvQDl4AAsUkmvP32r/AKOEAeHOaLrjZ7RxqhGfPbdvrwsUEAY1QAAP/9k=">
+<script>
+    function colorName([red, green, blue]) {
+        if (red > 200 && green > 200 && blue < 80)
+            return "yellow";
+        if (red > 200)
+            return "red";
+        if (green > 200)
+            return "lime";
+        if (blue > 200)
+            return "blue";
+        return `${red},${green},${blue}`;
+    }
+
+    function corners(source, width, height) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(source, 0, 0);
+        const at = (x, y) => colorName(context.getImageData(x, y, 1, 1).data);
+        return [at(2, 2), at(width - 3, 2), at(2, height - 3), at(width - 3, height - 3)].join(" ");
+    }
+
+    promiseTest(async () => {
+        const image = document.getElementById("image");
+        await image.decode();
+        println(`natural size: ${image.naturalWidth}x${image.naturalHeight}`);
+        println(`drawImage corners: ${corners(image, image.naturalWidth, image.naturalHeight)}`);
+        const bitmap = await createImageBitmap(image);
+        println(`createImageBitmap: ${bitmap.width}x${bitmap.height}, corners ${corners(bitmap, bitmap.width, bitmap.height)}`);
+    });
+</script>

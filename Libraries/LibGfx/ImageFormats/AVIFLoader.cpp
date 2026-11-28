@@ -5,10 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Math.h>
 #include <LibGfx/ImageFormats/AVIFLoader.h>
+#include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
+#include <LibGfx/ImageFormats/TIFFMetadata.h>
 
 #include <avif/avif.h>
 
@@ -33,6 +36,8 @@ public:
 
     // image properties
     Optional<IntSize> size;
+    IntSize decoded_size;
+    TIFF::Orientation orientation { TIFF::Orientation::Default };
     bool has_alpha { false };
     size_t image_count { 0 };
     size_t repetition_count { 0 };
@@ -54,6 +59,25 @@ AVIFImageDecoderPlugin::AVIFImageDecoderPlugin(ReadonlyBytes data, OwnPtr<AVIFLo
 
 AVIFImageDecoderPlugin::~AVIFImageDecoderPlugin()
 {
+}
+
+// The orientation that shows an image the way its 'irot' rotation and then its 'imir' mirroring do.
+// https://www.iso.org/standard/83650.html (ISO/IEC 23008-12, 6.5.10 and 6.5.12)
+static TIFF::Orientation orientation_of(avifImage const& image)
+{
+    using enum TIFF::Orientation;
+    auto angle = (image.transformFlags & AVIF_TRANSFORM_IROT) ? image.irot.angle % 4 : 0;
+    if (!(image.transformFlags & AVIF_TRANSFORM_IMIR)) {
+        static constexpr Array rotated { Default, Rotate90CounterClockwise, Rotate180, Rotate90Clockwise };
+        return rotated[angle];
+    }
+    // NB: An axis of 0 exchanges the top and bottom, and an axis of 1 the left and right.
+    if (image.imir.axis == 0) {
+        static constexpr Array mirrored_top_to_bottom { FlipVertically, Rotate90ClockwiseThenFlipHorizontally, FlipHorizontally, FlipHorizontallyThenRotate90Clockwise };
+        return mirrored_top_to_bottom[angle];
+    }
+    static constexpr Array mirrored_left_to_right { FlipHorizontally, FlipHorizontallyThenRotate90Clockwise, FlipVertically, Rotate90ClockwiseThenFlipHorizontally };
+    return mirrored_left_to_right[angle];
 }
 
 static ErrorOr<void> decode_avif_header(AVIFLoadingContext& context)
@@ -83,7 +107,9 @@ static ErrorOr<void> decode_avif_header(AVIFLoadingContext& context)
         return Error::from_string_literal("Failed to decode AVIF");
 
     // Image header now decoded, save some results for fast access in other parts of the plugin.
-    context.size = IntSize { context.decoder->image->width, context.decoder->image->height };
+    context.decoded_size = IntSize { context.decoder->image->width, context.decoder->image->height };
+    context.orientation = orientation_of(*context.decoder->image);
+    context.size = ExifOrientedBitmap::oriented_size(context.decoded_size, context.orientation);
     context.has_alpha = context.decoder->alphaPresent == 1;
     context.image_count = context.decoder->imageCount;
     context.repetition_count = context.decoder->repetitionCount <= 0 ? 0 : context.decoder->repetitionCount;
@@ -115,7 +141,7 @@ static ErrorOr<ImageFrameDescriptor> decode_avif_frame(AVIFLoadingContext& conte
         return Error::from_string_literal("Failed to decode AVIF frame");
 
     auto bitmap_format = context.has_alpha ? BitmapFormat::BGRA8888 : BitmapFormat::BGRx8888;
-    auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, AlphaType::Unpremultiplied, context.size.value()));
+    auto bitmap = TRY(Bitmap::create_shareable_with_gpu_access(bitmap_format, AlphaType::Unpremultiplied, context.decoded_size));
 
     avifRGBImage rgb;
     avifRGBImageSetDefaults(&rgb, context.decoder->image);
@@ -127,6 +153,16 @@ static ErrorOr<ImageFrameDescriptor> decode_avif_frame(AVIFLoadingContext& conte
     avifResult result = avifImageYUVToRGB(context.decoder->image, &rgb);
     if (result != AVIF_RESULT_OK)
         return Error::from_string_literal("Conversion from YUV to RGB failed");
+
+    if (context.orientation != TIFF::Orientation::Default) {
+        auto oriented = TRY(ExifOrientedBitmap::create(context.orientation, bitmap->size(), bitmap->format(), bitmap->alpha_type()));
+        for (int y = 0; y < bitmap->height(); ++y) {
+            auto const* row = bitmap->scanline(y);
+            for (int x = 0; x < bitmap->width(); ++x)
+                oriented.set_pixel(x, y, row[x]);
+        }
+        bitmap = oriented.bitmap();
+    }
 
     return ImageFrameDescriptor { bitmap, frame_duration_in_milliseconds(context, context.decoder->imageTiming.duration) };
 }

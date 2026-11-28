@@ -1032,6 +1032,104 @@ TEST_CASE(test_exif)
     EXPECT_EQ(frame.image->get_pixel(190, 10), Gfx::Color(255, 0, 0));
 }
 
+// Checks the corners of a 40x20 test image of a red, lime, blue and yellow quadrant clockwise from the top left, as
+// some orientation shows it: The expected corners are 'r', 'l', 'b' or 'y', top left, top right, bottom left, bottom right.
+static void expect_quadrant_corners(Gfx::Bitmap const& image, Array<char, 4> corners)
+{
+    auto color_name = [](Gfx::Color color) {
+        if (color.red() > 200 && color.green() > 200 && color.blue() < 80)
+            return 'y';
+        if (color.red() > 200)
+            return 'r';
+        if (color.green() > 200)
+            return 'l';
+        if (color.blue() > 200)
+            return 'b';
+        return '?';
+    };
+    auto width = image.width();
+    auto height = image.height();
+    EXPECT_EQ(color_name(image.get_pixel(2, 2)), corners[0]);
+    EXPECT_EQ(color_name(image.get_pixel(width - 3, 2)), corners[1]);
+    EXPECT_EQ(color_name(image.get_pixel(2, height - 3)), corners[2]);
+    EXPECT_EQ(color_name(image.get_pixel(width - 3, height - 3)), corners[3]);
+}
+
+TEST_CASE(test_jpeg_exif_orientation)
+{
+    // Each file is the same 40x20 image, a red, lime, blue and yellow quadrant clockwise from the top left, tagged with
+    // one of the eight EXIF orientations. The decoded image is that image shown in that orientation.
+    struct Case {
+        StringView path;
+        Gfx::IntSize size;
+        Array<char, 4> corners;
+    };
+    static constexpr Array cases {
+        Case { "jpg/exif-orientation-1.jpg"sv, { 40, 20 }, { 'r', 'l', 'b', 'y' } },
+        Case { "jpg/exif-orientation-2.jpg"sv, { 40, 20 }, { 'l', 'r', 'y', 'b' } },
+        Case { "jpg/exif-orientation-3.jpg"sv, { 40, 20 }, { 'y', 'b', 'l', 'r' } },
+        Case { "jpg/exif-orientation-4.jpg"sv, { 40, 20 }, { 'b', 'y', 'r', 'l' } },
+        Case { "jpg/exif-orientation-5.jpg"sv, { 20, 40 }, { 'r', 'b', 'l', 'y' } },
+        Case { "jpg/exif-orientation-6.jpg"sv, { 20, 40 }, { 'b', 'r', 'y', 'l' } },
+        Case { "jpg/exif-orientation-7.jpg"sv, { 20, 40 }, { 'y', 'l', 'b', 'r' } },
+        Case { "jpg/exif-orientation-8.jpg"sv, { 20, 40 }, { 'l', 'y', 'r', 'b' } },
+    };
+    for (auto const& test_case : cases) {
+        auto file = TRY_OR_FAIL(Core::MappedFile::map(ByteString::formatted(TEST_INPUT("{}"), test_case.path)));
+        EXPECT(Gfx::JPEGImageDecoderPlugin::sniff(file->bytes()));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+        auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, test_case.size));
+        EXPECT(plugin_decoder->metadata().has_value());
+
+        expect_quadrant_corners(*frame.image, test_case.corners);
+    }
+}
+
+TEST_CASE(test_jpeg_exif_orientation_cmyk)
+{
+    // The quadrant image in CMYK, tagged with EXIF orientation 6, which turns it 90 degrees clockwise.
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("jpg/exif-orientation-6-cmyk.jpg"sv)));
+    auto plugin_decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(file->bytes()));
+    auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, { 20, 40 }));
+    expect_quadrant_corners(*frame.image, { 'b', 'r', 'y', 'l' });
+
+    EXPECT_EQ(plugin_decoder->natural_frame_format(), Gfx::NaturalFrameFormat::CMYK);
+    auto cmyk_frame = TRY_OR_FAIL(plugin_decoder->cmyk_frame());
+    EXPECT_EQ(cmyk_frame->size(), Gfx::IntSize(20, 40));
+}
+
+TEST_CASE(test_avif_rotation_and_mirroring)
+{
+    // Each file is the same 40x20 image, a red, lime, blue and yellow quadrant clockwise from the top left, with an
+    // 'irot' rotation of r times 90 degrees anticlockwise and, after it, an 'imir' mirroring across axis m.
+    struct Case {
+        StringView path;
+        Gfx::IntSize size;
+        Array<char, 4> corners;
+    };
+    static constexpr Array cases {
+        Case { "avif/orientation-r0.avif"sv, { 40, 20 }, { 'r', 'l', 'b', 'y' } },
+        Case { "avif/orientation-r0-m0.avif"sv, { 40, 20 }, { 'b', 'y', 'r', 'l' } },
+        Case { "avif/orientation-r0-m1.avif"sv, { 40, 20 }, { 'l', 'r', 'y', 'b' } },
+        Case { "avif/orientation-r1.avif"sv, { 20, 40 }, { 'l', 'y', 'r', 'b' } },
+        Case { "avif/orientation-r1-m0.avif"sv, { 20, 40 }, { 'r', 'b', 'l', 'y' } },
+        Case { "avif/orientation-r1-m1.avif"sv, { 20, 40 }, { 'y', 'l', 'b', 'r' } },
+        Case { "avif/orientation-r2.avif"sv, { 40, 20 }, { 'y', 'b', 'l', 'r' } },
+        Case { "avif/orientation-r2-m0.avif"sv, { 40, 20 }, { 'l', 'r', 'y', 'b' } },
+        Case { "avif/orientation-r2-m1.avif"sv, { 40, 20 }, { 'b', 'y', 'r', 'l' } },
+        Case { "avif/orientation-r3.avif"sv, { 20, 40 }, { 'b', 'r', 'y', 'l' } },
+        Case { "avif/orientation-r3-m0.avif"sv, { 20, 40 }, { 'y', 'l', 'b', 'r' } },
+        Case { "avif/orientation-r3-m1.avif"sv, { 20, 40 }, { 'r', 'b', 'l', 'y' } },
+    };
+    for (auto const& test_case : cases) {
+        auto file = TRY_OR_FAIL(Core::MappedFile::map(ByteString::formatted(TEST_INPUT("{}"), test_case.path)));
+        EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+        auto plugin_decoder = TRY_OR_FAIL(Gfx::AVIFImageDecoderPlugin::create(file->bytes()));
+        auto frame = TRY_OR_FAIL(expect_single_frame_of_size(*plugin_decoder, test_case.size));
+        expect_quadrant_corners(*frame.image, test_case.corners);
+    }
+}
+
 TEST_CASE(test_exif_orientation_transpose_non_square)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("png/exif-orientation-5.png"sv)));

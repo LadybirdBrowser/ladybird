@@ -22,7 +22,7 @@ public:
 
     void set_pixel(u32 x, u32 y, RawPixel color)
     {
-        auto const new_position = oriented_position(IntPoint(x, y));
+        auto const new_position = oriented_position(IntPoint(x, y), { static_cast<int>(m_width), static_cast<int>(m_height) }, m_orientation);
         m_bitmap->scanline(new_position.y())[new_position.x()] = color;
     }
 
@@ -48,6 +48,40 @@ public:
         VERIFY_NOT_REACHED();
     }
 
+    // Where the pixel at the point of an image of the given size goes once the image is shown in the orientation.
+    static IntPoint oriented_position(IntPoint point, IntSize size, TIFF::Orientation orientation)
+    {
+        auto const width = size.width();
+        auto const height = size.height();
+        auto const flip_horizontally = [width](IntPoint point) {
+            return IntPoint(width - point.x() - 1, point.y());
+        };
+
+        auto const rotate_90_clockwise = [height](IntPoint point) {
+            return IntPoint(height - point.y() - 1, point.x());
+        };
+
+        switch (orientation) {
+        case TIFF::Orientation::Default:
+            return point;
+        case TIFF::Orientation::FlipHorizontally:
+            return flip_horizontally(point);
+        case TIFF::Orientation::Rotate180:
+            return IntPoint(width - point.x() - 1, height - point.y() - 1);
+        case TIFF::Orientation::FlipVertically:
+            return IntPoint(point.x(), height - point.y() - 1);
+        case TIFF::Orientation::Rotate90ClockwiseThenFlipHorizontally:
+            return IntPoint(point.y(), point.x());
+        case TIFF::Orientation::Rotate90Clockwise:
+            return rotate_90_clockwise(point);
+        case TIFF::Orientation::FlipHorizontallyThenRotate90Clockwise:
+            return rotate_90_clockwise(flip_horizontally(point));
+        case TIFF::Orientation::Rotate90CounterClockwise:
+            return IntPoint(point.y(), width - point.x() - 1);
+        }
+        VERIFY_NOT_REACHED();
+    }
+
 private:
     using Orientation = TIFF::Orientation;
 
@@ -57,37 +91,6 @@ private:
         , m_width(size.width())
         , m_height(size.height())
     {
-    }
-
-    IntPoint oriented_position(IntPoint point)
-    {
-        auto const flip_horizontally = [this](IntPoint point) {
-            return IntPoint(m_width - point.x() - 1, point.y());
-        };
-
-        auto const rotate_90_clockwise = [this](IntPoint point) {
-            return IntPoint(m_height - point.y() - 1, point.x());
-        };
-
-        switch (m_orientation) {
-        case Orientation::Default:
-            return point;
-        case Orientation::FlipHorizontally:
-            return flip_horizontally(point);
-        case Orientation::Rotate180:
-            return IntPoint(m_width - point.x() - 1, m_height - point.y() - 1);
-        case Orientation::FlipVertically:
-            return IntPoint(point.x(), m_height - point.y() - 1);
-        case Orientation::Rotate90ClockwiseThenFlipHorizontally:
-            return IntPoint(point.y(), point.x());
-        case Orientation::Rotate90Clockwise:
-            return rotate_90_clockwise(point);
-        case Orientation::FlipHorizontallyThenRotate90Clockwise:
-            return rotate_90_clockwise(flip_horizontally(point));
-        case Orientation::Rotate90CounterClockwise:
-            return IntPoint(point.y(), m_width - point.x() - 1);
-        }
-        VERIFY_NOT_REACHED();
     }
 
     NonnullRefPtr<Bitmap> m_bitmap;
